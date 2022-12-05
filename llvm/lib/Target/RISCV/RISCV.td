@@ -301,7 +301,7 @@ def HasStdExtCOrZcd
                 AssemblerPredicate<(any_of FeatureStdExtC, FeatureExtZcd),
                                    "'C' (Compressed Instructions) or "
                                    "'Zcd' (Compressed Double-Precision Floating-Point Instructions)">;
-                                   
+
 def FeatureExtZcf
     : SubtargetFeature<"experimental-zcf", "HasStdExtZcf", "true",
                        "'Zcf' (Compressed Single-Precision Floating-Point Instructions)">;
@@ -631,6 +631,14 @@ def : ProcessorModel<"sifive-u74", SiFive7Model, [Feature64Bit,
                                                   FeatureStdExtD,
                                                   FeatureStdExtC],
                      [TuneSiFive7]>;
+
+def : ProcessorModel<"ventus-gpgpu", RocketModel, [Feature64Bit,
+                                                   FeatureStdExtM,
+                                                   FeatureStdExtA,
+                                                   FeatureStdExtV,
+                                                   FeatureStdExtZhinx,
+                                                   FeatureStdExtZfinx,
+                                                   FeatureStdExtZdinx]>;
 
 //===----------------------------------------------------------------------===//
 // Define the RISC-V target.
