@@ -632,13 +632,13 @@ def : ProcessorModel<"sifive-u74", SiFive7Model, [Feature64Bit,
                                                   FeatureStdExtC],
                      [TuneSiFive7]>;
 
-def : ProcessorModel<"ventus-gpgpu", RocketModel, [Feature64Bit,
+def : ProcessorModel<"ventus-gpgpu", RocketModel, [Feature32Bit,
                                                    FeatureStdExtM,
                                                    FeatureStdExtA,
-                                                   FeatureStdExtV,
                                                    FeatureStdExtZhinx,
                                                    FeatureStdExtZfinx,
-                                                   FeatureStdExtZdinx]>;
+                                                   FeatureStdExtZdinx,
+                                                   FeatureStdExtZve32f]>;
 
 //===----------------------------------------------------------------------===//
 // Define the RISC-V target.
