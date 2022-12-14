@@ -11298,11 +11298,127 @@ ABIArgInfo RISCVABIInfo::extendType(QualType Ty) const {
 }
 
 namespace {
+class VentusRISCVABIInfo : public DefaultABIInfo {
+private:
+  // Size of the integer ('x) registers in bits
+  unsigned XLen;
+  // FIXME: Avoid hardcode this variable
+  // Size of max VLen
+  static const int VLen = 1024;
+
+  // Ventus GPGPU only support OpenCL C where non-kernel function passes
+  // arguments in V2-V7, return value is passed back in V2.
+  static const int NumArgVGPRs = 6;
+  static const int NumRetVGPRs = 1;
+
+public:
+  VentusRISCVABIInfo(CodeGen::CodeGenTypes &CGT, unsigned XLen)
+      : DefaultABIInfo(CGT), XLen(XLen) {}
+
+  void computeInfo(CGFunctionInfo &FI) const override;
+  Address EmitVAArg(CodeGenFunction &CGF, Address VAListAddr,
+                    QualType Ty) const override;
+
+  ABIArgInfo classifyReturnType(QualType RetTy) const;
+  ABIArgInfo classifyKernelArgumentType(QualType Ty) const;
+  ABIArgInfo classifyArgumentType(QualType Ty, unsigned &NumRegsLeft) const;
+};
+
+void VentusRISCVABIInfo::computeInfo(CGFunctionInfo &FI) const {
+  llvm::CallingConv::ID CC = FI.getCallingConvention();
+
+  if (!getCXXABI().classifyReturnType(FI))
+    FI.getReturnInfo() = classifyReturnType(FI.getReturnType());
+
+  unsigned NumRegsLeft = NumArgVGPRs;
+  for (auto &Arg : FI.arguments()) {
+    // FIXME: Is SPIR_KERNEL CC handled by upper layer?
+    if (CC == llvm::CallingConv::SPIR_KERNEL) {
+      Arg.info = classifyKernelArgumentType(Arg.type);
+    } else {
+      Arg.info = classifyArgumentType(Arg.type, NumRegsLeft);
+    }
+  }
+}
+
+Address VentusRISCVABIInfo::EmitVAArg(CodeGenFunction &CGF, Address VAListAddr,
+                                   QualType Ty) const {
+  llvm_unreachable("TODO: Support varargs in ventus!");
+}
+
+ABIArgInfo VentusRISCVABIInfo::classifyReturnType(QualType RetTy) const {
+  if (RetTy->isVoidType())
+    return ABIArgInfo::getIgnore();
+
+  unsigned ArgVGPRsLeft = 1;
+  // The rules for return and argument types are the same
+  return classifyArgumentType(RetTy, ArgVGPRsLeft);
+}
+
+ABIArgInfo VentusRISCVABIInfo::classifyKernelArgumentType(QualType Ty) const {
+  llvm_unreachable("TODO: Should we handle kernel arg here?");
+}
+
+ABIArgInfo VentusRISCVABIInfo::classifyArgumentType(QualType Ty,
+                                                    unsigned &NumRegsLeft) const {
+  assert(NumRegsLeft <= NumArgVGPRs && "register estimate underflow");
+
+  Ty = useFirstFieldIfTransparentUnion(Ty);
+
+  if (isAggregateTypeForABI(Ty)) {
+    // Records with non-trivial destructors/copy-constructors should not be
+    // passed by value.
+    if (auto RAA = getRecordArgABI(Ty, getCXXABI()))
+      return getNaturalAlignIndirect(Ty, RAA == CGCXXABI::RAA_DirectInMemory);
+
+    // Ignore empty structs/unions.
+    if (isEmptyRecord(getContext(), Ty, true))
+      return ABIArgInfo::getIgnore();
+
+    // Lower single-element structs to just pass a regular value. TODO: We
+    // could do reasonable-size multiple-element structs too, using getExpand(),
+    // though watch out for things like bitfields.
+    if (const Type *SeltTy = isSingleElementStruct(Ty, getContext()))
+      return ABIArgInfo::getDirect(CGT.ConvertType(QualType(SeltTy, 0)));
+
+    if (const RecordType *RT = Ty->getAs<RecordType>()) {
+      const RecordDecl *RD = RT->getDecl();
+      if (RD->hasFlexibleArrayMember())
+        return DefaultABIInfo::classifyArgumentType(Ty);
+    }
+
+    // FIXME: We can nearly can fit any aggregate typ in a VGPR, as VLen is
+    // 1024 bits
+    uint64_t Size = getContext().getTypeSize(Ty);
+    assert(Size < VLen && "TODO: Support huge aggregate type");
+    if (NumRegsLeft >= 1) {
+      NumRegsLeft -= 1;
+      return ABIArgInfo::getDirect();
+    }
+  }
+
+  // Otherwise just do the default thing.
+  if (NumRegsLeft) {
+    ABIArgInfo ArgInfo = DefaultABIInfo::classifyArgumentType(Ty);
+    if (!ArgInfo.isIndirect()) {
+      NumRegsLeft -= 1;
+    }
+    return ArgInfo;
+  } else {
+    return getNaturalAlignIndirect(Ty, false);
+  }
+}
+
+}
+
+namespace {
 class RISCVTargetCodeGenInfo : public TargetCodeGenInfo {
 public:
+  // TODO: Pick VentusRISCVABI or RISCVABI conditionally according to
+  // target CPU.
   RISCVTargetCodeGenInfo(CodeGen::CodeGenTypes &CGT, unsigned XLen,
                          unsigned FLen)
-      : TargetCodeGenInfo(std::make_unique<RISCVABIInfo>(CGT, XLen, FLen)) {}
+      : TargetCodeGenInfo(std::make_unique<VentusRISCVABIInfo>(CGT, XLen)) {}
 
   void setTargetAttributes(const Decl *D, llvm::GlobalValue *GV,
                            CodeGen::CodeGenModule &CGM) const override {
