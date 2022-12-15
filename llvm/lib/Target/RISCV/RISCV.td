@@ -535,7 +535,8 @@ include "RISCVSystemOperands.td"
 //===----------------------------------------------------------------------===//
 
 include "RISCVSchedule.td"
-include "RISCVRegisterInfo.td"
+// include "RISCVRegisterInfo.td"
+include "VentusRegisterInfo.td"
 include "RISCVCallingConv.td"
 include "RISCVInstrInfo.td"
 include "GISel/RISCVRegisterBanks.td"
