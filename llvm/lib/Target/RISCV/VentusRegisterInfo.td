@@ -1,4 +1,4 @@
-//===-- RISCVRegisterInfo.td - RISC-V Register defs --------*- tablegen -*-===//
+//===-- VentusRegisterInfo.td - Ventus Register defs -------*- tablegen -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,27 +7,33 @@
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
-//  Declarations that describe the RISC-V register files
+// Declarations that describe the RISC-V register files for Ventus GPGPU:
+//  General purpose sALU registers: x0-x63
+//  General purpose vALU registers: v0-v255
 //===----------------------------------------------------------------------===//
 
 class Indexes<int N> {
   list<int> all = [0,   1,  2,  3,  4,  5,  6 , 7,
-                   8,   9, 10, 11, 12, 13, 14, 15,
-                   16, 17, 18, 19, 20, 21, 22, 23,
-                   24, 25, 26, 27, 28, 29, 30, 31];
+                   8,   9, 10, 11, 12, 13, 14, 15];
 
   // Returns list of indexes [0..N)
   list<int> slice = !filter(i, all, !lt(i, N));
 }
 
 let Namespace = "RISCV" in {
-class RISCVReg<bits<5> Enc, string n, list<string> alt = []> : Register<n> {
-  let HWEncoding{4-0} = Enc;
+// Single instruction can not encoding 2^8 registers, there will be a pass
+// which converts register number greater than 31 to 2 instructions:
+//   regext vd_base0, vs0_base0, vs1_base1
+//   vALUop vd, vs0, vs1
+// where the first instruction tells HW uses v[0-31] for vd, vs1,
+// uses v[32-63] for vs0.
+class RISCVReg<bits<8> Enc, string n, list<string> alt = []> : Register<n> {
+  let HWEncoding{7-0} = Enc;
   let AltNames = alt;
 }
 
-class RISCVReg16<bits<5> Enc, string n, list<string> alt = []> : Register<n> {
-  let HWEncoding{4-0} = Enc;
+class RISCVReg16<bits<8> Enc, string n, list<string> alt = []> : Register<n> {
+  let HWEncoding{7-0} = Enc;
   let AltNames = alt;
 }
 
@@ -37,7 +43,7 @@ def lo32 : SubRegIndex<32, 0>;
 def hi32 : SubRegIndex<32, 32>;
 
 class RISCVReg32<RISCVReg16 subreg> : Register<""> {
-  let HWEncoding{4-0} = subreg.HWEncoding{4-0};
+  let HWEncoding{7-0} = subreg.HWEncoding{7-0};
   let SubRegs = [subreg];
   let SubRegIndices = [lo16];
   let AsmName = subreg.AsmName;
@@ -48,33 +54,33 @@ class RISCVReg32<RISCVReg16 subreg> : Register<""> {
 // 16/32-bit sub-register, RISCVAsmParser will need to coerce a register number
 // from a RISCVReg16/RISCVReg32 to the equivalent RISCVReg64 when appropriate.
 class RISCVReg64<RISCVReg32 subreg> : Register<""> {
-  let HWEncoding{4-0} = subreg.HWEncoding{4-0};
+  let HWEncoding{7-0} = subreg.HWEncoding{7-0};
   let SubRegs = [subreg];
   let SubRegIndices = [lo32];
   let AsmName = subreg.AsmName;
   let AltNames = subreg.AltNames;
 }
 
-class RISCVRegWithSubRegs<bits<5> Enc, string n, list<Register> subregs,
+class RISCVRegWithSubRegs<bits<8> Enc, string n, list<Register> subregs,
                           list<string> alt = []>
       : RegisterWithSubRegs<n, subregs> {
-  let HWEncoding{4-0} = Enc;
+  let HWEncoding{7-0} = Enc;
   let AltNames = alt;
 }
 
 def ABIRegAltName : RegAltNameIndex;
 
-foreach Index = 0...31 in {
+foreach Index = 0...15 in {
   def sub#Index : SubRegIndex<32, !shl(Index, 5)>;
 }
 
-foreach Index = 1...31 in {
+foreach Index = 1...15 in {
   def sub#Index#_lo16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub#Index), lo16>;
   def sub#Index#_hi16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub#Index), hi16>;
 }
 
 foreach Size = {2...6,8,16} in {
-  foreach Index = Indexes<!sub(33, Size)>.slice in {
+  foreach Index = Indexes<!sub(17, Size)>.slice in {
     def !interleave(!foreach(cur, Indexes<Size>.slice, "sub"#!add(cur, Index)),
                     "_") :
       SubRegIndex<!mul(Size, 32), !shl(Index, 5)> {
@@ -95,46 +101,17 @@ class getSubRegs<int size> {
   list<SubRegIndex> ret2 = [sub0, sub1];
   list<SubRegIndex> ret3 = [sub0, sub1, sub2];
   list<SubRegIndex> ret4 = [sub0, sub1, sub2, sub3];
-  list<SubRegIndex> ret5 = [sub0, sub1, sub2, sub3, sub4];
-  list<SubRegIndex> ret6 = [sub0, sub1, sub2, sub3, sub4, sub5];
-  list<SubRegIndex> ret7 = [sub0, sub1, sub2, sub3, sub4, sub5, sub6];
   list<SubRegIndex> ret8 = [sub0, sub1, sub2, sub3, sub4, sub5, sub6, sub7];
-  list<SubRegIndex> ret9 = [sub0, sub1, sub2, sub3, sub4, sub5, sub6, sub7, sub8];
-  list<SubRegIndex> ret10 = [sub0, sub1, sub2, sub3,
-                             sub4, sub5, sub6, sub7,
-                             sub8, sub9];
-  list<SubRegIndex> ret11 = [sub0, sub1, sub2, sub3,
-                             sub4, sub5, sub6, sub7,
-                             sub8, sub9, sub10];
-  list<SubRegIndex> ret12 = [sub0, sub1, sub2, sub3,
-                             sub4, sub5, sub6, sub7,
-                             sub8, sub9, sub10, sub11];
   list<SubRegIndex> ret16 = [sub0, sub1, sub2, sub3,
                              sub4, sub5, sub6, sub7,
                              sub8, sub9, sub10, sub11,
                              sub12, sub13, sub14, sub15];
-  list<SubRegIndex> ret32 = [sub0, sub1, sub2, sub3,
-                             sub4, sub5, sub6, sub7,
-                             sub8, sub9, sub10, sub11,
-                             sub12, sub13, sub14, sub15,
-                             sub16, sub17, sub18, sub19,
-                             sub20, sub21, sub22, sub23,
-                             sub24, sub25, sub26, sub27,
-                             sub28, sub29, sub30, sub31];
 
   list<SubRegIndex> ret = !if(!eq(size, 2), ret2,
                               !if(!eq(size, 3), ret3,
                                   !if(!eq(size, 4), ret4,
-                                      !if(!eq(size, 5), ret5,
-                                          !if(!eq(size, 6), ret6,
-                                              !if(!eq(size, 7), ret7,
-                                                  !if(!eq(size, 8), ret8,
-                                                      !if(!eq(size, 9), ret9,
-                                                          !if(!eq(size, 10), ret10,
-                                                              !if(!eq(size, 11), ret11,
-                                                                  !if(!eq(size, 12), ret12,
-                                                                      !if(!eq(size, 16), ret16,
-                                                                          ret32))))))))))));
+                                      !if(!eq(size, 8), ret8,
+                                          ret16))));
 }
 
 
@@ -215,6 +192,38 @@ let RegAltNameIndices = [ABIRegAltName] in {
   def X29 : RISCVReg<29,"x29", ["t4"]>, DwarfRegNum<[29]>;
   def X30 : RISCVReg<30,"x30", ["t5"]>, DwarfRegNum<[30]>;
   def X31 : RISCVReg<31,"x31", ["t6"]>, DwarfRegNum<[31]>;
+  def X32 : RISCVReg<32,"x32", ["t7"]>, DwarfRegNum<[32]>;
+  def X33 : RISCVReg<33,"x33", ["t8"]>, DwarfRegNum<[33]>;
+  def X34 : RISCVReg<34,"x34", ["t9"]>, DwarfRegNum<[34]>;
+  def X35 : RISCVReg<35,"x35", ["t10"]>, DwarfRegNum<[35]>;
+  def X36 : RISCVReg<36,"x36", ["t12"]>, DwarfRegNum<[36]>;
+  def X37 : RISCVReg<37,"x37", ["t13"]>, DwarfRegNum<[37]>;
+  def X38 : RISCVReg<38,"x38", ["t14"]>, DwarfRegNum<[38]>;
+  def X39 : RISCVReg<39,"x39", ["t15"]>, DwarfRegNum<[39]>;
+  def X40 : RISCVReg<40,"x40", ["t16"]>, DwarfRegNum<[40]>;
+  def X41 : RISCVReg<41,"x41", ["t17"]>, DwarfRegNum<[41]>;
+  def X42 : RISCVReg<42,"x42", ["t18"]>, DwarfRegNum<[42]>;
+  def X43 : RISCVReg<43,"x43", ["t19"]>, DwarfRegNum<[43]>;
+  def X44 : RISCVReg<44,"x44", ["t20"]>, DwarfRegNum<[44]>;
+  def X45 : RISCVReg<45,"x45", ["t21"]>, DwarfRegNum<[45]>;
+  def X46 : RISCVReg<46,"x46", ["t22"]>, DwarfRegNum<[46]>;
+  def X47 : RISCVReg<47,"x47", ["t23"]>, DwarfRegNum<[47]>;
+  def X48 : RISCVReg<48,"x48", ["t24"]>, DwarfRegNum<[48]>;
+  def X49 : RISCVReg<49,"x49", ["t25"]>, DwarfRegNum<[49]>;
+  def X50 : RISCVReg<50,"x50", ["t26"]>, DwarfRegNum<[50]>;
+  def X51 : RISCVReg<51,"x51", ["t27"]>, DwarfRegNum<[51]>;
+  def X52 : RISCVReg<52,"x52", ["t28"]>, DwarfRegNum<[52]>;
+  def X53 : RISCVReg<53,"x53", ["t29"]>, DwarfRegNum<[53]>;
+  def X54 : RISCVReg<54,"x54", ["t30"]>, DwarfRegNum<[54]>;
+  def X55 : RISCVReg<55,"x55", ["t31"]>, DwarfRegNum<[55]>;
+  def X56 : RISCVReg<56,"x56", ["t32"]>, DwarfRegNum<[56]>;
+  def X57 : RISCVReg<57,"x57", ["t33"]>, DwarfRegNum<[57]>;
+  def X58 : RISCVReg<58,"x58", ["t34"]>, DwarfRegNum<[58]>;
+  def X59 : RISCVReg<59,"x59", ["t35"]>, DwarfRegNum<[59]>;
+  def X60 : RISCVReg<60,"x60", ["t36"]>, DwarfRegNum<[60]>;
+  def X61 : RISCVReg<61,"x61", ["t37"]>, DwarfRegNum<[61]>;
+  def X62 : RISCVReg<62,"x62", ["t38"]>, DwarfRegNum<[62]>;
+  def X63 : RISCVReg<63,"x63", ["t39"]>, DwarfRegNum<[63]>;
   }
 }
 
@@ -414,6 +423,39 @@ def GPRPF64 : RegisterClass<"RISCV", [f64], 64, (add
 def FFLAGS : RISCVReg<0, "fflags">;
 def FRM    : RISCVReg<0, "frm">;
 
+// TODO: Ref to SIRegisterInfo.td to finish this.
+multiclass VentusRegLoHi16 <string n, bits<8> regIdx, bit ArtificialHigh = 1> {
+  // There is no special encoding for 16 bit subregs, these are not real
+  // registers but rather operands for instructions preserving other 16 bits
+  // of the result or reading just 16 bits of a 32 bit VGPR.
+  // It is encoded as a corresponding 32 bit register.
+  // Non-VGPR register classes use it as we need to have matching subregisters
+  // to move instructions and data between ALUs.
+  def _LO16 : RISCVReg<regIdx, n#".l"> {
+    //let HWEncoding{8} = HWEncodingHigh;
+  }
+  def _HI16 : RISCVReg<regIdx, !if(ArtificialHigh, "", n#".h")> {
+    let isArtificial = ArtificialHigh;
+    //let HWEncoding{8} = HWEncodingHigh;
+  }
+  def "" : RegisterWithSubRegs<n, [!cast<Register>(NAME#"_LO16"),
+                                   !cast<Register>(NAME#"_HI16")]> {
+    let Namespace = "RISCV";
+    let SubRegIndices = [lo16, hi16];
+    let CoveredBySubRegs = !not(ArtificialHigh);
+    let HWEncoding{7-0} = regIdx;
+    //let HWEncoding{8} = HWEncodingHigh;
+  }
+}
+
+// FIXME: DwarfRegNum!!
+// VGPR registers name
+foreach Index = 0...255 in {
+  defm V#Index :
+    VentusRegLoHi16 <"v"#Index, Index, 0>,
+    DwarfRegNum<[!add(Index, 2560), !add(Index, 1536)]>;
+}
+
 class RegisterTypes<list<ValueType> reg_types> {
   list<ValueType> types = reg_types;
 }
@@ -421,25 +463,25 @@ class RegisterTypes<list<ValueType> reg_types> {
 def Reg16Types : RegisterTypes<[i16, f16]>;
 def Reg32Types : RegisterTypes<[i32, f32, v2i16, v2f16]>;
 
-// VGPR 32-bit registers
+// VGPR 32-bit registers class
 def VGPR_32 : RegisterClass<"RISCV",
                             !listconcat(Reg32Types.types, Reg16Types.types),
                             32,
                             (add (sequence "V%u", 0, 255))>;
 
-// VGPR 64-bit registers
+// VGPR 64-bit registers class
 def VGPR_64 : VentusRegisterTuples<getSubRegs<2>.ret, VGPR_32, 255, 1, 2, "v">;
 
-// VGPR 96-bit registers
+// VGPR 96-bit registers class
 def VGPR_96 : VentusRegisterTuples<getSubRegs<3>.ret, VGPR_32, 255, 1, 3, "v">;
 
-// VGPR 128-bit registers
+// VGPR 128-bit registers class
 def VGPR_128 : VentusRegisterTuples<getSubRegs<4>.ret, VGPR_32, 255, 1, 4, "v">;
 
-// VGPR 256-bit registers
+// VGPR 256-bit registers class
 def VGPR_256 : VentusRegisterTuples<getSubRegs<8>.ret, VGPR_32, 255, 1, 8, "v">;
 
-// VGPR 512-bit registers
+// VGPR 512-bit registers class
 def VGPR_512 : VentusRegisterTuples<getSubRegs<16>.ret, VGPR_32, 255, 1, 16, "v">;
 
 // Any type register. Used for .insn directives when we don't know what the

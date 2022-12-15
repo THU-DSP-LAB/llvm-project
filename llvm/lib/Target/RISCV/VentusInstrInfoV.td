@@ -1,4 +1,4 @@
-//===-- RISCVInstrInfoV.td - RISC-V 'V' instructions -------*- tablegen -*-===//
+//===-- VentusInstrInfoV.td - Ventus 'V' instructions ------*- tablegen -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,8 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 ///
-/// This file describes the RISC-V instructions from the standard 'V' Vector
-/// extension, version 1.0.
+/// This file describes the Ventus vALU instructions which borrows instruction
+/// encoding from the standard RISC-V 'V' Vector extension, but with completely
+/// different execution paradigm.
+/// Ventus is a SIMT architecture and vALU instructions are basically scalar
+/// instructions.
 ///
 //===----------------------------------------------------------------------===//
 
