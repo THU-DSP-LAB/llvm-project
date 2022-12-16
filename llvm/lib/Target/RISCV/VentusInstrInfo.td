@@ -12,19 +12,79 @@
 //
 //===----------------------------------------------------------------------===//
 
-//===----------------------------------------------------------------------===//
-// RISC-V specific DAG Nodes.
-//===----------------------------------------------------------------------===//
+// Match both a plain shift and one where the shift amount is masked (this is
+// typically introduced when the legalizer promotes the shift amount and
+// zero-extends it). For RISC-V, the mask is unnecessary as shifts in the base
+// ISA only read the least significant 5 bits (RV32I) or 6 bits (RV64I).
+def shiftMaskXLen : ComplexPattern<XLenVT, 1, "selectShiftMaskXLen", [], [], 0>;
+def shiftMask32   : ComplexPattern<i64, 1, "selectShiftMask32", [], [], 0>;
 
-class UniformSextInreg<ValueType VT> : PatFrag<
+
+class UniformUnaryFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0),
+  (Op $src0),
+  [{ return !N->isDivergent(); }]>;
+
+class DivergentUnaryFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0),
+  (Op $src0),
+  [{ return N->isDivergent(); }]>;
+
+class UniformBinFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{ return !N->isDivergent(); }]>;
+
+// Widen sALU PatFrag for such as ADDW/SUBW to be selected from i64 add/sub
+// if only the lower 32 bits of their result is used.
+class UniformWBinFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{ return !N->isDivergent() && hasAllWUsers(Node); }]>;
+
+class UniformTernaryFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1, node:$src2),
+  (Op $src0, $src1, $src2),
+  [{ return !N->isDivergent(); }]>;
+
+class UniformTetradFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1, node:$src2, node:$sec3),
+  (Op $src0, $src1, $src2, $src3),
+  [{ return !N->isDivergent(); }]>;
+
+class DivergentBinFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{ return N->isDivergent(); }]>;
+
+class UniformSextInReg<ValueType VT> : PatFrag<
   (ops node:$src),
   (sext_inreg $src, VT),
   [{ return !N->isDivergent(); }]>;
 
-class DivergentSextInreg<ValueType VT> : PatFrag<
+class UniformWSextInReg<ValueType VT> : PatFrag<
+  (ops node:$src),
+  (sext_inreg $src, VT),
+  [{ return !N->isDivergent() && hasAllWUsers(Node); }]>;
+
+class DivergentSextInReg<ValueType VT> : PatFrag<
   (ops node:$src),
   (sext_inreg $src, VT),
   [{ return N->isDivergent(); }]>;
+
+class UniformShiftFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$val, node:$count),
+  (Op node:$val, (XLenVT (shiftMaskXLen node:$count))),
+  [{ return !N->isDivergent(); }]>;
+
+class UniformShiftWFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$val, node:$count),
+  (Op node:$val, (i64 (shiftMask32 node:$count))),
+  [{ return !N->isDivergent(); }]>;
+
+//===----------------------------------------------------------------------===//
+// RISC-V specific DAG Nodes.
+//===----------------------------------------------------------------------===//
 
 // Target-independent type requirements, but with target-specific formats.
 def SDT_CallSeqStart : SDCallSeqStart<[SDTCisVT<0, i32>,
@@ -1228,42 +1288,28 @@ def fpext_oneuse  : unop_oneuse<any_fpextend>;
 
 /// Simple arithmetic operations
 
-def : PatGprGpr<add, ADD>;
-def : PatGprSimm12<add, ADDI>;
-def : PatGprGpr<sub, SUB>;
-def : PatGprGpr<or, OR>;
-def : PatGprSimm12<or, ORI>;
-def : PatGprGpr<and, AND>;
-def : PatGprSimm12<and, ANDI>;
-def : PatGprGpr<xor, XOR>;
-def : PatGprSimm12<xor, XORI>;
-def : PatGprUimmLog2XLen<shl, SLLI>;
-def : PatGprUimmLog2XLen<srl, SRLI>;
-def : PatGprUimmLog2XLen<sra, SRAI>;
+def : PatGprGpr<UniformBinFrag<add>, ADD>;
+def : PatGprSimm12<UniformBinFrag<add>, ADDI>;
+def : PatGprGpr<UniformBinFrag<sub>, SUB>;
+def : PatGprGpr<UniformBinFrag<or>, OR>;
+def : PatGprSimm12<UniformBinFrag<or>, ORI>;
+def : PatGprGpr<UniformBinFrag<and>, AND>;
+def : PatGprSimm12<UniformBinFrag<and>, ANDI>;
+def : PatGprGpr<UniformBinFrag<xor>, XOR>;
+def : PatGprSimm12<UniformBinFrag<xor>, XORI>;
+def : PatGprUimmLog2XLen<UniformBinFrag<shl>, SLLI>;
+def : PatGprUimmLog2XLen<UniformBinFrag<srl>, SRLI>;
+def : PatGprUimmLog2XLen<UniformBinFrag<sra>, SRAI>;
 
 // AND with leading/trailing ones mask exceeding simm32/simm12.
-def : Pat<(i64 (and GPR:$rs, LeadingOnesMask:$mask)),
+def : Pat<(i64 (UniformBinFrag<and> GPR:$rs, LeadingOnesMask:$mask)),
           (SLLI (SRLI $rs, LeadingOnesMask:$mask), LeadingOnesMask:$mask)>;
-def : Pat<(XLenVT (and GPR:$rs, TrailingOnesMask:$mask)),
+def : Pat<(XLenVT (UniformBinFrag<and> GPR:$rs, TrailingOnesMask:$mask)),
           (SRLI (SLLI $rs, TrailingOnesMask:$mask), TrailingOnesMask:$mask)>;
 
-// Match both a plain shift and one where the shift amount is masked (this is
-// typically introduced when the legalizer promotes the shift amount and
-// zero-extends it). For RISC-V, the mask is unnecessary as shifts in the base
-// ISA only read the least significant 5 bits (RV32I) or 6 bits (RV64I).
-def shiftMaskXLen : ComplexPattern<XLenVT, 1, "selectShiftMaskXLen", [], [], 0>;
-def shiftMask32   : ComplexPattern<i64, 1, "selectShiftMask32", [], [], 0>;
-
-class shiftop<SDPatternOperator operator>
-    : PatFrag<(ops node:$val, node:$count),
-              (operator node:$val, (XLenVT (shiftMaskXLen node:$count)))>;
-class shiftopw<SDPatternOperator operator>
-    : PatFrag<(ops node:$val, node:$count),
-              (operator node:$val, (i64 (shiftMask32 node:$count)))>;
-
-def : PatGprGpr<shiftop<shl>, SLL>;
-def : PatGprGpr<shiftop<srl>, SRL>;
-def : PatGprGpr<shiftop<sra>, SRA>;
+def : PatGprGpr<UniformShiftFrag<shl>, SLL>;
+def : PatGprGpr<UniformShiftFrag<srl>, SRL>;
+def : PatGprGpr<UniformShiftFrag<sra>, SRA>;
 
 // This is a special case of the ADD instruction used to facilitate the use of a
 // fourth operand to emit a relocation on a symbol relating to this instruction.
@@ -1281,50 +1327,50 @@ def : Pat<(FrameAddrRegImm GPR:$rs1, simm12:$imm12),
 
 /// HI and ADD_LO address nodes.
 
-def : Pat<(riscv_hi tglobaladdr:$in), (LUI tglobaladdr:$in)>;
-def : Pat<(riscv_hi tblockaddress:$in), (LUI tblockaddress:$in)>;
-def : Pat<(riscv_hi tjumptable:$in), (LUI tjumptable:$in)>;
-def : Pat<(riscv_hi tconstpool:$in), (LUI tconstpool:$in)>;
+def : Pat<(UniformUnaryFrag<riscv_hi> tglobaladdr:$in), (LUI tglobaladdr:$in)>;
+def : Pat<(UniformUnaryFrag<riscv_hi> tblockaddress:$in), (LUI tblockaddress:$in)>;
+def : Pat<(UniformUnaryFrag<riscv_hi> tjumptable:$in), (LUI tjumptable:$in)>;
+def : Pat<(UniformUnaryFrag<riscv_hi> tconstpool:$in), (LUI tconstpool:$in)>;
 
-def : Pat<(riscv_add_lo GPR:$hi, tglobaladdr:$lo),
+def : Pat<(UniformBinFrag<riscv_add_lo> GPR:$hi, tglobaladdr:$lo),
           (ADDI GPR:$hi, tglobaladdr:$lo)>;
-def : Pat<(riscv_add_lo GPR:$hi, tblockaddress:$lo),
+def : Pat<(UniformBinFrag<riscv_add_lo> GPR:$hi, tblockaddress:$lo),
           (ADDI GPR:$hi, tblockaddress:$lo)>;
-def : Pat<(riscv_add_lo GPR:$hi, tjumptable:$lo),
+def : Pat<(UniformBinFrag<riscv_add_lo> GPR:$hi, tjumptable:$lo),
           (ADDI GPR:$hi, tjumptable:$lo)>;
-def : Pat<(riscv_add_lo GPR:$hi, tconstpool:$lo),
+def : Pat<(UniformBinFrag<riscv_add_lo> GPR:$hi, tconstpool:$lo),
           (ADDI GPR:$hi, tconstpool:$lo)>;
 
 /// TLS address nodes.
 
-def : Pat<(riscv_hi tglobaltlsaddr:$in), (LUI tglobaltlsaddr:$in)>;
-def : Pat<(riscv_add_tprel GPR:$rs1, GPR:$rs2, tglobaltlsaddr:$src),
+def : Pat<(UniformUnaryFrag<riscv_hi> tglobaltlsaddr:$in), (LUI tglobaltlsaddr:$in)>;
+def : Pat<(UniformTernaryFrag<riscv_add_tprel> GPR:$rs1, GPR:$rs2, tglobaltlsaddr:$src),
           (PseudoAddTPRel GPR:$rs1, GPR:$rs2, tglobaltlsaddr:$src)>;
-def : Pat<(riscv_add_lo GPR:$src, tglobaltlsaddr:$lo),
+def : Pat<(UniformBinFrag<riscv_add_lo> GPR:$src, tglobaltlsaddr:$lo),
           (ADDI GPR:$src, tglobaltlsaddr:$lo)>;
 
 /// Setcc
 
-def : PatGprGpr<setlt, SLT>;
-def : PatGprSimm12<setlt, SLTI>;
-def : PatGprGpr<setult, SLTU>;
-def : PatGprSimm12<setult, SLTIU>;
+def : PatGprGpr<UniformBinFrag<setlt>, SLT>;
+def : PatGprSimm12<UniformBinFrag<setlt>, SLTI>;
+def : PatGprGpr<UniformBinFrag<setult>, SLTU>;
+def : PatGprSimm12<UniformBinFrag<setult>, SLTIU>;
 
 // Define pattern expansions for setcc operations that aren't directly
 // handled by a RISC-V instruction.
-def : Pat<(seteq GPR:$rs1, 0), (SLTIU GPR:$rs1, 1)>;
-def : Pat<(seteq GPR:$rs1, GPR:$rs2), (SLTIU (XOR GPR:$rs1, GPR:$rs2), 1)>;
-def : Pat<(seteq GPR:$rs1, simm12_plus1:$imm12),
+def : Pat<(UniformBinFrag<seteq> GPR:$rs1, 0), (SLTIU GPR:$rs1, 1)>;
+def : Pat<(UniformBinFrag<seteq> GPR:$rs1, GPR:$rs2), (SLTIU (XOR GPR:$rs1, GPR:$rs2), 1)>;
+def : Pat<(UniformBinFrag<seteq> GPR:$rs1, simm12_plus1:$imm12),
           (SLTIU (ADDI GPR:$rs1, (NegImm simm12_plus1:$imm12)), 1)>;
-def : Pat<(seteq GPR:$rs1, -2048),
+def : Pat<(UniformBinFrag<seteq> GPR:$rs1, -2048),
           (SLTIU (XORI GPR:$rs1, -2048), 1)>;
-def : Pat<(setne GPR:$rs1, 0), (SLTU X0, GPR:$rs1)>;
-def : Pat<(setne GPR:$rs1, GPR:$rs2), (SLTU X0, (XOR GPR:$rs1, GPR:$rs2))>;
-def : Pat<(setne GPR:$rs1, simm12_plus1:$imm12),
+def : Pat<(UniformBinFrag<setne> GPR:$rs1, 0), (SLTU X0, GPR:$rs1)>;
+def : Pat<(UniformBinFrag<setne> GPR:$rs1, GPR:$rs2), (SLTU X0, (XOR GPR:$rs1, GPR:$rs2))>;
+def : Pat<(UniformBinFrag<setne> GPR:$rs1, simm12_plus1:$imm12),
           (SLTU X0, (ADDI GPR:$rs1, (NegImm simm12_plus1:$imm12)))>;
-def : Pat<(setne GPR:$rs1, -2048),
+def : Pat<(UniformBinFrag<setne> GPR:$rs1, -2048),
           (SLTU X0, (XORI GPR:$rs1, -2048))>;
-def : Pat<(setne GPR:$rs1, -1), (SLTIU GPR:$rs1, -1)>;
+def : Pat<(UniformBinFrag<setne> GPR:$rs1, -1), (SLTIU GPR:$rs1, -1)>;
 
 def IntCCtoRISCVCC : SDNodeXForm<riscv_selectcc, [{
   ISD::CondCode CC = cast<CondCodeSDNode>(N->getOperand(2))->get();
@@ -1387,27 +1433,28 @@ let Predicates = [HasStdExtC, OptForMinSize] in {
 /// Branches and jumps
 
 // Match `riscv_brcc` and lower to the appropriate RISC-V branch instruction.
-multiclass BccPat<CondCode Cond, RVInstB Inst> {
-  def : Pat<(riscv_brcc GPR:$rs1, GPR:$rs2, Cond, bb:$imm12),
+multiclass UniformBccPat<CondCode Cond, RVInstB Inst> {
+  def : Pat<(UniformTetradFrag<riscv_brcc> GPR:$rs1, GPR:$rs2, Cond, bb:$imm12),
             (Inst GPR:$rs1, GPR:$rs2, simm13_lsb0:$imm12)>;
   // Explicitly select 0 to X0. The register coalescer doesn't always do it.
-  def : Pat<(riscv_brcc GPR:$rs1, 0, Cond, bb:$imm12),
+  def : Pat<(UniformTetradFrag<riscv_brcc> GPR:$rs1, 0, Cond, bb:$imm12),
             (Inst GPR:$rs1, X0, simm13_lsb0:$imm12)>;
 }
 
-class BrccCompessOpt<CondCode Cond, RVInstB Inst> : Pat<(riscv_brcc GPR:$lhs, simm12_no6:$Constant, Cond, bb:$place),
-                              (Inst (ADDI GPR:$lhs, (NegImm simm12:$Constant)), X0, bb:$place)>;
+class UniBrccCompressOpt<CondCode Cond, RVInstB Inst> : Pat<
+  (UniformTetradFrag<riscv_brcc> GPR:$lhs, simm12_no6:$Constant, Cond, bb:$place),
+  (Inst (ADDI GPR:$lhs, (NegImm simm12:$Constant)), X0, bb:$place)>;
 
-defm : BccPat<SETEQ, BEQ>;
-defm : BccPat<SETNE, BNE>;
-defm : BccPat<SETLT, BLT>;
-defm : BccPat<SETGE, BGE>;
-defm : BccPat<SETULT, BLTU>;
-defm : BccPat<SETUGE, BGEU>;
+defm : UniformBccPat<SETEQ, BEQ>;
+defm : UniformBccPat<SETNE, BNE>;
+defm : UniformBccPat<SETLT, BLT>;
+defm : UniformBccPat<SETGE, BGE>;
+defm : UniformBccPat<SETULT, BLTU>;
+defm : UniformBccPat<SETUGE, BGEU>;
 
 let Predicates = [HasStdExtC, OptForMinSize] in {
-  def : BrccCompessOpt<SETEQ, BEQ>;
-  def : BrccCompessOpt<SETNE, BNE>;
+  def : UniBrccCompressOpt<SETEQ, BEQ>;
+  def : UniBrccCompressOpt<SETNE, BNE>;
 }
 
 let isBarrier = 1, isBranch = 1, isTerminator = 1 in
@@ -1542,30 +1589,30 @@ def PseudoZEXT_W : Pseudo<(outs GPR:$rd), (ins GPR:$rs), [], "zext.w", "$rd, $rs
 
 /// Loads
 
-multiclass LdPat<PatFrag LoadOp, RVInst Inst, ValueType vt = XLenVT> {
-  def : Pat<(vt (LoadOp (AddrRegImm GPR:$rs1, simm12:$imm12))),
+multiclass UniformLdPat<PatFrag LoadOp, RVInst Inst, ValueType vt = XLenVT> {
+  def : Pat<(vt (UniformBinFrag<LoadOp> (AddrRegImm GPR:$rs1, simm12:$imm12))),
             (Inst GPR:$rs1, simm12:$imm12)>;
 }
 
-defm : LdPat<sextloadi8, LB>;
-defm : LdPat<extloadi8, LB>;
-defm : LdPat<sextloadi16, LH>;
-defm : LdPat<extloadi16, LH>;
-defm : LdPat<load, LW, i32>, Requires<[IsRV32]>;
-defm : LdPat<zextloadi8, LBU>;
-defm : LdPat<zextloadi16, LHU>;
+defm : UniformLdPat<sextloadi8, LB>;
+defm : UniformLdPat<extloadi8, LB>;
+defm : UniformLdPat<sextloadi16, LH>;
+defm : UniformLdPat<extloadi16, LH>;
+defm : UniformLdPat<load, LW, i32>, Requires<[IsRV32]>;
+defm : UniformLdPat<zextloadi8, LBU>;
+defm : UniformLdPat<zextloadi16, LHU>;
 
 /// Stores
 
-multiclass StPat<PatFrag StoreOp, RVInst Inst, RegisterClass StTy,
+multiclass UniformStPat<PatFrag StoreOp, RVInst Inst, RegisterClass StTy,
                  ValueType vt> {
-  def : Pat<(StoreOp (vt StTy:$rs2), (AddrRegImm GPR:$rs1, simm12:$imm12)),
+  def : Pat<(UniformBinFrag<StoreOp> (vt StTy:$rs2), (AddrRegImm GPR:$rs1, simm12:$imm12)),
             (Inst StTy:$rs2, GPR:$rs1, simm12:$imm12)>;
 }
 
-defm : StPat<truncstorei8, SB, GPR, XLenVT>;
-defm : StPat<truncstorei16, SH, GPR, XLenVT>;
-defm : StPat<store, SW, GPR, i32>, Requires<[IsRV32]>;
+defm : UniformStPat<truncstorei8, SB, GPR, XLenVT>;
+defm : UniformStPat<truncstorei16, SH, GPR, XLenVT>;
+defm : UniformStPat<store, SW, GPR, i32>, Requires<[IsRV32]>;
 
 /// Fences
 
@@ -1665,19 +1712,6 @@ def : Pat<(i64 (shl (and GPR:$rs1, 0xffffffff), uimm5:$shamt)),
           (SRLI (SLLI GPR:$rs1, 32), (ImmSubFrom32 uimm5:$shamt))>;
 }
 
-// PatFrag to allow ADDW/SUBW/MULW/SLLW to be selected from i64 add/sub/mul/shl
-// if only the lower 32 bits of their result is used.
-class binop_allwusers<SDPatternOperator operator>
-    : PatFrag<(ops node:$lhs, node:$rhs),
-              (i64 (operator node:$lhs, node:$rhs)), [{
-  return hasAllWUsers(Node);
-}]>;
-
-def sexti32_allwusers : PatFrag<(ops node:$src),
-                                (sext_inreg node:$src, i32), [{
-  return hasAllWUsers(Node);
-}]>;
-
 def ImmSExt32 : SDNodeXForm<imm, [{
   return CurDAG->getTargetConstant(SignExtend64<32>(N->getSExtValue()),
                                    SDLoc(N), N->getValueType(0));
@@ -1690,64 +1724,64 @@ def u32simm12 : ImmLeaf<XLenVT, [{
 
 let Predicates = [IsRV64] in {
 
-def : Pat<(i64 (and GPR:$rs, LeadingOnesWMask:$mask)),
+def : Pat<(i64 (UniformBinFrag<and> GPR:$rs, LeadingOnesWMask:$mask)),
           (SLLI (SRLIW $rs, LeadingOnesWMask:$mask), LeadingOnesWMask:$mask)>;
 
 /// sext and zext
 
 // Sign extend is not needed if all users are W instructions.
-def : Pat<(sexti32_allwusers GPR:$rs1), (XLenVT GPR:$rs1)>;
+def : Pat<(UniformWSextInReg<i32> GPR:$rs1), (XLenVT GPR:$rs1)>;
 
-def : Pat<(sext_inreg GPR:$rs1, i32), (ADDIW GPR:$rs1, 0)>;
+def : Pat<(UniformSextInReg<i32> GPR:$rs1), (ADDIW GPR:$rs1, 0)>;
 
 /// ALU operations
 
-def : Pat<(i64 (srl (and GPR:$rs1, 0xffffffff), uimm5:$shamt)),
+def : Pat<(i64 (UniformBinFrag<srl> (and GPR:$rs1, 0xffffffff), uimm5:$shamt)),
           (SRLIW GPR:$rs1, uimm5:$shamt)>;
-def : Pat<(i64 (srl (shl GPR:$rs1, (i64 32)), uimm6gt32:$shamt)),
+def : Pat<(i64 (UniformBinFrag<srl> (shl GPR:$rs1, (i64 32)), uimm6gt32:$shamt)),
           (SRLIW GPR:$rs1, (ImmSub32 uimm6gt32:$shamt))>;
-def : Pat<(sra (sext_inreg GPR:$rs1, i32), uimm5:$shamt),
+def : Pat<(sra (UniformSextInReg<i32> GPR:$rs1), uimm5:$shamt),
           (SRAIW GPR:$rs1, uimm5:$shamt)>;
-def : Pat<(i64 (sra (shl GPR:$rs1, (i64 32)), uimm6gt32:$shamt)),
+def : Pat<(i64 (UniformBinFrag<sra> (UniformBinFrag<shl> GPR:$rs1, (i64 32)), uimm6gt32:$shamt)),
           (SRAIW GPR:$rs1, (ImmSub32 uimm6gt32:$shamt))>;
 
-def : PatGprGpr<shiftopw<riscv_sllw>, SLLW>;
-def : PatGprGpr<shiftopw<riscv_srlw>, SRLW>;
-def : PatGprGpr<shiftopw<riscv_sraw>, SRAW>;
+def : PatGprGpr<UniformShiftWFrag<riscv_sllw>, SLLW>;
+def : PatGprGpr<UniformShiftWFrag<riscv_srlw>, SRLW>;
+def : PatGprGpr<UniformShiftWFrag<riscv_sraw>, SRAW>;
 
 // Select W instructions if only the lower 32 bits of the result are used.
-def : PatGprGpr<binop_allwusers<add>, ADDW>;
-def : PatGprSimm12<binop_allwusers<add>, ADDIW>;
-def : PatGprGpr<binop_allwusers<sub>, SUBW>;
-def : PatGprImm<binop_allwusers<shl>, SLLIW, uimm5>;
+def : PatGprGpr<UniformWBinFrag<add>, ADDW>;
+def : PatGprSimm12<UniformWBinFrag<add>, ADDIW>;
+def : PatGprGpr<UniformWBinFrag<sub>, SUBW>;
+def : PatGprImm<UniformWBinFrag<shl>, SLLIW, uimm5>;
 
 // If this is a shr of a value sign extended from i32, and all the users only
 // use the lower 32 bits, we can use an sraiw to remove the sext_inreg. This
 // occurs because SimplifyDemandedBits prefers srl over sra.
-def : Pat<(binop_allwusers<srl> (sext_inreg GPR:$rs1, i32), uimm5:$shamt),
+def : Pat<(UniformWBinFrag<srl> (UniformSextInReg<i32> GPR:$rs1), uimm5:$shamt),
           (SRAIW GPR:$rs1, uimm5:$shamt)>;
 
-// Use binop_allwusers to recover immediates that may have been broken by
+// Use UniformWBinFrag to recover immediates that may have been broken by
 // SimplifyDemandedBits.
-def : Pat<(binop_allwusers<and> GPR:$rs1, u32simm12:$imm),
+def : Pat<(UniformWBinFrag<and> GPR:$rs1, u32simm12:$imm),
           (ANDI GPR:$rs1, u32simm12:$imm)>;
 
-def : Pat<(binop_allwusers<or> GPR:$rs1, u32simm12:$imm),
+def : Pat<(UniformWBinFrag<or> GPR:$rs1, u32simm12:$imm),
           (ORI GPR:$rs1, u32simm12:$imm)>;
 
-def : Pat<(binop_allwusers<xor> GPR:$rs1, u32simm12:$imm),
+def : Pat<(UniformWBinFrag<xor> GPR:$rs1, u32simm12:$imm),
           (XORI GPR:$rs1, u32simm12:$imm)>;
 /// Loads
 
-defm : LdPat<sextloadi32, LW, i64>;
-defm : LdPat<extloadi32, LW, i64>;
-defm : LdPat<zextloadi32, LWU, i64>;
-defm : LdPat<load, LD, i64>;
+defm : UniformLdPat<sextloadi32, LW, i64>;
+defm : UniformLdPat<extloadi32, LW, i64>;
+defm : UniformLdPat<zextloadi32, LWU, i64>;
+defm : UniformLdPat<load, LD, i64>;
 
 /// Stores
 
-defm : StPat<truncstorei32, SW, GPR, i64>;
-defm : StPat<store, SD, GPR, i64>;
+defm : UniformStPat<truncstorei32, SW, GPR, i64>;
+defm : UniformStPat<store, SD, GPR, i64>;
 } // Predicates = [IsRV64]
 
 /// readcyclecounter
@@ -1779,13 +1813,13 @@ def HWASAN_CHECK_MEMACCESS_SHORTGRANULES
                                                       (i32 timm:$accessinfo))]>;
 
 /// Simple optimization
-def : Pat<(add GPR:$rs1, (AddiPair:$rs2)),
+def : Pat<(UniformBinFrag<add> GPR:$rs1, (AddiPair:$rs2)),
           (ADDI (ADDI GPR:$rs1, (AddiPairImmLarge AddiPair:$rs2)),
                 (AddiPairImmSmall GPR:$rs2))>;
 
 let Predicates = [IsRV64] in {
 // Select W instructions if only the lower 32-bits of the result are used.
-def : Pat<(binop_allwusers<add> GPR:$rs1, (AddiPair:$rs2)),
+def : Pat<(UniformWBinFrag<add> GPR:$rs1, (AddiPair:$rs2)),
           (ADDIW (ADDIW GPR:$rs1, (AddiPairImmLarge AddiPair:$rs2)),
                  (AddiPairImmSmall AddiPair:$rs2))>;
 }
@@ -1801,7 +1835,8 @@ include "RISCVInstrInfoD.td"
 include "RISCVInstrInfoC.td"
 include "RISCVInstrInfoZb.td"
 include "RISCVInstrInfoZk.td"
-include "VentusInstrInfoV.td"
+//include "VentusInstrInfoV.td"
+include "RISCVInstrInfoV.td"
 include "RISCVInstrInfoZfh.td"
 include "RISCVInstrInfoZicbo.td"
 
