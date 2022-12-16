@@ -1828,11 +1828,11 @@ def : Pat<(UniformWBinFrag<add> GPR:$rs1, (AddiPair:$rs2)),
 // Standard extensions
 //===----------------------------------------------------------------------===//
 
-include "RISCVInstrInfoM.td"
+include "VentusInstrInfoM.td"
 include "RISCVInstrInfoA.td"
 include "RISCVInstrInfoF.td"
 include "RISCVInstrInfoD.td"
-include "RISCVInstrInfoC.td"
+include "VentusInstrInfoC.td"
 include "RISCVInstrInfoZb.td"
 include "RISCVInstrInfoZk.td"
 //include "VentusInstrInfoV.td"
