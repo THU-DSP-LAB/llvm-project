@@ -463,26 +463,28 @@ class RegisterTypes<list<ValueType> reg_types> {
 def Reg16Types : RegisterTypes<[i16, f16]>;
 def Reg32Types : RegisterTypes<[i32, f32, v2i16, v2f16]>;
 
+// TODO: Add half and register pair support!!
 // VGPR 32-bit registers class
-def VGPR_32 : RegisterClass<"RISCV",
-                            !listconcat(Reg32Types.types, Reg16Types.types),
+def VGPR : RegisterClass<"RISCV",
+                            // !listconcat(Reg32Types.types, Reg16Types.types),
+                            [i32, f32],
                             32,
                             (add (sequence "V%u", 0, 255))>;
 
 // VGPR 64-bit registers class
-def VGPR_64 : VentusRegisterTuples<getSubRegs<2>.ret, VGPR_32, 255, 1, 2, "v">;
+def VGPR_64 : VentusRegisterTuples<getSubRegs<2>.ret, VGPR, 255, 1, 2, "v">;
 
 // VGPR 96-bit registers class
-def VGPR_96 : VentusRegisterTuples<getSubRegs<3>.ret, VGPR_32, 255, 1, 3, "v">;
+def VGPR_96 : VentusRegisterTuples<getSubRegs<3>.ret, VGPR, 255, 1, 3, "v">;
 
 // VGPR 128-bit registers class
-def VGPR_128 : VentusRegisterTuples<getSubRegs<4>.ret, VGPR_32, 255, 1, 4, "v">;
+def VGPR_128 : VentusRegisterTuples<getSubRegs<4>.ret, VGPR, 255, 1, 4, "v">;
 
 // VGPR 256-bit registers class
-def VGPR_256 : VentusRegisterTuples<getSubRegs<8>.ret, VGPR_32, 255, 1, 8, "v">;
+def VGPR_256 : VentusRegisterTuples<getSubRegs<8>.ret, VGPR, 255, 1, 8, "v">;
 
 // VGPR 512-bit registers class
-def VGPR_512 : VentusRegisterTuples<getSubRegs<16>.ret, VGPR_32, 255, 1, 16, "v">;
+def VGPR_512 : VentusRegisterTuples<getSubRegs<16>.ret, VGPR, 255, 1, 16, "v">;
 
 // Any type register. Used for .insn directives when we don't know what the
 // register types could be.

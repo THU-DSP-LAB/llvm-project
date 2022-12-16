@@ -16,6 +16,19 @@
 
 include "VentusInstrFormatsV.td"
 
+/// Generic pattern classes
+
+// RVV VV, VX, VI instruction pattern class
+multiclass PatVBin<SDPatternOperator Op, list<RVInst> Insts> {
+  def : Pat<(Op VGPR:$rs1, VGPR:$rs2), (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
+
+  def : Pat<(Op VGPR:$rs1, GPR:$rs2), (Insts[1] VGPR:$rs1, GPR:$rs2)>;
+
+  if !eq(!size(Insts), 3) then
+    def : Pat<(XLenVT (Op (XLenVT VGPR:$rs1), uimm5:$imm)),
+               (Insts[2] VGPR:$rs1, uimm5:$imm)>;
+}
+
 //===----------------------------------------------------------------------===//
 // Operand and SDNode transformation definitions.
 //===----------------------------------------------------------------------===//
@@ -117,7 +130,7 @@ let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in {
 // unit-stride load vd, (rs1), vm
 class VUnitStrideLoad<RISCVWidth width, string opcodestr>
     : RVInstVLU<0b000, width.Value{3}, LUMOPUnitStride, width.Value{2-0},
-                (outs VGPR_32:$vd),
+                (outs VGPR:$vd),
                 (ins GPRMem:$rs1), opcodestr, "$vd, (${rs1})">;
 
 let RVVConstraint = NoConstraint in {
@@ -135,7 +148,7 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in {
 // unit-stride store vd, vs3, (rs1), vm
 class VUnitStrideStore<RISCVWidth width, string opcodestr>
     : RVInstVSU<0b000, width.Value{3}, SUMOPUnitStride, width.Value{2-0},
-                (outs), (ins VGPR_32:$vs3, GPRMem:$rs1), opcodestr,
+                (outs), (ins VGPR:$vs3, GPRMem:$rs1), opcodestr,
                 "$vs3, (${rs1})">;
 
 // vs<nf>r.v vd, (rs1)
@@ -150,51 +163,51 @@ class VWholeStore<bits<3> nf, string opcodestr, RegisterClass VRC>
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 // op vd, vs2, vs1
 class VALUVV<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVV<funct6, opv, (outs VGPR_32:$vd),
-                (ins VGPR_32:$vs2, VGPR_32:$vs1),
+    : RVInstVV<funct6, opv, (outs VGPR:$vd),
+                (ins VGPR:$vs2, VGPR:$vs1),
                 opcodestr, "$vd, $vs2, $vs1">;
 
 // op vd, vs1, vs2 (reverse the order of vs1 and vs2)
 class VALUrVV<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVV<funct6, opv, (outs VGPR_32:$vd),
-                (ins VGPR_32:$vs1, VGPR_32:$vs2),
+    : RVInstVV<funct6, opv, (outs VGPR:$vd),
+                (ins VGPR:$vs1, VGPR:$vs2),
                 opcodestr, "$vd, $vs1, $vs2">;
 
 
 // op vd, vs2, rs1
 class VALUVX<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVX<funct6, opv, (outs VGPR_32:$vd),
-                (ins VGPR_32:$vs2, GPR:$rs1),
+    : RVInstVX<funct6, opv, (outs VGPR:$vd),
+                (ins VGPR:$vs2, GPR:$rs1),
                 opcodestr, "$vd, $vs2, $rs1">;
 
 // op vd, rs1, vs2 (reverse the order of rs1 and vs2)
 class VALUrVX<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVX<funct6, opv, (outs VGPR_32:$vd),
-                (ins GPR:$rs1, VGPR_32:$vs2),
+    : RVInstVX<funct6, opv, (outs VGPR:$vd),
+                (ins GPR:$rs1, VGPR:$vs2),
                 opcodestr, "$vd, $rs1, $vs2">;
 
 // op vd, vs2, imm
 class VALUVI<bits<6> funct6, string opcodestr, Operand optype = simm5>
-    : RVInstIVI<funct6, (outs VGPR_32:$vd),
-                (ins VGPR_32:$vs2, optype:$imm),
+    : RVInstIVI<funct6, (outs VGPR:$vd),
+                (ins VGPR:$vs2, optype:$imm),
                 opcodestr, "$vd, $vs2, $imm">;
 
 // op vd, vs2, rs1 (Float)
 class VALUVF<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVX<funct6, opv, (outs VGPR_32:$vd),
-                (ins VGPR_32:$vs2, FPR32:$rs1),
+    : RVInstVX<funct6, opv, (outs VGPR:$vd),
+                (ins VGPR:$vs2, FPR32:$rs1),
                 opcodestr, "$vd, $vs2, $rs1">;
 
 // op vd, rs1, vs2 (Float) (reverse the order of rs1 and vs2)
 class VALUrVF<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVX<funct6, opv, (outs VGPR_32:$vd),
-                (ins FPR32:$rs1, VGPR_32:$vs2),
+    : RVInstVX<funct6, opv, (outs VGPR:$vd),
+                (ins FPR32:$rs1, VGPR:$vs2),
                 opcodestr, "$vd, $rs1, $vs2">;
 
 // op vd, vs2 (use vs1 as instruction encoding)
 class VALUVs2<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, string opcodestr>
-    : RVInstV<funct6, vs1, opv, (outs VGPR_32:$vd),
-               (ins VGPR_32:$vs2),
+    : RVInstV<funct6, vs1, opv, (outs VGPR:$vd),
+               (ins VGPR:$vs2),
                opcodestr, "$vd, $vs2">;
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
 
@@ -629,12 +642,12 @@ foreach eew = [8, 16, 32] in {
 }
 
 let Predicates = [HasVInstructions] in {
-defm VL1R : VWholeLoadN<0, "vl1r", VGPR_32>;
+defm VL1R : VWholeLoadN<0, "vl1r", VGPR>;
 
-def VS1R_V : VWholeStore<0, "vs1r.v", VGPR_32>,
+def VS1R_V : VWholeStore<0, "vs1r.v", VGPR>,
              Sched<[WriteVST1R, ReadVST1R, ReadVSTX]>;
 
-def : InstAlias<"vl1r.v $vd, (${rs1})", (VL1RE8_V VGPR_32:$vd, GPR:$rs1)>;
+def : InstAlias<"vl1r.v $vd, (${rs1})", (VL1RE8_V VGPR:$vd, GPR:$rs1)>;
 } // Predicates = [HasVInstructions]
 
 let Predicates = [HasVInstructionsI64] in {
@@ -645,7 +658,7 @@ def VLE64_V : VUnitStrideLoad<LSWidth64, "vle64.v">,
 def VSE64_V : VUnitStrideStore<LSWidth64, "vse64.v">,
               VSESched;
 
-defm VL1R: VWholeLoadEEW64<0, "vl1r", VGPR_32, WriteVLD1R>;
+defm VL1R: VWholeLoadEEW64<0, "vl1r", VGPR, WriteVLD1R>;
 } // Predicates = [HasVInstructionsI64]
 
 let Predicates = [HasVInstructions] in {
@@ -654,7 +667,7 @@ defm VADD_V : VALU_IV_V_X_I<"vadd", 0b000000>;
 defm VSUB_V : VALU_IV_V_X<"vsub", 0b000010>;
 defm VRSUB_V : VALU_IV_X_I<"vrsub", 0b000011>;
 
-def : InstAlias<"vneg.v $vd, $vs", (VRSUB_VX VGPR_32:$vd, VGPR_32:$vs, X0, zero_reg)>;
+def : InstAlias<"vneg.v $vd, $vs", (VRSUB_VX VGPR:$vd, VGPR:$vs, X0)>;
 
 // Vector Widening Integer Add/Subtract
 // Refer to 11.2 Widening Vector Arithmetic Instructions
@@ -681,13 +694,9 @@ defm VWSUB_W : VALU_MV_V_X<"vwsub", 0b110111, "w">;
 } // Constraints = "@earlyclobber $vd"
 
 def : InstAlias<"vwcvt.x.x.v $vd, $vs",
-                (VWADD_VX VGPR_32:$vd, VGPR_32:$vs, X0)>;
-def : InstAlias<"vwcvt.x.x.v $vd, $vs",
-                (VWADD_VX VGPR_32:$vd, VGPR_32:$vs, X0, zero_reg)>;
+                (VWADD_VX VGPR:$vd, VGPR:$vs, X0)>;
 def : InstAlias<"vwcvtu.x.x.v $vd, $vs",
-                (VWADDU_VX VGPR_32:$vd, VGPR_32:$vs, X0)>;
-def : InstAlias<"vwcvtu.x.x.v $vd, $vs",
-                (VWADDU_VX VGPR_32:$vd, VGPR_32:$vs, X0, zero_reg)>;
+                (VWADDU_VX VGPR:$vd, VGPR:$vs, X0)>;
 
 // Vector Integer Extension
 defm VZEXT_VF8 : VALU_MV_VS2<"vzext.vf8", 0b010010, 0b00010>;
@@ -703,9 +712,7 @@ defm VOR_V : VALU_IV_V_X_I<"vor", 0b001010>;
 defm VXOR_V : VALU_IV_V_X_I<"vxor", 0b001011>;
 
 def : InstAlias<"vnot.v $vd, $vs",
-                (VXOR_VI VGPR_32:$vd, VGPR_32:$vs, -1)>;
-def : InstAlias<"vnot.v $vd, $vs",
-                (VXOR_VI VGPR_32:$vd, VGPR_32:$vs, -1, zero_reg)>;
+                (VXOR_VI VGPR:$vd, VGPR:$vs, -1)>;
 
 // Vector Single-Width Bit Shift Instructions
 defm VSLL_V : VSHT_IV_V_X_I<"vsll", 0b100101, uimm5>;
@@ -722,9 +729,7 @@ defm VNSRA_W : VNSHT_IV_V_X_I<"vnsra", 0b101101, uimm5, "w">;
 } // Constraints = "@earlyclobber $vd"
 
 def : InstAlias<"vncvt.x.x.w $vd, $vs",
-                (VNSRL_WX VGPR_32:$vd, VGPR_32:$vs, X0)>;
-def : InstAlias<"vncvt.x.x.w $vd, $vs",
-                (VNSRL_WX VGPR_32:$vd, VGPR_32:$vs, X0, zero_reg)>;
+                (VNSRL_WX VGPR:$vd, VGPR:$vs, X0)>;
 
 // Vector Integer Comparison Instructions
 let RVVConstraint = NoConstraint in {
@@ -739,13 +744,13 @@ defm VMSGT_V : VCMP_IV_X_I<"vmsgt", 0b011111>;
 } // RVVConstraint = NoConstraint
 
 def : InstAlias<"vmsgtu.vv $vd, $va, $vb",
-                (VMSLTU_VV VGPR_32:$vd, VGPR_32:$vb, VGPR_32:$va), 0>;
+                (VMSLTU_VV VGPR:$vd, VGPR:$vb, VGPR:$va), 0>;
 def : InstAlias<"vmsgt.vv $vd, $va, $vb",
-                (VMSLT_VV VGPR_32:$vd, VGPR_32:$vb, VGPR_32:$va), 0>;
+                (VMSLT_VV VGPR:$vd, VGPR:$vb, VGPR:$va), 0>;
 def : InstAlias<"vmsgeu.vv $vd, $va, $vb",
-                (VMSLEU_VV VGPR_32:$vd, VGPR_32:$vb, VGPR_32:$va), 0>;
+                (VMSLEU_VV VGPR:$vd, VGPR:$vb, VGPR:$va), 0>;
 def : InstAlias<"vmsge.vv $vd, $va, $vb",
-                (VMSLE_VV VGPR_32:$vd, VGPR_32:$vb, VGPR_32:$va), 0>;
+                (VMSLE_VV VGPR:$vd, VGPR:$vb, VGPR:$va), 0>;
 
 let isCodeGenOnly = 0, isAsmParserOnly = 1, hasSideEffects = 0, mayLoad = 0,
     mayStore = 0 in {
@@ -754,29 +759,29 @@ let isCodeGenOnly = 0, isAsmParserOnly = 1, hasSideEffects = 0, mayLoad = 0,
 // immediate like we do for signed. To match the GNU assembler we will use
 // vmseq/vmsne.vv with the same register for both operands which we can't do
 // from an InstAlias.
-def PseudoVMSGEU_VI : Pseudo<(outs VGPR_32:$vd),
-                             (ins VGPR_32:$vs2, simm5_plus1:$imm),
+def PseudoVMSGEU_VI : Pseudo<(outs VGPR:$vd),
+                             (ins VGPR:$vs2, simm5_plus1:$imm),
                              [], "vmsgeu.vi", "$vd, $vs2, $imm">;
-def PseudoVMSLTU_VI : Pseudo<(outs VGPR_32:$vd),
-                             (ins VGPR_32:$vs2, simm5_plus1:$imm),
+def PseudoVMSLTU_VI : Pseudo<(outs VGPR:$vd),
+                             (ins VGPR:$vs2, simm5_plus1:$imm),
                              [], "vmsltu.vi", "$vd, $vs2, $imm">;
 // Handle signed with pseudos as well for more consistency in the
 // implementation.
-def PseudoVMSGE_VI : Pseudo<(outs VGPR_32:$vd),
-                            (ins VGPR_32:$vs2, simm5_plus1:$imm),
+def PseudoVMSGE_VI : Pseudo<(outs VGPR:$vd),
+                            (ins VGPR:$vs2, simm5_plus1:$imm),
                             [], "vmsge.vi", "$vd, $vs2, $imm">;
-def PseudoVMSLT_VI : Pseudo<(outs VGPR_32:$vd),
-                            (ins VGPR_32:$vs2, simm5_plus1:$imm),
+def PseudoVMSLT_VI : Pseudo<(outs VGPR:$vd),
+                            (ins VGPR:$vs2, simm5_plus1:$imm),
                             [], "vmslt.vi", "$vd, $vs2, $imm">;
 }
 
 let isCodeGenOnly = 0, isAsmParserOnly = 1, hasSideEffects = 0, mayLoad = 0,
     mayStore = 0 in {
-def PseudoVMSGEU_VX : Pseudo<(outs VGPR_32:$vd),
-                             (ins VGPR_32:$vs2, GPR:$rs1),
+def PseudoVMSGEU_VX : Pseudo<(outs VGPR:$vd),
+                             (ins VGPR:$vs2, GPR:$rs1),
                              [], "vmsgeu.vx", "$vd, $vs2, $rs1">;
-def PseudoVMSGE_VX : Pseudo<(outs VGPR_32:$vd),
-                            (ins VGPR_32:$vs2, GPR:$rs1),
+def PseudoVMSGE_VX : Pseudo<(outs VGPR:$vd),
+                            (ins VGPR:$vs2, GPR:$rs1),
                             [], "vmsge.vx", "$vd, $vs2, $rs1">;
 }
 
@@ -823,15 +828,15 @@ defm VWMACCUS_V : VWMAC_MV_X<"vwmaccus", 0b111110>;
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0, vs2 = 0,
     RVVConstraint = NoConstraint  in {
 // op vd, vs1
-def VMV_V_V : RVInstVV<0b010111, OPIVV, (outs VGPR_32:$vd),
-                       (ins VGPR_32:$vs1), "vmv.v.v", "$vd, $vs1">,
+def VMV_V_V : RVInstVV<0b010111, OPIVV, (outs VGPR:$vd),
+                       (ins VGPR:$vs1), "vmv.v.v", "$vd, $vs1">,
               Sched<[WriteVIMovV_UpperBound, ReadVIMovV_UpperBound]>;
 // op vd, rs1
-def VMV_V_X : RVInstVX<0b010111, OPIVX, (outs VGPR_32:$vd),
+def VMV_V_X : RVInstVX<0b010111, OPIVX, (outs VGPR:$vd),
                        (ins GPR:$rs1), "vmv.v.x", "$vd, $rs1">,
               Sched<[WriteVIMovX_UpperBound, ReadVIMovX_UpperBound]>;
 // op vd, imm
-def VMV_V_I : RVInstIVI<0b010111, (outs VGPR_32:$vd),
+def VMV_V_I : RVInstIVI<0b010111, (outs VGPR:$vd),
                        (ins simm5:$imm), "vmv.v.i", "$vd, $imm">,
               Sched<[WriteVIMovI_UpperBound]>;
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
@@ -943,13 +948,9 @@ defm VFSGNJN_V : VSGNJ_FV_V_F<"vfsgnjn", 0b001001>;
 defm VFSGNJX_V : VSGNJ_FV_V_F<"vfsgnjx", 0b001010>;
 
 def : InstAlias<"vfneg.v $vd, $vs",
-                (VFSGNJN_VV VGPR_32:$vd, VGPR_32:$vs, VGPR_32:$vs)>;
-def : InstAlias<"vfneg.v $vd, $vs",
-                (VFSGNJN_VV VGPR_32:$vd, VGPR_32:$vs, VGPR_32:$vs, zero_reg)>;
+                (VFSGNJN_VV VGPR:$vd, VGPR:$vs, VGPR:$vs)>;
 def : InstAlias<"vfabs.v $vd, $vs",
-                (VFSGNJX_VV VGPR_32:$vd, VGPR_32:$vs, VGPR_32:$vs)>;
-def : InstAlias<"vfabs.v $vd, $vs",
-                (VFSGNJX_VV VGPR_32:$vd, VGPR_32:$vs, VGPR_32:$vs, zero_reg)>;
+                (VFSGNJX_VV VGPR:$vd, VGPR:$vs, VGPR:$vs)>;
 
 // Vector Floating-Point Compare Instructions
 let RVVConstraint = NoConstraint, mayRaiseFPException = true in {
@@ -962,9 +963,9 @@ defm VMFGE_V : VCMP_FV_F<"vmfge", 0b011111>;
 } // RVVConstraint = NoConstraint, mayRaiseFPException = true
 
 def : InstAlias<"vmfgt.vv $vd, $va, $vb",
-                (VMFLT_VV VGPR_32:$vd, VGPR_32:$vb, VGPR_32:$va), 0>;
-def : InstAlias<"vmfge.vv $vd, $va, $vb$vm",
-                (VMFLE_VV VGPR_32:$vd, VGPR_32:$vb, VGPR_32:$va), 0>;
+                (VMFLT_VV VGPR:$vd, VGPR:$vb, VGPR:$va), 0>;
+def : InstAlias<"vmfge.vv $vd, $va, $vb",
+                (VMFLE_VV VGPR:$vd, VGPR:$vb, VGPR:$va), 0>;
 
 // Vector Floating-Point Classify Instruction
 defm VFCLASS_V : VCLS_FV_VS2<"vfclass.v", 0b010011, 0b10000>;
@@ -973,7 +974,7 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 // Vector Floating-Point Move Instruction
 let RVVConstraint = NoConstraint in
 let vs2 = 0 in
-def VFMV_V_F : RVInstVX<0b010111, OPFVF, (outs VGPR_32:$vd),
+def VFMV_V_F : RVInstVX<0b010111, OPFVF, (outs VGPR:$vd),
                        (ins FPR32:$rs1), "vfmv.v.f", "$vd, $rs1">,
                Sched<[WriteVFMovV_UpperBound, ReadVFMovF_UpperBound]>;
 
@@ -1026,73 +1027,15 @@ defm VFNCVT_ROD_F_F_W : VNCVTF_FV_VS2<"vfncvt.rod.f.f.w", 0b010010, 0b10101>;
 
 let Predicates = [HasVInstructions] in {
 
-// Vector Single-Width Integer Reduction Instructions
-let RVVConstraint = NoConstraint in {
-defm VREDSUM : VRED_MV_V<"vredsum", 0b000000>;
-defm VREDMAXU : VRED_MV_V<"vredmaxu", 0b000110>;
-defm VREDMAX : VRED_MV_V<"vredmax", 0b000111>;
-defm VREDMINU : VRED_MV_V<"vredminu", 0b000100>;
-defm VREDMIN : VRED_MV_V<"vredmin", 0b000101>;
-defm VREDAND : VRED_MV_V<"vredand", 0b000001>;
-defm VREDOR : VRED_MV_V<"vredor", 0b000010>;
-defm VREDXOR : VRED_MV_V<"vredxor", 0b000011>;
-} // RVVConstraint = NoConstraint
-
-// Vector Widening Integer Reduction Instructions
-let Constraints = "@earlyclobber $vd", RVVConstraint = NoConstraint in {
-// Set earlyclobber for following instructions for second operands.
-// This has the downside that the earlyclobber constraint is too coarse and
-// will impose unnecessary restrictions by not allowing the destination to
-// overlap with the first (wide) operand.
-defm VWREDSUMU : VWRED_IV_V<"vwredsumu", 0b110000>;
-defm VWREDSUM : VWRED_IV_V<"vwredsum", 0b110001>;
-} // Constraints = "@earlyclobber $vd", RVVConstraint = NoConstraint
-
-} // Predicates = [HasVInstructions]
-
-let Predicates = [HasVInstructionsAnyF] in {
-// Vector Single-Width Floating-Point Reduction Instructions
-let RVVConstraint = NoConstraint in {
-let Uses = [FRM], mayRaiseFPException = true in {
-defm VFREDOSUM : VREDO_FV_V<"vfredosum", 0b000011>;
-defm VFREDUSUM : VRED_FV_V<"vfredusum", 0b000001>;
-}
-let mayRaiseFPException = true in {
-defm VFREDMAX : VRED_FV_V<"vfredmax", 0b000111>;
-defm VFREDMIN : VRED_FV_V<"vfredmin", 0b000101>;
-}
-} // RVVConstraint = NoConstraint
-
-def : InstAlias<"vfredsum.vs $vd, $vs2, $vs1",
-                (VFREDUSUM_VS VGPR_32:$vd, VGPR_32:$vs2, VGPR_32:$vs1), 0>;
-
-// Vector Widening Floating-Point Reduction Instructions
-let Constraints = "@earlyclobber $vd", RVVConstraint = NoConstraint in {
-// Set earlyclobber for following instructions for second operands.
-// This has the downside that the earlyclobber constraint is too coarse and
-// will impose unnecessary restrictions by not allowing the destination to
-// overlap with the first (wide) operand.
-let Uses = [FRM], mayRaiseFPException = true in {
-defm VFWREDOSUM : VWREDO_FV_V<"vfwredosum", 0b110011>;
-defm VFWREDUSUM : VWRED_FV_V<"vfwredusum", 0b110001>;
-}
-} // Constraints = "@earlyclobber $vd", RVVConstraint = NoConstraint
-
-def : InstAlias<"vfwredsum.vs $vd, $vs2, $vs1",
-                (VFWREDUSUM_VS VGPR_32:$vd, VGPR_32:$vs2, VGPR_32:$vs1), 0>;
-} // Predicates = [HasVInstructionsAnyF]
-
-let Predicates = [HasVInstructions] in {
-
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 // Integer Scalar Move Instructions
 let RVVConstraint = NoConstraint in {
 def VMV_X_S : RVInstV<0b010000, 0b00000, OPMVV, (outs GPR:$vd),
-                      (ins VGPR_32:$vs2), "vmv.x.s", "$vd, $vs2">,
+                      (ins VGPR:$vs2), "vmv.x.s", "$vd, $vs2">,
               Sched<[WriteVIMovVX, ReadVIMovVX]>;
 let Constraints = "$vd = $vd_wb" in
-def VMV_S_X : RVInstV2<0b010000, 0b00000, OPMVX, (outs VGPR_32:$vd_wb),
-                      (ins VGPR_32:$vd, GPR:$rs1), "vmv.s.x", "$vd, $rs1">,
+def VMV_S_X : RVInstV2<0b010000, 0b00000, OPMVX, (outs VGPR:$vd_wb),
+                      (ins VGPR:$vd, GPR:$rs1), "vmv.s.x", "$vd, $rs1">,
               Sched<[WriteVIMovXV, ReadVIMovXV, ReadVIMovXX]>;
 } // RVVConstraint = NoConstraint
 
@@ -1107,16 +1050,41 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
     RVVConstraint = NoConstraint  in {
 // Floating-Point Scalar Move Instructions
 def VFMV_F_S : RVInstV<0b010000, 0b00000, OPFVV, (outs FPR32:$vd),
-                      (ins VGPR_32:$vs2), "vfmv.f.s", "$vd, $vs2">,
+                      (ins VGPR:$vs2), "vfmv.f.s", "$vd, $vs2">,
                Sched<[WriteVFMovVF, ReadVFMovVF]>;
 let Constraints = "$vd = $vd_wb" in
-def VFMV_S_F : RVInstV2<0b010000, 0b00000, OPFVF, (outs VGPR_32:$vd_wb),
-                       (ins VGPR_32:$vd, FPR32:$rs1), "vfmv.s.f", "$vd, $rs1">,
+def VFMV_S_F : RVInstV2<0b010000, 0b00000, OPFVF, (outs VGPR:$vd_wb),
+                       (ins VGPR:$vd, FPR32:$rs1), "vfmv.s.f", "$vd, $rs1">,
                Sched<[WriteVFMovFV, ReadVFMovFV, ReadVFMovFX]>;
 
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
 
 } // Predicates = [HasVInstructionsAnyF]
+
+//===----------------------------------------------------------------------===//
+// Ventus vALU divergent execution patterns
+//===----------------------------------------------------------------------===//
+
+defm : PatVBin<DivergentBinFrag<smin>, [VMIN_VV, VMIN_VX]>;
+defm : PatVBin<DivergentBinFrag<umin>, [VMINU_VV, VMINU_VX]>;
+defm : PatVBin<DivergentBinFrag<smax>, [VMAX_VV, VMAX_VX]>;
+defm : PatVBin<DivergentBinFrag<umax>, [VMAXU_VV, VMAXU_VX]>;
+defm : PatVBin<DivergentBinFrag<add>,  [VADD_VV, VADD_VX, VADD_VI]>;
+defm : PatVBin<DivergentBinFrag<sub>,  [VSUB_VV, VSUB_VX]>;
+defm : PatVBin<DivergentBinFrag<and>,  [VAND_VV, VAND_VX, VAND_VI]>;
+defm : PatVBin<DivergentBinFrag<or>,   [VOR_VV, VOR_VX, VOR_VI]>;
+defm : PatVBin<DivergentBinFrag<xor>,  [VXOR_VV, VXOR_VX, VXOR_VI]>;
+defm : PatVBin<DivergentBinFrag<shl>,  [VSLL_VV, VSLL_VX, VSLL_VI]>;
+defm : PatVBin<DivergentBinFrag<srl>,  [VSRL_VV, VSRL_VX, VSRL_VI]>;
+defm : PatVBin<DivergentBinFrag<sra>,  [VSRA_VV, VSRA_VX, VSRA_VI]>;
+defm : PatVBin<DivergentBinFrag<mul>,  [VMUL_VV, VMUL_VX]>;
+defm : PatVBin<DivergentBinFrag<mulhs>,[VMULH_VV, VMULH_VX]>;
+defm : PatVBin<DivergentBinFrag<mulhu>,[VMULHU_VV, VMULHU_VX]>;
+defm : PatVBin<DivergentBinFrag<sdiv>, [VDIV_VV, VDIV_VX]>;
+defm : PatVBin<DivergentBinFrag<udiv>, [VDIVU_VV, VDIVU_VX]>;
+defm : PatVBin<DivergentBinFrag<srem>, [VREM_VV, VREM_VX]>;
+defm : PatVBin<DivergentBinFrag<urem>, [VREMU_VV, VREMU_VX]>;
+
 
 // TODO: Fix it!
 /*
@@ -1135,4 +1103,5 @@ foreach n = [1] in {
 } // Predicates = [HasVInstructions]
 */
 
-include "VentusInstrInfoVPseudos.td"
+// TODO: Will enable this after non divergent execution path are implemented.
+// include "VentusInstrInfoVPseudos.td"
