@@ -67,42 +67,42 @@ def REMUW   : ALUW_rr<0b0000001, 0b111, "remuw">,
 //===----------------------------------------------------------------------===//
 
 let Predicates = [HasStdExtMOrZmmul] in {
-def : PatGprGpr<mul, MUL>;
-def : PatGprGpr<mulhs, MULH>;
-def : PatGprGpr<mulhu, MULHU>;
-def : PatGprGpr<riscv_mulhsu, MULHSU>;
+def : PatGprGpr<UniformBinFrag<mul>, MUL>;
+def : PatGprGpr<UniformBinFrag<mulhs>, MULH>;
+def : PatGprGpr<UniformBinFrag<mulhu>, MULHU>;
+def : PatGprGpr<UniformBinFrag<riscv_mulhsu>, MULHSU>;
 } // Predicates = [HasStdExtMOrZmmul]
 
 let Predicates = [HasStdExtM] in {
-def : PatGprGpr<sdiv, DIV>;
-def : PatGprGpr<udiv, DIVU>;
-def : PatGprGpr<srem, REM>;
-def : PatGprGpr<urem, REMU>;
+def : PatGprGpr<UniformBinFrag<sdiv>, DIV>;
+def : PatGprGpr<UniformBinFrag<udiv>, DIVU>;
+def : PatGprGpr<UniformBinFrag<srem>, REM>;
+def : PatGprGpr<UniformBinFrag<urem>, REMU>;
 } // Predicates = [HasStdExtM]
 
 // Select W instructions if only the lower 32-bits of the result are used.
 let Predicates = [HasStdExtMOrZmmul, IsRV64] in
-def : PatGprGpr<binop_allwusers<mul>, MULW>;
+def : PatGprGpr<UniformWBinFrag<mul>, MULW>;
 
 let Predicates = [HasStdExtM, IsRV64] in {
-def : PatGprGpr<riscv_divw, DIVW>;
-def : PatGprGpr<riscv_divuw, DIVUW>;
-def : PatGprGpr<riscv_remuw, REMUW>;
+def : PatGprGpr<UniformWBinFrag<riscv_divw>, DIVW>;
+def : PatGprGpr<UniformWBinFrag<riscv_divuw>, DIVUW>;
+def : PatGprGpr<UniformWBinFrag<riscv_remuw>, REMUW>;
 
 // Handle the specific cases where using DIVU/REMU would be correct and result
 // in fewer instructions than emitting DIVUW/REMUW then zero-extending the
 // result.
-def : Pat<(and (riscv_divuw (assertzexti32 GPR:$rs1),
-                            (assertzexti32 GPR:$rs2)), 0xffffffff),
+def : Pat<(UniformBinFrag<and> (riscv_divuw (assertzexti32 GPR:$rs1),
+                                (assertzexti32 GPR:$rs2)), 0xffffffff),
           (DIVU GPR:$rs1, GPR:$rs2)>;
-def : Pat<(and (riscv_remuw (assertzexti32 GPR:$rs1),
-                            (assertzexti32 GPR:$rs2)), 0xffffffff),
+def : Pat<(UniformBinFrag<and> (riscv_remuw (assertzexti32 GPR:$rs1),
+                                (assertzexti32 GPR:$rs2)), 0xffffffff),
           (REMU GPR:$rs1, GPR:$rs2)>;
 
 // Although the sexti32 operands may not have originated from an i32 srem,
 // this pattern is safe as it is impossible for two sign extended inputs to
 // produce a result where res[63:32]=0 and res[31]=1.
-def : Pat<(srem (sexti32 (i64 GPR:$rs1)), (sexti32 (i64 GPR:$rs2))),
+def : Pat<(UniformBinFrag<srem> (sexti32 (i64 GPR:$rs1)), (sexti32 (i64 GPR:$rs2))),
           (REMW GPR:$rs1, GPR:$rs2)>;
 } // Predicates = [HasStdExtM, IsRV64]
 
@@ -111,6 +111,6 @@ let Predicates = [HasStdExtMOrZmmul, IsRV64, NotHasStdExtZba] in {
 // multiply where the inputs aren't known to be zero extended. We can shift the
 // inputs left by 32 and use a MULHU. This saves two SRLIs needed to finish
 // zeroing the upper 32 bits.
-def : Pat<(i64 (mul (and GPR:$rs1, 0xffffffff), (and GPR:$rs2, 0xffffffff))),
+def : Pat<(i64 (UniformBinFrag<mul> (and GPR:$rs1, 0xffffffff), (and GPR:$rs2, 0xffffffff))),
           (MULHU (SLLI GPR:$rs1, 32), (SLLI GPR:$rs2, 32))>;
 } // Predicates = [HasStdExtMOrZmmul, IsRV64, NotHasStdExtZba]

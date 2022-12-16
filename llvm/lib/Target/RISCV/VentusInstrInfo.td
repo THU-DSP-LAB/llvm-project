@@ -48,7 +48,7 @@ class UniformTernaryFrag<SDPatternOperator Op> : PatFrag<
   [{ return !N->isDivergent(); }]>;
 
 class UniformTetradFrag<SDPatternOperator Op> : PatFrag<
-  (ops node:$src0, node:$src1, node:$src2, node:$sec3),
+  (ops node:$src0, node:$src1, node:$src2, node:$src3),
   (Op $src0, $src1, $src2, $src3),
   [{ return !N->isDivergent(); }]>;
 
@@ -1418,18 +1418,6 @@ multiclass SelectCC_GPR_rrirr<RegisterClass valty> {
 let Predicates = [NoShortForwardBranchOpt] in
 defm Select_GPR : SelectCC_GPR_rrirr<GPR>;
 
-class SelectCompressOpt<CondCode Cond>: Pat<(riscv_selectcc_frag:$select GPR:$lhs, simm12_no6:$Constant, Cond,
-                                                  GPR:$truev, GPR:$falsev),
-    (Select_GPR_Using_CC_GPR (ADDI GPR:$lhs, (NegImm simm12:$Constant)), X0,
-                          (IntCCtoRISCVCC $select), GPR:$truev, GPR:$falsev)>;
-
-def OptForMinSize : Predicate<"MF ? MF->getFunction().hasMinSize() : false">;
-
-let Predicates = [HasStdExtC, OptForMinSize] in {
-  def : SelectCompressOpt<SETEQ>;
-  def : SelectCompressOpt<SETNE>;
-}
-
 /// Branches and jumps
 
 // Match `riscv_brcc` and lower to the appropriate RISC-V branch instruction.
@@ -1441,21 +1429,12 @@ multiclass UniformBccPat<CondCode Cond, RVInstB Inst> {
             (Inst GPR:$rs1, X0, simm13_lsb0:$imm12)>;
 }
 
-class UniBrccCompressOpt<CondCode Cond, RVInstB Inst> : Pat<
-  (UniformTetradFrag<riscv_brcc> GPR:$lhs, simm12_no6:$Constant, Cond, bb:$place),
-  (Inst (ADDI GPR:$lhs, (NegImm simm12:$Constant)), X0, bb:$place)>;
-
 defm : UniformBccPat<SETEQ, BEQ>;
 defm : UniformBccPat<SETNE, BNE>;
 defm : UniformBccPat<SETLT, BLT>;
 defm : UniformBccPat<SETGE, BGE>;
 defm : UniformBccPat<SETULT, BLTU>;
 defm : UniformBccPat<SETUGE, BGEU>;
-
-let Predicates = [HasStdExtC, OptForMinSize] in {
-  def : UniBrccCompressOpt<SETEQ, BEQ>;
-  def : UniBrccCompressOpt<SETNE, BNE>;
-}
 
 let isBarrier = 1, isBranch = 1, isTerminator = 1 in
 def PseudoBR : Pseudo<(outs), (ins simm21_lsb0_jal:$imm20), [(br bb:$imm20)]>,
@@ -1590,7 +1569,7 @@ def PseudoZEXT_W : Pseudo<(outs GPR:$rd), (ins GPR:$rs), [], "zext.w", "$rd, $rs
 /// Loads
 
 multiclass UniformLdPat<PatFrag LoadOp, RVInst Inst, ValueType vt = XLenVT> {
-  def : Pat<(vt (UniformBinFrag<LoadOp> (AddrRegImm GPR:$rs1, simm12:$imm12))),
+  def : Pat<(vt (UniformUnaryFrag<LoadOp> (AddrRegImm GPR:$rs1, simm12:$imm12))),
             (Inst GPR:$rs1, simm12:$imm12)>;
 }
 
@@ -1605,7 +1584,7 @@ defm : UniformLdPat<zextloadi16, LHU>;
 /// Stores
 
 multiclass UniformStPat<PatFrag StoreOp, RVInst Inst, RegisterClass StTy,
-                 ValueType vt> {
+                        ValueType vt> {
   def : Pat<(UniformBinFrag<StoreOp> (vt StTy:$rs2), (AddrRegImm GPR:$rs1, simm12:$imm12)),
             (Inst StTy:$rs2, GPR:$rs1, simm12:$imm12)>;
 }
@@ -1829,7 +1808,7 @@ def : Pat<(UniformWBinFrag<add> GPR:$rs1, (AddiPair:$rs2)),
 //===----------------------------------------------------------------------===//
 
 include "VentusInstrInfoM.td"
-include "RISCVInstrInfoA.td"
+include "VentusInstrInfoA.td"
 include "RISCVInstrInfoF.td"
 include "RISCVInstrInfoD.td"
 include "VentusInstrInfoC.td"

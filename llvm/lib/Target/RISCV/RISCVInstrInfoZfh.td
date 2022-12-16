@@ -344,11 +344,11 @@ def PseudoFROUND_H : PseudoFROUND<FPR16>;
 let Predicates = [HasStdExtZfhOrZfhmin] in {
 /// Loads
 
-defm : LdPat<load, FLH, f16>;
+defm : UniformLdPat<load, FLH, f16>;
 
 /// Stores
 
-defm : StPat<store, FSH, FPR16, f16>;
+defm : UniformStPat<store, FSH, FPR16, f16>;
 
 /// Float conversion operations
 

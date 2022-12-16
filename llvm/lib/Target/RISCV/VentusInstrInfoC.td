@@ -752,6 +752,27 @@ def : InstAlias<"c.fsdsp $rs2, (${rs1})", (C_FSDSP FPR64C:$rs2, SPMem:$rs1, 0)>;
 // Compress Instruction tablegen backend.
 //===----------------------------------------------------------------------===//
 
+class SelectCompressOpt<CondCode Cond>: Pat<
+  (riscv_selectcc_frag:$select GPR:$lhs, simm12_no6:$Constant, Cond,
+   GPR:$truev, GPR:$falsev),
+  (Select_GPR_Using_CC_GPR (ADDI GPR:$lhs, (NegImm simm12:$Constant)), X0,
+                           (IntCCtoRISCVCC $select), GPR:$truev, GPR:$falsev)>;
+
+class UniBrccCompressOpt<CondCode Cond, RVInstB Inst> : Pat<
+  (UniformTetradFrag<riscv_brcc> GPR:$lhs, simm12_no6:$Constant, Cond, bb:$place),
+  (Inst (ADDI GPR:$lhs, (NegImm simm12:$Constant)), X0, bb:$place)>;
+
+def OptForMinSize : Predicate<"MF ? MF->getFunction().hasMinSize() : false">;
+
+let Predicates = [HasStdExtC, OptForMinSize] in {
+  def : SelectCompressOpt<SETEQ>;
+  def : SelectCompressOpt<SETNE>;
+
+  def : UniBrccCompressOpt<SETEQ, BEQ>;
+  def : UniBrccCompressOpt<SETNE, BNE>;
+}
+
+
 // Patterns are defined in the same order the compressed instructions appear
 // on page 82 of the ISA manual.
 

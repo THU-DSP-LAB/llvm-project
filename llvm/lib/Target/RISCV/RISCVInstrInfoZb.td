@@ -525,8 +525,8 @@ def : Pat<(xor GPR:$rs1, (not GPR:$rs2)), (XNOR GPR:$rs1, GPR:$rs2)>;
 } // Predicates = [HasStdExtZbbOrZbkb]
 
 let Predicates = [HasStdExtZbbOrZbkb] in {
-def : PatGprGpr<shiftop<rotl>, ROL>;
-def : PatGprGpr<shiftop<rotr>, ROR>;
+def : PatGprGpr<UniformShiftFrag<rotl>, ROL>;
+def : PatGprGpr<UniformShiftFrag<rotr>, ROR>;
 
 def : PatGprImm<rotr, RORI, uimmlog2xlen>;
 // There's no encoding for roli in the the 'B' extension as it can be
@@ -536,25 +536,25 @@ def : Pat<(rotl GPR:$rs1, uimmlog2xlen:$shamt),
 } // Predicates = [HasStdExtZbbOrZbkb]
 
 let Predicates = [HasStdExtZbbOrZbkb, IsRV64] in {
-def : PatGprGpr<shiftopw<riscv_rolw>, ROLW>;
-def : PatGprGpr<shiftopw<riscv_rorw>, RORW>;
+def : PatGprGpr<UniformShiftWFrag<riscv_rolw>, ROLW>;
+def : PatGprGpr<UniformShiftWFrag<riscv_rorw>, RORW>;
 def : PatGprImm<riscv_rorw, RORIW, uimm5>;
 def : Pat<(riscv_rolw GPR:$rs1, uimm5:$rs2),
           (RORIW GPR:$rs1, (ImmSubFrom32 uimm5:$rs2))>;
 } // Predicates = [HasStdExtZbbOrZbkb, IsRV64]
 
 let Predicates = [HasStdExtZbs] in {
-def : Pat<(and (not (shiftop<shl> 1, GPR:$rs2)), GPR:$rs1),
+def : Pat<(and (not (UniformShiftFrag<shl> 1, GPR:$rs2)), GPR:$rs1),
           (BCLR GPR:$rs1, GPR:$rs2)>;
 def : Pat<(and (rotl -2, GPR:$rs2), GPR:$rs1), (BCLR GPR:$rs1, GPR:$rs2)>;
-def : Pat<(or (shiftop<shl> 1, GPR:$rs2), GPR:$rs1),
+def : Pat<(or (UniformShiftFrag<shl> 1, GPR:$rs2), GPR:$rs1),
           (BSET GPR:$rs1, GPR:$rs2)>;
-def : Pat<(xor (shiftop<shl> 1, GPR:$rs2), GPR:$rs1),
+def : Pat<(xor (UniformShiftFrag<shl> 1, GPR:$rs2), GPR:$rs1),
           (BINV GPR:$rs1, GPR:$rs2)>;
-def : Pat<(and (shiftop<srl> GPR:$rs1, GPR:$rs2), 1),
+def : Pat<(and (UniformShiftFrag<srl> GPR:$rs1, GPR:$rs2), 1),
           (BEXT GPR:$rs1, GPR:$rs2)>;
 
-def : Pat<(shiftop<shl> 1, GPR:$rs2),
+def : Pat<(UniformShiftFrag<shl> 1, GPR:$rs2),
           (BSET X0, GPR:$rs2)>;
 
 def : Pat<(and GPR:$rs1, BCLRMask:$mask),
@@ -659,7 +659,7 @@ let Predicates = [HasStdExtZbkb, IsRV64] in {
 def : Pat<(i64 (or (zexti32 GPR:$rs1), (shl GPR:$rs2, (i64 32)))),
           (PACK GPR:$rs1, GPR:$rs2)>;
 
-def : Pat<(binop_allwusers<or> (shl GPR:$rs2, (i64 16)),
+def : Pat<(UniformWBinFrag<or> (shl GPR:$rs2, (i64 16)),
                                (zexti16 GPR:$rs1)),
           (PACKW GPR:$rs1, GPR:$rs2)>;
 def : Pat<(i64 (or (sext_inreg (shl GPR:$rs2, (i64 16)), i32),
