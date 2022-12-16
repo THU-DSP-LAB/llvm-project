@@ -209,11 +209,6 @@ bool isZEXT_B(const MachineInstr &MI);
 // expect to see a FrameIndex operand.
 bool isRVVSpill(const MachineInstr &MI);
 
-std::optional<std::pair<unsigned, unsigned>>
-isRVVSpillForZvlsseg(unsigned Opcode);
-
-bool isFaultFirstLoad(const MachineInstr &MI);
-
 // Implemented in RISCVGenInstrInfo.inc
 int16_t getNamedOperandIdx(uint16_t Opcode, uint16_t NamedIndex);
 

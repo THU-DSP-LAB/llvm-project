@@ -572,13 +572,8 @@ public:
     // when calculating fractional LMUL.
     return ((VectorBits / EltSize) * MinSize) / RISCV::RVVBitsPerBlock;
   };
-  static unsigned getRegClassIDForLMUL(RISCVII::VLMUL LMul);
   static unsigned getSubregIndexByMVT(MVT VT, unsigned Index);
   static unsigned getRegClassIDForVecVT(MVT VT);
-  static std::pair<unsigned, unsigned>
-  decomposeSubvectorInsertExtractToSubRegs(MVT VecVT, MVT SubVecVT,
-                                           unsigned InsertExtractIdx,
-                                           const RISCVRegisterInfo *TRI);
   MVT getContainerForFixedLengthVector(MVT VT) const;
 
   bool shouldRemoveExtendFromGSIndex(EVT IndexVT, EVT DataVT) const override;
@@ -643,58 +638,11 @@ private:
   SDValue lowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerShiftLeftParts(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerShiftRightParts(SDValue Op, SelectionDAG &DAG, bool IsSRA) const;
-  SDValue lowerSPLAT_VECTOR_PARTS(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerVectorMaskSplat(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerVectorMaskExt(SDValue Op, SelectionDAG &DAG,
-                             int64_t ExtTrueVal) const;
-  SDValue lowerVectorMaskTruncLike(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerVectorTruncLike(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerVectorFPExtendOrRoundLike(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerINSERT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerINTRINSIC_W_CHAIN(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerINTRINSIC_VOID(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerVPREDUCE(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerVECREDUCE(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerVectorMaskVecReduction(SDValue Op, SelectionDAG &DAG,
-                                      bool IsVP) const;
-  SDValue lowerFPVECREDUCE(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerINSERT_SUBVECTOR(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerEXTRACT_SUBVECTOR(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerSTEP_VECTOR(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerVECTOR_REVERSE(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerVECTOR_SPLICE(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerABS(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerMaskedLoad(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerMaskedStore(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerFixedLengthVectorFCOPYSIGNToRVV(SDValue Op,
-                                               SelectionDAG &DAG) const;
-  SDValue lowerMaskedGather(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerMaskedScatter(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerFixedLengthVectorLoadToRVV(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerFixedLengthVectorStoreToRVV(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerFixedLengthVectorSetccToRVV(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerFixedLengthVectorLogicOpToRVV(SDValue Op, SelectionDAG &DAG,
-                                             unsigned MaskOpc,
-                                             unsigned VecOpc) const;
-  SDValue lowerFixedLengthVectorShiftToRVV(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerFixedLengthVectorSelectToRVV(SDValue Op,
-                                            SelectionDAG &DAG) const;
-  SDValue lowerToScalableOp(SDValue Op, SelectionDAG &DAG, unsigned NewOpc,
-                            bool HasMergeOp = false, bool HasMask = true) const;
-  SDValue lowerVPOp(SDValue Op, SelectionDAG &DAG, unsigned RISCVISDOpc,
-                    bool HasMergeOp = false) const;
-  SDValue lowerLogicVPOp(SDValue Op, SelectionDAG &DAG, unsigned MaskOpc,
-                         unsigned VecOpc) const;
-  SDValue lowerVPExtMaskOp(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerVPSetCCMaskOp(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerVPFPIntConvOp(SDValue Op, SelectionDAG &DAG,
-                             unsigned RISCVISDOpc) const;
-  SDValue lowerVPStridedLoad(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerVPStridedStore(SDValue Op, SelectionDAG &DAG) const;
-  SDValue lowerFixedLengthVectorExtendToRVV(SDValue Op, SelectionDAG &DAG,
-                                            unsigned ExtendOpc) const;
   SDValue lowerGET_ROUNDING(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerSET_ROUNDING(SDValue Op, SelectionDAG &DAG) const;
 
