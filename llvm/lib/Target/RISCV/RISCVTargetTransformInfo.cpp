@@ -232,91 +232,6 @@ RISCVTTIImpl::getRegisterBitWidth(TargetTransformInfo::RegisterKind K) const {
   llvm_unreachable("Unsupported register kind");
 }
 
-InstructionCost RISCVTTIImpl::getSpliceCost(VectorType *Tp, int Index) {
-  std::pair<InstructionCost, MVT> LT = getTypeLegalizationCost(Tp);
-
-  unsigned Cost = 2; // vslidedown+vslideup.
-  // TODO: Multiplying by LT.first implies this legalizes into multiple copies
-  // of similar code, but I think we expand through memory.
-  return Cost * LT.first * getLMULCost(LT.second);
-}
-
-InstructionCost RISCVTTIImpl::getShuffleCost(TTI::ShuffleKind Kind,
-                                             VectorType *Tp, ArrayRef<int> Mask,
-                                             TTI::TargetCostKind CostKind,
-                                             int Index, VectorType *SubTp,
-                                             ArrayRef<const Value *> Args) {
-  if (isa<ScalableVectorType>(Tp)) {
-    std::pair<InstructionCost, MVT> LT = getTypeLegalizationCost(Tp);
-    switch (Kind) {
-    default:
-      // Fallthrough to generic handling.
-      // TODO: Most of these cases will return getInvalid in generic code, and
-      // must be implemented here.
-      break;
-    case TTI::SK_Broadcast: {
-      return LT.first * 1;
-    }
-    case TTI::SK_Splice:
-      return getSpliceCost(Tp, Index);
-    case TTI::SK_Reverse:
-      // Most of the cost here is producing the vrgather index register
-      // Example sequence:
-      //   csrr a0, vlenb
-      //   srli a0, a0, 3
-      //   addi a0, a0, -1
-      //   vsetvli a1, zero, e8, mf8, ta, mu (ignored)
-      //   vid.v v9
-      //   vrsub.vx v10, v9, a0
-      //   vrgather.vv v9, v8, v10
-      if (Tp->getElementType()->isIntegerTy(1))
-        // Mask operation additionally required extend and truncate
-        return LT.first * 9;
-      return LT.first * 6;
-    }
-  }
-
-  if (isa<FixedVectorType>(Tp) && Kind == TargetTransformInfo::SK_Broadcast) {
-    std::pair<InstructionCost, MVT> LT = getTypeLegalizationCost(Tp);
-    bool HasScalar = (Args.size() > 0) && (Operator::getOpcode(Args[0]) ==
-                                           Instruction::InsertElement);
-    if (LT.second.getScalarSizeInBits() == 1) {
-      if (HasScalar) {
-        // Example sequence:
-        //   andi a0, a0, 1
-        //   vsetivli zero, 2, e8, mf8, ta, ma (ignored)
-        //   vmv.v.x v8, a0
-        //   vmsne.vi v0, v8, 0
-        return LT.first * getLMULCost(LT.second) * 3;
-      }
-      // Example sequence:
-      //   vsetivli  zero, 2, e8, mf8, ta, mu (ignored)
-      //   vmv.v.i v8, 0
-      //   vmerge.vim      v8, v8, 1, v0
-      //   vmv.x.s a0, v8
-      //   andi    a0, a0, 1
-      //   vmv.v.x v8, a0
-      //   vmsne.vi  v0, v8, 0
-
-      return LT.first * getLMULCost(LT.second) * 6;
-    }
-
-    if (HasScalar) {
-      // Example sequence:
-      //   vmv.v.x v8, a0
-      return LT.first * getLMULCost(LT.second);
-    }
-
-    // Example sequence:
-    //   vrgather.vi     v9, v8, 0
-    // TODO: vrgather could be slower than vmv.v.x. It is
-    // implementation-dependent.
-    return LT.first * getLMULCost(LT.second);
-  }
-
-  return BaseT::getShuffleCost(Kind, Tp, Mask, CostKind, Index, SubTp);
-}
-
 InstructionCost
 RISCVTTIImpl::getMaskedMemoryOpCost(unsigned Opcode, Type *Src, Align Alignment,
                                     unsigned AddressSpace,
@@ -327,31 +242,6 @@ RISCVTTIImpl::getMaskedMemoryOpCost(unsigned Opcode, Type *Src, Align Alignment,
                                         CostKind);
 
   return getMemoryOpCost(Opcode, Src, Alignment, AddressSpace, CostKind);
-}
-
-InstructionCost RISCVTTIImpl::getGatherScatterOpCost(
-    unsigned Opcode, Type *DataTy, const Value *Ptr, bool VariableMask,
-    Align Alignment, TTI::TargetCostKind CostKind, const Instruction *I) {
-  if (CostKind != TTI::TCK_RecipThroughput)
-    return BaseT::getGatherScatterOpCost(Opcode, DataTy, Ptr, VariableMask,
-                                         Alignment, CostKind, I);
-
-  if ((Opcode == Instruction::Load &&
-       !isLegalMaskedGather(DataTy, Align(Alignment))) ||
-      (Opcode == Instruction::Store &&
-       !isLegalMaskedScatter(DataTy, Align(Alignment))))
-    return BaseT::getGatherScatterOpCost(Opcode, DataTy, Ptr, VariableMask,
-                                         Alignment, CostKind, I);
-
-  // Cost is proportional to the number of memory operations implied.  For
-  // scalable vectors, we use an estimate on that number since we don't
-  // know exactly what VL will be.
-  auto &VTy = *cast<VectorType>(DataTy);
-  InstructionCost MemOpCost =
-      getMemoryOpCost(Opcode, VTy.getElementType(), Alignment, 0, CostKind,
-                      {TTI::OK_AnyValue, TTI::OP_None}, I);
-  unsigned NumLoads = getEstimatedVLFor(&VTy);
-  return NumLoads * MemOpCost;
 }
 
 // Currently, these represent both throughput and codesize costs

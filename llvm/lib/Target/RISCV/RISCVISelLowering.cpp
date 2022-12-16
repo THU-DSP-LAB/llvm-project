@@ -21,6 +21,7 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/MemoryLocation.h"
+#include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -108,84 +109,69 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     addRegisterClass(MVT::f64, &RISCV::FPR64RegClass);
 
   static const MVT::SimpleValueType BoolVecVTs[] = {
-      MVT::nxv1i1,  MVT::nxv2i1,  MVT::nxv4i1, MVT::nxv8i1,
-      MVT::nxv16i1, MVT::nxv32i1, MVT::nxv64i1};
+      MVT::v1i1,  MVT::v2i1,  MVT::v4i1, MVT::v8i1,
+      MVT::v16i1, MVT::v32i1, MVT::v64i1};
   static const MVT::SimpleValueType IntVecVTs[] = {
-      MVT::nxv1i8,  MVT::nxv2i8,   MVT::nxv4i8,   MVT::nxv8i8,  MVT::nxv16i8,
-      MVT::nxv32i8, MVT::nxv64i8,  MVT::nxv1i16,  MVT::nxv2i16, MVT::nxv4i16,
-      MVT::nxv8i16, MVT::nxv16i16, MVT::nxv32i16, MVT::nxv1i32, MVT::nxv2i32,
-      MVT::nxv4i32, MVT::nxv8i32,  MVT::nxv16i32, MVT::nxv1i64, MVT::nxv2i64,
-      MVT::nxv4i64, MVT::nxv8i64};
+      MVT::v1i8,  MVT::v2i8,   MVT::v4i8,   MVT::v8i8,  MVT::v16i8,
+      MVT::v32i8, MVT::v64i8,  MVT::v1i16,  MVT::v2i16, MVT::v4i16,
+      MVT::v8i16, MVT::v16i16, MVT::v32i16, MVT::v1i32, MVT::v2i32,
+      MVT::v4i32, MVT::v8i32,  MVT::v16i32, MVT::v1i64, MVT::v2i64,
+      MVT::v4i64, MVT::v8i64};
   static const MVT::SimpleValueType F16VecVTs[] = {
-      MVT::nxv1f16, MVT::nxv2f16,  MVT::nxv4f16,
-      MVT::nxv8f16, MVT::nxv16f16, MVT::nxv32f16};
+      MVT::v1f16, MVT::v2f16,  MVT::v4f16,
+      MVT::v8f16, MVT::v16f16, MVT::v32f16};
   static const MVT::SimpleValueType F32VecVTs[] = {
-      MVT::nxv1f32, MVT::nxv2f32, MVT::nxv4f32, MVT::nxv8f32, MVT::nxv16f32};
+      MVT::v1f32, MVT::v2f32, MVT::v4f32, MVT::v8f32, MVT::v16f32};
   static const MVT::SimpleValueType F64VecVTs[] = {
-      MVT::nxv1f64, MVT::nxv2f64, MVT::nxv4f64, MVT::nxv8f64};
+      MVT::v1f64, MVT::v2f64, MVT::v4f64, MVT::v8f64};
 
+  // Use RVV as fixed length vector on Ventus GPGPU
   if (Subtarget.hasVInstructions()) {
-    auto addRegClassForRVV = [this](MVT VT) {
-      // Disable the smallest fractional LMUL types if ELEN is less than
-      // RVVBitsPerBlock.
-      unsigned MinElts = RISCV::RVVBitsPerBlock / Subtarget.getELEN();
-      if (VT.getVectorMinNumElements() < MinElts)
-        return;
-
-      unsigned Size = VT.getSizeInBits().getKnownMinValue();
-      const TargetRegisterClass *RC;
-      if (Size <= RISCV::RVVBitsPerBlock)
-        RC = &RISCV::VRRegClass;
-      else if (Size == 2 * RISCV::RVVBitsPerBlock)
-        RC = &RISCV::VRM2RegClass;
-      else if (Size == 4 * RISCV::RVVBitsPerBlock)
-        RC = &RISCV::VRM4RegClass;
-      else if (Size == 8 * RISCV::RVVBitsPerBlock)
-        RC = &RISCV::VRM8RegClass;
-      else
-        llvm_unreachable("Unexpected size");
-
-      addRegisterClass(VT, RC);
-    };
-
-    for (MVT VT : BoolVecVTs)
-      addRegClassForRVV(VT);
-    for (MVT VT : IntVecVTs) {
-      if (VT.getVectorElementType() == MVT::i64 &&
-          !Subtarget.hasVInstructionsI64())
-        continue;
-      addRegClassForRVV(VT);
-    }
-
-    if (Subtarget.hasVInstructionsF16())
-      for (MVT VT : F16VecVTs)
-        addRegClassForRVV(VT);
-
-    if (Subtarget.hasVInstructionsF32())
-      for (MVT VT : F32VecVTs)
-        addRegClassForRVV(VT);
-
-    if (Subtarget.hasVInstructionsF64())
-      for (MVT VT : F64VecVTs)
-        addRegClassForRVV(VT);
-
-    if (Subtarget.useRVVForFixedLengthVectors()) {
-      auto addRegClassForFixedVectors = [this](MVT VT) {
-        MVT ContainerVT = getContainerForFixedLengthVector(VT);
-        unsigned RCID = getRegClassIDForVecVT(ContainerVT);
-        const RISCVRegisterInfo &TRI = *Subtarget.getRegisterInfo();
-        addRegisterClass(VT, TRI.getRegClass(RCID));
-      };
-      for (MVT VT : MVT::integer_fixedlen_vector_valuetypes())
-        if (useRVVForFixedLengthVectorVT(VT))
-          addRegClassForFixedVectors(VT);
-
-      for (MVT VT : MVT::fp_fixedlen_vector_valuetypes())
-        if (useRVVForFixedLengthVectorVT(VT))
-          addRegClassForFixedVectors(VT);
-    }
+    // TODO: add more data type mapping
+    addRegisterClass(MVT::i32, &RISCV::VGPRRegClass);
+    addRegisterClass(MVT::f32, &RISCV::VGPRRegClass);
   }
+  /*
+  // Load float with int operation.
+  setOperationAction(ISD::LOAD, MVT::f32, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::f32, MVT::i32);
 
+  setOperationAction(ISD::LOAD, MVT::v2f32, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::v2f32, MVT::v2i32);
+
+  setOperationAction(ISD::LOAD, MVT::v3f32, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::v3f32, MVT::v3i32);
+
+  setOperationAction(ISD::LOAD, MVT::v4f32, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::v4f32, MVT::v4i32);
+
+  setOperationAction(ISD::LOAD, MVT::v5f32, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::v5f32, MVT::v5i32);
+
+  setOperationAction(ISD::LOAD, MVT::v6f32, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::v6f32, MVT::v6i32);
+
+  setOperationAction(ISD::LOAD, MVT::v7f32, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::v7f32, MVT::v7i32);
+
+  setOperationAction(ISD::LOAD, MVT::v8f32, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::v8f32, MVT::v8i32);
+
+  setOperationAction(ISD::LOAD, MVT::v9f32, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::v9f32, MVT::v9i32);
+
+  setOperationAction(ISD::LOAD, MVT::v10f32, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::v10f32, MVT::v10i32);
+
+  setOperationAction(ISD::LOAD, MVT::v11f32, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::v11f32, MVT::v11i32);
+
+  setOperationAction(ISD::LOAD, MVT::v12f32, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::v12f32, MVT::v12i32);
+
+  setOperationAction(ISD::LOAD, MVT::v16f32, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::v16f32, MVT::v16i32);
+  */
   // Compute derived properties from the register classes.
   computeRegisterProperties(STI.getRegisterInfo());
 
@@ -1479,6 +1465,10 @@ MVT RISCVTargetLowering::getRegisterTypeForCallingConv(LLVMContext &Context,
   if (VT == MVT::f16 && Subtarget.hasStdExtF() && !Subtarget.hasStdExtZfh())
     return MVT::f32;
 
+  MVT SVT = VT.getSimpleVT();
+  if (Subtarget.getCPU() == "ventus-gpgpu" && SVT.isVector())
+    return SVT;
+
   return TargetLowering::getRegisterTypeForCallingConv(Context, CC, VT);
 }
 
@@ -1489,6 +1479,9 @@ unsigned RISCVTargetLowering::getNumRegistersForCallingConv(LLVMContext &Context
   // We might still end up using a GPR but that will be decided based on ABI.
   // FIXME: Change to Zfhmin once f16 becomes a legal type with Zfhmin.
   if (VT == MVT::f16 && Subtarget.hasStdExtF() && !Subtarget.hasStdExtZfh())
+    return 1;
+
+  if (Subtarget.getCPU() == "ventus-gpgpu")
     return 1;
 
   return TargetLowering::getNumRegistersForCallingConv(Context, CC, VT);
@@ -1555,47 +1548,11 @@ static void translateSetCCForBranch(const SDLoc &DL, SDValue &LHS, SDValue &RHS,
 }
 
 RISCVII::VLMUL RISCVTargetLowering::getLMUL(MVT VT) {
-  assert(VT.isScalableVector() && "Expecting a scalable vector type");
-  unsigned KnownSize = VT.getSizeInBits().getKnownMinValue();
-  if (VT.getVectorElementType() == MVT::i1)
-    KnownSize *= 8;
-
-  switch (KnownSize) {
-  default:
-    llvm_unreachable("Invalid LMUL.");
-  case 8:
-    return RISCVII::VLMUL::LMUL_F8;
-  case 16:
-    return RISCVII::VLMUL::LMUL_F4;
-  case 32:
-    return RISCVII::VLMUL::LMUL_F2;
-  case 64:
-    return RISCVII::VLMUL::LMUL_1;
-  case 128:
-    return RISCVII::VLMUL::LMUL_2;
-  case 256:
-    return RISCVII::VLMUL::LMUL_4;
-  case 512:
-    return RISCVII::VLMUL::LMUL_8;
-  }
+  return RISCVII::VLMUL::LMUL_1;
 }
 
 unsigned RISCVTargetLowering::getRegClassIDForLMUL(RISCVII::VLMUL LMul) {
-  switch (LMul) {
-  default:
-    llvm_unreachable("Invalid LMUL.");
-  case RISCVII::VLMUL::LMUL_F8:
-  case RISCVII::VLMUL::LMUL_F4:
-  case RISCVII::VLMUL::LMUL_F2:
-  case RISCVII::VLMUL::LMUL_1:
-    return RISCV::VRRegClassID;
-  case RISCVII::VLMUL::LMUL_2:
-    return RISCV::VRM2RegClassID;
-  case RISCVII::VLMUL::LMUL_4:
-    return RISCV::VRM4RegClassID;
-  case RISCVII::VLMUL::LMUL_8:
-    return RISCV::VRM8RegClassID;
-  }
+  return RISCV::VRRegClassID;
 }
 
 unsigned RISCVTargetLowering::getSubregIndexByMVT(MVT VT, unsigned Index) {
@@ -1636,10 +1593,6 @@ std::pair<unsigned, unsigned>
 RISCVTargetLowering::decomposeSubvectorInsertExtractToSubRegs(
     MVT VecVT, MVT SubVecVT, unsigned InsertExtractIdx,
     const RISCVRegisterInfo *TRI) {
-  static_assert((RISCV::VRM8RegClassID > RISCV::VRM4RegClassID &&
-                 RISCV::VRM4RegClassID > RISCV::VRM2RegClassID &&
-                 RISCV::VRM2RegClassID > RISCV::VRRegClassID),
-                "Register classes not ordered");
   unsigned VecRegClassID = getRegClassIDForVecVT(VecVT);
   unsigned SubRegClassID = getRegClassIDForVecVT(SubVecVT);
   // Try to compose a subregister index that takes us from the incoming
@@ -1649,8 +1602,7 @@ RISCVTargetLowering::decomposeSubvectorInsertExtractToSubRegs(
   // Note that this is not guaranteed to find a subregister index, such as
   // when we are extracting from one VR type to another.
   unsigned SubRegIdx = RISCV::NoSubRegister;
-  for (const unsigned RCID :
-       {RISCV::VRM4RegClassID, RISCV::VRM2RegClassID, RISCV::VRRegClassID})
+  for (const unsigned RCID : {RISCV::VRRegClassID})
     if (VecRegClassID > RCID && SubRegClassID <= RCID) {
       VecVT = VecVT.getHalfNumVectorElementsVT();
       bool IsHi =
@@ -1707,6 +1659,11 @@ static SDValue getVLOperand(SDValue Op) {
 static bool useRVVForFixedLengthVectorVT(MVT VT,
                                          const RISCVSubtarget &Subtarget) {
   assert(VT.isFixedLengthVector() && "Expected a fixed length vector type!");
+
+  // FIXME: Ventus always use RVV to hold fixed length vector
+  // if (Subtarget.getCPU() == "ventus-gpgpu")
+  //   return true;
+
   if (!Subtarget.useRVVForFixedLengthVectors())
     return false;
 
@@ -1758,10 +1715,13 @@ static bool useRVVForFixedLengthVectorVT(MVT VT,
   if (EltVT.getSizeInBits() > Subtarget.getELEN())
     return false;
 
+  // FIXME: This doesn't work for Ventus yet.
+  /*
   unsigned LMul = divideCeil(VT.getSizeInBits(), MinVLen);
   // Don't use RVV for types that don't fit.
   if (LMul > Subtarget.getMaxLMULForFixedLengthVectors())
     return false;
+  */
 
   // TODO: Perhaps an artificial restriction, but worth having whilst getting
   // the base fixed length RVV support in place.
@@ -3667,10 +3627,10 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
     MVT VT = Op.getSimpleValueType();
     SDLoc DL(Op);
     SDValue VLENB = DAG.getNode(RISCVISD::READ_VLENB, DL, VT);
-    // We define our scalable vector types for lmul=1 to use a 64 bit known
+    // We define our scalable vector types for lmul=1 to use a 32 bit known
     // minimum size. e.g. <vscale x 2 x i32>. VLENB is in bytes so we calculate
     // vscale as VLENB / 8.
-    static_assert(RISCV::RVVBitsPerBlock == 64, "Unexpected bits per block!");
+    static_assert(RISCV::RVVBitsPerBlock == 32, "Unexpected bits per block!");
     if (Subtarget.getRealMinVLen() < RISCV::RVVBitsPerBlock)
       report_fatal_error("Support for VLEN==32 is incomplete.");
     // We assume VLENB is a multiple of 8. We manually choose the best shift
@@ -10303,25 +10263,8 @@ void RISCVTargetLowering::computeKnownBitsForTargetNode(const SDValue Op,
     break;
   }
   case ISD::INTRINSIC_W_CHAIN:
-  case ISD::INTRINSIC_WO_CHAIN: {
-    unsigned IntNo =
-        Op.getConstantOperandVal(Opc == ISD::INTRINSIC_WO_CHAIN ? 0 : 1);
-    switch (IntNo) {
-    default:
-      // We can't do anything for most intrinsics.
-      break;
-    case Intrinsic::riscv_vsetvli:
-    case Intrinsic::riscv_vsetvlimax:
-    case Intrinsic::riscv_vsetvli_opt:
-    case Intrinsic::riscv_vsetvlimax_opt:
-      // Assume that VL output is positive and would fit in an int32_t.
-      // TODO: VLEN might be capped at 16 bits in a future V spec update.
-      if (BitWidth >= 32)
-        Known.Zero.setBitsFrom(31);
-      break;
-    }
+  case ISD::INTRINSIC_WO_CHAIN:
     break;
-  }
   }
 }
 
@@ -11172,17 +11115,11 @@ static const MCPhysReg ArgFPR64s[] = {
   RISCV::F10_D, RISCV::F11_D, RISCV::F12_D, RISCV::F13_D,
   RISCV::F14_D, RISCV::F15_D, RISCV::F16_D, RISCV::F17_D
 };
-// This is an interim calling convention and it may be changed in the future.
-static const MCPhysReg ArgVRs[] = {
-    RISCV::V8,  RISCV::V9,  RISCV::V10, RISCV::V11, RISCV::V12, RISCV::V13,
-    RISCV::V14, RISCV::V15, RISCV::V16, RISCV::V17, RISCV::V18, RISCV::V19,
-    RISCV::V20, RISCV::V21, RISCV::V22, RISCV::V23};
-static const MCPhysReg ArgVRM2s[] = {RISCV::V8M2,  RISCV::V10M2, RISCV::V12M2,
-                                     RISCV::V14M2, RISCV::V16M2, RISCV::V18M2,
-                                     RISCV::V20M2, RISCV::V22M2};
-static const MCPhysReg ArgVRM4s[] = {RISCV::V8M4, RISCV::V12M4, RISCV::V16M4,
-                                     RISCV::V20M4};
-static const MCPhysReg ArgVRM8s[] = {RISCV::V8M8, RISCV::V16M8};
+
+// Calling convention for Ventus GPGPU
+static const MCPhysReg ArgVGPRs[] = {
+  RISCV::V2, RISCV::V3, RISCV::V4, RISCV::V5, RISCV::V6, RISCV::V7,
+};
 
 // Pass a 2*XLEN argument that has been split into two XLEN values through
 // registers or the stack as necessary.
@@ -11226,247 +11163,61 @@ static bool CC_RISCVAssign2XLen(unsigned XLen, CCState &State, CCValAssign VA1,
 static unsigned allocateRVVReg(MVT ValVT, unsigned ValNo,
                                std::optional<unsigned> FirstMaskArgument,
                                CCState &State, const RISCVTargetLowering &TLI) {
-  const TargetRegisterClass *RC = TLI.getRegClassFor(ValVT);
-  if (RC == &RISCV::VRRegClass) {
-    // Assign the first mask argument to V0.
-    // This is an interim calling convention and it may be changed in the
-    // future.
-    if (FirstMaskArgument && ValNo == *FirstMaskArgument)
-      return State.AllocateReg(RISCV::V0);
-    return State.AllocateReg(ArgVRs);
-  }
-  if (RC == &RISCV::VRM2RegClass)
-    return State.AllocateReg(ArgVRM2s);
-  if (RC == &RISCV::VRM4RegClass)
-    return State.AllocateReg(ArgVRM4s);
-  if (RC == &RISCV::VRM8RegClass)
-    return State.AllocateReg(ArgVRM8s);
-  llvm_unreachable("Unhandled register class for ValueType");
+  // Assign the first mask argument to V0.
+  // This is an interim calling convention and it may be changed in the
+  // future.
+  if (FirstMaskArgument && ValNo == *FirstMaskArgument)
+    return State.AllocateReg(RISCV::V0);
+
+  // For Ventus GPGPU, the only argument regs are ArgVGPRs
+  return State.AllocateReg(ArgVGPRs);
 }
 
-// Implements the RISC-V calling convention. Returns true upon failure.
-static bool CC_RISCV(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
-                     MVT ValVT, MVT LocVT, CCValAssign::LocInfo LocInfo,
-                     ISD::ArgFlagsTy ArgFlags, CCState &State, bool IsFixed,
-                     bool IsRet, Type *OrigTy, const RISCVTargetLowering &TLI,
-                     std::optional<unsigned> FirstMaskArgument) {
+// Implements the Ventus RISC-V calling convention. Returns true upon failure.
+static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
+                      MVT ValVT, MVT LocVT, CCValAssign::LocInfo LocInfo,
+                      ISD::ArgFlagsTy ArgFlags, CCState &State, bool IsFixed,
+                      bool IsRet, Type *OrigTy, const RISCVTargetLowering &TLI,
+                      std::optional<unsigned> FirstMaskArgument) {
+  assert(IsFixed && "TODO: Add varidic argument lowering!");
+
   unsigned XLen = DL.getLargestLegalIntTypeSizeInBits();
-  assert(XLen == 32 || XLen == 64);
-  MVT XLenVT = XLen == 32 ? MVT::i32 : MVT::i64;
-
-  // Static chain parameter must not be passed in normal argument registers,
-  // so we assign t2 for it as done in GCC's __builtin_call_with_static_chain
-  if (ArgFlags.isNest()) {
-    if (unsigned Reg = State.AllocateReg(RISCV::X7)) {
-      State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-      return false;
-    }
-  }
-
-  // Any return value split in to more than two values can't be returned
-  // directly. Vectors are returned via the available vector registers.
-  if (!LocVT.isVector() && IsRet && ValNo > 1)
-    return true;
-
-  // UseGPRForF16_F32 if targeting one of the soft-float ABIs, if passing a
-  // variadic argument, or if no F16/F32 argument registers are available.
-  bool UseGPRForF16_F32 = true;
-  // UseGPRForF64 if targeting soft-float ABIs or an FLEN=32 ABI, if passing a
-  // variadic argument, or if no F64 argument registers are available.
-  bool UseGPRForF64 = true;
-
-  switch (ABI) {
-  default:
-    llvm_unreachable("Unexpected ABI");
-  case RISCVABI::ABI_ILP32:
-  case RISCVABI::ABI_LP64:
-    break;
-  case RISCVABI::ABI_ILP32F:
-  case RISCVABI::ABI_LP64F:
-    UseGPRForF16_F32 = !IsFixed;
-    break;
-  case RISCVABI::ABI_ILP32D:
-  case RISCVABI::ABI_LP64D:
-    UseGPRForF16_F32 = !IsFixed;
-    UseGPRForF64 = !IsFixed;
-    break;
-  }
-
-  // FPR16, FPR32, and FPR64 alias each other.
-  if (State.getFirstUnallocated(ArgFPR32s) == std::size(ArgFPR32s)) {
-    UseGPRForF16_F32 = true;
-    UseGPRForF64 = true;
-  }
-
-  // From this point on, rely on UseGPRForF16_F32, UseGPRForF64 and
-  // similar local variables rather than directly checking against the target
-  // ABI.
-
-  if (UseGPRForF16_F32 && (ValVT == MVT::f16 || ValVT == MVT::f32)) {
-    LocVT = XLenVT;
-    LocInfo = CCValAssign::BCvt;
-  } else if (UseGPRForF64 && XLen == 64 && ValVT == MVT::f64) {
-    LocVT = MVT::i64;
-    LocInfo = CCValAssign::BCvt;
-  }
-
-  // If this is a variadic argument, the RISC-V calling convention requires
-  // that it is assigned an 'even' or 'aligned' register if it has 8-byte
-  // alignment (RV32) or 16-byte alignment (RV64). An aligned register should
-  // be used regardless of whether the original argument was split during
-  // legalisation or not. The argument will not be passed by registers if the
-  // original type is larger than 2*XLEN, so the register alignment rule does
-  // not apply.
-  unsigned TwoXLenInBytes = (2 * XLen) / 8;
-  if (!IsFixed && ArgFlags.getNonZeroOrigAlign() == TwoXLenInBytes &&
-      DL.getTypeAllocSize(OrigTy) == TwoXLenInBytes) {
-    unsigned RegIdx = State.getFirstUnallocated(ArgGPRs);
-    // Skip 'odd' register if necessary.
-    if (RegIdx != std::size(ArgGPRs) && RegIdx % 2 == 1)
-      State.AllocateReg(ArgGPRs);
-  }
-
-  SmallVectorImpl<CCValAssign> &PendingLocs = State.getPendingLocs();
-  SmallVectorImpl<ISD::ArgFlagsTy> &PendingArgFlags =
-      State.getPendingArgFlags();
-
-  assert(PendingLocs.size() == PendingArgFlags.size() &&
-         "PendingLocs and PendingArgFlags out of sync");
-
-  // Handle passing f64 on RV32D with a soft float ABI or when floating point
-  // registers are exhausted.
-  if (UseGPRForF64 && XLen == 32 && ValVT == MVT::f64) {
-    assert(!ArgFlags.isSplit() && PendingLocs.empty() &&
-           "Can't lower f64 if it is split");
-    // Depending on available argument GPRS, f64 may be passed in a pair of
-    // GPRs, split between a GPR and the stack, or passed completely on the
-    // stack. LowerCall/LowerFormalArguments/LowerReturn must recognise these
-    // cases.
-    Register Reg = State.AllocateReg(ArgGPRs);
-    LocVT = MVT::i32;
-    if (!Reg) {
-      unsigned StackOffset = State.AllocateStack(8, Align(8));
-      State.addLoc(
-          CCValAssign::getMem(ValNo, ValVT, StackOffset, LocVT, LocInfo));
-      return false;
-    }
-    if (!State.AllocateReg(ArgGPRs))
-      State.AllocateStack(4, Align(4));
-    State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-    return false;
-  }
 
   // Fixed-length vectors are located in the corresponding scalable-vector
   // container types.
   if (ValVT.isFixedLengthVector())
     LocVT = TLI.getContainerForFixedLengthVector(LocVT);
 
-  // Split arguments might be passed indirectly, so keep track of the pending
-  // values. Split vectors are passed via a mix of registers and indirectly, so
-  // treat them as we would any other argument.
-  if (ValVT.isScalarInteger() && (ArgFlags.isSplit() || !PendingLocs.empty())) {
-    LocVT = XLenVT;
-    LocInfo = CCValAssign::Indirect;
-    PendingLocs.push_back(
-        CCValAssign::getPending(ValNo, ValVT, LocVT, LocInfo));
-    PendingArgFlags.push_back(ArgFlags);
-    if (!ArgFlags.isSplitEnd()) {
-      return false;
-    }
-  }
-
-  // If the split argument only had two elements, it should be passed directly
-  // in registers or on the stack.
-  if (ValVT.isScalarInteger() && ArgFlags.isSplitEnd() &&
-      PendingLocs.size() <= 2) {
-    assert(PendingLocs.size() == 2 && "Unexpected PendingLocs.size()");
-    // Apply the normal calling convention rules to the first half of the
-    // split argument.
-    CCValAssign VA = PendingLocs[0];
-    ISD::ArgFlagsTy AF = PendingArgFlags[0];
-    PendingLocs.clear();
-    PendingArgFlags.clear();
-    return CC_RISCVAssign2XLen(XLen, State, VA, AF, ValNo, ValVT, LocVT,
-                               ArgFlags);
-  }
-
   // Allocate to a register if possible, or else a stack slot.
   Register Reg;
   unsigned StoreSizeBytes = XLen / 8;
   Align StackAlign = Align(XLen / 8);
 
-  if (ValVT == MVT::f16 && !UseGPRForF16_F32)
-    Reg = State.AllocateReg(ArgFPR16s);
-  else if (ValVT == MVT::f32 && !UseGPRForF16_F32)
-    Reg = State.AllocateReg(ArgFPR32s);
-  else if (ValVT == MVT::f64 && !UseGPRForF64)
-    Reg = State.AllocateReg(ArgFPR64s);
-  else if (ValVT.isVector()) {
-    Reg = allocateRVVReg(ValVT, ValNo, FirstMaskArgument, State, TLI);
-    if (!Reg) {
-      // For return values, the vector must be passed fully via registers or
-      // via the stack.
-      // FIXME: The proposed vector ABI only mandates v8-v15 for return values,
-      // but we're using all of them.
-      if (IsRet)
-        return true;
-      // Try using a GPR to pass the address
-      if ((Reg = State.AllocateReg(ArgGPRs))) {
-        LocVT = XLenVT;
-        LocInfo = CCValAssign::Indirect;
-      } else if (ValVT.isScalableVector()) {
-        LocVT = XLenVT;
-        LocInfo = CCValAssign::Indirect;
-      } else {
-        // Pass fixed-length vectors on the stack.
-        LocVT = ValVT;
-        StoreSizeBytes = ValVT.getStoreSize();
-        // Align vectors to their element sizes, being careful for vXi1
-        // vectors.
-        StackAlign = MaybeAlign(ValVT.getScalarSizeInBits() / 8).valueOrOne();
-      }
-    }
-  } else {
-    Reg = State.AllocateReg(ArgGPRs);
-  }
+  // All arguments are passed in vector registers or via stack for non-kernel
+  // function.
+  Reg = allocateRVVReg(ValVT, ValNo, FirstMaskArgument, State, TLI);
+  if (!Reg) {
+    // For return values, the vector must be passed fully via registers or
+    // via the stack.
+    // FIXME: The Ventus ABI only use V2 for return values, but we're
+    // not using it yet.
+    if (IsRet)
+      return true;
 
-  unsigned StackOffset =
-      Reg ? 0 : State.AllocateStack(StoreSizeBytes, StackAlign);
-
-  // If we reach this point and PendingLocs is non-empty, we must be at the
-  // end of a split argument that must be passed indirectly.
-  if (!PendingLocs.empty()) {
-    assert(ArgFlags.isSplitEnd() && "Expected ArgFlags.isSplitEnd()");
-    assert(PendingLocs.size() > 2 && "Unexpected PendingLocs.size()");
-
-    for (auto &It : PendingLocs) {
-      if (Reg)
-        It.convertToReg(Reg);
-      else
-        It.convertToMem(StackOffset);
-      State.addLoc(It);
-    }
-    PendingLocs.clear();
-    PendingArgFlags.clear();
-    return false;
-  }
-
-  assert((!UseGPRForF16_F32 || !UseGPRForF64 || LocVT == XLenVT ||
-          (TLI.getSubtarget().hasVInstructions() && ValVT.isVector())) &&
-         "Expected an XLenVT or vector types at this stage");
-
-  if (Reg) {
-    State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-    return false;
-  }
-
-  // When a floating-point value is passed on the stack, no bit-conversion is
-  // needed.
-  if (ValVT.isFloatingPoint()) {
+    // Pass vector on stack.
     LocVT = ValVT;
-    LocInfo = CCValAssign::Full;
+    StoreSizeBytes = ValVT.getStoreSize();
+    // Align vectors to their element sizes, being careful for vXi1
+    // vectors.
+    StackAlign = MaybeAlign(ValVT.getScalarSizeInBits() / 8).valueOrOne();
+    unsigned StackOffset = State.AllocateStack(StoreSizeBytes, StackAlign);
+
+    State.AllocateStack(StoreSizeBytes, StackAlign);
+    State.addLoc(CCValAssign::getMem(ValNo, ValVT, StackOffset, LocVT, LocInfo));
+  } else {
+    State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
   }
-  State.addLoc(CCValAssign::getMem(ValNo, ValVT, StackOffset, LocVT, LocInfo));
+
   return false;
 }
 
@@ -11534,6 +11285,108 @@ void RISCVTargetLowering::analyzeOutputArgs(
       LLVM_DEBUG(dbgs() << "OutputArg #" << i << " has unhandled type "
                         << EVT(ArgVT).getEVTString() << "\n");
       llvm_unreachable(nullptr);
+    }
+  }
+}
+
+void RISCVTargetLowering::analyzeFormalArgumentsCompute(MachineFunction &MF,
+    CCState &State,
+    const SmallVectorImpl<ISD::InputArg> &Ins) const {
+  const Function &Fn = MF.getFunction();
+  LLVMContext &Ctx = Fn.getParent()->getContext();
+  CallingConv::ID CC = Fn.getCallingConv();
+
+  uint64_t ExplicitArgOffset = 0;
+  const DataLayout &DL = Fn.getParent()->getDataLayout();
+
+  unsigned InIndex = 0;
+
+  for (const Argument &Arg : Fn.args()) {
+    const bool IsByRef = Arg.hasByRefAttr();
+    Type *BaseArgTy = Arg.getType();
+    Type *MemArgTy = IsByRef ? Arg.getParamByRefType() : BaseArgTy;
+    Align Alignment = DL.getValueOrABITypeAlignment(
+        IsByRef ? Arg.getParamAlign() : std::nullopt, MemArgTy);
+    uint64_t AllocSize = DL.getTypeAllocSize(MemArgTy);
+
+    uint64_t ArgOffset = alignTo(ExplicitArgOffset, Alignment) + ExplicitArgOffset;
+    ExplicitArgOffset = alignTo(ExplicitArgOffset, Alignment) + AllocSize;
+
+    SmallVector<EVT, 16> ValueVTs;
+    SmallVector<uint64_t, 16> Offsets;
+    ComputeValueVTs(*this, DL, BaseArgTy, ValueVTs, &Offsets, ArgOffset);
+
+    for (unsigned Value = 0, NumValues = ValueVTs.size();
+         Value != NumValues; ++Value) {
+      uint64_t BasePartOffset = Offsets[Value];
+
+      EVT ArgVT = ValueVTs[Value];
+      EVT MemVT = ArgVT;
+      MVT RegisterVT = getRegisterTypeForCallingConv(Ctx, CC, ArgVT);
+      unsigned NumRegs = getNumRegistersForCallingConv(Ctx, CC, ArgVT);
+
+      if (NumRegs == 1) {
+        // The argument is not split, so the IR type is the memory type.
+        if (ArgVT.isExtended()) {
+          // We have an extended type, like i24, so we should just use
+          // the register type.
+          MemVT = RegisterVT;
+        } else {
+          MemVT = ArgVT;
+        }
+      } else if (ArgVT.isVector() && RegisterVT.isVector() &&
+                 ArgVT.getScalarType() == RegisterVT.getScalarType()) {
+        assert(ArgVT.getVectorNumElements() > RegisterVT.getVectorNumElements());
+        // We have a vector value which has been split into a vector with
+        // the same scalar type, but fewer elements. This should handle
+        // all the floating-point vector types.
+        MemVT = RegisterVT;
+      } else if (ArgVT.isVector() &&
+                 ArgVT.getVectorNumElements() == NumRegs) {
+        // This arg has been split so that each element is stored in a separate
+        // register.
+        MemVT = ArgVT.getScalarType();
+      } else if (ArgVT.isExtended()) {
+        // We have an extended type, like i65.
+        MemVT = RegisterVT;
+      } else {
+        unsigned MemoryBits = ArgVT.getStoreSizeInBits() / NumRegs;
+        assert(ArgVT.getStoreSizeInBits() % NumRegs == 0);
+        if (RegisterVT.isInteger()) {
+          MemVT = EVT::getIntegerVT(State.getContext(), MemoryBits);
+        } else if (RegisterVT.isVector()) {
+          assert(!RegisterVT.getScalarType().isFloatingPoint());
+          unsigned NumElements = RegisterVT.getVectorNumElements();
+          assert(MemoryBits % NumElements == 0);
+          // This vector type has been split into another vector type with
+          // a different elements size.
+          EVT ScalarVT = EVT::getIntegerVT(State.getContext(),
+                                           MemoryBits / NumElements);
+          MemVT = EVT::getVectorVT(State.getContext(), ScalarVT, NumElements);
+        } else {
+          llvm_unreachable("Cannot deduce memory type.");
+        }
+      }
+
+      // Convert on element vectors to scalar.
+      if (MemVT.isVector() && MemVT.getVectorNumElements() == 1)
+        MemVT = MemVT.getScalarType();
+
+      // Round up vec3/vec5 argument
+      if (MemVT.isVector() && !MemVT.isPow2VectorType()) {
+        MemVT = MemVT.getPow2VectorType(State.getContext());
+      } else if (!MemVT.isSimple() && !MemVT.isVector()) {
+        MemVT = MemVT.getRoundIntegerType(State.getContext());
+      }
+
+      unsigned PartOffset = 0;
+      for (unsigned i = 0; i != NumRegs; ++i) {
+        State.addLoc(CCValAssign::getCustomMem(InIndex++, RegisterVT,
+                                               BasePartOffset + PartOffset,
+                                               MemVT.getSimpleVT(),
+                                               CCValAssign::Full));
+        PartOffset += MemVT.getStoreSize();
+      }
     }
   }
 }
@@ -11695,110 +11548,6 @@ static SDValue unpackF64OnRV32DSoftABI(SelectionDAG &DAG, SDValue Chain,
   return DAG.getNode(RISCVISD::BuildPairF64, DL, MVT::f64, Lo, Hi);
 }
 
-// FastCC has less than 1% performance improvement for some particular
-// benchmark. But theoretically, it may has benenfit for some cases.
-static bool CC_RISCV_FastCC(const DataLayout &DL, RISCVABI::ABI ABI,
-                            unsigned ValNo, MVT ValVT, MVT LocVT,
-                            CCValAssign::LocInfo LocInfo,
-                            ISD::ArgFlagsTy ArgFlags, CCState &State,
-                            bool IsFixed, bool IsRet, Type *OrigTy,
-                            const RISCVTargetLowering &TLI,
-                            std::optional<unsigned> FirstMaskArgument) {
-
-  // X5 and X6 might be used for save-restore libcall.
-  static const MCPhysReg GPRList[] = {
-      RISCV::X10, RISCV::X11, RISCV::X12, RISCV::X13, RISCV::X14,
-      RISCV::X15, RISCV::X16, RISCV::X17, RISCV::X7,  RISCV::X28,
-      RISCV::X29, RISCV::X30, RISCV::X31};
-
-  if (LocVT == MVT::i32 || LocVT == MVT::i64) {
-    if (unsigned Reg = State.AllocateReg(GPRList)) {
-      State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-      return false;
-    }
-  }
-
-  if (LocVT == MVT::f16) {
-    static const MCPhysReg FPR16List[] = {
-        RISCV::F10_H, RISCV::F11_H, RISCV::F12_H, RISCV::F13_H, RISCV::F14_H,
-        RISCV::F15_H, RISCV::F16_H, RISCV::F17_H, RISCV::F0_H,  RISCV::F1_H,
-        RISCV::F2_H,  RISCV::F3_H,  RISCV::F4_H,  RISCV::F5_H,  RISCV::F6_H,
-        RISCV::F7_H,  RISCV::F28_H, RISCV::F29_H, RISCV::F30_H, RISCV::F31_H};
-    if (unsigned Reg = State.AllocateReg(FPR16List)) {
-      State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-      return false;
-    }
-  }
-
-  if (LocVT == MVT::f32) {
-    static const MCPhysReg FPR32List[] = {
-        RISCV::F10_F, RISCV::F11_F, RISCV::F12_F, RISCV::F13_F, RISCV::F14_F,
-        RISCV::F15_F, RISCV::F16_F, RISCV::F17_F, RISCV::F0_F,  RISCV::F1_F,
-        RISCV::F2_F,  RISCV::F3_F,  RISCV::F4_F,  RISCV::F5_F,  RISCV::F6_F,
-        RISCV::F7_F,  RISCV::F28_F, RISCV::F29_F, RISCV::F30_F, RISCV::F31_F};
-    if (unsigned Reg = State.AllocateReg(FPR32List)) {
-      State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-      return false;
-    }
-  }
-
-  if (LocVT == MVT::f64) {
-    static const MCPhysReg FPR64List[] = {
-        RISCV::F10_D, RISCV::F11_D, RISCV::F12_D, RISCV::F13_D, RISCV::F14_D,
-        RISCV::F15_D, RISCV::F16_D, RISCV::F17_D, RISCV::F0_D,  RISCV::F1_D,
-        RISCV::F2_D,  RISCV::F3_D,  RISCV::F4_D,  RISCV::F5_D,  RISCV::F6_D,
-        RISCV::F7_D,  RISCV::F28_D, RISCV::F29_D, RISCV::F30_D, RISCV::F31_D};
-    if (unsigned Reg = State.AllocateReg(FPR64List)) {
-      State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-      return false;
-    }
-  }
-
-  if (LocVT == MVT::i32 || LocVT == MVT::f32) {
-    unsigned Offset4 = State.AllocateStack(4, Align(4));
-    State.addLoc(CCValAssign::getMem(ValNo, ValVT, Offset4, LocVT, LocInfo));
-    return false;
-  }
-
-  if (LocVT == MVT::i64 || LocVT == MVT::f64) {
-    unsigned Offset5 = State.AllocateStack(8, Align(8));
-    State.addLoc(CCValAssign::getMem(ValNo, ValVT, Offset5, LocVT, LocInfo));
-    return false;
-  }
-
-  if (LocVT.isVector()) {
-    if (unsigned Reg =
-            allocateRVVReg(ValVT, ValNo, FirstMaskArgument, State, TLI)) {
-      // Fixed-length vectors are located in the corresponding scalable-vector
-      // container types.
-      if (ValVT.isFixedLengthVector())
-        LocVT = TLI.getContainerForFixedLengthVector(LocVT);
-      State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-    } else {
-      // Try and pass the address via a "fast" GPR.
-      if (unsigned GPRReg = State.AllocateReg(GPRList)) {
-        LocInfo = CCValAssign::Indirect;
-        LocVT = TLI.getSubtarget().getXLenVT();
-        State.addLoc(CCValAssign::getReg(ValNo, ValVT, GPRReg, LocVT, LocInfo));
-      } else if (ValVT.isFixedLengthVector()) {
-        auto StackAlign =
-            MaybeAlign(ValVT.getScalarSizeInBits() / 8).valueOrOne();
-        unsigned StackOffset =
-            State.AllocateStack(ValVT.getStoreSize(), StackAlign);
-        State.addLoc(
-            CCValAssign::getMem(ValNo, ValVT, StackOffset, LocVT, LocInfo));
-      } else {
-        // Can't pass scalable vectors on the stack.
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  return true; // CC didn't match.
-}
-
 static bool CC_RISCV_GHC(unsigned ValNo, MVT ValVT, MVT LocVT,
                          CCValAssign::LocInfo LocInfo,
                          ISD::ArgFlagsTy ArgFlags, CCState &State) {
@@ -11861,6 +11610,9 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
     report_fatal_error("Unsupported calling convention");
   case CallingConv::C:
   case CallingConv::Fast:
+  // FIXME: Use AMDGPU_KERNEL IR as test input temporarily
+  case CallingConv::AMDGPU_KERNEL:
+  case CallingConv::SPIR_KERNEL:
     break;
   case CallingConv::GHC:
     if (!MF.getSubtarget().getFeatureBits()[RISCV::FeatureStdExtF] ||
@@ -11895,10 +11647,11 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
 
   if (CallConv == CallingConv::GHC)
     CCInfo.AnalyzeFormalArguments(Ins, CC_RISCV_GHC);
+  else if (CallConv == CallingConv::AMDGPU_KERNEL ||
+           CallConv == CallingConv::SPIR_KERNEL)
+    analyzeFormalArgumentsCompute(MF, CCInfo, Ins);
   else
-    analyzeInputArgs(MF, CCInfo, Ins, /*IsRet=*/false,
-                     CallConv == CallingConv::Fast ? CC_RISCV_FastCC
-                                                   : CC_RISCV);
+    analyzeInputArgs(MF, CCInfo, Ins, /*IsRet=*/false, CC_Ventus);
 
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
@@ -12109,8 +11862,7 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
     ArgCCInfo.AnalyzeCallOperands(Outs, CC_RISCV_GHC);
   else
     analyzeOutputArgs(MF, ArgCCInfo, Outs, /*IsRet=*/false, &CLI,
-                      CallConv == CallingConv::Fast ? CC_RISCV_FastCC
-                                                    : CC_RISCV);
+                      CC_Ventus);
 
   // Check if it's really possible to do a tail call.
   if (IsTailCall)
@@ -12352,7 +12104,8 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
   // Assign locations to each value returned by this call.
   SmallVector<CCValAssign, 16> RVLocs;
   CCState RetCCInfo(CallConv, IsVarArg, MF, RVLocs, *DAG.getContext());
-  analyzeInputArgs(MF, RetCCInfo, Ins, /*IsRet=*/true, CC_RISCV);
+  // TODO: Use CC_Ventus conditionally
+  analyzeInputArgs(MF, RetCCInfo, Ins, /*IsRet=*/true, CC_Ventus);
 
   // Copy all of the result registers out of their specified physreg.
   for (auto &VA : RVLocs) {
@@ -12395,7 +12148,8 @@ bool RISCVTargetLowering::CanLowerReturn(
     MVT VT = Outs[i].VT;
     ISD::ArgFlagsTy ArgFlags = Outs[i].Flags;
     RISCVABI::ABI ABI = MF.getSubtarget<RISCVSubtarget>().getTargetABI();
-    if (CC_RISCV(MF.getDataLayout(), ABI, i, VT, VT, CCValAssign::Full,
+    // TODO: Use CC_Ventus conditionally
+    if (CC_Ventus(MF.getDataLayout(), ABI, i, VT, VT, CCValAssign::Full,
                  ArgFlags, CCInfo, /*IsFixed=*/true, /*IsRet=*/true, nullptr,
                  *this, FirstMaskArgument))
       return false;
@@ -12419,8 +12173,9 @@ RISCVTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(), RVLocs,
                  *DAG.getContext());
 
+  // TODO: Use CC_Ventus conditional
   analyzeOutputArgs(DAG.getMachineFunction(), CCInfo, Outs, /*IsRet=*/true,
-                    nullptr, CC_RISCV);
+                    nullptr, CC_Ventus);
 
   if (CallConv == CallingConv::GHC && !RVLocs.empty())
     report_fatal_error("GHC functions return void only");
@@ -12766,8 +12521,7 @@ RISCVTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
       break;
     }
   } else if (Constraint == "vr") {
-    for (const auto *RC : {&RISCV::VRRegClass, &RISCV::VRM2RegClass,
-                           &RISCV::VRM4RegClass, &RISCV::VRM8RegClass}) {
+    for (const auto *RC : {&RISCV::VRRegClass}) {
       if (TRI->isTypeLegalForClass(*RC, VT.SimpleTy))
         return std::make_pair(0U, RC);
     }
@@ -12916,13 +12670,6 @@ RISCVTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
         return std::make_pair(VReg, &RISCV::VMRegClass);
       if (TRI->isTypeLegalForClass(RISCV::VRRegClass, VT.SimpleTy))
         return std::make_pair(VReg, &RISCV::VRRegClass);
-      for (const auto *RC :
-           {&RISCV::VRM2RegClass, &RISCV::VRM4RegClass, &RISCV::VRM8RegClass}) {
-        if (TRI->isTypeLegalForClass(*RC, VT.SimpleTy)) {
-          VReg = TRI->getMatchingSuperReg(VReg, RISCV::sub_vrm1_0, RC);
-          return std::make_pair(VReg, RC);
-        }
-      }
     }
   }
 
@@ -13209,12 +12956,12 @@ const MCExpr *RISCVTargetLowering::LowerCustomJumpTableEntry(
 
 bool RISCVTargetLowering::isVScaleKnownToBeAPowerOfTwo() const {
   // We define vscale to be VLEN/RVVBitsPerBlock.  VLEN is always a power
-  // of two >= 64, and RVVBitsPerBlock is 64.  Thus, vscale must be
+  // of two >= 32, and RVVBitsPerBlock is 32.  Thus, vscale must be
   // a power of two as well.
   // FIXME: This doesn't work for zve32, but that's already broken
   // elsewhere for the same reason.
-  assert(Subtarget.getRealMinVLen() >= 64 && "zve32* unsupported");
-  static_assert(RISCV::RVVBitsPerBlock == 64,
+  assert(Subtarget.getRealMinVLen() >= 32 && "zve32* unsupported");
+  static_assert(RISCV::RVVBitsPerBlock == 32,
                 "RVVBitsPerBlock changed, audit needed");
   return true;
 }

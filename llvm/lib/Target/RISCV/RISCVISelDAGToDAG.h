@@ -98,14 +98,6 @@ public:
                                   SmallVectorImpl<SDValue> &Operands,
                                   bool IsLoad = false, MVT *IndexVT = nullptr);
 
-  void selectVLSEG(SDNode *Node, bool IsMasked, bool IsStrided);
-  void selectVLSEGFF(SDNode *Node, bool IsMasked);
-  void selectVLXSEG(SDNode *Node, bool IsMasked, bool IsOrdered);
-  void selectVSSEG(SDNode *Node, bool IsMasked, bool IsStrided);
-  void selectVSXSEG(SDNode *Node, bool IsMasked, bool IsOrdered);
-
-  void selectVSETVLI(SDNode *Node);
-
   // Return the RISC-V condition code that matches the given DAG integer
   // condition code. The CondCode must be one of those supported by the RISC-V
   // ISA (see translateSetCCForBranch).
@@ -140,47 +132,6 @@ private:
 };
 
 namespace RISCV {
-struct VLSEGPseudo {
-  uint16_t NF : 4;
-  uint16_t Masked : 1;
-  uint16_t IsTU : 1;
-  uint16_t Strided : 1;
-  uint16_t FF : 1;
-  uint16_t Log2SEW : 3;
-  uint16_t LMUL : 3;
-  uint16_t Pseudo;
-};
-
-struct VLXSEGPseudo {
-  uint16_t NF : 4;
-  uint16_t Masked : 1;
-  uint16_t IsTU : 1;
-  uint16_t Ordered : 1;
-  uint16_t Log2SEW : 3;
-  uint16_t LMUL : 3;
-  uint16_t IndexLMUL : 3;
-  uint16_t Pseudo;
-};
-
-struct VSSEGPseudo {
-  uint16_t NF : 4;
-  uint16_t Masked : 1;
-  uint16_t Strided : 1;
-  uint16_t Log2SEW : 3;
-  uint16_t LMUL : 3;
-  uint16_t Pseudo;
-};
-
-struct VSXSEGPseudo {
-  uint16_t NF : 4;
-  uint16_t Masked : 1;
-  uint16_t Ordered : 1;
-  uint16_t Log2SEW : 3;
-  uint16_t LMUL : 3;
-  uint16_t IndexLMUL : 3;
-  uint16_t Pseudo;
-};
-
 struct VLEPseudo {
   uint16_t Masked : 1;
   uint16_t IsTU : 1;
@@ -216,10 +167,6 @@ struct RISCVMaskedPseudoInfo {
   uint8_t MaskOpIdx;
 };
 
-#define GET_RISCVVSSEGTable_DECL
-#define GET_RISCVVLSEGTable_DECL
-#define GET_RISCVVLXSEGTable_DECL
-#define GET_RISCVVSXSEGTable_DECL
 #define GET_RISCVVLETable_DECL
 #define GET_RISCVVSETable_DECL
 #define GET_RISCVVLXTable_DECL

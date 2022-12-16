@@ -594,6 +594,9 @@ public:
                                           unsigned uid,
                                           MCContext &Ctx) const override;
 
+  void analyzeFormalArgumentsCompute(MachineFunction &MF, CCState &State,
+      const SmallVectorImpl<ISD::InputArg> &Ins) const;
+
   bool isVScaleKnownToBeAPowerOfTwo() const override;
 
   bool isLegalScaleForGatherScatter(uint64_t Scale,

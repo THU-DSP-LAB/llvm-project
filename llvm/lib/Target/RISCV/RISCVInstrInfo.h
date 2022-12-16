@@ -162,25 +162,12 @@ public:
                      MachineBasicBlock::iterator &It, MachineFunction &MF,
                      outliner::Candidate &C) const override;
 
-  bool findCommutedOpIndices(const MachineInstr &MI, unsigned &SrcOpIdx1,
-                             unsigned &SrcOpIdx2) const override;
-  MachineInstr *commuteInstructionImpl(MachineInstr &MI, bool NewMI,
-                                       unsigned OpIdx1,
-                                       unsigned OpIdx2) const override;
-
-  MachineInstr *convertToThreeAddress(MachineInstr &MI, LiveVariables *LV,
-                                      LiveIntervals *LIS) const override;
-
   // MIR printer helper function to annotate Operands with a comment.
   std::string
   createMIROperandComment(const MachineInstr &MI, const MachineOperand &Op,
                           unsigned OpIdx,
                           const TargetRegisterInfo *TRI) const override;
 
-  void getVLENFactoredAmount(
-      MachineFunction &MF, MachineBasicBlock &MBB,
-      MachineBasicBlock::iterator II, const DebugLoc &DL, Register DestReg,
-      int64_t Amount, MachineInstr::MIFlag Flag = MachineInstr::NoFlags) const;
 
   bool useMachineCombiner() const override { return true; }
 

@@ -243,10 +243,12 @@ public:
   bool hasVInstructions() const { return HasStdExtZve32x; }
   bool hasVInstructionsI64() const { return HasStdExtZve64x; }
   bool hasVInstructionsF16() const { return HasStdExtZvfh && HasStdExtZfh; }
-  // FIXME: Consider Zfinx in the future
-  bool hasVInstructionsF32() const { return HasStdExtZve32f && HasStdExtF; }
-  // FIXME: Consider Zdinx in the future
-  bool hasVInstructionsF64() const { return HasStdExtZve64d && HasStdExtD; }
+  bool hasVInstructionsF32() const {
+    return HasStdExtZve32f && (HasStdExtF || HasStdExtZfinx);
+  }
+  bool hasVInstructionsF64() const {
+    return HasStdExtZve64d && (HasStdExtD || HasStdExtZdinx);
+  }
   // F16 and F64 both require F32.
   bool hasVInstructionsAnyF() const { return hasVInstructionsF32(); }
   unsigned getMaxInterleaveFactor() const {

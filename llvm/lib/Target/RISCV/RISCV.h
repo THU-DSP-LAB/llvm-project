@@ -35,6 +35,7 @@ void initializeRISCVCodeGenPreparePass(PassRegistry &);
 
 bool lowerRISCVMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
                                     AsmPrinter &AP);
+
 bool lowerRISCVMachineOperandToMCOperand(const MachineOperand &MO,
                                          MCOperand &MCOp, const AsmPrinter &AP);
 
@@ -61,9 +62,6 @@ void initializeRISCVPreRAExpandPseudoPass(PassRegistry &);
 
 FunctionPass *createRISCVExpandAtomicPseudoPass();
 void initializeRISCVExpandAtomicPseudoPass(PassRegistry &);
-
-FunctionPass *createRISCVInsertVSETVLIPass();
-void initializeRISCVInsertVSETVLIPass(PassRegistry &);
 
 FunctionPass *createRISCVRedundantCopyEliminationPass();
 void initializeRISCVRedundantCopyEliminationPass(PassRegistry &);

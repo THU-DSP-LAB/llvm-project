@@ -16,16 +16,6 @@
 def riscv_vmv_x_s : SDNode<"RISCVISD::VMV_X_S",
                            SDTypeProfile<1, 1, [SDTCisInt<0>, SDTCisVec<1>,
                                                 SDTCisInt<1>]>>;
-def riscv_read_vlenb : SDNode<"RISCVISD::READ_VLENB",
-                              SDTypeProfile<1, 0, [SDTCisVT<0, XLenVT>]>>;
-
-// Operand that is allowed to be a register or a 5 bit immediate.
-// This allows us to pick between VSETIVLI and VSETVLI opcodes using the same
-// pseudo instructions.
-def AVL : RegisterOperand<GPRNoX0> {
-  let OperandNamespace = "RISCVOp";
-  let OperandType = "OPERAND_AVL";
-}
 
 // X0 has special meaning for vsetvl/vsetvli.
 //  rd | rs1 |   AVL value | Effect on vl
@@ -3970,11 +3960,6 @@ multiclass VPatBinaryV_WV_WX_WI<string intrinsic, string instruction,
       VPatBinaryV_WX<intrinsic, instruction, vtilist>,
       VPatBinaryV_WI<intrinsic, instruction, vtilist>;
 
-multiclass VPatBinaryV_VM_XM_IM<string intrinsic, string instruction>
-    : VPatBinaryV_VM_TAIL<intrinsic, instruction>,
-      VPatBinaryV_XM_TAIL<intrinsic, instruction>,
-      VPatBinaryV_IM_TAIL<intrinsic, instruction>;
-
 multiclass VPatBinaryM_VM_XM_IM<string intrinsic, string instruction>
     : VPatBinaryV_VM<intrinsic, instruction, /*CarryOut=*/1>,
       VPatBinaryV_XM<intrinsic, instruction, /*CarryOut=*/1>,
@@ -4338,24 +4323,6 @@ let hasSideEffects = 0, mayLoad = 1, mayStore = 0, isCodeGenOnly = 1 in {
 }
 
 //===----------------------------------------------------------------------===//
-// 6. Configuration-Setting Instructions
-//===----------------------------------------------------------------------===//
-
-// Pseudos.
-let hasSideEffects = 1, mayLoad = 0, mayStore = 0, Defs = [VL, VTYPE] in {
-// Due to rs1=X0 having special meaning, we need a GPRNoX0 register class for
-// the when we aren't using one of the special X0 encodings. Otherwise it could
-// be accidentally be made X0 by MachineIR optimizations. To satisfy the
-// verifier, we also need a GPRX0 instruction for the special encodings.
-def PseudoVSETVLI : Pseudo<(outs GPR:$rd), (ins GPRNoX0:$rs1, VTypeIOp11:$vtypei), []>,
-                    Sched<[WriteVSETVLI, ReadVSETVLI]>;
-def PseudoVSETVLIX0 : Pseudo<(outs GPR:$rd), (ins GPRX0:$rs1, VTypeIOp11:$vtypei), []>,
-                      Sched<[WriteVSETVLI, ReadVSETVLI]>;
-def PseudoVSETIVLI : Pseudo<(outs GPR:$rd), (ins uimm5:$rs1, VTypeIOp10:$vtypei), []>,
-                     Sched<[WriteVSETIVLI]>;
-}
-
-//===----------------------------------------------------------------------===//
 // 7. Vector Loads and Stores
 //===----------------------------------------------------------------------===//
 
@@ -4583,11 +4550,6 @@ defm PseudoVWMACCU  : VPseudoVWMAC_VV_VX;
 defm PseudoVWMACC   : VPseudoVWMAC_VV_VX;
 defm PseudoVWMACCSU : VPseudoVWMAC_VV_VX;
 defm PseudoVWMACCUS : VPseudoVWMAC_VX;
-
-//===----------------------------------------------------------------------===//
-// 12.15. Vector Integer Merge Instructions
-//===----------------------------------------------------------------------===//
-defm PseudoVMERGE : VPseudoVMRG_VM_XM_IM;
 
 //===----------------------------------------------------------------------===//
 // 12.16. Vector Integer Move Instructions
@@ -4858,65 +4820,7 @@ defm PseudoVFWREDOSUM  : VPseudoVFWRED_VS;
 
 } // Predicates = [HasVInstructionsAnyF]
 
-//===----------------------------------------------------------------------===//
-// 16. Vector Mask Instructions
-//===----------------------------------------------------------------------===//
 
-//===----------------------------------------------------------------------===//
-// 16.1 Vector Mask-Register Logical Instructions
-//===----------------------------------------------------------------------===//
-
-defm PseudoVMAND: VPseudoVALU_MM;
-defm PseudoVMNAND: VPseudoVALU_MM;
-defm PseudoVMANDN: VPseudoVALU_MM;
-defm PseudoVMXOR: VPseudoVALU_MM;
-defm PseudoVMOR: VPseudoVALU_MM;
-defm PseudoVMNOR: VPseudoVALU_MM;
-defm PseudoVMORN: VPseudoVALU_MM;
-defm PseudoVMXNOR: VPseudoVALU_MM;
-
-// Pseudo instructions
-defm PseudoVMCLR : VPseudoNullaryPseudoM<"VMXOR">,
-                   Sched<[WriteVMALUV, ReadVMALUV, ReadVMALUV]>;
-defm PseudoVMSET : VPseudoNullaryPseudoM<"VMXNOR">,
-                   Sched<[WriteVMALUV, ReadVMALUV, ReadVMALUV]>;
-
-//===----------------------------------------------------------------------===//
-// 16.2. Vector mask population count vcpop
-//===----------------------------------------------------------------------===//
-
-defm PseudoVCPOP: VPseudoVPOP_M;
-
-//===----------------------------------------------------------------------===//
-// 16.3. vfirst find-first-set mask bit
-//===----------------------------------------------------------------------===//
-
-defm PseudoVFIRST: VPseudoV1ST_M;
-
-//===----------------------------------------------------------------------===//
-// 16.4. vmsbf.m set-before-first mask bit
-//===----------------------------------------------------------------------===//
-defm PseudoVMSBF: VPseudoVSFS_M;
-
-//===----------------------------------------------------------------------===//
-// 16.5. vmsif.m set-including-first mask bit
-//===----------------------------------------------------------------------===//
-defm PseudoVMSIF: VPseudoVSFS_M;
-
-//===----------------------------------------------------------------------===//
-// 16.6. vmsof.m set-only-first mask bit
-//===----------------------------------------------------------------------===//
-defm PseudoVMSOF: VPseudoVSFS_M;
-
-//===----------------------------------------------------------------------===//
-// 16.8.  Vector Iota Instruction
-//===----------------------------------------------------------------------===//
-defm PseudoVIOTA_M: VPseudoVIOT_M;
-
-//===----------------------------------------------------------------------===//
-// 16.9. Vector Element Index Instruction
-//===----------------------------------------------------------------------===//
-defm PseudoVID : VPseudoVID_V;
 
 //===----------------------------------------------------------------------===//
 // 17. Vector Permutation Instructions
@@ -5021,17 +4925,6 @@ defm : VPatUnaryV_VF<"int_riscv_vsext", "PseudoVSEXT", "VF4",
                      AllFractionableVF4IntVectors>;
 defm : VPatUnaryV_VF<"int_riscv_vsext", "PseudoVSEXT", "VF8",
                      AllFractionableVF8IntVectors>;
-
-//===----------------------------------------------------------------------===//
-// 12.4. Vector Integer Add-with-Carry / Subtract-with-Borrow Instructions
-//===----------------------------------------------------------------------===//
-defm : VPatBinaryV_VM_XM_IM<"int_riscv_vadc", "PseudoVADC">;
-defm : VPatBinaryM_VM_XM_IM<"int_riscv_vmadc_carry_in", "PseudoVMADC">;
-defm : VPatBinaryM_V_X_I<"int_riscv_vmadc", "PseudoVMADC">;
-
-defm : VPatBinaryV_VM_XM<"int_riscv_vsbc", "PseudoVSBC">;
-defm : VPatBinaryM_VM_XM<"int_riscv_vmsbc_borrow_in", "PseudoVMSBC">;
-defm : VPatBinaryM_V_X<"int_riscv_vmsbc", "PseudoVMSBC">;
 
 //===----------------------------------------------------------------------===//
 // 12.5. Vector Bitwise Logical Instructions
@@ -5158,11 +5051,6 @@ defm : VPatTernaryW_VV_VX<"int_riscv_vwmaccu", "PseudoVWMACCU", AllWidenableIntV
 defm : VPatTernaryW_VV_VX<"int_riscv_vwmacc", "PseudoVWMACC", AllWidenableIntVectors>;
 defm : VPatTernaryW_VV_VX<"int_riscv_vwmaccsu", "PseudoVWMACCSU", AllWidenableIntVectors>;
 defm : VPatTernaryW_VX<"int_riscv_vwmaccus", "PseudoVWMACCUS", AllWidenableIntVectors>;
-
-//===----------------------------------------------------------------------===//
-// 12.15. Vector Integer Merge Instructions
-//===----------------------------------------------------------------------===//
-defm : VPatBinaryV_VM_XM_IM<"int_riscv_vmerge", "PseudoVMERGE">;
 
 //===----------------------------------------------------------------------===//
 // 12.16. Vector Integer Move Instructions
@@ -5313,35 +5201,6 @@ defm : VPatBinarySwappedM_VV<"int_riscv_vmfge", "PseudoVMFLE", AllFloatVectors>;
 defm : VPatConversionVI_VF<"int_riscv_vfclass", "PseudoVFCLASS">;
 
 //===----------------------------------------------------------------------===//
-// 14.15. Vector Floating-Point Merge Instruction
-//===----------------------------------------------------------------------===//
-// We can use vmerge.vvm to support vector-vector vfmerge.
-// NOTE: Clang previously used int_riscv_vfmerge for vector-vector, but now uses
-// int_riscv_vmerge. Support both for compatibility.
-defm : VPatBinaryV_VM_TAIL<"int_riscv_vmerge", "PseudoVMERGE",
-                           /*CarryOut = */0, /*vtilist=*/AllFloatVectors>;
-defm : VPatBinaryV_VM_TAIL<"int_riscv_vfmerge", "PseudoVMERGE",
-                           /*CarryOut = */0, /*vtilist=*/AllFloatVectors>;
-defm : VPatBinaryV_XM_TAIL<"int_riscv_vfmerge", "PseudoVFMERGE",
-                           /*CarryOut = */0, /*vtilist=*/AllFloatVectors>;
-
-foreach fvti = AllFloatVectors in {
-  defvar instr = !cast<Instruction>("PseudoVMERGE_VIM_"#fvti.LMul.MX);
-  def : Pat<(fvti.Vector (int_riscv_vfmerge (fvti.Vector undef),
-                                            (fvti.Vector fvti.RegClass:$rs2),
-                                            (fvti.Scalar (fpimm0)),
-                                            (fvti.Mask V0), VLOpFrag)),
-            (instr fvti.RegClass:$rs2, 0, (fvti.Mask V0), GPR:$vl, fvti.Log2SEW)>;
-  defvar instr_tu = !cast<Instruction>("PseudoVMERGE_VIM_"#fvti.LMul.MX#"_TU");
-  def : Pat<(fvti.Vector (int_riscv_vfmerge (fvti.Vector fvti.RegClass:$merge),
-                                            (fvti.Vector fvti.RegClass:$rs2),
-                                            (fvti.Scalar (fpimm0)),
-                                            (fvti.Mask V0), VLOpFrag)),
-            (instr_tu fvti.RegClass:$merge, fvti.RegClass:$rs2, 0,
-                      (fvti.Mask V0), GPR:$vl, fvti.Log2SEW)>;
-}
-
-//===----------------------------------------------------------------------===//
 // 14.17. Single-Width Floating-Point/Integer Type-Convert Instructions
 //===----------------------------------------------------------------------===//
 defm : VPatConversionVI_VF<"int_riscv_vfcvt_xu_f_v", "PseudoVFCVT_XU_F">;
@@ -5374,101 +5233,6 @@ defm : VPatConversionVF_WI <"int_riscv_vfncvt_f_x_w", "PseudoVFNCVT_F_X">;
 defm : VPatConversionVF_WF<"int_riscv_vfncvt_f_f_w", "PseudoVFNCVT_F_F">;
 defm : VPatConversionVF_WF<"int_riscv_vfncvt_rod_f_f_w", "PseudoVFNCVT_ROD_F_F">;
 } // Predicates = [HasVInstructionsAnyF]
-
-let Predicates = [HasVInstructions] in {
-//===----------------------------------------------------------------------===//
-// 15.1. Vector Single-Width Integer Reduction Instructions
-//===----------------------------------------------------------------------===//
-defm : VPatReductionV_VS<"int_riscv_vredsum", "PseudoVREDSUM">;
-defm : VPatReductionV_VS<"int_riscv_vredand", "PseudoVREDAND">;
-defm : VPatReductionV_VS<"int_riscv_vredor", "PseudoVREDOR">;
-defm : VPatReductionV_VS<"int_riscv_vredxor", "PseudoVREDXOR">;
-defm : VPatReductionV_VS<"int_riscv_vredminu", "PseudoVREDMINU">;
-defm : VPatReductionV_VS<"int_riscv_vredmin", "PseudoVREDMIN">;
-defm : VPatReductionV_VS<"int_riscv_vredmaxu", "PseudoVREDMAXU">;
-defm : VPatReductionV_VS<"int_riscv_vredmax", "PseudoVREDMAX">;
-
-//===----------------------------------------------------------------------===//
-// 15.2. Vector Widening Integer Reduction Instructions
-//===----------------------------------------------------------------------===//
-defm : VPatReductionW_VS<"int_riscv_vwredsumu", "PseudoVWREDSUMU">;
-defm : VPatReductionW_VS<"int_riscv_vwredsum", "PseudoVWREDSUM">;
-} // Predicates = [HasVInstructions]
-
-let Predicates = [HasVInstructionsAnyF] in {
-//===----------------------------------------------------------------------===//
-// 15.3. Vector Single-Width Floating-Point Reduction Instructions
-//===----------------------------------------------------------------------===//
-defm : VPatReductionV_VS<"int_riscv_vfredosum", "PseudoVFREDOSUM", /*IsFloat=*/1>;
-defm : VPatReductionV_VS<"int_riscv_vfredusum", "PseudoVFREDUSUM", /*IsFloat=*/1>;
-defm : VPatReductionV_VS<"int_riscv_vfredmin", "PseudoVFREDMIN", /*IsFloat=*/1>;
-defm : VPatReductionV_VS<"int_riscv_vfredmax", "PseudoVFREDMAX", /*IsFloat=*/1>;
-
-//===----------------------------------------------------------------------===//
-// 15.4. Vector Widening Floating-Point Reduction Instructions
-//===----------------------------------------------------------------------===//
-defm : VPatReductionW_VS<"int_riscv_vfwredusum", "PseudoVFWREDUSUM", /*IsFloat=*/1>;
-defm : VPatReductionW_VS<"int_riscv_vfwredosum", "PseudoVFWREDOSUM", /*IsFloat=*/1>;
-
-} // Predicates = [HasVInstructionsAnyF]
-
-//===----------------------------------------------------------------------===//
-// 16. Vector Mask Instructions
-//===----------------------------------------------------------------------===//
-
-let Predicates = [HasVInstructions] in {
-//===----------------------------------------------------------------------===//
-// 16.1 Vector Mask-Register Logical Instructions
-//===----------------------------------------------------------------------===//
-defm : VPatBinaryM_MM<"int_riscv_vmand", "PseudoVMAND">;
-defm : VPatBinaryM_MM<"int_riscv_vmnand", "PseudoVMNAND">;
-defm : VPatBinaryM_MM<"int_riscv_vmandn", "PseudoVMANDN">;
-defm : VPatBinaryM_MM<"int_riscv_vmxor", "PseudoVMXOR">;
-defm : VPatBinaryM_MM<"int_riscv_vmor", "PseudoVMOR">;
-defm : VPatBinaryM_MM<"int_riscv_vmnor", "PseudoVMNOR">;
-defm : VPatBinaryM_MM<"int_riscv_vmorn", "PseudoVMORN">;
-defm : VPatBinaryM_MM<"int_riscv_vmxnor", "PseudoVMXNOR">;
-
-// pseudo instructions
-defm : VPatNullaryM<"int_riscv_vmclr", "PseudoVMCLR">;
-defm : VPatNullaryM<"int_riscv_vmset", "PseudoVMSET">;
-
-//===----------------------------------------------------------------------===//
-// 16.2. Vector count population in mask vcpop.m
-//===----------------------------------------------------------------------===//
-defm : VPatUnaryS_M<"int_riscv_vcpop", "PseudoVCPOP">;
-
-//===----------------------------------------------------------------------===//
-// 16.3. vfirst find-first-set mask bit
-//===----------------------------------------------------------------------===//
-defm : VPatUnaryS_M<"int_riscv_vfirst", "PseudoVFIRST">;
-
-//===----------------------------------------------------------------------===//
-// 16.4. vmsbf.m set-before-first mask bit
-//===----------------------------------------------------------------------===//
-defm : VPatUnaryM_M<"int_riscv_vmsbf", "PseudoVMSBF">;
-
-//===----------------------------------------------------------------------===//
-// 16.5. vmsif.m set-including-first mask bit
-//===----------------------------------------------------------------------===//
-defm : VPatUnaryM_M<"int_riscv_vmsif", "PseudoVMSIF">;
-
-//===----------------------------------------------------------------------===//
-// 16.6. vmsof.m set-only-first mask bit
-//===----------------------------------------------------------------------===//
-defm : VPatUnaryM_M<"int_riscv_vmsof", "PseudoVMSOF">;
-
-//===----------------------------------------------------------------------===//
-// 16.8.  Vector Iota Instruction
-//===----------------------------------------------------------------------===//
-defm : VPatUnaryV_M<"int_riscv_viota", "PseudoVIOTA">;
-
-//===----------------------------------------------------------------------===//
-// 16.9. Vector Element Index Instruction
-//===----------------------------------------------------------------------===//
-defm : VPatNullaryV<"int_riscv_vid", "PseudoVID">;
-
-} // Predicates = [HasVInstructions]
 
 //===----------------------------------------------------------------------===//
 // 17. Vector Permutation Instructions

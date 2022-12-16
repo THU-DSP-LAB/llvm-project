@@ -29,10 +29,6 @@ using namespace llvm;
 #define DEBUG_TYPE "riscv-isel"
 
 namespace llvm::RISCV {
-#define GET_RISCVVSSEGTable_IMPL
-#define GET_RISCVVLSEGTable_IMPL
-#define GET_RISCVVLXSEGTable_IMPL
-#define GET_RISCVVSXSEGTable_IMPL
 #define GET_RISCVVLETable_IMPL
 #define GET_RISCVVSETable_IMPL
 #define GET_RISCVVLXTable_IMPL
@@ -211,56 +207,8 @@ static SDNode *selectImm(SelectionDAG *CurDAG, const SDLoc &DL, const MVT VT,
 
 static SDValue createTuple(SelectionDAG &CurDAG, ArrayRef<SDValue> Regs,
                            unsigned NF, RISCVII::VLMUL LMUL) {
-  static const unsigned M1TupleRegClassIDs[] = {
-      RISCV::VRN2M1RegClassID, RISCV::VRN3M1RegClassID, RISCV::VRN4M1RegClassID,
-      RISCV::VRN5M1RegClassID, RISCV::VRN6M1RegClassID, RISCV::VRN7M1RegClassID,
-      RISCV::VRN8M1RegClassID};
-  static const unsigned M2TupleRegClassIDs[] = {RISCV::VRN2M2RegClassID,
-                                                RISCV::VRN3M2RegClassID,
-                                                RISCV::VRN4M2RegClassID};
-
-  assert(Regs.size() >= 2 && Regs.size() <= 8);
-
-  unsigned RegClassID;
-  unsigned SubReg0;
-  switch (LMUL) {
-  default:
-    llvm_unreachable("Invalid LMUL.");
-  case RISCVII::VLMUL::LMUL_F8:
-  case RISCVII::VLMUL::LMUL_F4:
-  case RISCVII::VLMUL::LMUL_F2:
-  case RISCVII::VLMUL::LMUL_1:
-    static_assert(RISCV::sub_vrm1_7 == RISCV::sub_vrm1_0 + 7,
-                  "Unexpected subreg numbering");
-    SubReg0 = RISCV::sub_vrm1_0;
-    RegClassID = M1TupleRegClassIDs[NF - 2];
-    break;
-  case RISCVII::VLMUL::LMUL_2:
-    static_assert(RISCV::sub_vrm2_3 == RISCV::sub_vrm2_0 + 3,
-                  "Unexpected subreg numbering");
-    SubReg0 = RISCV::sub_vrm2_0;
-    RegClassID = M2TupleRegClassIDs[NF - 2];
-    break;
-  case RISCVII::VLMUL::LMUL_4:
-    static_assert(RISCV::sub_vrm4_1 == RISCV::sub_vrm4_0 + 1,
-                  "Unexpected subreg numbering");
-    SubReg0 = RISCV::sub_vrm4_0;
-    RegClassID = RISCV::VRN2M4RegClassID;
-    break;
-  }
-
-  SDLoc DL(Regs[0]);
-  SmallVector<SDValue, 8> Ops;
-
-  Ops.push_back(CurDAG.getTargetConstant(RegClassID, DL, MVT::i32));
-
-  for (unsigned I = 0; I < Regs.size(); ++I) {
-    Ops.push_back(Regs[I]);
-    Ops.push_back(CurDAG.getTargetConstant(SubReg0 + I, DL, MVT::i32));
-  }
-  SDNode *N =
-      CurDAG.getMachineNode(TargetOpcode::REG_SEQUENCE, DL, MVT::Untyped, Ops);
-  return SDValue(N, 0);
+  assert(0 && "TODO!");
+  return SDValue(nullptr, 0);
 }
 
 void RISCVDAGToDAGISel::addVectorLoadStoreOperands(
@@ -308,292 +256,6 @@ void RISCVDAGToDAGISel::addVectorLoadStoreOperands(
 
 static bool isAllUndef(ArrayRef<SDValue> Values) {
   return llvm::all_of(Values, [](SDValue V) { return V->isUndef(); });
-}
-
-void RISCVDAGToDAGISel::selectVLSEG(SDNode *Node, bool IsMasked,
-                                    bool IsStrided) {
-  SDLoc DL(Node);
-  unsigned NF = Node->getNumValues() - 1;
-  MVT VT = Node->getSimpleValueType(0);
-  unsigned Log2SEW = Log2_32(VT.getScalarSizeInBits());
-  RISCVII::VLMUL LMUL = RISCVTargetLowering::getLMUL(VT);
-
-  unsigned CurOp = 2;
-  SmallVector<SDValue, 8> Operands;
-
-  SmallVector<SDValue, 8> Regs(Node->op_begin() + CurOp,
-                               Node->op_begin() + CurOp + NF);
-  bool IsTU = IsMasked || !isAllUndef(Regs);
-  if (IsTU) {
-    SDValue Merge = createTuple(*CurDAG, Regs, NF, LMUL);
-    Operands.push_back(Merge);
-  }
-  CurOp += NF;
-
-  addVectorLoadStoreOperands(Node, Log2SEW, DL, CurOp, IsMasked, IsStrided,
-                             Operands, /*IsLoad=*/true);
-
-  const RISCV::VLSEGPseudo *P =
-      RISCV::getVLSEGPseudo(NF, IsMasked, IsTU, IsStrided, /*FF*/ false, Log2SEW,
-                            static_cast<unsigned>(LMUL));
-  MachineSDNode *Load =
-      CurDAG->getMachineNode(P->Pseudo, DL, MVT::Untyped, MVT::Other, Operands);
-
-  if (auto *MemOp = dyn_cast<MemSDNode>(Node))
-    CurDAG->setNodeMemRefs(Load, {MemOp->getMemOperand()});
-
-  SDValue SuperReg = SDValue(Load, 0);
-  for (unsigned I = 0; I < NF; ++I) {
-    unsigned SubRegIdx = RISCVTargetLowering::getSubregIndexByMVT(VT, I);
-    ReplaceUses(SDValue(Node, I),
-                CurDAG->getTargetExtractSubreg(SubRegIdx, DL, VT, SuperReg));
-  }
-
-  ReplaceUses(SDValue(Node, NF), SDValue(Load, 1));
-  CurDAG->RemoveDeadNode(Node);
-}
-
-void RISCVDAGToDAGISel::selectVLSEGFF(SDNode *Node, bool IsMasked) {
-  SDLoc DL(Node);
-  unsigned NF = Node->getNumValues() - 2; // Do not count VL and Chain.
-  MVT VT = Node->getSimpleValueType(0);
-  MVT XLenVT = Subtarget->getXLenVT();
-  unsigned Log2SEW = Log2_32(VT.getScalarSizeInBits());
-  RISCVII::VLMUL LMUL = RISCVTargetLowering::getLMUL(VT);
-
-  unsigned CurOp = 2;
-  SmallVector<SDValue, 7> Operands;
-
-  SmallVector<SDValue, 8> Regs(Node->op_begin() + CurOp,
-                               Node->op_begin() + CurOp + NF);
-  bool IsTU = IsMasked || !isAllUndef(Regs);
-  if (IsTU) {
-    SDValue MaskedOff = createTuple(*CurDAG, Regs, NF, LMUL);
-    Operands.push_back(MaskedOff);
-  }
-  CurOp += NF;
-
-  addVectorLoadStoreOperands(Node, Log2SEW, DL, CurOp, IsMasked,
-                             /*IsStridedOrIndexed*/ false, Operands,
-                             /*IsLoad=*/true);
-
-  const RISCV::VLSEGPseudo *P =
-      RISCV::getVLSEGPseudo(NF, IsMasked, IsTU, /*Strided*/ false, /*FF*/ true,
-                            Log2SEW, static_cast<unsigned>(LMUL));
-  MachineSDNode *Load = CurDAG->getMachineNode(P->Pseudo, DL, MVT::Untyped,
-                                               XLenVT, MVT::Other, Operands);
-
-  if (auto *MemOp = dyn_cast<MemSDNode>(Node))
-    CurDAG->setNodeMemRefs(Load, {MemOp->getMemOperand()});
-
-  SDValue SuperReg = SDValue(Load, 0);
-  for (unsigned I = 0; I < NF; ++I) {
-    unsigned SubRegIdx = RISCVTargetLowering::getSubregIndexByMVT(VT, I);
-    ReplaceUses(SDValue(Node, I),
-                CurDAG->getTargetExtractSubreg(SubRegIdx, DL, VT, SuperReg));
-  }
-
-  ReplaceUses(SDValue(Node, NF), SDValue(Load, 1));     // VL
-  ReplaceUses(SDValue(Node, NF + 1), SDValue(Load, 2)); // Chain
-  CurDAG->RemoveDeadNode(Node);
-}
-
-void RISCVDAGToDAGISel::selectVLXSEG(SDNode *Node, bool IsMasked,
-                                     bool IsOrdered) {
-  SDLoc DL(Node);
-  unsigned NF = Node->getNumValues() - 1;
-  MVT VT = Node->getSimpleValueType(0);
-  unsigned Log2SEW = Log2_32(VT.getScalarSizeInBits());
-  RISCVII::VLMUL LMUL = RISCVTargetLowering::getLMUL(VT);
-
-  unsigned CurOp = 2;
-  SmallVector<SDValue, 8> Operands;
-
-  SmallVector<SDValue, 8> Regs(Node->op_begin() + CurOp,
-                               Node->op_begin() + CurOp + NF);
-  bool IsTU = IsMasked || !isAllUndef(Regs);
-  if (IsTU) {
-    SDValue MaskedOff = createTuple(*CurDAG, Regs, NF, LMUL);
-    Operands.push_back(MaskedOff);
-  }
-  CurOp += NF;
-
-  MVT IndexVT;
-  addVectorLoadStoreOperands(Node, Log2SEW, DL, CurOp, IsMasked,
-                             /*IsStridedOrIndexed*/ true, Operands,
-                             /*IsLoad=*/true, &IndexVT);
-
-  assert(VT.getVectorElementCount() == IndexVT.getVectorElementCount() &&
-         "Element count mismatch");
-
-  RISCVII::VLMUL IndexLMUL = RISCVTargetLowering::getLMUL(IndexVT);
-  unsigned IndexLog2EEW = Log2_32(IndexVT.getScalarSizeInBits());
-  if (IndexLog2EEW == 6 && !Subtarget->is64Bit()) {
-    report_fatal_error("The V extension does not support EEW=64 for index "
-                       "values when XLEN=32");
-  }
-  const RISCV::VLXSEGPseudo *P = RISCV::getVLXSEGPseudo(
-      NF, IsMasked, IsTU, IsOrdered, IndexLog2EEW, static_cast<unsigned>(LMUL),
-      static_cast<unsigned>(IndexLMUL));
-  MachineSDNode *Load =
-      CurDAG->getMachineNode(P->Pseudo, DL, MVT::Untyped, MVT::Other, Operands);
-
-  if (auto *MemOp = dyn_cast<MemSDNode>(Node))
-    CurDAG->setNodeMemRefs(Load, {MemOp->getMemOperand()});
-
-  SDValue SuperReg = SDValue(Load, 0);
-  for (unsigned I = 0; I < NF; ++I) {
-    unsigned SubRegIdx = RISCVTargetLowering::getSubregIndexByMVT(VT, I);
-    ReplaceUses(SDValue(Node, I),
-                CurDAG->getTargetExtractSubreg(SubRegIdx, DL, VT, SuperReg));
-  }
-
-  ReplaceUses(SDValue(Node, NF), SDValue(Load, 1));
-  CurDAG->RemoveDeadNode(Node);
-}
-
-void RISCVDAGToDAGISel::selectVSSEG(SDNode *Node, bool IsMasked,
-                                    bool IsStrided) {
-  SDLoc DL(Node);
-  unsigned NF = Node->getNumOperands() - 4;
-  if (IsStrided)
-    NF--;
-  if (IsMasked)
-    NF--;
-  MVT VT = Node->getOperand(2)->getSimpleValueType(0);
-  unsigned Log2SEW = Log2_32(VT.getScalarSizeInBits());
-  RISCVII::VLMUL LMUL = RISCVTargetLowering::getLMUL(VT);
-  SmallVector<SDValue, 8> Regs(Node->op_begin() + 2, Node->op_begin() + 2 + NF);
-  SDValue StoreVal = createTuple(*CurDAG, Regs, NF, LMUL);
-
-  SmallVector<SDValue, 8> Operands;
-  Operands.push_back(StoreVal);
-  unsigned CurOp = 2 + NF;
-
-  addVectorLoadStoreOperands(Node, Log2SEW, DL, CurOp, IsMasked, IsStrided,
-                             Operands);
-
-  const RISCV::VSSEGPseudo *P = RISCV::getVSSEGPseudo(
-      NF, IsMasked, IsStrided, Log2SEW, static_cast<unsigned>(LMUL));
-  MachineSDNode *Store =
-      CurDAG->getMachineNode(P->Pseudo, DL, Node->getValueType(0), Operands);
-
-  if (auto *MemOp = dyn_cast<MemSDNode>(Node))
-    CurDAG->setNodeMemRefs(Store, {MemOp->getMemOperand()});
-
-  ReplaceNode(Node, Store);
-}
-
-void RISCVDAGToDAGISel::selectVSXSEG(SDNode *Node, bool IsMasked,
-                                     bool IsOrdered) {
-  SDLoc DL(Node);
-  unsigned NF = Node->getNumOperands() - 5;
-  if (IsMasked)
-    --NF;
-  MVT VT = Node->getOperand(2)->getSimpleValueType(0);
-  unsigned Log2SEW = Log2_32(VT.getScalarSizeInBits());
-  RISCVII::VLMUL LMUL = RISCVTargetLowering::getLMUL(VT);
-  SmallVector<SDValue, 8> Regs(Node->op_begin() + 2, Node->op_begin() + 2 + NF);
-  SDValue StoreVal = createTuple(*CurDAG, Regs, NF, LMUL);
-
-  SmallVector<SDValue, 8> Operands;
-  Operands.push_back(StoreVal);
-  unsigned CurOp = 2 + NF;
-
-  MVT IndexVT;
-  addVectorLoadStoreOperands(Node, Log2SEW, DL, CurOp, IsMasked,
-                             /*IsStridedOrIndexed*/ true, Operands,
-                             /*IsLoad=*/false, &IndexVT);
-
-  assert(VT.getVectorElementCount() == IndexVT.getVectorElementCount() &&
-         "Element count mismatch");
-
-  RISCVII::VLMUL IndexLMUL = RISCVTargetLowering::getLMUL(IndexVT);
-  unsigned IndexLog2EEW = Log2_32(IndexVT.getScalarSizeInBits());
-  if (IndexLog2EEW == 6 && !Subtarget->is64Bit()) {
-    report_fatal_error("The V extension does not support EEW=64 for index "
-                       "values when XLEN=32");
-  }
-  const RISCV::VSXSEGPseudo *P = RISCV::getVSXSEGPseudo(
-      NF, IsMasked, IsOrdered, IndexLog2EEW, static_cast<unsigned>(LMUL),
-      static_cast<unsigned>(IndexLMUL));
-  MachineSDNode *Store =
-      CurDAG->getMachineNode(P->Pseudo, DL, Node->getValueType(0), Operands);
-
-  if (auto *MemOp = dyn_cast<MemSDNode>(Node))
-    CurDAG->setNodeMemRefs(Store, {MemOp->getMemOperand()});
-
-  ReplaceNode(Node, Store);
-}
-
-void RISCVDAGToDAGISel::selectVSETVLI(SDNode *Node) {
-  if (!Subtarget->hasVInstructions())
-    return;
-
-  assert((Node->getOpcode() == ISD::INTRINSIC_W_CHAIN ||
-          Node->getOpcode() == ISD::INTRINSIC_WO_CHAIN) &&
-         "Unexpected opcode");
-
-  SDLoc DL(Node);
-  MVT XLenVT = Subtarget->getXLenVT();
-
-  bool HasChain = Node->getOpcode() == ISD::INTRINSIC_W_CHAIN;
-  unsigned IntNoOffset = HasChain ? 1 : 0;
-  unsigned IntNo = Node->getConstantOperandVal(IntNoOffset);
-
-  assert((IntNo == Intrinsic::riscv_vsetvli ||
-          IntNo == Intrinsic::riscv_vsetvlimax ||
-          IntNo == Intrinsic::riscv_vsetvli_opt ||
-          IntNo == Intrinsic::riscv_vsetvlimax_opt) &&
-         "Unexpected vsetvli intrinsic");
-
-  bool VLMax = IntNo == Intrinsic::riscv_vsetvlimax ||
-               IntNo == Intrinsic::riscv_vsetvlimax_opt;
-  unsigned Offset = IntNoOffset + (VLMax ? 1 : 2);
-
-  assert(Node->getNumOperands() == Offset + 2 &&
-         "Unexpected number of operands");
-
-  unsigned SEW =
-      RISCVVType::decodeVSEW(Node->getConstantOperandVal(Offset) & 0x7);
-  RISCVII::VLMUL VLMul = static_cast<RISCVII::VLMUL>(
-      Node->getConstantOperandVal(Offset + 1) & 0x7);
-
-  unsigned VTypeI = RISCVVType::encodeVTYPE(VLMul, SEW, /*TailAgnostic*/ true,
-                                            /*MaskAgnostic*/ false);
-  SDValue VTypeIOp = CurDAG->getTargetConstant(VTypeI, DL, XLenVT);
-
-  SmallVector<EVT, 2> VTs = {XLenVT};
-  if (HasChain)
-    VTs.push_back(MVT::Other);
-
-  SDValue VLOperand;
-  unsigned Opcode = RISCV::PseudoVSETVLI;
-  if (VLMax) {
-    VLOperand = CurDAG->getRegister(RISCV::X0, XLenVT);
-    Opcode = RISCV::PseudoVSETVLIX0;
-  } else {
-    VLOperand = Node->getOperand(IntNoOffset + 1);
-
-    if (auto *C = dyn_cast<ConstantSDNode>(VLOperand)) {
-      uint64_t AVL = C->getZExtValue();
-      if (isUInt<5>(AVL)) {
-        SDValue VLImm = CurDAG->getTargetConstant(AVL, DL, XLenVT);
-        SmallVector<SDValue, 3> Ops = {VLImm, VTypeIOp};
-        if (HasChain)
-          Ops.push_back(Node->getOperand(0));
-        ReplaceNode(
-            Node, CurDAG->getMachineNode(RISCV::PseudoVSETIVLI, DL, VTs, Ops));
-        return;
-      }
-    }
-  }
-
-  SmallVector<SDValue, 3> Ops = {VLOperand, VTypeIOp};
-  if (HasChain)
-    Ops.push_back(Node->getOperand(0));
-
-  ReplaceNode(Node, CurDAG->getMachineNode(Opcode, DL, VTs, Ops));
 }
 
 bool RISCVDAGToDAGISel::tryShrinkShlLogicImm(SDNode *Node) {
@@ -688,7 +350,6 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   MVT XLenVT = Subtarget->getXLenVT();
   SDLoc DL(Node);
   MVT VT = Node->getSimpleValueType(0);
-
   switch (Opcode) {
   case ISD::Constant: {
     auto *ConstNode = cast<ConstantSDNode>(Node);
@@ -1113,6 +774,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       break;
     case Intrinsic::riscv_vmsgeu:
     case Intrinsic::riscv_vmsge: {
+      assert(0 && "TODO");
       SDValue Src1 = Node->getOperand(1);
       SDValue Src2 = Node->getOperand(2);
       bool IsUnsigned = IntNo == Intrinsic::riscv_vmsgeu;
@@ -1131,25 +793,6 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       }
       MVT Src1VT = Src1.getSimpleValueType();
       unsigned VMSLTOpcode, VMNANDOpcode, VMSetOpcode;
-      switch (RISCVTargetLowering::getLMUL(Src1VT)) {
-      default:
-        llvm_unreachable("Unexpected LMUL!");
-#define CASE_VMSLT_VMNAND_VMSET_OPCODES(lmulenum, suffix, suffix_b)            \
-  case RISCVII::VLMUL::lmulenum:                                               \
-    VMSLTOpcode = IsUnsigned ? RISCV::PseudoVMSLTU_VX_##suffix                 \
-                             : RISCV::PseudoVMSLT_VX_##suffix;                 \
-    VMNANDOpcode = RISCV::PseudoVMNAND_MM_##suffix;                            \
-    VMSetOpcode = RISCV::PseudoVMSET_M_##suffix_b;                             \
-    break;
-        CASE_VMSLT_VMNAND_VMSET_OPCODES(LMUL_F8, MF8, B1)
-        CASE_VMSLT_VMNAND_VMSET_OPCODES(LMUL_F4, MF4, B2)
-        CASE_VMSLT_VMNAND_VMSET_OPCODES(LMUL_F2, MF2, B4)
-        CASE_VMSLT_VMNAND_VMSET_OPCODES(LMUL_1, M1, B8)
-        CASE_VMSLT_VMNAND_VMSET_OPCODES(LMUL_2, M2, B16)
-        CASE_VMSLT_VMNAND_VMSET_OPCODES(LMUL_4, M4, B32)
-        CASE_VMSLT_VMNAND_VMSET_OPCODES(LMUL_8, M8, B64)
-#undef CASE_VMSLT_VMNAND_VMSET_OPCODES
-      }
       SDValue SEW = CurDAG->getTargetConstant(
           Log2_32(Src1VT.getScalarSizeInBits()), DL, XLenVT);
       SDValue VL;
@@ -1172,6 +815,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     }
     case Intrinsic::riscv_vmsgeu_mask:
     case Intrinsic::riscv_vmsge_mask: {
+      assert(0 && "TODO");
       SDValue Src1 = Node->getOperand(2);
       SDValue Src2 = Node->getOperand(3);
       bool IsUnsigned = IntNo == Intrinsic::riscv_vmsgeu_mask;
@@ -1191,44 +835,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       MVT Src1VT = Src1.getSimpleValueType();
       unsigned VMSLTOpcode, VMSLTMaskOpcode, VMXOROpcode, VMANDNOpcode,
           VMOROpcode;
-      switch (RISCVTargetLowering::getLMUL(Src1VT)) {
-      default:
-        llvm_unreachable("Unexpected LMUL!");
-#define CASE_VMSLT_OPCODES(lmulenum, suffix, suffix_b)                         \
-  case RISCVII::VLMUL::lmulenum:                                               \
-    VMSLTOpcode = IsUnsigned ? RISCV::PseudoVMSLTU_VX_##suffix                 \
-                             : RISCV::PseudoVMSLT_VX_##suffix;                 \
-    VMSLTMaskOpcode = IsUnsigned ? RISCV::PseudoVMSLTU_VX_##suffix##_MASK      \
-                                 : RISCV::PseudoVMSLT_VX_##suffix##_MASK;      \
-    break;
-        CASE_VMSLT_OPCODES(LMUL_F8, MF8, B1)
-        CASE_VMSLT_OPCODES(LMUL_F4, MF4, B2)
-        CASE_VMSLT_OPCODES(LMUL_F2, MF2, B4)
-        CASE_VMSLT_OPCODES(LMUL_1, M1, B8)
-        CASE_VMSLT_OPCODES(LMUL_2, M2, B16)
-        CASE_VMSLT_OPCODES(LMUL_4, M4, B32)
-        CASE_VMSLT_OPCODES(LMUL_8, M8, B64)
-#undef CASE_VMSLT_OPCODES
-      }
-      // Mask operations use the LMUL from the mask type.
-      switch (RISCVTargetLowering::getLMUL(VT)) {
-      default:
-        llvm_unreachable("Unexpected LMUL!");
-#define CASE_VMXOR_VMANDN_VMOR_OPCODES(lmulenum, suffix)                       \
-  case RISCVII::VLMUL::lmulenum:                                               \
-    VMXOROpcode = RISCV::PseudoVMXOR_MM_##suffix;                              \
-    VMANDNOpcode = RISCV::PseudoVMANDN_MM_##suffix;                            \
-    VMOROpcode = RISCV::PseudoVMOR_MM_##suffix;                                \
-    break;
-        CASE_VMXOR_VMANDN_VMOR_OPCODES(LMUL_F8, MF8)
-        CASE_VMXOR_VMANDN_VMOR_OPCODES(LMUL_F4, MF4)
-        CASE_VMXOR_VMANDN_VMOR_OPCODES(LMUL_F2, MF2)
-        CASE_VMXOR_VMANDN_VMOR_OPCODES(LMUL_1, M1)
-        CASE_VMXOR_VMANDN_VMOR_OPCODES(LMUL_2, M2)
-        CASE_VMXOR_VMANDN_VMOR_OPCODES(LMUL_4, M4)
-        CASE_VMXOR_VMANDN_VMOR_OPCODES(LMUL_8, M8)
-#undef CASE_VMXOR_VMANDN_VMOR_OPCODES
-      }
+
       SDValue SEW = CurDAG->getTargetConstant(
           Log2_32(Src1VT.getScalarSizeInBits()), DL, XLenVT);
       SDValue MaskSEW = CurDAG->getTargetConstant(0, DL, XLenVT);
@@ -1283,9 +890,6 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
                                                {Cmp, Mask, VL, MaskSEW}));
       return;
     }
-    case Intrinsic::riscv_vsetvli_opt:
-    case Intrinsic::riscv_vsetvlimax_opt:
-      return selectVSETVLI(Node);
     }
     break;
   }
@@ -1295,154 +899,6 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       // By default we do not custom select any intrinsic.
     default:
       break;
-    case Intrinsic::riscv_vsetvli:
-    case Intrinsic::riscv_vsetvlimax:
-      return selectVSETVLI(Node);
-    case Intrinsic::riscv_vlseg2:
-    case Intrinsic::riscv_vlseg3:
-    case Intrinsic::riscv_vlseg4:
-    case Intrinsic::riscv_vlseg5:
-    case Intrinsic::riscv_vlseg6:
-    case Intrinsic::riscv_vlseg7:
-    case Intrinsic::riscv_vlseg8: {
-      selectVLSEG(Node, /*IsMasked*/ false, /*IsStrided*/ false);
-      return;
-    }
-    case Intrinsic::riscv_vlseg2_mask:
-    case Intrinsic::riscv_vlseg3_mask:
-    case Intrinsic::riscv_vlseg4_mask:
-    case Intrinsic::riscv_vlseg5_mask:
-    case Intrinsic::riscv_vlseg6_mask:
-    case Intrinsic::riscv_vlseg7_mask:
-    case Intrinsic::riscv_vlseg8_mask: {
-      selectVLSEG(Node, /*IsMasked*/ true, /*IsStrided*/ false);
-      return;
-    }
-    case Intrinsic::riscv_vlsseg2:
-    case Intrinsic::riscv_vlsseg3:
-    case Intrinsic::riscv_vlsseg4:
-    case Intrinsic::riscv_vlsseg5:
-    case Intrinsic::riscv_vlsseg6:
-    case Intrinsic::riscv_vlsseg7:
-    case Intrinsic::riscv_vlsseg8: {
-      selectVLSEG(Node, /*IsMasked*/ false, /*IsStrided*/ true);
-      return;
-    }
-    case Intrinsic::riscv_vlsseg2_mask:
-    case Intrinsic::riscv_vlsseg3_mask:
-    case Intrinsic::riscv_vlsseg4_mask:
-    case Intrinsic::riscv_vlsseg5_mask:
-    case Intrinsic::riscv_vlsseg6_mask:
-    case Intrinsic::riscv_vlsseg7_mask:
-    case Intrinsic::riscv_vlsseg8_mask: {
-      selectVLSEG(Node, /*IsMasked*/ true, /*IsStrided*/ true);
-      return;
-    }
-    case Intrinsic::riscv_vloxseg2:
-    case Intrinsic::riscv_vloxseg3:
-    case Intrinsic::riscv_vloxseg4:
-    case Intrinsic::riscv_vloxseg5:
-    case Intrinsic::riscv_vloxseg6:
-    case Intrinsic::riscv_vloxseg7:
-    case Intrinsic::riscv_vloxseg8:
-      selectVLXSEG(Node, /*IsMasked*/ false, /*IsOrdered*/ true);
-      return;
-    case Intrinsic::riscv_vluxseg2:
-    case Intrinsic::riscv_vluxseg3:
-    case Intrinsic::riscv_vluxseg4:
-    case Intrinsic::riscv_vluxseg5:
-    case Intrinsic::riscv_vluxseg6:
-    case Intrinsic::riscv_vluxseg7:
-    case Intrinsic::riscv_vluxseg8:
-      selectVLXSEG(Node, /*IsMasked*/ false, /*IsOrdered*/ false);
-      return;
-    case Intrinsic::riscv_vloxseg2_mask:
-    case Intrinsic::riscv_vloxseg3_mask:
-    case Intrinsic::riscv_vloxseg4_mask:
-    case Intrinsic::riscv_vloxseg5_mask:
-    case Intrinsic::riscv_vloxseg6_mask:
-    case Intrinsic::riscv_vloxseg7_mask:
-    case Intrinsic::riscv_vloxseg8_mask:
-      selectVLXSEG(Node, /*IsMasked*/ true, /*IsOrdered*/ true);
-      return;
-    case Intrinsic::riscv_vluxseg2_mask:
-    case Intrinsic::riscv_vluxseg3_mask:
-    case Intrinsic::riscv_vluxseg4_mask:
-    case Intrinsic::riscv_vluxseg5_mask:
-    case Intrinsic::riscv_vluxseg6_mask:
-    case Intrinsic::riscv_vluxseg7_mask:
-    case Intrinsic::riscv_vluxseg8_mask:
-      selectVLXSEG(Node, /*IsMasked*/ true, /*IsOrdered*/ false);
-      return;
-    case Intrinsic::riscv_vlseg8ff:
-    case Intrinsic::riscv_vlseg7ff:
-    case Intrinsic::riscv_vlseg6ff:
-    case Intrinsic::riscv_vlseg5ff:
-    case Intrinsic::riscv_vlseg4ff:
-    case Intrinsic::riscv_vlseg3ff:
-    case Intrinsic::riscv_vlseg2ff: {
-      selectVLSEGFF(Node, /*IsMasked*/ false);
-      return;
-    }
-    case Intrinsic::riscv_vlseg8ff_mask:
-    case Intrinsic::riscv_vlseg7ff_mask:
-    case Intrinsic::riscv_vlseg6ff_mask:
-    case Intrinsic::riscv_vlseg5ff_mask:
-    case Intrinsic::riscv_vlseg4ff_mask:
-    case Intrinsic::riscv_vlseg3ff_mask:
-    case Intrinsic::riscv_vlseg2ff_mask: {
-      selectVLSEGFF(Node, /*IsMasked*/ true);
-      return;
-    }
-    case Intrinsic::riscv_vloxei:
-    case Intrinsic::riscv_vloxei_mask:
-    case Intrinsic::riscv_vluxei:
-    case Intrinsic::riscv_vluxei_mask: {
-      bool IsMasked = IntNo == Intrinsic::riscv_vloxei_mask ||
-                      IntNo == Intrinsic::riscv_vluxei_mask;
-      bool IsOrdered = IntNo == Intrinsic::riscv_vloxei ||
-                       IntNo == Intrinsic::riscv_vloxei_mask;
-
-      MVT VT = Node->getSimpleValueType(0);
-      unsigned Log2SEW = Log2_32(VT.getScalarSizeInBits());
-
-      unsigned CurOp = 2;
-      // Masked intrinsic only have TU version pseduo instructions.
-      bool IsTU = IsMasked || !Node->getOperand(CurOp).isUndef();
-      SmallVector<SDValue, 8> Operands;
-      if (IsTU)
-        Operands.push_back(Node->getOperand(CurOp++));
-      else
-        // Skip the undef passthru operand for nomask TA version pseudo
-        CurOp++;
-
-      MVT IndexVT;
-      addVectorLoadStoreOperands(Node, Log2SEW, DL, CurOp, IsMasked,
-                                 /*IsStridedOrIndexed*/ true, Operands,
-                                 /*IsLoad=*/true, &IndexVT);
-
-      assert(VT.getVectorElementCount() == IndexVT.getVectorElementCount() &&
-             "Element count mismatch");
-
-      RISCVII::VLMUL LMUL = RISCVTargetLowering::getLMUL(VT);
-      RISCVII::VLMUL IndexLMUL = RISCVTargetLowering::getLMUL(IndexVT);
-      unsigned IndexLog2EEW = Log2_32(IndexVT.getScalarSizeInBits());
-      if (IndexLog2EEW == 6 && !Subtarget->is64Bit()) {
-        report_fatal_error("The V extension does not support EEW=64 for index "
-                           "values when XLEN=32");
-      }
-      const RISCV::VLX_VSXPseudo *P = RISCV::getVLXPseudo(
-          IsMasked, IsTU, IsOrdered, IndexLog2EEW, static_cast<unsigned>(LMUL),
-          static_cast<unsigned>(IndexLMUL));
-      MachineSDNode *Load =
-          CurDAG->getMachineNode(P->Pseudo, DL, Node->getVTList(), Operands);
-
-      if (auto *MemOp = dyn_cast<MemSDNode>(Node))
-        CurDAG->setNodeMemRefs(Load, {MemOp->getMemOperand()});
-
-      ReplaceNode(Node, Load);
-      return;
-    }
     case Intrinsic::riscv_vlm:
     case Intrinsic::riscv_vle:
     case Intrinsic::riscv_vle_mask:
@@ -1473,8 +929,10 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
                                  Operands, /*IsLoad=*/true);
 
       RISCVII::VLMUL LMUL = RISCVTargetLowering::getLMUL(VT);
+      assert(0 && "TODO: cut!");
+      /*
       const RISCV::VLEPseudo *P =
-          RISCV::getVLEPseudo(IsMasked, IsTU, IsStrided, /*FF*/ false, Log2SEW,
+          RISCV::getVLEPseudo(IsMasked, IsTU, IsStrided, false, Log2SEW,
                               static_cast<unsigned>(LMUL));
       MachineSDNode *Load =
           CurDAG->getMachineNode(P->Pseudo, DL, Node->getVTList(), Operands);
@@ -1483,176 +941,18 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
         CurDAG->setNodeMemRefs(Load, {MemOp->getMemOperand()});
 
       ReplaceNode(Node, Load);
-      return;
-    }
-    case Intrinsic::riscv_vleff:
-    case Intrinsic::riscv_vleff_mask: {
-      bool IsMasked = IntNo == Intrinsic::riscv_vleff_mask;
-
-      MVT VT = Node->getSimpleValueType(0);
-      unsigned Log2SEW = Log2_32(VT.getScalarSizeInBits());
-
-      unsigned CurOp = 2;
-      // Masked intrinsic only have TU version pseduo instructions.
-      bool IsTU = IsMasked || !Node->getOperand(CurOp).isUndef();
-      SmallVector<SDValue, 7> Operands;
-      if (IsTU)
-        Operands.push_back(Node->getOperand(CurOp++));
-      else
-        // Skip the undef passthru operand for nomask TA version pseudo
-        CurOp++;
-
-      addVectorLoadStoreOperands(Node, Log2SEW, DL, CurOp, IsMasked,
-                                 /*IsStridedOrIndexed*/ false, Operands,
-                                 /*IsLoad=*/true);
-
-      RISCVII::VLMUL LMUL = RISCVTargetLowering::getLMUL(VT);
-      const RISCV::VLEPseudo *P =
-          RISCV::getVLEPseudo(IsMasked, IsTU, /*Strided*/ false, /*FF*/ true,
-                              Log2SEW, static_cast<unsigned>(LMUL));
-      MachineSDNode *Load = CurDAG->getMachineNode(
-          P->Pseudo, DL, Node->getVTList(), Operands);
-      if (auto *MemOp = dyn_cast<MemSDNode>(Node))
-        CurDAG->setNodeMemRefs(Load, {MemOp->getMemOperand()});
-
-      ReplaceNode(Node, Load);
+      */
       return;
     }
     }
     break;
   }
+
   case ISD::INTRINSIC_VOID: {
     unsigned IntNo = cast<ConstantSDNode>(Node->getOperand(1))->getZExtValue();
     switch (IntNo) {
-    case Intrinsic::riscv_vsseg2:
-    case Intrinsic::riscv_vsseg3:
-    case Intrinsic::riscv_vsseg4:
-    case Intrinsic::riscv_vsseg5:
-    case Intrinsic::riscv_vsseg6:
-    case Intrinsic::riscv_vsseg7:
-    case Intrinsic::riscv_vsseg8: {
-      selectVSSEG(Node, /*IsMasked*/ false, /*IsStrided*/ false);
-      return;
-    }
-    case Intrinsic::riscv_vsseg2_mask:
-    case Intrinsic::riscv_vsseg3_mask:
-    case Intrinsic::riscv_vsseg4_mask:
-    case Intrinsic::riscv_vsseg5_mask:
-    case Intrinsic::riscv_vsseg6_mask:
-    case Intrinsic::riscv_vsseg7_mask:
-    case Intrinsic::riscv_vsseg8_mask: {
-      selectVSSEG(Node, /*IsMasked*/ true, /*IsStrided*/ false);
-      return;
-    }
-    case Intrinsic::riscv_vssseg2:
-    case Intrinsic::riscv_vssseg3:
-    case Intrinsic::riscv_vssseg4:
-    case Intrinsic::riscv_vssseg5:
-    case Intrinsic::riscv_vssseg6:
-    case Intrinsic::riscv_vssseg7:
-    case Intrinsic::riscv_vssseg8: {
-      selectVSSEG(Node, /*IsMasked*/ false, /*IsStrided*/ true);
-      return;
-    }
-    case Intrinsic::riscv_vssseg2_mask:
-    case Intrinsic::riscv_vssseg3_mask:
-    case Intrinsic::riscv_vssseg4_mask:
-    case Intrinsic::riscv_vssseg5_mask:
-    case Intrinsic::riscv_vssseg6_mask:
-    case Intrinsic::riscv_vssseg7_mask:
-    case Intrinsic::riscv_vssseg8_mask: {
-      selectVSSEG(Node, /*IsMasked*/ true, /*IsStrided*/ true);
-      return;
-    }
-    case Intrinsic::riscv_vsoxseg2:
-    case Intrinsic::riscv_vsoxseg3:
-    case Intrinsic::riscv_vsoxseg4:
-    case Intrinsic::riscv_vsoxseg5:
-    case Intrinsic::riscv_vsoxseg6:
-    case Intrinsic::riscv_vsoxseg7:
-    case Intrinsic::riscv_vsoxseg8:
-      selectVSXSEG(Node, /*IsMasked*/ false, /*IsOrdered*/ true);
-      return;
-    case Intrinsic::riscv_vsuxseg2:
-    case Intrinsic::riscv_vsuxseg3:
-    case Intrinsic::riscv_vsuxseg4:
-    case Intrinsic::riscv_vsuxseg5:
-    case Intrinsic::riscv_vsuxseg6:
-    case Intrinsic::riscv_vsuxseg7:
-    case Intrinsic::riscv_vsuxseg8:
-      selectVSXSEG(Node, /*IsMasked*/ false, /*IsOrdered*/ false);
-      return;
-    case Intrinsic::riscv_vsoxseg2_mask:
-    case Intrinsic::riscv_vsoxseg3_mask:
-    case Intrinsic::riscv_vsoxseg4_mask:
-    case Intrinsic::riscv_vsoxseg5_mask:
-    case Intrinsic::riscv_vsoxseg6_mask:
-    case Intrinsic::riscv_vsoxseg7_mask:
-    case Intrinsic::riscv_vsoxseg8_mask:
-      selectVSXSEG(Node, /*IsMasked*/ true, /*IsOrdered*/ true);
-      return;
-    case Intrinsic::riscv_vsuxseg2_mask:
-    case Intrinsic::riscv_vsuxseg3_mask:
-    case Intrinsic::riscv_vsuxseg4_mask:
-    case Intrinsic::riscv_vsuxseg5_mask:
-    case Intrinsic::riscv_vsuxseg6_mask:
-    case Intrinsic::riscv_vsuxseg7_mask:
-    case Intrinsic::riscv_vsuxseg8_mask:
-      selectVSXSEG(Node, /*IsMasked*/ true, /*IsOrdered*/ false);
-      return;
-    case Intrinsic::riscv_vsoxei:
-    case Intrinsic::riscv_vsoxei_mask:
-    case Intrinsic::riscv_vsuxei:
-    case Intrinsic::riscv_vsuxei_mask: {
-      bool IsMasked = IntNo == Intrinsic::riscv_vsoxei_mask ||
-                      IntNo == Intrinsic::riscv_vsuxei_mask;
-      bool IsOrdered = IntNo == Intrinsic::riscv_vsoxei ||
-                       IntNo == Intrinsic::riscv_vsoxei_mask;
-
-      MVT VT = Node->getOperand(2)->getSimpleValueType(0);
-      unsigned Log2SEW = Log2_32(VT.getScalarSizeInBits());
-
-      unsigned CurOp = 2;
-      SmallVector<SDValue, 8> Operands;
-      Operands.push_back(Node->getOperand(CurOp++)); // Store value.
-
-      MVT IndexVT;
-      addVectorLoadStoreOperands(Node, Log2SEW, DL, CurOp, IsMasked,
-                                 /*IsStridedOrIndexed*/ true, Operands,
-                                 /*IsLoad=*/false, &IndexVT);
-
-      assert(VT.getVectorElementCount() == IndexVT.getVectorElementCount() &&
-             "Element count mismatch");
-
-      RISCVII::VLMUL LMUL = RISCVTargetLowering::getLMUL(VT);
-      RISCVII::VLMUL IndexLMUL = RISCVTargetLowering::getLMUL(IndexVT);
-      unsigned IndexLog2EEW = Log2_32(IndexVT.getScalarSizeInBits());
-      if (IndexLog2EEW == 6 && !Subtarget->is64Bit()) {
-        report_fatal_error("The V extension does not support EEW=64 for index "
-                           "values when XLEN=32");
-      }
-      const RISCV::VLX_VSXPseudo *P = RISCV::getVSXPseudo(
-          IsMasked, /*TU*/ false, IsOrdered, IndexLog2EEW,
-          static_cast<unsigned>(LMUL), static_cast<unsigned>(IndexLMUL));
-      MachineSDNode *Store =
-          CurDAG->getMachineNode(P->Pseudo, DL, Node->getVTList(), Operands);
-
-      if (auto *MemOp = dyn_cast<MemSDNode>(Node))
-        CurDAG->setNodeMemRefs(Store, {MemOp->getMemOperand()});
-
-      ReplaceNode(Node, Store);
-      return;
-    }
     case Intrinsic::riscv_vsm:
-    case Intrinsic::riscv_vse:
-    case Intrinsic::riscv_vse_mask:
-    case Intrinsic::riscv_vsse:
-    case Intrinsic::riscv_vsse_mask: {
-      bool IsMasked = IntNo == Intrinsic::riscv_vse_mask ||
-                      IntNo == Intrinsic::riscv_vsse_mask;
-      bool IsStrided =
-          IntNo == Intrinsic::riscv_vsse || IntNo == Intrinsic::riscv_vsse_mask;
-
+    case Intrinsic::riscv_vse: {
       MVT VT = Node->getOperand(2)->getSimpleValueType(0);
       unsigned Log2SEW = Log2_32(VT.getScalarSizeInBits());
 
@@ -1660,18 +960,21 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       SmallVector<SDValue, 8> Operands;
       Operands.push_back(Node->getOperand(CurOp++)); // Store value.
 
-      addVectorLoadStoreOperands(Node, Log2SEW, DL, CurOp, IsMasked, IsStrided,
+      addVectorLoadStoreOperands(Node, Log2SEW, DL, CurOp, 0, 0,
                                  Operands);
 
       RISCVII::VLMUL LMUL = RISCVTargetLowering::getLMUL(VT);
+      assert(0 && "TODO: Gen vALU load/store inst.");
+      /*
       const RISCV::VSEPseudo *P = RISCV::getVSEPseudo(
-          IsMasked, IsStrided, Log2SEW, static_cast<unsigned>(LMUL));
+          0, 0, Log2SEW, static_cast<unsigned>(LMUL));
       MachineSDNode *Store =
           CurDAG->getMachineNode(P->Pseudo, DL, Node->getVTList(), Operands);
       if (auto *MemOp = dyn_cast<MemSDNode>(Node))
         CurDAG->setNodeMemRefs(Store, {MemOp->getMemOperand()});
 
       ReplaceNode(Node, Store);
+      */
       return;
     }
     }
@@ -1830,9 +1133,10 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
                           Ld->getChain()};
 
     RISCVII::VLMUL LMUL = RISCVTargetLowering::getLMUL(VT);
+    assert(0 && "TODO: cut!");
+    /*
     const RISCV::VLEPseudo *P = RISCV::getVLEPseudo(
-        /*IsMasked*/ false, /*IsTU*/ false, /*IsStrided*/ true, /*FF*/ false,
-        Log2SEW, static_cast<unsigned>(LMUL));
+        false, false, true, false, Log2SEW, static_cast<unsigned>(LMUL));
     MachineSDNode *Load =
         CurDAG->getMachineNode(P->Pseudo, DL, {VT, MVT::Other}, Operands);
     // Update the chain.
@@ -1841,10 +1145,10 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     CurDAG->setNodeMemRefs(Load, {Ld->getMemOperand()});
     // Replace the splat with the vlse.
     ReplaceNode(Node, Load);
+    */
     return;
   }
   }
-
   // Select the default instruction.
   SelectCode(Node);
 }

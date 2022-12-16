@@ -59,16 +59,18 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   auto *PR = PassRegistry::getPassRegistry();
   initializeGlobalISel(*PR);
   initializeRISCVMakeCompressibleOptPass(*PR);
-  initializeRISCVGatherScatterLoweringPass(*PR);
   initializeRISCVCodeGenPreparePass(*PR);
   initializeRISCVMergeBaseOffsetOptPass(*PR);
   initializeRISCVSExtWRemovalPass(*PR);
   initializeRISCVPreRAExpandPseudoPass(*PR);
   initializeRISCVExpandPseudoPass(*PR);
-  initializeRISCVInsertVSETVLIPass(*PR);
 }
 
-static StringRef computeDataLayout(const Triple &TT) {
+static StringRef computeDataLayout(const Triple &TT, StringRef CPU) {
+  // if (CPU == "ventus-gpgpu")
+  //  return "e-m:e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256"
+  //         "-v256:256-v512:512-v1024:1024-n32:64-S128";
+
   if (TT.isArch64Bit())
     return "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128";
   assert(TT.isArch32Bit() && "only RV32 and RV64 are currently supported");
@@ -86,7 +88,7 @@ RISCVTargetMachine::RISCVTargetMachine(const Target &T, const Triple &TT,
                                        std::optional<Reloc::Model> RM,
                                        std::optional<CodeModel::Model> CM,
                                        CodeGenOpt::Level OL, bool JIT)
-    : LLVMTargetMachine(T, computeDataLayout(TT), TT, CPU, FS, Options,
+    : LLVMTargetMachine(T, computeDataLayout(TT, CPU), TT, CPU, FS, Options,
                         getEffectiveRelocModel(TT, RM),
                         getEffectiveCodeModel(CM, CodeModel::Small), OL),
       TLOF(std::make_unique<RISCVELFTargetObjectFile>()) {
@@ -201,9 +203,6 @@ void RISCVPassConfig::addIRPasses() {
   addPass(createAtomicExpandPass());
 
   if (getOptLevel() != CodeGenOpt::None)
-    addPass(createRISCVGatherScatterLoweringPass());
-
-  if (getOptLevel() != CodeGenOpt::None)
     addPass(createRISCVCodeGenPreparePass());
 
   TargetPassConfig::addIRPasses();
@@ -280,7 +279,6 @@ void RISCVPassConfig::addPreRegAlloc() {
   addPass(createRISCVPreRAExpandPseudoPass());
   if (TM->getOptLevel() != CodeGenOpt::None)
     addPass(createRISCVMergeBaseOffsetOptPass());
-  addPass(createRISCVInsertVSETVLIPass());
 }
 
 void RISCVPassConfig::addPostRegAlloc() {

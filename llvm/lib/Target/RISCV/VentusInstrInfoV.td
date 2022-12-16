@@ -18,7 +18,7 @@ include "VentusInstrFormatsV.td"
 
 /// Generic pattern classes
 
-// RVV VV, VX, VI instruction pattern class
+// RVV VV, VX, VI instruction pattern class for binary operations
 multiclass PatVBin<SDPatternOperator Op, list<RVInst> Insts> {
   def : Pat<(Op VGPR:$rs1, VGPR:$rs2), (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
 
@@ -26,7 +26,7 @@ multiclass PatVBin<SDPatternOperator Op, list<RVInst> Insts> {
 
   if !eq(!size(Insts), 3) then
     def : Pat<(XLenVT (Op (XLenVT VGPR:$rs1), uimm5:$imm)),
-               (Insts[2] VGPR:$rs1, uimm5:$imm)>;
+              (Insts[2] VGPR:$rs1, uimm5:$imm)>;
 }
 
 //===----------------------------------------------------------------------===//

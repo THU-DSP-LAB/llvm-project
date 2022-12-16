@@ -25,8 +25,6 @@ add_llvm_target(RISCVCodeGen
   RISCVExpandAtomicPseudoInsts.cpp
   RISCVExpandPseudoInsts.cpp
   RISCVFrameLowering.cpp
-  RISCVGatherScatterLowering.cpp
-  RISCVInsertVSETVLI.cpp
   RISCVInstrInfo.cpp
   RISCVISelDAGToDAG.cpp
   RISCVISelLowering.cpp
@@ -68,5 +66,4 @@ add_llvm_target(RISCVCodeGen
 add_subdirectory(AsmParser)
 add_subdirectory(Disassembler)
 add_subdirectory(MCTargetDesc)
-add_subdirectory(MCA)
 add_subdirectory(TargetInfo)
