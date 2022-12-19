@@ -838,23 +838,6 @@ defm VWMACCSU_V : VWMAC_MV_V_X<"vwmaccsu", 0b111111>;
 defm VWMACCUS_V : VWMAC_MV_X<"vwmaccus", 0b111110>;
 } // Constraints = "@earlyclobber $vd", RVVConstraint = WidenV
 
-// Vector Integer Move Instructions
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0, vs2 = 0,
-    RVVConstraint = NoConstraint  in {
-// op vd, vs1
-def VMV_V_V : RVInstVV<0b010111, OPIVV, (outs VGPR:$vd),
-                       (ins VGPR:$vs1), "vmv.v.v", "$vd, $vs1">,
-              Sched<[WriteVIMovV_UpperBound, ReadVIMovV_UpperBound]>;
-// op vd, rs1
-def VMV_V_X : RVInstVX<0b010111, OPIVX, (outs VGPR:$vd),
-                       (ins GPR:$rs1), "vmv.v.x", "$vd, $rs1">,
-              Sched<[WriteVIMovX_UpperBound, ReadVIMovX_UpperBound]>;
-// op vd, imm
-def VMV_V_I : RVInstIVI<0b010111, (outs VGPR:$vd),
-                       (ins simm5:$imm), "vmv.v.i", "$vd, $imm">,
-              Sched<[WriteVIMovI_UpperBound]>;
-} // hasSideEffects = 0, mayLoad = 0, mayStore = 0
-
 // Vector Fixed-Point Arithmetic Instructions
 defm VSADDU_V : VSALU_IV_V_X_I<"vsaddu", 0b100000>;
 defm VSADD_V : VSALU_IV_V_X_I<"vsadd", 0b100001>;
