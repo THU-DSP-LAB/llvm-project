@@ -133,6 +133,20 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     return;
   }
 
+  // vGPR -> sGPR move
+  if (RISCV::GPRRegClass.contains(DstReg) &&
+      RISCV::VGPRRegClass.contains(SrcReg)) {
+    BuildMI(MBB, MBBI, DL, get(RISCV::VMV_X_S), DstReg).addReg(SrcReg);
+    return;
+  }
+
+  // sGPR -> vGPR move
+  if (RISCV::GPRRegClass.contains(SrcReg) &&
+      RISCV::VGPRRegClass.contains(DstReg)) {
+    BuildMI(MBB, MBBI, DL, get(RISCV::VMV_S_X), DstReg).addReg(SrcReg);
+    return;
+  }
+
   // Handle copy from csr
   if (RISCV::VCSRRegClass.contains(SrcReg) &&
       RISCV::GPRRegClass.contains(DstReg)) {
@@ -143,35 +157,21 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     return;
   }
 
-  // FPR->FPR copies and VR->VR copies.
+  // FPR->FPR copies
   unsigned Opc;
-  bool IsScalableVector = true;
-  unsigned NF = 1;
-  RISCVII::VLMUL LMul = RISCVII::LMUL_1;
   if (RISCV::FPR16RegClass.contains(DstReg, SrcReg)) {
     Opc = RISCV::FSGNJ_H;
-    IsScalableVector = false;
   } else if (RISCV::FPR32RegClass.contains(DstReg, SrcReg)) {
     Opc = RISCV::FSGNJ_S;
-    IsScalableVector = false;
   } else if (RISCV::FPR64RegClass.contains(DstReg, SrcReg)) {
     Opc = RISCV::FSGNJ_D;
-    IsScalableVector = false;
-  } else if (RISCV::VGPRRegClass.contains(DstReg, SrcReg)) {
-    Opc = RISCV::VMV_V_V;
-    LMul = RISCVII::LMUL_1;
   } else {
     llvm_unreachable("Impossible reg-to-reg copy");
   }
 
-  if (IsScalableVector) {
-    assert(0 && "Copy register between VGPR and SGPR?");
-    BuildMI(MBB, MBBI, DL, get(Opc), DstReg).add(MBBI->getOperand(1));
-  } else {
-    BuildMI(MBB, MBBI, DL, get(Opc), DstReg)
-        .addReg(SrcReg, getKillRegState(KillSrc))
-        .addReg(SrcReg, getKillRegState(KillSrc));
-  }
+  BuildMI(MBB, MBBI, DL, get(Opc), DstReg)
+      .addReg(SrcReg, getKillRegState(KillSrc))
+      .addReg(SrcReg, getKillRegState(KillSrc));
 }
 
 void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,

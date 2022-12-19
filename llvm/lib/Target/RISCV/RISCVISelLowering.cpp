@@ -5361,22 +5361,16 @@ static const MCPhysReg ArgGPRs[] = {
   RISCV::X10, RISCV::X11, RISCV::X12, RISCV::X13,
   RISCV::X14, RISCV::X15, RISCV::X16, RISCV::X17
 };
-static const MCPhysReg ArgFPR16s[] = {
-  RISCV::F10_H, RISCV::F11_H, RISCV::F12_H, RISCV::F13_H,
-  RISCV::F14_H, RISCV::F15_H, RISCV::F16_H, RISCV::F17_H
-};
-static const MCPhysReg ArgFPR32s[] = {
-  RISCV::F10_F, RISCV::F11_F, RISCV::F12_F, RISCV::F13_F,
-  RISCV::F14_F, RISCV::F15_F, RISCV::F16_F, RISCV::F17_F
-};
-static const MCPhysReg ArgFPR64s[] = {
-  RISCV::F10_D, RISCV::F11_D, RISCV::F12_D, RISCV::F13_D,
-  RISCV::F14_D, RISCV::F15_D, RISCV::F16_D, RISCV::F17_D
-};
 
 // Calling convention for Ventus GPGPU
+// TODO: Add up to 96 argument registers.
 static const MCPhysReg ArgVGPRs[] = {
-  RISCV::V2, RISCV::V3, RISCV::V4, RISCV::V5, RISCV::V6, RISCV::V7,
+  RISCV::V0,  RISCV::V1,  RISCV::V2,  RISCV::V3,  RISCV::V4,  RISCV::V5,
+  RISCV::V6,  RISCV::V7,  RISCV::V8,  RISCV::V9,  RISCV::V10, RISCV::V11,
+  RISCV::V12, RISCV::V13, RISCV::V14, RISCV::V15, RISCV::V16, RISCV::V17,
+  RISCV::V18, RISCV::V19, RISCV::V20, RISCV::V21, RISCV::V22, RISCV::V23,
+  RISCV::V24, RISCV::V25, RISCV::V26, RISCV::V27, RISCV::V28, RISCV::V29,
+  RISCV::V30, RISCV::V31, RISCV::V32, RISCV::V33, RISCV::V34, RISCV::V35
 };
 
 // Pass a 2*XLEN argument that has been split into two XLEN values through
@@ -5418,19 +5412,6 @@ static bool CC_RISCVAssign2XLen(unsigned XLen, CCState &State, CCValAssign VA1,
   return false;
 }
 
-static unsigned allocateRVVReg(MVT ValVT, unsigned ValNo,
-                               std::optional<unsigned> FirstMaskArgument,
-                               CCState &State, const RISCVTargetLowering &TLI) {
-  // Assign the first mask argument to V0.
-  // This is an interim calling convention and it may be changed in the
-  // future.
-  if (FirstMaskArgument && ValNo == *FirstMaskArgument)
-    return State.AllocateReg(RISCV::V0);
-
-  // For Ventus GPGPU, the only argument regs are ArgVGPRs
-  return State.AllocateReg(ArgVGPRs);
-}
-
 // Implements the Ventus RISC-V calling convention. Returns true upon failure.
 static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
                       MVT ValVT, MVT LocVT, CCValAssign::LocInfo LocInfo,
@@ -5448,7 +5429,7 @@ static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
 
   // All arguments are passed in vector registers or via stack for non-kernel
   // function.
-  Reg = allocateRVVReg(ValVT, ValNo, FirstMaskArgument, State, TLI);
+  Reg = State.AllocateReg(ArgVGPRs);
   if (!Reg) {
     // For return values, the vector must be passed fully via registers or
     // via the stack.
@@ -5457,7 +5438,7 @@ static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
     if (IsRet)
       return true;
 
-    // Pass vector on stack.
+    // Pass argument on stack.
     LocVT = ValVT;
     StoreSizeBytes = ValVT.getStoreSize();
     // Align vectors to their element sizes, being careful for vXi1
@@ -5657,26 +5638,7 @@ static SDValue unpackFromRegLoc(SelectionDAG &DAG, SDValue Chain,
   const TargetRegisterClass *RC = TLI.getRegClassFor(LocVT.getSimpleVT());
   Register VReg = RegInfo.createVirtualRegister(RC);
   RegInfo.addLiveIn(VA.getLocReg(), VReg);
-  Val = DAG.getCopyFromReg(Chain, DL, VReg, LocVT);
-
-  // If input is sign extended from 32 bits, note it for the SExtWRemoval pass.
-  if (In.isOrigArg()) {
-    Argument *OrigArg = MF.getFunction().getArg(In.getOrigArgIndex());
-    if (OrigArg->getType()->isIntegerTy()) {
-      unsigned BitWidth = OrigArg->getType()->getIntegerBitWidth();
-      // An input zero extended from i31 can also be considered sign extended.
-      if ((BitWidth <= 32 && In.Flags.isSExt()) ||
-          (BitWidth < 32 && In.Flags.isZExt())) {
-        RISCVMachineFunctionInfo *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
-        RVFI->addSExt32Register(VReg);
-      }
-    }
-  }
-
-  if (VA.getLocInfo() == CCValAssign::Indirect)
-    return Val;
-
-  assert(0 && "TODO");
+  return DAG.getCopyFromReg(Chain, DL, VReg, LocVT);
 }
 
 
@@ -5754,55 +5716,6 @@ static SDValue unpackF64OnRV32DSoftABI(SelectionDAG &DAG, SDValue Chain,
   return DAG.getNode(RISCVISD::BuildPairF64, DL, MVT::f64, Lo, Hi);
 }
 
-static bool CC_RISCV_GHC(unsigned ValNo, MVT ValVT, MVT LocVT,
-                         CCValAssign::LocInfo LocInfo,
-                         ISD::ArgFlagsTy ArgFlags, CCState &State) {
-
-  if (ArgFlags.isNest()) {
-    report_fatal_error(
-        "Attribute 'nest' is not supported in GHC calling convention");
-  }
-
-  if (LocVT == MVT::i32 || LocVT == MVT::i64) {
-    // Pass in STG registers: Base, Sp, Hp, R1, R2, R3, R4, R5, R6, R7, SpLim
-    //                        s1    s2  s3  s4  s5  s6  s7  s8  s9  s10 s11
-    static const MCPhysReg GPRList[] = {
-        RISCV::X9, RISCV::X18, RISCV::X19, RISCV::X20, RISCV::X21, RISCV::X22,
-        RISCV::X23, RISCV::X24, RISCV::X25, RISCV::X26, RISCV::X27};
-    if (unsigned Reg = State.AllocateReg(GPRList)) {
-      State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-      return false;
-    }
-  }
-
-  if (LocVT == MVT::f32) {
-    // Pass in STG registers: F1, ..., F6
-    //                        fs0 ... fs5
-    static const MCPhysReg FPR32List[] = {RISCV::F8_F, RISCV::F9_F,
-                                          RISCV::F18_F, RISCV::F19_F,
-                                          RISCV::F20_F, RISCV::F21_F};
-    if (unsigned Reg = State.AllocateReg(FPR32List)) {
-      State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-      return false;
-    }
-  }
-
-  if (LocVT == MVT::f64) {
-    // Pass in STG registers: D1, ..., D6
-    //                        fs6 ... fs11
-    static const MCPhysReg FPR64List[] = {RISCV::F22_D, RISCV::F23_D,
-                                          RISCV::F24_D, RISCV::F25_D,
-                                          RISCV::F26_D, RISCV::F27_D};
-    if (unsigned Reg = State.AllocateReg(FPR64List)) {
-      State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-      return false;
-    }
-  }
-
-  report_fatal_error("No registers left in GHC calling convention");
-  return true;
-}
-
 // Transform physical registers into virtual registers.
 SDValue RISCVTargetLowering::LowerFormalArguments(
     SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
@@ -5816,29 +5729,8 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
     report_fatal_error("Unsupported calling convention");
   case CallingConv::C:
   case CallingConv::Fast:
-  // FIXME: Use AMDGPU_KERNEL IR as test input temporarily
-  case CallingConv::AMDGPU_KERNEL:
   case CallingConv::SPIR_KERNEL:
     break;
-  case CallingConv::GHC:
-    if (!MF.getSubtarget().getFeatureBits()[RISCV::FeatureStdExtF] ||
-        !MF.getSubtarget().getFeatureBits()[RISCV::FeatureStdExtD])
-      report_fatal_error(
-        "GHC calling convention requires the F and D instruction set extensions");
-  }
-
-  const Function &Func = MF.getFunction();
-  if (Func.hasFnAttribute("interrupt")) {
-    if (!Func.arg_empty())
-      report_fatal_error(
-        "Functions with the interrupt attribute cannot have arguments!");
-
-    StringRef Kind =
-      MF.getFunction().getFnAttribute("interrupt").getValueAsString();
-
-    if (!(Kind == "user" || Kind == "supervisor" || Kind == "machine"))
-      report_fatal_error(
-        "Function interrupt attribute argument not supported!");
   }
 
   EVT PtrVT = getPointerTy(DAG.getDataLayout());
@@ -5851,10 +5743,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, IsVarArg, MF, ArgLocs, *DAG.getContext());
 
-  if (CallConv == CallingConv::GHC)
-    CCInfo.AnalyzeFormalArguments(Ins, CC_RISCV_GHC);
-  else if (CallConv == CallingConv::AMDGPU_KERNEL ||
-           CallConv == CallingConv::SPIR_KERNEL)
+  if (CallConv == CallingConv::SPIR_KERNEL)
     analyzeFormalArgumentsCompute(MF, CCInfo, Ins);
   else
     analyzeInputArgs(MF, CCInfo, Ins, /*IsRet=*/false, CC_Ventus);
@@ -6064,11 +5953,8 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState ArgCCInfo(CallConv, IsVarArg, MF, ArgLocs, *DAG.getContext());
 
-  if (CallConv == CallingConv::GHC)
-    ArgCCInfo.AnalyzeCallOperands(Outs, CC_RISCV_GHC);
-  else
-    analyzeOutputArgs(MF, ArgCCInfo, Outs, /*IsRet=*/false, &CLI,
-                      CC_Ventus);
+  analyzeOutputArgs(MF, ArgCCInfo, Outs, /*IsRet=*/false, &CLI,
+                   CC_Ventus);
 
   // Check if it's really possible to do a tail call.
   if (IsTailCall)
@@ -6197,9 +6083,6 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
                          MachinePointerInfo::getFixedStack(MF, FI)));
       }
       ArgValue = SpillSlot;
-    } else {
-      assert(0 && "TODO");
-      // ArgValue = convertValVTToLocVT(DAG, ArgValue, VA, DL, Subtarget);
     }
 
     // Use local copy if it is a byval arg.
@@ -6311,7 +6194,6 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
   // Assign locations to each value returned by this call.
   SmallVector<CCValAssign, 16> RVLocs;
   CCState RetCCInfo(CallConv, IsVarArg, MF, RVLocs, *DAG.getContext());
-  // TODO: Use CC_Ventus conditionally
   analyzeInputArgs(MF, RetCCInfo, Ins, /*IsRet=*/true, CC_Ventus);
 
   // Copy all of the result registers out of their specified physreg.
@@ -6332,9 +6214,6 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
       RetValue = DAG.getNode(RISCVISD::BuildPairF64, DL, MVT::f64, RetValue,
                              RetValue2);
     }
-
-    assert(0 && "TODO!");
-    //RetValue = convertLocVTToValVT(DAG, RetValue, VA, DL, Subtarget);
 
     InVals.push_back(RetValue);
   }
@@ -6381,12 +6260,8 @@ RISCVTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(), RVLocs,
                  *DAG.getContext());
 
-  // TODO: Use CC_Ventus conditional
   analyzeOutputArgs(DAG.getMachineFunction(), CCInfo, Outs, /*IsRet=*/true,
                     nullptr, CC_Ventus);
-
-  if (CallConv == CallingConv::GHC && !RVLocs.empty())
-    report_fatal_error("GHC functions return void only");
 
   SDValue Glue;
   SmallVector<SDValue, 4> RetOps(1, Chain);
@@ -6399,13 +6274,12 @@ RISCVTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 
     if (VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::f64) {
       // Handle returning f64 on RV32D with a soft float ABI.
-      assert(VA.isRegLoc() && "Expected return via registers");
       SDValue SplitF64 = DAG.getNode(RISCVISD::SplitF64, DL,
                                      DAG.getVTList(MVT::i32, MVT::i32), Val);
       SDValue Lo = SplitF64.getValue(0);
       SDValue Hi = SplitF64.getValue(1);
       Register RegLo = VA.getLocReg();
-      assert(RegLo < RISCV::X31 && "Invalid register pair");
+      assert(RegLo < RISCV::V255 && "Invalid register pair");
       Register RegHi = RegLo + 1;
 
       if (STI.isRegisterReservedByUser(RegLo) ||
@@ -6420,11 +6294,8 @@ RISCVTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
       Chain = DAG.getCopyToReg(Chain, DL, RegHi, Hi, Glue);
       Glue = Chain.getValue(1);
       RetOps.push_back(DAG.getRegister(RegHi, MVT::i32));
-    } else {
+    } else if (VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::i32) {
       // Handle a 'normal' return.
-      assert(0 && "TODO");
-      /*
-      Val = convertValVTToLocVT(DAG, Val, VA, DL, Subtarget);
       Chain = DAG.getCopyToReg(Chain, DL, VA.getLocReg(), Val, Glue);
 
       if (STI.isRegisterReservedByUser(VA.getLocReg()))
@@ -6435,7 +6306,8 @@ RISCVTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
       // Guarantee that all emitted copies are stuck together.
       Glue = Chain.getValue(1);
       RetOps.push_back(DAG.getRegister(VA.getLocReg(), VA.getLocVT()));
-      */
+    } else {
+      assert(0 && "Support vector type return value!");
     }
   }
 
@@ -6446,27 +6318,7 @@ RISCVTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
     RetOps.push_back(Glue);
   }
 
-  unsigned RetOpc = RISCVISD::RET_FLAG;
-  // Interrupt service routines use different return instructions.
-  const Function &Func = DAG.getMachineFunction().getFunction();
-  if (Func.hasFnAttribute("interrupt")) {
-    if (!Func.getReturnType()->isVoidTy())
-      report_fatal_error(
-          "Functions with the interrupt attribute must have void return type!");
-
-    MachineFunction &MF = DAG.getMachineFunction();
-    StringRef Kind =
-      MF.getFunction().getFnAttribute("interrupt").getValueAsString();
-
-    if (Kind == "user")
-      RetOpc = RISCVISD::URET_FLAG;
-    else if (Kind == "supervisor")
-      RetOpc = RISCVISD::SRET_FLAG;
-    else
-      RetOpc = RISCVISD::MRET_FLAG;
-  }
-
-  return DAG.getNode(RetOpc, DL, MVT::Other, RetOps);
+  return DAG.getNode(RISCVISD::RET_FLAG, DL, MVT::Other, RetOps);
 }
 
 void RISCVTargetLowering::validateCCReservedRegs(
