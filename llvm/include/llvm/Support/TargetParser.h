@@ -157,8 +157,10 @@ IsaVersion getIsaVersion(StringRef GPU);
 
 namespace RISCV {
 
+// ARIES: FIXME: Change this to 32 to support zve32* which is needed by
+// ventus-gpgpu.
 // We use 64 bits as the known part in the scalable vector types.
-static constexpr unsigned RVVBitsPerBlock = 64;
+static constexpr unsigned RVVBitsPerBlock = 32;
 
 enum CPUKind : unsigned {
 #define PROC(ENUM, NAME, FEATURES, DEFAULT_MARCH) CK_##ENUM,

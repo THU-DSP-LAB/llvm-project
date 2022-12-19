@@ -178,25 +178,6 @@ void RISCVRegisterInfo::adjustReg(MachineBasicBlock &MBB,
 
   bool KillSrcReg = false;
 
-  if (Offset.getScalable()) {
-    unsigned ScalableAdjOpc = RISCV::ADD;
-    int64_t ScalableValue = Offset.getScalable();
-    if (ScalableValue < 0) {
-      ScalableValue = -ScalableValue;
-      ScalableAdjOpc = RISCV::SUB;
-    }
-    // Get vlenb and multiply vlen with the number of vector registers.
-    Register ScratchReg = DestReg;
-    if (DestReg == SrcReg)
-      ScratchReg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
-    TII->getVLENFactoredAmount(MF, MBB, II, DL, ScratchReg, ScalableValue, Flag);
-    BuildMI(MBB, II, DL, TII->get(ScalableAdjOpc), DestReg)
-      .addReg(SrcReg).addReg(ScratchReg, RegState::Kill)
-      .setMIFlag(Flag);
-    SrcReg = DestReg;
-    KillSrcReg = true;
-  }
-
   int64_t Val = Offset.getFixed();
   if (DestReg == SrcReg && Val == 0)
     return;
@@ -264,64 +245,35 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   Register FrameReg;
   StackOffset Offset =
       getFrameLowering(MF)->getFrameIndexReference(MF, FrameIndex, FrameReg);
-  bool IsRVVSpill = RISCV::isRVVSpill(MI);
-  if (!IsRVVSpill)
-    Offset += StackOffset::getFixed(MI.getOperand(FIOperandNum + 1).getImm());
 
-  if (Offset.getScalable() &&
-      ST.getRealMinVLen() == ST.getRealMaxVLen()) {
-    // For an exact VLEN value, scalable offsets become constant and thus
-    // can be converted entirely into fixed offsets.
-    int64_t FixedValue = Offset.getFixed();
-    int64_t ScalableValue = Offset.getScalable();
-    assert(ScalableValue % 8 == 0 &&
-           "Scalable offset is not a multiple of a single vector size.");
-    int64_t NumOfVReg = ScalableValue / 8;
-    int64_t VLENB = ST.getRealMinVLen() / 8;
-    Offset = StackOffset::getFixed(FixedValue + NumOfVReg * VLENB);
-  }
+  Offset += StackOffset::getFixed(MI.getOperand(FIOperandNum + 1).getImm());
 
   if (!isInt<32>(Offset.getFixed())) {
     report_fatal_error(
         "Frame offsets outside of the signed 32-bit range not supported");
   }
 
-  if (!IsRVVSpill) {
-    if (MI.getOpcode() == RISCV::ADDI && !isInt<12>(Offset.getFixed())) {
-      // We chose to emit the canonical immediate sequence rather than folding
-      // the offset into the using add under the theory that doing so doesn't
-      // save dynamic instruction count and some target may fuse the canonical
-      // 32 bit immediate sequence.  We still need to clear the portion of the
-      // offset encoded in the immediate.
-      MI.getOperand(FIOperandNum + 1).ChangeToImmediate(0);
-    } else {
-      // We can encode an add with 12 bit signed immediate in the immediate
-      // operand of our user instruction.  As a result, the remaining
-      // offset can by construction, at worst, a LUI and a ADD.
-      int64_t Val = Offset.getFixed();
-      int64_t Lo12 = SignExtend64<12>(Val);
-      MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Lo12);
-      Offset = StackOffset::get((uint64_t)Val - (uint64_t)Lo12,
-                                Offset.getScalable());
-    }
+  if (MI.getOpcode() == RISCV::ADDI && !isInt<12>(Offset.getFixed())) {
+    // We chose to emit the canonical immediate sequence rather than folding
+    // the offset into the using add under the theory that doing so doesn't
+    // save dynamic instruction count and some target may fuse the canonical
+    // 32 bit immediate sequence.  We still need to clear the portion of the
+    // offset encoded in the immediate.
+    MI.getOperand(FIOperandNum + 1).ChangeToImmediate(0);
+  } else {
+    // We can encode an add with 12 bit signed immediate in the immediate
+    // operand of our user instruction.  As a result, the remaining
+    // offset can by construction, at worst, a LUI and a ADD.
+    int64_t Val = Offset.getFixed();
+    int64_t Lo12 = SignExtend64<12>(Val);
+    MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Lo12);
+    Offset = StackOffset::get((uint64_t)Val - (uint64_t)Lo12,
+                              Offset.getScalable());
   }
 
-  if (Offset.getScalable() || Offset.getFixed()) {
-    Register DestReg;
-    if (MI.getOpcode() == RISCV::ADDI)
-      DestReg = MI.getOperand(0).getReg();
-    else
-      DestReg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
-    adjustReg(*II->getParent(), II, DL, DestReg, FrameReg, Offset,
-              MachineInstr::NoFlags, std::nullopt);
-    MI.getOperand(FIOperandNum).ChangeToRegister(DestReg, /*IsDef*/false,
-                                                 /*IsImp*/false,
-                                                 /*IsKill*/true);
-  } else {
-    MI.getOperand(FIOperandNum).ChangeToRegister(FrameReg, /*IsDef*/false,
-                                                 /*IsImp*/false,
-                                                 /*IsKill*/false);
-  }
+  MI.getOperand(FIOperandNum).ChangeToRegister(FrameReg, /*IsDef*/false,
+                                               /*IsImp*/false,
+                                               /*IsKill*/false);
 
   // If after materializing the adjustment, we have a pointless ADDI, remove it
   if (MI.getOpcode() == RISCV::ADDI &&
@@ -331,21 +283,6 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     return true;
   }
 
-  auto ZvlssegInfo = RISCV::isRVVSpillForZvlsseg(MI.getOpcode());
-  if (ZvlssegInfo) {
-    MachineBasicBlock &MBB = *MI.getParent();
-    Register VL = MRI.createVirtualRegister(&RISCV::GPRRegClass);
-    BuildMI(MBB, II, DL, TII->get(RISCV::PseudoReadVLENB), VL);
-    uint32_t ShiftAmount = Log2_32(ZvlssegInfo->second);
-    if (ShiftAmount != 0)
-      BuildMI(MBB, II, DL, TII->get(RISCV::SLLI), VL)
-          .addReg(VL)
-          .addImm(ShiftAmount);
-    // The last argument of pseudo spilling opcode for zvlsseg is the length of
-    // one element of zvlsseg types. For example, for vint32m2x2_t, it will be
-    // the length of vint32m2_t.
-    MI.getOperand(FIOperandNum + 1).ChangeToRegister(VL, /*isDef=*/false);
-  }
   return false;
 }
 

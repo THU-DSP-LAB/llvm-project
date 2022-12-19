@@ -638,18 +638,12 @@ private:
   SDValue lowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerShiftLeftParts(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerShiftRightParts(SDValue Op, SelectionDAG &DAG, bool IsSRA) const;
-  SDValue lowerVectorFPExtendOrRoundLike(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerINTRINSIC_W_CHAIN(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerINTRINSIC_VOID(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerABS(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerGET_ROUNDING(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerSET_ROUNDING(SDValue Op, SelectionDAG &DAG) const;
 
   SDValue lowerEH_DWARF_CFA(SDValue Op, SelectionDAG &DAG) const;
-
-  SDValue expandUnalignedRVVLoad(SDValue Op, SelectionDAG &DAG) const;
-  SDValue expandUnalignedRVVStore(SDValue Op, SelectionDAG &DAG) const;
 
   bool isEligibleForTailCallOptimization(
       CCState &CCInfo, CallLoweringInfo &CLI, MachineFunction &MF,
@@ -660,18 +654,6 @@ private:
   void validateCCReservedRegs(
       const SmallVectorImpl<std::pair<llvm::Register, llvm::SDValue>> &Regs,
       MachineFunction &MF) const;
-
-  bool useRVVForFixedLengthVectorVT(MVT VT) const;
-
-  MVT getVPExplicitVectorLengthTy() const override;
-
-  /// RVV code generation for fixed length vectors does not lower all
-  /// BUILD_VECTORs. This makes BUILD_VECTOR legalisation a source of stores to
-  /// merge. However, merging them creates a BUILD_VECTOR that is just as
-  /// illegal as the original, thus leading to an infinite legalisation loop.
-  /// NOTE: Once BUILD_VECTOR can be custom lowered for all legal vector types,
-  /// this override can be removed.
-  bool mergeStoresAfterLegalization(EVT VT) const override;
 
   /// Disable normalizing
   /// select(N0&N1, X, Y) => select(N0, select(N1, X, Y), Y) and
