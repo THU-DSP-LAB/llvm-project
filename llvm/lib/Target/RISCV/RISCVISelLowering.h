@@ -393,14 +393,7 @@ public:
                                          CallingConv::ID CC,
                                          EVT VT) const override;
 
-  /// Return true if the given shuffle mask can be codegen'd directly, or if it
-  /// should be stack expanded.
-  bool isShuffleMaskLegal(ArrayRef<int> M, EVT VT) const override;
-
   bool hasBitPreservingFPLogic(EVT VT) const override;
-  bool
-  shouldExpandBuildVectorWithShuffles(EVT VT,
-                                      unsigned DefinedValues) const override;
 
   // Provide custom lowering hooks for some operations.
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
@@ -573,12 +566,8 @@ public:
     return ((VectorBits / EltSize) * MinSize) / RISCV::RVVBitsPerBlock;
   };
   static unsigned getSubregIndexByMVT(MVT VT, unsigned Index);
-  static unsigned getRegClassIDForVecVT(MVT VT);
-  MVT getContainerForFixedLengthVector(MVT VT) const;
 
   bool shouldRemoveExtendFromGSIndex(EVT IndexVT, EVT DataVT) const override;
-
-  bool isLegalElementTypeForRVV(Type *ScalarTy) const;
 
   bool shouldConvertFpToSat(unsigned Op, EVT FPVT, EVT VT) const override;
 
@@ -593,12 +582,6 @@ public:
       const SmallVectorImpl<ISD::InputArg> &Ins) const;
 
   bool isVScaleKnownToBeAPowerOfTwo() const override;
-
-  bool isLegalScaleForGatherScatter(uint64_t Scale,
-                                    uint64_t ElemSize) const override {
-    // Scaled addressing not supported on indexed load/stores
-    return Scale == 1;
-  }
 
 private:
   /// RISCVCCAssignFn - This target-specific function extends the default

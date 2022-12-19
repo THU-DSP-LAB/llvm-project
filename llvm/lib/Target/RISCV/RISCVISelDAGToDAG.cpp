@@ -157,12 +157,9 @@ void RISCVDAGToDAGISel::PostprocessISelDAG() {
       continue;
 
     MadeChange |= doPeepholeSExtW(N);
-    MadeChange |= doPeepholeMaskedRVV(N);
   }
 
   CurDAG->setRoot(Dummy.getValue());
-
-  MadeChange |= doPeepholeMergeVVMFold();
 
   if (MadeChange)
     CurDAG->RemoveDeadNodes();
