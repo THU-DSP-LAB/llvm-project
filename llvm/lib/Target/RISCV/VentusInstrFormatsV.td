@@ -54,7 +54,6 @@ class RVInstVV<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
   bits<5> vs2;
   bits<5> vs1;
   bits<5> vd;
-  // bit vm;
 
   let Inst{31-26} = funct6;
   let Inst{25} = 1;  // No mask on Ventus vALU, always encode vm bit to 1
@@ -63,9 +62,24 @@ class RVInstVV<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
   let Inst{14-12} = opv.Value;
   let Inst{11-7} = vd;
   let Opcode = OPC_OP_V.Value;
+}
 
-  let Uses = [VTYPE, VL];
-  let RVVConstraint = VMConstraint;
+// vALU branch
+class RVInstVB<bits<3> funct3, dag outs, dag ins,
+               string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatB> {
+  bits<5> vs2;
+  bits<5> vs1;
+  bits<12> imm12;
+
+  let Inst{31} = imm12{11};
+  let Inst{30-25} = imm12{9-4};
+  let Inst{24-20} = vs2;
+  let Inst{19-15} = vs1;
+  let Inst{14-12} = funct3;
+  let Inst{11-8} = imm12{3-0};
+  let Inst{7} = imm12{10};
+  let Opcode = OPC_CUSTOM_4.Value;
 }
 
 class RVInstVX<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
@@ -74,7 +88,6 @@ class RVInstVX<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
   bits<5> vs2;
   bits<5> rs1;
   bits<5> vd;
-  // bit vm;
 
   let Inst{31-26} = funct6;
   let Inst{25} = 1;
@@ -83,9 +96,6 @@ class RVInstVX<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
   let Inst{14-12} = opv.Value;
   let Inst{11-7} = vd;
   let Opcode = OPC_OP_V.Value;
-
-  let Uses = [VTYPE, VL];
-  let RVVConstraint = VMConstraint;
 }
 
 class RVInstV2<bits<6> funct6, bits<5> vs2, RISCVVFormat opv, dag outs, dag ins,
@@ -93,7 +103,6 @@ class RVInstV2<bits<6> funct6, bits<5> vs2, RISCVVFormat opv, dag outs, dag ins,
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
   bits<5> rs1;
   bits<5> vd;
-  // bit vm;
 
   let Inst{31-26} = funct6;
   let Inst{25} = 1;
@@ -102,9 +111,6 @@ class RVInstV2<bits<6> funct6, bits<5> vs2, RISCVVFormat opv, dag outs, dag ins,
   let Inst{14-12} = opv.Value;
   let Inst{11-7} = vd;
   let Opcode = OPC_OP_V.Value;
-
-  let Uses = [VTYPE, VL];
-  let RVVConstraint = VMConstraint;
 }
 
 class RVInstIVI<bits<6> funct6, dag outs, dag ins, string opcodestr,
@@ -113,7 +119,6 @@ class RVInstIVI<bits<6> funct6, dag outs, dag ins, string opcodestr,
   bits<5> vs2;
   bits<5> imm;
   bits<5> vd;
-  // bit vm;
 
   let Inst{31-26} = funct6;
   let Inst{25} = 1;
@@ -122,9 +127,6 @@ class RVInstIVI<bits<6> funct6, dag outs, dag ins, string opcodestr,
   let Inst{14-12} = OPIVI.Value;
   let Inst{11-7} = vd;
   let Opcode = OPC_OP_V.Value;
-
-  let Uses = [VTYPE, VL];
-  let RVVConstraint = VMConstraint;
 }
 
 class RVInstV<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, dag outs,
@@ -132,7 +134,6 @@ class RVInstV<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, dag outs,
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
   bits<5> vs2;
   bits<5> vd;
-  // bit vm;
 
   let Inst{31-26} = funct6;
   let Inst{25} = 1;
@@ -141,9 +142,6 @@ class RVInstV<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, dag outs,
   let Inst{14-12} = opv.Value;
   let Inst{11-7} = vd;
   let Opcode = OPC_OP_V.Value;
-
-  let Uses = [VTYPE, VL];
-  let RVVConstraint = VMConstraint;
 }
 
 class RVInstVLU<bits<3> nf, bit mew, RISCVLSUMOP lumop,
@@ -152,7 +150,6 @@ class RVInstVLU<bits<3> nf, bit mew, RISCVLSUMOP lumop,
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
   bits<5> rs1;
   bits<5> vd;
-  // bit vm;
 
   let Inst{31-29} = nf;
   let Inst{28} = mew;
@@ -163,9 +160,6 @@ class RVInstVLU<bits<3> nf, bit mew, RISCVLSUMOP lumop,
   let Inst{14-12} = width;
   let Inst{11-7} = vd;
   let Opcode = OPC_LOAD_FP.Value;
-
-  let Uses = [VTYPE, VL];
-  let RVVConstraint = VMConstraint;
 }
 
 class RVInstVSU<bits<3> nf, bit mew, RISCVLSUMOP sumop,
@@ -174,7 +168,6 @@ class RVInstVSU<bits<3> nf, bit mew, RISCVLSUMOP sumop,
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
   bits<5> rs1;
   bits<5> vs3;
-  // bit vm;
 
   let Inst{31-29} = nf;
   let Inst{28} = mew;
@@ -185,8 +178,6 @@ class RVInstVSU<bits<3> nf, bit mew, RISCVLSUMOP sumop,
   let Inst{14-12} = width;
   let Inst{11-7} = vs3;
   let Opcode = OPC_STORE_FP.Value;
-
-  let Uses = [VTYPE, VL];
 }
 
 class RVInstVSX<bits<3> nf, bit mew, RISCVMOP mop, bits<3> width,
@@ -195,7 +186,6 @@ class RVInstVSX<bits<3> nf, bit mew, RISCVMOP mop, bits<3> width,
   bits<5> vs2;
   bits<5> rs1;
   bits<5> vs3;
-  // bit vm;
 
   let Inst{31-29} = nf;
   let Inst{28} = mew;
@@ -206,6 +196,4 @@ class RVInstVSX<bits<3> nf, bit mew, RISCVMOP mop, bits<3> width,
   let Inst{14-12} = width;
   let Inst{11-7} = vs3;
   let Opcode = OPC_STORE_FP.Value;
-
-  let Uses = [VTYPE, VL];
 }

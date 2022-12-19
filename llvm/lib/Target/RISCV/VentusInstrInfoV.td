@@ -627,9 +627,23 @@ multiclass VWholeLoadEEW64<bits<3> nf, string opcodestr, RegisterClass VRC, Sche
               Sched<[schedrw, ReadVLDX]>;
 }
 
+let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
+    isBranch = 1, isTerminator = 1 in
+class BranchCC_vvi<bits<3> funct3, string opcodestr>
+    : RVInstVB<funct3, (outs), (ins VGPR:$vs1, VGPR:$vs2, simm13_lsb0:$imm12),
+               opcodestr, "$vs1, $vs2, $imm12">, Sched<[]>;
+
 //===----------------------------------------------------------------------===//
 // Instructions
 //===----------------------------------------------------------------------===//
+
+def VBEQ  : BranchCC_vvi<0b000, "vbeq">;
+def VBNE  : BranchCC_vvi<0b001, "vbne">;
+def VBLT  : BranchCC_vvi<0b100, "vblt">;
+def VBGE  : BranchCC_vvi<0b101, "vbge">;
+def VBLTU : BranchCC_vvi<0b110, "vbltu">;
+def VBGEU : BranchCC_vvi<0b111, "vbgeu">;
+def JOIN  : BranchCC_vvi<0b011, "join">;
 
 foreach eew = [8, 16, 32] in {
   defvar w = !cast<RISCVWidth>("LSWidth" # eew);
@@ -1085,6 +1099,18 @@ defm : PatVBin<DivergentBinFrag<udiv>, [VDIVU_VV, VDIVU_VX]>;
 defm : PatVBin<DivergentBinFrag<srem>, [VREM_VV, VREM_VX]>;
 defm : PatVBin<DivergentBinFrag<urem>, [VREMU_VV, VREMU_VX]>;
 
+
+// Match `riscv_brcc` and lower to the appropriate RISC-V branch instruction.
+class DivergentBccPat<CondCode Cond, RVInstVB Inst>
+    : Pat<(DivergentTetradFrag<riscv_brcc> VGPR:$vs1, VGPR:$vs2, Cond, bb:$imm12),
+           (Inst VGPR:$vs1, VGPR:$vs2, simm13_lsb0:$imm12)>;
+
+def : DivergentBccPat<SETEQ, VBEQ>;
+def : DivergentBccPat<SETNE, VBNE>;
+def : DivergentBccPat<SETLT, VBLT>;
+def : DivergentBccPat<SETGE, VBGE>;
+def : DivergentBccPat<SETULT, VBLTU>;
+def : DivergentBccPat<SETUGE, VBGEU>;
 
 // TODO: Fix it!
 /*

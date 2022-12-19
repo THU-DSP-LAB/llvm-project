@@ -470,23 +470,11 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
         setLoadExtAction({ISD::EXTLOAD, ISD::SEXTLOAD, ISD::ZEXTLOAD}, OtherVT,
                          VT, Expand);
       }
-
-      setOperationAction({ISD::VP_FP_TO_SINT, ISD::VP_FP_TO_UINT,
-                          ISD::VP_TRUNCATE, ISD::VP_SETCC},
-                         VT, Custom);
-      setOperationAction(ISD::VECTOR_REVERSE, VT, Custom);
-
-      setOperationPromotedToType(
-          ISD::VECTOR_SPLICE, VT,
-          MVT::getVectorVT(MVT::i8, VT.getVectorElementCount()));
     }
 
     for (MVT VT : IntVecVTs) {
       if (!isTypeLegal(VT))
         continue;
-
-      setOperationAction(ISD::SPLAT_VECTOR, VT, Legal);
-      setOperationAction(ISD::SPLAT_VECTOR_PARTS, VT, Custom);
 
       setOperationAction({ISD::SMIN, ISD::SMAX, ISD::UMIN, ISD::UMAX}, VT,
                          Legal);
@@ -636,14 +624,11 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
         setTruncStoreAction(VT, OtherVT, Expand);
       }
 
-
       setOperationAction({ISD::FP_ROUND, ISD::FP_EXTEND}, VT, Custom);
 
       setOperationAction({ISD::FTRUNC, ISD::FCEIL, ISD::FFLOOR, ISD::FROUND,
                           ISD::FROUNDEVEN},
                           VT, Custom);
-
-      setCondCodeAction(VFPCCToExpand, VT, Expand);
 
       setOperationAction(ISD::SELECT_CC, VT, Expand);
 

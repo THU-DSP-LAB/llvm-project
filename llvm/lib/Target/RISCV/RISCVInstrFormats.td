@@ -144,6 +144,7 @@ def OPC_NMADD     : RISCVOpcode<"NMADD",     0b1001111>;
 def OPC_OP_FP     : RISCVOpcode<"OP_FP",     0b1010011>;
 def OPC_OP_V      : RISCVOpcode<"OP_V",      0b1010111>;
 def OPC_CUSTOM_2  : RISCVOpcode<"CUSTOM_2",  0b1011011>;
+def OPC_CUSTOM_4  : RISCVOpcode<"CUSTOM_4",  0b1011111>;
 def OPC_BRANCH    : RISCVOpcode<"BRANCH",    0b1100011>;
 def OPC_JALR      : RISCVOpcode<"JALR",      0b1100111>;
 def OPC_JAL       : RISCVOpcode<"JAL",       0b1101111>;

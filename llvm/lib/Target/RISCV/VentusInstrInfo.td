@@ -35,6 +35,11 @@ class UniformBinFrag<SDPatternOperator Op> : PatFrag<
   (Op $src0, $src1),
   [{ return !N->isDivergent(); }]>;
 
+class DivergentBinFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{ return N->isDivergent(); }]>;
+
 // Widen sALU PatFrag for such as ADDW/SUBW to be selected from i64 add/sub
 // if only the lower 32 bits of their result is used.
 class UniformWBinFrag<SDPatternOperator Op> : PatFrag<
@@ -52,9 +57,9 @@ class UniformTetradFrag<SDPatternOperator Op> : PatFrag<
   (Op $src0, $src1, $src2, $src3),
   [{ return !N->isDivergent(); }]>;
 
-class DivergentBinFrag<SDPatternOperator Op> : PatFrag<
-  (ops node:$src0, node:$src1),
-  (Op $src0, $src1),
+class DivergentTetradFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1, node:$src2, node:$src3),
+  (Op $src0, $src1, $src2, $src3),
   [{ return N->isDivergent(); }]>;
 
 class UniformSextInReg<ValueType VT> : PatFrag<
