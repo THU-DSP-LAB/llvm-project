@@ -116,6 +116,10 @@ public:
     IntPtrType = SignedInt;
     PtrDiffType = SignedInt;
     SizeType = UnsignedInt;
+    //HasLegalHalfType = true;
+    //HasFloat16 = true;
+    //resetDataLayout("e-m:e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256"
+    //       "-v256:256-v512:512-v1024:1024-n32:64-S128");
     resetDataLayout("e-m:e-p:32:32-i64:64-n32-S128");
   }
 
@@ -132,6 +136,25 @@ public:
 
     if (ISAInfo->hasExtension("a"))
       MaxAtomicInlineWidth = 32;
+  }
+
+  void setSupportedOpenCLOpts() override {
+    auto &Opts = getSupportedOpenCLOpts();
+    Opts["cl_khr_fp16"] = true;
+    Opts["cl_clang_storage_class_specifiers"] = true;
+    Opts["__cl_clang_variadic_functions"] = true;
+    Opts["__opencl_c_images"] = true;
+    Opts["__opencl_c_3d_image_writes"] = true;
+  }
+
+  CallingConvCheckResult checkCallingConvention(CallingConv CC) const override {
+    switch (CC) {
+    default:
+      return CCCR_Warning;
+    case CC_C:
+    case CC_OpenCLKernel:
+      return CCCR_OK;
+    }
   }
 };
 class LLVM_LIBRARY_VISIBILITY RISCV64TargetInfo : public RISCVTargetInfo {

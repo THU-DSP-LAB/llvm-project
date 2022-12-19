@@ -20,9 +20,42 @@
 
 namespace llvm {
 
+// This needs to be kept in sync with the field bits in VentusRegisterClass.
+enum RISCVRCFlags {
+  IsVGPR = 1 << 0,
+  IsSGPR = 1 << 1
+}; // enum RISCVRCFlags
+
+
 struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
 
   RISCVRegisterInfo(unsigned HwMode);
+
+  /// \returns true if this class contains VGPR registers.
+  static bool hasVGPRs(const TargetRegisterClass *RC) {
+    return RC->TSFlags & RISCVRCFlags::IsVGPR;
+  }
+
+  /// \returns true if this class contains SGPR registers.
+  static bool hasSGPRs(const TargetRegisterClass *RC) {
+    return RC->TSFlags & RISCVRCFlags::IsSGPR;
+  }
+
+  /// Return the 'base' register class for this register.
+  /// e.g. X5 => SReg_32, V3 => VGPR_32, X5_X6 -> SReg_32, etc.
+  const TargetRegisterClass *getPhysRegClass(MCRegister Reg) const;
+
+  /// \returns true if this class contains only SGPR registers
+  static bool isSGPRClass(const TargetRegisterClass *RC) {
+    return hasSGPRs(RC) && !hasVGPRs(RC);
+  }
+
+  /// \returns true if this class ID contains only SGPR registers
+  bool isSGPRClassID(unsigned RCID) const {
+    return isSGPRClass(getRegClass(RCID));
+  }
+
+  bool isSGPRReg(const MachineRegisterInfo &MRI, Register Reg) const;
 
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;
@@ -32,6 +65,10 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
   BitVector getReservedRegs(const MachineFunction &MF) const override;
   bool isAsmClobberable(const MachineFunction &MF,
                         MCRegister PhysReg) const override;
+
+  bool isDivergentRegClass(const TargetRegisterClass *RC) const override {
+    return !isSGPRClass(RC);
+  }
 
   const uint32_t *getNoPreservedMask() const override;
 

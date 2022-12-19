@@ -27,6 +27,16 @@ let Namespace = "RISCV" in {
 //   vALUop vd, vs0, vs1
 // where the first instruction tells HW uses v[0-31] for vd, vs1,
 // uses v[32-63] for vs0.
+class RVRegisterClass <string n, list<ValueType> rTypes, int Align, dag rList>
+  : RegisterClass <n, rTypes, Align, rList> {
+  // vALU and sALU registers
+  field bit IsVGPR = 0;
+  field bit IsSGPR = 0;
+
+  let TSFlags{0} = IsVGPR;
+  let TSFlags{1} = IsSGPR;
+}
+
 class RISCVReg<bits<8> Enc, string n, list<string> alt = []> : Register<n> {
   let HWEncoding{7-0} = Enc;
   let AltNames = alt;
@@ -235,7 +245,7 @@ def XLenRI : RegInfoByHwMode<
 
 // The order of registers represents the preferred allocation sequence.
 // Registers are listed in the order caller-save, callee-save, specials.
-def GPR : RegisterClass<"RISCV", [XLenVT], 32, (add
+def GPR : RVRegisterClass<"RISCV", [XLenVT], 32, (add
     (sequence "X%u", 10, 17),
     (sequence "X%u", 5, 7),
     (sequence "X%u", 28, 31),
@@ -244,49 +254,57 @@ def GPR : RegisterClass<"RISCV", [XLenVT], 32, (add
     (sequence "X%u", 0, 4)
   )> {
   let RegInfos = XLenRI;
+  let IsSGPR = 1;
 }
 
-def GPRX0 : RegisterClass<"RISCV", [XLenVT], 32, (add X0)> {
+def GPRX0 : RVRegisterClass<"RISCV", [XLenVT], 32, (add X0)> {
   let RegInfos = XLenRI;
+  let IsSGPR = 1;
 }
 
-def GPRNoX0 : RegisterClass<"RISCV", [XLenVT], 32, (sub GPR, X0)> {
+def GPRNoX0 : RVRegisterClass<"RISCV", [XLenVT], 32, (sub GPR, X0)> {
   let RegInfos = XLenRI;
+  let IsSGPR = 1;
 }
 
-def GPRNoX0X2 : RegisterClass<"RISCV", [XLenVT], 32, (sub GPR, X0, X2)> {
+def GPRNoX0X2 : RVRegisterClass<"RISCV", [XLenVT], 32, (sub GPR, X0, X2)> {
   let RegInfos = XLenRI;
+  let IsSGPR = 1;
 }
 
 // Don't use X1 or X5 for JALR since that is a hint to pop the return address
 // stack on some microarchitectures. Also remove the reserved registers X0, X2,
 // X3, and X4 as it reduces the number of register classes that get synthesized
 // by tablegen.
-def GPRJALR : RegisterClass<"RISCV", [XLenVT], 32, (sub GPR, (sequence "X%u", 0, 5))> {
+def GPRJALR : RVRegisterClass<"RISCV", [XLenVT], 32, (sub GPR, (sequence "X%u", 0, 5))> {
   let RegInfos = XLenRI;
+  let IsSGPR = 1;
 }
 
-def GPRC : RegisterClass<"RISCV", [XLenVT], 32, (add
+def GPRC : RVRegisterClass<"RISCV", [XLenVT], 32, (add
     (sequence "X%u", 10, 15),
     (sequence "X%u", 8, 9)
   )> {
   let RegInfos = XLenRI;
+  let IsSGPR = 1;
 }
 
 // For indirect tail calls, we can't use callee-saved registers, as they are
 // restored to the saved value before the tail call, which would clobber a call
 // address. We shouldn't use x5 since that is a hint for to pop the return
 // address stack on some microarchitectures.
-def GPRTC : RegisterClass<"RISCV", [XLenVT], 32, (add
+def GPRTC : RVRegisterClass<"RISCV", [XLenVT], 32, (add
     (sequence "X%u", 6, 7),
     (sequence "X%u", 10, 17),
     (sequence "X%u", 28, 31)
   )> {
   let RegInfos = XLenRI;
+  let IsSGPR = 1;
 }
 
-def SP : RegisterClass<"RISCV", [XLenVT], 32, (add X2)> {
+def SP : RVRegisterClass<"RISCV", [XLenVT], 32, (add X2)> {
   let RegInfos = XLenRI;
+  let IsSGPR = 1;
 }
 
 // Floating point registers
@@ -466,11 +484,13 @@ def Reg32Types : RegisterTypes<[i32, f32, v2i16, v2f16]>;
 // TODO: Add half and register pair support!!
 // FIMXE: BranchCC_vvi doesn't support f32 VGPR in pattern(riscv_brcc).
 // VGPR 32-bit registers class
-def VGPR : RegisterClass<"RISCV",
+def VGPR : RVRegisterClass<"RISCV",
                             // !listconcat(Reg32Types.types, Reg16Types.types),
                             [i32/*, f32*/],
                             32,
-                            (add (sequence "V%u", 0, 255))>;
+                            (add (sequence "V%u", 0, 255))> {
+  let IsVGPR = 1;
+}
 
 // VGPR 64-bit registers class
 def VGPR_64 : VentusRegisterTuples<getSubRegs<2>.ret, VGPR, 255, 1, 2, "v">;

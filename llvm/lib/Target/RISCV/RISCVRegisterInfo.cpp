@@ -103,13 +103,6 @@ BitVector RISCVRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   if (TFI->hasBP(MF))
     markSuperRegs(Reserved, RISCVABI::getBPReg()); // bp
 
-  // V registers for code generation. We handle them manually.
-  markSuperRegs(Reserved, RISCV::VL);
-  markSuperRegs(Reserved, RISCV::VTYPE);
-  markSuperRegs(Reserved, RISCV::VXSAT);
-  markSuperRegs(Reserved, RISCV::VXRM);
-  markSuperRegs(Reserved, RISCV::VLENB); // vlenb (constant)
-
   // Floating point environment registers.
   markSuperRegs(Reserved, RISCV::FRM);
   markSuperRegs(Reserved, RISCV::FFLAGS);
@@ -159,6 +152,39 @@ bool RISCVRegisterInfo::hasReservedSpillSlot(const MachineFunction &MF,
 
   FrameIdx = FII->second;
   return true;
+}
+
+bool RISCVRegisterInfo::isSGPRReg(const MachineRegisterInfo &MRI,
+                                  Register Reg) const {
+  const TargetRegisterClass *RC;
+  if (Reg.isVirtual())
+    RC = MRI.getRegClass(Reg);
+  else
+    RC = getPhysRegClass(Reg);
+  return RC ? isSGPRClass(RC) : false;
+}
+
+const TargetRegisterClass *
+RISCVRegisterInfo::getPhysRegClass(MCRegister Reg) const {
+  static const TargetRegisterClass *const BaseClasses[] = {
+    /*
+    &RISCV::VGPR_LO16RegClass,
+    &RISCV::VGPR_HI16RegClass,
+    &RISCV::SReg_LO16RegClass,
+    &RISCV::SReg_HI16RegClass,
+    &RISCV::SReg_32RegClass,
+    */
+    &RISCV::VGPRRegClass,
+    &RISCV::GPRRegClass,
+  };
+
+  for (const TargetRegisterClass *BaseClass : BaseClasses) {
+    if (BaseClass->contains(Reg)) {
+      return BaseClass;
+    }
+  }
+  assert(0 && "TODO: Add sub/super registers");
+  return nullptr;
 }
 
 void RISCVRegisterInfo::adjustReg(MachineBasicBlock &MBB,

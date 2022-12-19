@@ -542,6 +542,7 @@ include "VentusInstrInfo.td"
 include "GISel/RISCVRegisterBanks.td"
 include "RISCVSchedRocket.td"
 include "RISCVSchedSiFive7.td"
+include "RISCVSearchableTables.td"
 
 //===----------------------------------------------------------------------===//
 // RISC-V processors supported.

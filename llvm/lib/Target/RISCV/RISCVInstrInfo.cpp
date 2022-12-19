@@ -1140,32 +1140,6 @@ bool RISCVInstrInfo::verifyInstruction(const MachineInstr &MI,
   }
 
   const uint64_t TSFlags = Desc.TSFlags;
-  if (RISCVII::hasMergeOp(TSFlags)) {
-    unsigned OpIdx = RISCVII::getMergeOpNum(Desc);
-    if (MI.findTiedOperandIdx(0) != OpIdx) {
-      ErrInfo = "Merge op improperly tied";
-      return false;
-    }
-  }
-  if (RISCVII::hasVLOp(TSFlags)) {
-    const MachineOperand &Op = MI.getOperand(RISCVII::getVLOpNum(Desc));
-    if (!Op.isImm() && !Op.isReg())  {
-      ErrInfo = "Invalid operand type for VL operand";
-      return false;
-    }
-    if (Op.isReg() && Op.getReg() != RISCV::NoRegister) {
-      const MachineRegisterInfo &MRI = MI.getParent()->getParent()->getRegInfo();
-      auto *RC = MRI.getRegClass(Op.getReg());
-      if (!RISCV::GPRRegClass.hasSubClassEq(RC)) {
-        ErrInfo = "Invalid register class for VL operand";
-        return false;
-      }
-    }
-    if (!RISCVII::hasSEWOp(TSFlags)) {
-      ErrInfo = "VL operand w/o SEW operand?";
-      return false;
-    }
-  }
   if (RISCVII::hasSEWOp(TSFlags)) {
     unsigned OpIdx = RISCVII::getSEWOpNum(Desc);
     uint64_t Log2SEW = MI.getOperand(OpIdx).getImm();
@@ -1176,27 +1150,6 @@ bool RISCVInstrInfo::verifyInstruction(const MachineInstr &MI,
     unsigned SEW = Log2SEW ? 1 << Log2SEW : 8;
     if (!RISCVVType::isValidSEW(SEW)) {
       ErrInfo = "Unexpected SEW value";
-      return false;
-    }
-  }
-  if (RISCVII::hasVecPolicyOp(TSFlags)) {
-    unsigned OpIdx = RISCVII::getVecPolicyOpNum(Desc);
-    uint64_t Policy = MI.getOperand(OpIdx).getImm();
-    if (Policy > (RISCVII::TAIL_AGNOSTIC | RISCVII::MASK_AGNOSTIC)) {
-      ErrInfo = "Invalid Policy Value";
-      return false;
-    }
-    if (!RISCVII::hasVLOp(TSFlags)) {
-      ErrInfo = "policy operand w/o VL operand?";
-      return false;
-    }
-
-    // VecPolicy operands can only exist on instructions with passthru/merge
-    // arguments. Note that not all arguments with passthru have vec policy
-    // operands- some instructions have implicit policies.
-    unsigned UseOpIdx;
-    if (!MI.isRegTiedToUseOperand(0, &UseOpIdx)) {
-      ErrInfo = "policy operand w/o tied operand?";
       return false;
     }
   }
@@ -1477,17 +1430,6 @@ std::string RISCVInstrInfo::createMIROperandComment(
   raw_string_ostream OS(Comment);
 
   uint64_t TSFlags = MI.getDesc().TSFlags;
-
-  // Print the full VType operand of vsetvli/vsetivli instructions, and the SEW
-  // operand of vector codegen pseudos.
-  if (RISCVII::hasVecPolicyOp(TSFlags) &&
-             OpIdx == RISCVII::getVecPolicyOpNum(MI.getDesc())) {
-    unsigned Policy = MI.getOperand(OpIdx).getImm();
-    assert(Policy <= (RISCVII::TAIL_AGNOSTIC | RISCVII::MASK_AGNOSTIC) &&
-           "Invalid Policy Value");
-    OS << (Policy & RISCVII::TAIL_AGNOSTIC ? "ta" : "tu") << ", "
-       << (Policy & RISCVII::MASK_AGNOSTIC ? "ma" : "mu");
-  }
 
   OS.flush();
   return Comment;

@@ -10,6 +10,40 @@
 //
 //===----------------------------------------------------------------------===//
 
+class RISCVReadPreloadRegisterIntrinsic
+  : Intrinsic<[llvm_i32_ty], [], [IntrNoMem, IntrSpeculatable, IntrWillReturn]>;
+
+class RISCVReadPreloadRegisterIntrinsicNamed<string name>
+  : Intrinsic<[llvm_i32_ty], [], [IntrNoMem, IntrSpeculatable, IntrWillReturn]>,
+    ClangBuiltin<name>;
+
+// Used to tag image and resource intrinsics with information used to generate
+// mem operands.
+class RISCVRsrcIntrinsic<int rsrcarg, bit isimage = false> {
+  int RsrcArg = rsrcarg;
+  bit IsImage = isimage;
+}
+
+
+multiclass RISCVReadPreloadRegisterIntrinsic_xyz {
+  def _x : RISCVReadPreloadRegisterIntrinsic;
+  def _y : RISCVReadPreloadRegisterIntrinsic;
+  def _z : RISCVReadPreloadRegisterIntrinsic;
+}
+
+multiclass RISCVReadPreloadRegisterIntrinsic_xyz_named<string prefix> {
+  def _x : RISCVReadPreloadRegisterIntrinsicNamed<!strconcat(prefix, "_x")>;
+  def _y : RISCVReadPreloadRegisterIntrinsicNamed<!strconcat(prefix, "_y")>;
+  def _z : RISCVReadPreloadRegisterIntrinsicNamed<!strconcat(prefix, "_z")>;
+}
+
+//===----------------------------------------------------------------------===//
+// ABI Special Intrinsics
+
+defm int_riscv_workitem_id : RISCVReadPreloadRegisterIntrinsic_xyz;
+defm int_riscv_workgroup_id : RISCVReadPreloadRegisterIntrinsic_xyz_named
+                               <"__builtin_riscv_workgroup_id">;
+
 //===----------------------------------------------------------------------===//
 // Atomics
 
@@ -570,7 +604,7 @@ let TargetPrefix = "riscv" in {
   class RISCVClassifyMasked
         : Intrinsic<[LLVMVectorOfBitcastsToInt<0>],
                     [LLVMVectorOfBitcastsToInt<0>, llvm_anyvector_ty,
-                     LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>, 
+                     LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
                      llvm_anyint_ty, LLVMMatchType<1>],
                     [IntrNoMem, ImmArg<ArgIndex<4>>]>, RISCVVIntrinsic {
     let VLOperand = 3;

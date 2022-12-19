@@ -116,10 +116,6 @@ enum VLMUL : uint8_t {
   LMUL_F2
 };
 
-enum {
-  TAIL_AGNOSTIC = 1,
-  MASK_AGNOSTIC = 2,
-};
 
 // Helper functions to read TSFlags.
 /// \returns the format of the instruction.
@@ -131,10 +127,7 @@ static inline VConstraintType getConstraint(uint64_t TSFlags) {
   return static_cast<VConstraintType>((TSFlags & ConstraintMask) >>
                                       ConstraintShift);
 }
-/// \returns the LMUL for the instruction.
-static inline VLMUL getLMul(uint64_t TSFlags) {
-  return static_cast<VLMUL>((TSFlags & VLMulMask) >> VLMulShift);
-}
+
 /// \returns true if there is a dummy mask operand for the instruction.
 static inline bool hasDummyMaskOp(uint64_t TSFlags) {
   return TSFlags & HasDummyMaskOpMask;
@@ -143,59 +136,17 @@ static inline bool hasDummyMaskOp(uint64_t TSFlags) {
 static inline bool doesForceTailAgnostic(uint64_t TSFlags) {
   return TSFlags & ForceTailAgnosticMask;
 }
-/// \returns true if there is a merge operand for the instruction.
-static inline bool hasMergeOp(uint64_t TSFlags) {
-  return TSFlags & HasMergeOpMask;
-}
 /// \returns true if there is a SEW operand for the instruction.
 static inline bool hasSEWOp(uint64_t TSFlags) {
   return TSFlags & HasSEWOpMask;
 }
-/// \returns true if there is a VL operand for the instruction.
-static inline bool hasVLOp(uint64_t TSFlags) {
-  return TSFlags & HasVLOpMask;
-}
-/// \returns true if there is a vector policy operand for this instruction.
-static inline bool hasVecPolicyOp(uint64_t TSFlags) {
-  return TSFlags & HasVecPolicyOpMask;
-}
-/// \returns true if it is a vector widening reduction instruction.
-static inline bool isRVVWideningReduction(uint64_t TSFlags) {
-  return TSFlags & IsRVVWideningReductionMask;
-}
-/// \returns true if mask policy is valid for the instruction.
-static inline bool usesMaskPolicy(uint64_t TSFlags) {
-  return TSFlags & UsesMaskPolicyMask;
-}
 
-static inline unsigned getMergeOpNum(const MCInstrDesc &Desc) {
-  assert(hasMergeOp(Desc.TSFlags));
-  assert(!Desc.isVariadic());
-  return Desc.getNumDefs();
-}
-
-static inline unsigned getVLOpNum(const MCInstrDesc &Desc) {
-  const uint64_t TSFlags = Desc.TSFlags;
-  // This method is only called if we expect to have a VL operand, and all
-  // instructions with VL also have SEW.
-  assert(hasSEWOp(TSFlags) && hasVLOp(TSFlags));
-  unsigned Offset = 2;
-  if (hasVecPolicyOp(TSFlags))
-    Offset = 3;
-  return Desc.getNumOperands() - Offset;
-}
+/// \returns true if the intrinsic is divergent
+bool isIntrinsicSourceOfDivergence(unsigned IntrID);
 
 static inline unsigned getSEWOpNum(const MCInstrDesc &Desc) {
   const uint64_t TSFlags = Desc.TSFlags;
   assert(hasSEWOp(TSFlags));
-  unsigned Offset = 1;
-  if (hasVecPolicyOp(TSFlags))
-    Offset = 2;
-  return Desc.getNumOperands() - Offset;
-}
-
-static inline unsigned getVecPolicyOpNum(const MCInstrDesc &Desc) {
-  assert(hasVecPolicyOp(Desc.TSFlags));
   return Desc.getNumOperands() - 1;
 }
 
@@ -449,13 +400,12 @@ inline static unsigned getSEW(unsigned VType) {
   return decodeVSEW(VSEW);
 }
 
-inline static bool isTailAgnostic(unsigned VType) { return VType & 0x40; }
+inline static bool isTailAgnostic(unsigned VType) { return 1; }
 
-inline static bool isMaskAgnostic(unsigned VType) { return VType & 0x80; }
+inline static bool isMaskAgnostic(unsigned VType) { return 1; }
 
 void printVType(unsigned VType, raw_ostream &OS);
 
-unsigned getSEWLMULRatio(unsigned SEW, RISCVII::VLMUL VLMul);
 
 } // namespace RISCVVType
 

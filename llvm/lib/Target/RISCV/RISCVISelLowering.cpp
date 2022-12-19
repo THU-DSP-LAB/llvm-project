@@ -21,7 +21,9 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/MemoryLocation.h"
+#include "llvm/Analysis/LegacyDivergenceAnalysis.h"
 #include "llvm/CodeGen/Analysis.h"
+#include "llvm/CodeGen/FunctionLoweringInfo.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -958,114 +960,6 @@ bool RISCVTargetLowering::
   return !XC;
 }
 
-bool RISCVTargetLowering::canSplatOperand(unsigned Opcode, int Operand) const {
-  switch (Opcode) {
-  case Instruction::Add:
-  case Instruction::Sub:
-  case Instruction::Mul:
-  case Instruction::And:
-  case Instruction::Or:
-  case Instruction::Xor:
-  case Instruction::FAdd:
-  case Instruction::FSub:
-  case Instruction::FMul:
-  case Instruction::FDiv:
-  case Instruction::ICmp:
-  case Instruction::FCmp:
-    return true;
-  case Instruction::Shl:
-  case Instruction::LShr:
-  case Instruction::AShr:
-  case Instruction::UDiv:
-  case Instruction::SDiv:
-  case Instruction::URem:
-  case Instruction::SRem:
-    return Operand == 1;
-  default:
-    return false;
-  }
-}
-
-
-bool RISCVTargetLowering::canSplatOperand(Instruction *I, int Operand) const {
-  if (!I->getType()->isVectorTy() || !Subtarget.hasVInstructions())
-    return false;
-
-  if (canSplatOperand(I->getOpcode(), Operand))
-    return true;
-
-  auto *II = dyn_cast<IntrinsicInst>(I);
-  if (!II)
-    return false;
-
-  switch (II->getIntrinsicID()) {
-  case Intrinsic::fma:
-  case Intrinsic::vp_fma:
-    return Operand == 0 || Operand == 1;
-  case Intrinsic::vp_shl:
-  case Intrinsic::vp_lshr:
-  case Intrinsic::vp_ashr:
-  case Intrinsic::vp_udiv:
-  case Intrinsic::vp_sdiv:
-  case Intrinsic::vp_urem:
-  case Intrinsic::vp_srem:
-    return Operand == 1;
-    // These intrinsics are commutative.
-  case Intrinsic::vp_add:
-  case Intrinsic::vp_mul:
-  case Intrinsic::vp_and:
-  case Intrinsic::vp_or:
-  case Intrinsic::vp_xor:
-  case Intrinsic::vp_fadd:
-  case Intrinsic::vp_fmul:
-    // These intrinsics have 'vr' versions.
-  case Intrinsic::vp_sub:
-  case Intrinsic::vp_fsub:
-  case Intrinsic::vp_fdiv:
-    return Operand == 0 || Operand == 1;
-  default:
-    return false;
-  }
-}
-
-/// Check if sinking \p I's operands to I's basic block is profitable, because
-/// the operands can be folded into a target instruction, e.g.
-/// splats of scalars can fold into vector instructions.
-bool RISCVTargetLowering::shouldSinkOperands(
-    Instruction *I, SmallVectorImpl<Use *> &Ops) const {
-  using namespace llvm::PatternMatch;
-
-  if (!I->getType()->isVectorTy() || !Subtarget.hasVInstructions())
-    return false;
-
-  for (auto OpIdx : enumerate(I->operands())) {
-    if (!canSplatOperand(I, OpIdx.index()))
-      continue;
-
-    Instruction *Op = dyn_cast<Instruction>(OpIdx.value().get());
-    // Make sure we are not already sinking this operand
-    if (!Op || any_of(Ops, [&](Use *U) { return U->get() == Op; }))
-      continue;
-
-    // We are looking for a splat that can be sunk.
-    if (!match(Op, m_Shuffle(m_InsertElt(m_Undef(), m_Value(), m_ZeroInt()),
-                             m_Undef(), m_ZeroMask())))
-      continue;
-
-    // All uses of the shuffle should be sunk to avoid duplicating it across gpr
-    // and vector registers
-    for (Use &U : Op->uses()) {
-      Instruction *Insn = cast<Instruction>(U.getUser());
-      if (!canSplatOperand(Insn, U.getOperandNo()))
-        return false;
-    }
-
-    Ops.push_back(&Op->getOperandUse(0));
-    Ops.push_back(&OpIdx.value());
-  }
-  return true;
-}
-
 bool RISCVTargetLowering::shouldScalarizeBinop(SDValue VecOp) const {
   unsigned Opc = VecOp.getOpcode();
 
@@ -1878,7 +1772,7 @@ SDValue RISCVTargetLowering::lowerRETURNADDR(SDValue Op,
 
   // Return the value of the return address register, marking it an implicit
   // live-in.
-  Register Reg = MF.addLiveIn(RI.getRARegister(), getRegClassFor(XLenVT));
+  Register Reg = MF.addLiveIn(RI.getRARegister(), getRegClassFor(XLenVT, false));
   return DAG.getCopyFromReg(DAG.getEntryNode(), DL, Reg, XLenVT);
 }
 
@@ -5635,7 +5529,7 @@ static SDValue unpackFromRegLoc(SelectionDAG &DAG, SDValue Chain,
   MachineRegisterInfo &RegInfo = MF.getRegInfo();
   EVT LocVT = VA.getLocVT();
   SDValue Val;
-  const TargetRegisterClass *RC = TLI.getRegClassFor(LocVT.getSimpleVT());
+  const TargetRegisterClass *RC = TLI.getRegClassFor(LocVT.getSimpleVT(), true);
   Register VReg = RegInfo.createVirtualRegister(RC);
   RegInfo.addLiveIn(VA.getLocReg(), VReg);
   return DAG.getCopyFromReg(Chain, DL, VReg, LocVT);
@@ -7259,6 +7153,88 @@ bool RISCVTargetLowering::isIntDivCheap(EVT VT, AttributeList Attr) const {
   // TODO: Add vector division?
   bool OptSize = Attr.hasFnAttr(Attribute::MinSize);
   return OptSize && !VT.isVector();
+}
+
+bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
+    const SDNode *N, FunctionLoweringInfo *FLI,
+    LegacyDivergenceAnalysis *KDA) const {
+  switch (N->getOpcode()) {
+  case ISD::CopyFromReg: {
+    const RegisterSDNode *R = cast<RegisterSDNode>(N->getOperand(1));
+    const MachineRegisterInfo &MRI = FLI->MF->getRegInfo();
+    const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
+    Register Reg = R->getReg();
+
+    // FIXME: Why does this need to consider isLiveIn?
+    if (Reg.isPhysical() || MRI.isLiveIn(Reg))
+      return !TRI->isSGPRReg(MRI, Reg);
+
+    if (const Value *V = FLI->getValueFromVirtualReg(R->getReg()))
+      return KDA->isDivergent(V);
+
+    return !TRI->isSGPRReg(MRI, Reg);
+  }
+  case ISD::LOAD: {
+    const LoadSDNode *L = cast<LoadSDNode>(N);
+    unsigned AS = L->getAddressSpace();
+    // A flat load may access private memory.
+    // return AS == AMDGPUAS::PRIVATE_ADDRESS || AS == AMDGPUAS::FLAT_ADDRESS;
+    return true;
+  }
+  case ISD::CALLSEQ_END:
+    return true;
+  case ISD::INTRINSIC_WO_CHAIN:
+    return RISCVII::isIntrinsicSourceOfDivergence(
+        cast<ConstantSDNode>(N->getOperand(0))->getZExtValue());
+  case ISD::INTRINSIC_W_CHAIN:
+    return RISCVII::isIntrinsicSourceOfDivergence(
+        cast<ConstantSDNode>(N->getOperand(1))->getZExtValue());
+  /*
+  case AMDGPUISD::ATOMIC_CMP_SWAP:
+  case AMDGPUISD::ATOMIC_INC:
+  case AMDGPUISD::ATOMIC_DEC:
+  case AMDGPUISD::ATOMIC_LOAD_FMIN:
+  case AMDGPUISD::ATOMIC_LOAD_FMAX:
+  case AMDGPUISD::BUFFER_ATOMIC_SWAP:
+  case AMDGPUISD::BUFFER_ATOMIC_ADD:
+  case AMDGPUISD::BUFFER_ATOMIC_SUB:
+  case AMDGPUISD::BUFFER_ATOMIC_SMIN:
+  case AMDGPUISD::BUFFER_ATOMIC_UMIN:
+  case AMDGPUISD::BUFFER_ATOMIC_SMAX:
+  case AMDGPUISD::BUFFER_ATOMIC_UMAX:
+  case AMDGPUISD::BUFFER_ATOMIC_AND:
+  case AMDGPUISD::BUFFER_ATOMIC_OR:
+  case AMDGPUISD::BUFFER_ATOMIC_XOR:
+  case AMDGPUISD::BUFFER_ATOMIC_INC:
+  case AMDGPUISD::BUFFER_ATOMIC_DEC:
+  case AMDGPUISD::BUFFER_ATOMIC_CMPSWAP:
+  case AMDGPUISD::BUFFER_ATOMIC_CSUB:
+  case AMDGPUISD::BUFFER_ATOMIC_FADD:
+  case AMDGPUISD::BUFFER_ATOMIC_FMIN:
+  case AMDGPUISD::BUFFER_ATOMIC_FMAX:
+    // Target-specific read-modify-write atomics are sources of divergence.
+    return true;
+  */
+  default:
+    if (auto *A = dyn_cast<AtomicSDNode>(N)) {
+      // Generic read-modify-write atomics are sources of divergence.
+      return A->readMem() && A->writeMem();
+    }
+    return false;
+  }
+}
+
+// TODO: Support child registers
+const TargetRegisterClass *
+RISCVTargetLowering::getRegClassFor(MVT VT, bool isDivergent) const {
+  const TargetRegisterClass *RC = TargetLoweringBase::getRegClassFor(VT, false);
+  const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
+  if (!TRI->isSGPRClass(RC) && !isDivergent)
+    return &RISCV::GPRRegClass;
+  else if (TRI->isSGPRClass(RC) && isDivergent)
+    return &RISCV::VGPRRegClass;
+
+  return RC;
 }
 
 #define GET_REGISTER_MATCHER

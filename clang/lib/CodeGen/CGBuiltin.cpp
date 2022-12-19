@@ -19460,6 +19460,33 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
   llvm::SmallVector<llvm::Type *, 2> IntrinsicTypes;
   switch (BuiltinID) {
   default: llvm_unreachable("unexpected builtin ID");
+
+  // Ventus GPGPU workitem
+  case RISCV::BI__builtin_riscv_workitem_id_x:
+    return emitRangedBuiltin(*this, Intrinsic::riscv_workitem_id_x, 0, 1024);
+  case RISCV::BI__builtin_riscv_workitem_id_y:
+    return emitRangedBuiltin(*this, Intrinsic::riscv_workitem_id_y, 0, 1024);
+  case RISCV::BI__builtin_riscv_workitem_id_z:
+    return emitRangedBuiltin(*this, Intrinsic::riscv_workitem_id_z, 0, 1024);
+
+  // FIXME: Use AMDGPU function here temporarily
+
+  // Ventus GPGPU workgroup size
+  case RISCV::BI__builtin_riscv_workgroup_size_x:
+    return EmitAMDGPUWorkGroupSize(*this, 0);
+  case RISCV::BI__builtin_riscv_workgroup_size_y:
+    return EmitAMDGPUWorkGroupSize(*this, 1);
+  case RISCV::BI__builtin_riscv_workgroup_size_z:
+    return EmitAMDGPUWorkGroupSize(*this, 2);
+
+  // Ventus GPGPU grid size
+  case RISCV::BI__builtin_riscv_grid_size_x:
+    return EmitAMDGPUGridSize(*this, 0);
+  case RISCV::BI__builtin_riscv_grid_size_y:
+    return EmitAMDGPUGridSize(*this, 1);
+  case RISCV::BI__builtin_riscv_grid_size_z:
+    return EmitAMDGPUGridSize(*this, 2);
+
   case RISCV::BI__builtin_riscv_orc_b_32:
   case RISCV::BI__builtin_riscv_orc_b_64:
   case RISCV::BI__builtin_riscv_clz_32:

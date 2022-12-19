@@ -15,6 +15,30 @@
 #   define TARGET_BUILTIN(ID, TYPE, ATTRS, FEATURE) BUILTIN(ID, TYPE, ATTRS)
 #endif
 
+//===----------------------------------------------------------------------===//
+// Ventus OpenCL builtins.
+//===----------------------------------------------------------------------===//
+
+BUILTIN(__builtin_riscv_workgroup_id_x, "Ui", "nc")
+BUILTIN(__builtin_riscv_workgroup_id_y, "Ui", "nc")
+BUILTIN(__builtin_riscv_workgroup_id_z, "Ui", "nc")
+
+BUILTIN(__builtin_riscv_workitem_id_x, "Ui", "nc")
+BUILTIN(__builtin_riscv_workitem_id_y, "Ui", "nc")
+BUILTIN(__builtin_riscv_workitem_id_z, "Ui", "nc")
+
+BUILTIN(__builtin_riscv_workgroup_size_x, "Us", "nc")
+BUILTIN(__builtin_riscv_workgroup_size_y, "Us", "nc")
+BUILTIN(__builtin_riscv_workgroup_size_z, "Us", "nc")
+
+BUILTIN(__builtin_riscv_grid_size_x, "Ui", "nc")
+BUILTIN(__builtin_riscv_grid_size_y, "Ui", "nc")
+BUILTIN(__builtin_riscv_grid_size_z, "Ui", "nc")
+
+//===----------------------------------------------------------------------===//
+// Standard RISCV instruction builtins.
+//===----------------------------------------------------------------------===//
+
 // Zbb extension
 TARGET_BUILTIN(__builtin_riscv_orc_b_32, "ZiZi", "nc", "zbb")
 TARGET_BUILTIN(__builtin_riscv_orc_b_64, "WiWi", "nc", "zbb,64bit")

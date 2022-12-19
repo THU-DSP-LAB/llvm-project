@@ -133,7 +133,8 @@ parseFeatureBits(bool IsRV64, const FeatureBitset &FeatureBits) {
 unsigned RISCVVType::encodeVTYPE(RISCVII::VLMUL VLMUL, unsigned SEW,
                                  bool TailAgnostic, bool MaskAgnostic) {
   assert(isValidSEW(SEW) && "Invalid SEW");
-  unsigned VLMULBits = static_cast<unsigned>(VLMUL);
+  // LMUL1 encoding is 000
+  unsigned VLMULBits = 0;
   unsigned VSEWBits = encodeSEW(SEW);
   unsigned VTypeI = (VSEWBits << 3) | (VLMULBits & 0x7);
   if (TailAgnostic)
@@ -144,57 +145,23 @@ unsigned RISCVVType::encodeVTYPE(RISCVII::VLMUL VLMUL, unsigned SEW,
   return VTypeI;
 }
 
-std::pair<unsigned, bool> RISCVVType::decodeVLMUL(RISCVII::VLMUL VLMUL) {
-  switch (VLMUL) {
-  default:
-    llvm_unreachable("Unexpected LMUL value!");
-  case RISCVII::VLMUL::LMUL_1:
-  case RISCVII::VLMUL::LMUL_2:
-  case RISCVII::VLMUL::LMUL_4:
-  case RISCVII::VLMUL::LMUL_8:
-    return std::make_pair(1 << static_cast<unsigned>(VLMUL), false);
-  case RISCVII::VLMUL::LMUL_F2:
-  case RISCVII::VLMUL::LMUL_F4:
-  case RISCVII::VLMUL::LMUL_F8:
-    return std::make_pair(1 << (8 - static_cast<unsigned>(VLMUL)), true);
-  }
-}
-
 void RISCVVType::printVType(unsigned VType, raw_ostream &OS) {
   unsigned Sew = getSEW(VType);
-  OS << "e" << Sew;
-
-  unsigned LMul;
-  bool Fractional;
-  std::tie(LMul, Fractional) = decodeVLMUL(getVLMUL(VType));
-
-  if (Fractional)
-    OS << ", mf";
-  else
-    OS << ", m";
-  OS << LMul;
-
-  if (isTailAgnostic(VType))
-    OS << ", ta";
-  else
-    OS << ", tu";
-
-  if (isMaskAgnostic(VType))
-    OS << ", ma";
-  else
-    OS << ", mu";
-}
-
-unsigned RISCVVType::getSEWLMULRatio(unsigned SEW, RISCVII::VLMUL VLMul) {
-  unsigned LMul;
-  bool Fractional;
-  std::tie(LMul, Fractional) = decodeVLMUL(VLMul);
-
-  // Convert LMul to a fixed point value with 3 fractional bits.
-  LMul = Fractional ? (8 / LMul) : (LMul * 8);
-
-  assert(SEW >= 8 && "Unexpected SEW value");
-  return (SEW * 8) / LMul;
+  OS << "e" << Sew << ", m1, ta, ma";
 }
 
 } // namespace llvm
+
+namespace {
+struct SourceOfDivergence {
+  unsigned Intr;
+};
+const SourceOfDivergence *lookupSourceOfDivergence(unsigned Intr);
+
+#define GET_SourcesOfDivergence_IMPL
+#include "RISCVGenSearchableTables.inc"
+} // end anonymous namespace
+
+bool isIntrinsicSourceOfDivergence(unsigned IntrID) {
+  return lookupSourceOfDivergence(IntrID);
+}

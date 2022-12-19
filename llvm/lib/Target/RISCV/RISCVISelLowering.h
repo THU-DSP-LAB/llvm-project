@@ -363,20 +363,14 @@ public:
       SDValue X, ConstantSDNode *XC, ConstantSDNode *CC, SDValue Y,
       unsigned OldShiftOpcode, unsigned NewShiftOpcode,
       SelectionDAG &DAG) const override;
-  /// Return true if the (vector) instruction I will be lowered to an instruction
-  /// with a scalar splat operand for the given Operand number.
-  bool canSplatOperand(Instruction *I, int Operand) const;
-  /// Return true if a vector instruction will lower to a target instruction
-  /// able to splat the given operand.
-  bool canSplatOperand(unsigned Opcode, int Operand) const;
-  bool shouldSinkOperands(Instruction *I,
-                          SmallVectorImpl<Use *> &Ops) const override;
   bool shouldScalarizeBinop(SDValue VecOp) const override;
   bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const override;
   bool isFPImmLegal(const APFloat &Imm, EVT VT,
                     bool ForCodeSize) const override;
   bool isExtractSubvectorCheap(EVT ResVT, EVT SrcVT,
                                unsigned Index) const override;
+  bool isSDNodeSourceOfDivergence(const SDNode *N,
+    FunctionLoweringInfo *FLI, LegacyDivergenceAnalysis *DA) const override;
 
   bool isIntDivCheap(EVT VT, AttributeList Attr) const override;
 
@@ -494,6 +488,9 @@ public:
   /// with the clang -ffixed-xX flag for access to be allowed.
   Register getRegisterByName(const char *RegName, LLT VT,
                              const MachineFunction &MF) const override;
+
+  const TargetRegisterClass *getRegClassFor(MVT VT,
+                                            bool isDivergent) const override;
 
   // Lower incoming arguments, copy physregs into vregs
   SDValue LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv,
