@@ -764,12 +764,12 @@ def : InstAlias<"vncvt.x.x.w $vd, $vs",
 let RVVConstraint = NoConstraint in {
 defm VMSEQ_V : VCMP_IV_V_X_I<"vmseq", 0b011000>;
 defm VMSNE_V : VCMP_IV_V_X_I<"vmsne", 0b011001>;
-defm VMSLTU_V : VCMP_IV_V_X<"vmsltu", 0b011010>;
-defm VMSLT_V : VCMP_IV_V_X<"vmslt", 0b011011>;
+defm VMSLTU_V : VCMP_IV_V_X_I<"vmsltu", 0b011010>;
+defm VMSLT_V : VCMP_IV_V_X_I<"vmslt", 0b011011>;
 defm VMSLEU_V : VCMP_IV_V_X_I<"vmsleu", 0b011100>;
 defm VMSLE_V : VCMP_IV_V_X_I<"vmsle", 0b011101>;
-defm VMSGTU_V : VCMP_IV_X_I<"vmsgtu", 0b011110>;
-defm VMSGT_V : VCMP_IV_X_I<"vmsgt", 0b011111>;
+defm VMSGTU_V : VCMP_IV_V_X_I<"vmsgtu", 0b011110>;
+defm VMSGT_V : VCMP_IV_V_X_I<"vmsgt", 0b011111>;
 } // RVVConstraint = NoConstraint
 
 def : InstAlias<"vmsgtu.vv $vd, $va, $vb",
