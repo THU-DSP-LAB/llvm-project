@@ -29,6 +29,21 @@ multiclass PatVBin<SDPatternOperator Op, list<RVInst> Insts> {
               (Insts[2] VGPR:$rs1, uimm5:$imm)>;
 }
 
+// RVV VX, VI instruction pattern class for binary operations
+multiclass PatXIBin<SDPatternOperator Op, list<RVInst> Insts, 
+                                int IsReverseOperation = 0> {
+  if !eq(IsReverseOperation, 1) then {
+    def : Pat<(Op GPR:$rs1, VGPR:$rs2), (Insts[0] VGPR:$rs2, GPR:$rs1)>;
+    def : Pat<(XLenVT (Op uimm5:$imm, (XLenVT VGPR:$rs1))),
+              (Insts[1] VGPR:$rs1, uimm5:$imm)>;
+  } 
+  else {
+    def : Pat<(Op VGPR:$rs1, GPR:$rs2), (Insts[0] VGPR:$rs1, GPR:$rs2)>;
+    def : Pat<(XLenVT (Op (XLenVT VGPR:$rs1), uimm5:$imm)),
+              (Insts[1] VGPR:$rs1, uimm5:$imm)>;
+  }
+}
+
 //===----------------------------------------------------------------------===//
 // Operand and SDNode transformation definitions.
 //===----------------------------------------------------------------------===//
@@ -1068,6 +1083,7 @@ defm : PatVBin<DivergentBinFrag<smax>, [VMAX_VV, VMAX_VX]>;
 defm : PatVBin<DivergentBinFrag<umax>, [VMAXU_VV, VMAXU_VX]>;
 defm : PatVBin<DivergentBinFrag<add>,  [VADD_VV, VADD_VX, VADD_VI]>;
 defm : PatVBin<DivergentBinFrag<sub>,  [VSUB_VV, VSUB_VX]>;
+defm : PatXIBin<DivergentBinFrag<sub>,  [VRSUB_VX, VRSUB_VI], 1>;
 defm : PatVBin<DivergentBinFrag<and>,  [VAND_VV, VAND_VX, VAND_VI]>;
 defm : PatVBin<DivergentBinFrag<or>,   [VOR_VV, VOR_VX, VOR_VI]>;
 defm : PatVBin<DivergentBinFrag<xor>,  [VXOR_VV, VXOR_VX, VXOR_VI]>;
