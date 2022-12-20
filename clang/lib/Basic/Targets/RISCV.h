@@ -24,6 +24,18 @@ namespace targets {
 
 // RISC-V Target
 class RISCVTargetInfo : public TargetInfo {
+
+  enum AddrSpace {
+    Generic = 0,
+    Global = 1,
+    Local = 3,
+    Constant = 4,
+    Private = 5
+  };
+
+  // OpenCL addressing space to target architecture addressing mapping
+  static const LangASMap VentusAddrSpaceMap;
+
 protected:
   std::string ABI, CPU;
   std::unique_ptr<llvm::RISCVISAInfo> ISAInfo;
@@ -41,6 +53,8 @@ public:
     HasRISCVVTypes = true;
     MCountName = "_mcount";
     HasFloat16 = true;
+    UseAddrSpaceMapMangling = true;
+    AddrSpaceMap = &VentusAddrSpaceMap;
   }
 
   bool setCPU(const std::string &Name) override {
@@ -108,6 +122,62 @@ public:
   void fillValidCPUList(SmallVectorImpl<StringRef> &Values) const override;
   bool isValidTuneCPUName(StringRef Name) const override;
   void fillValidTuneCPUList(SmallVectorImpl<StringRef> &Values) const override;
+
+  void setSupportedOpenCLOpts() override {
+    auto &Opts = getSupportedOpenCLOpts();
+    // Opts["cl_khr_fp16"] = true;
+    Opts["cl_clang_storage_class_specifiers"] = true;
+    Opts["__cl_clang_variadic_functions"] = true;
+    Opts["__opencl_c_images"] = true;
+    Opts["__opencl_c_3d_image_writes"] = true;
+  }
+
+  LangAS getOpenCLTypeAddrSpace(OpenCLTypeKind TK) const override {
+    switch (TK) {
+    case OCLTK_Image:
+    case OCLTK_Sampler:
+    case OCLTK_Pipe:
+    case OCLTK_ClkEvent:
+    case OCLTK_Queue:
+    case OCLTK_ReserveID:
+      return LangAS::opencl_global;
+
+    default:
+      return TargetInfo::getOpenCLTypeAddrSpace(TK);
+    }
+  }
+
+
+  LangAS getOpenCLBuiltinAddressSpace(unsigned AS) const override {
+    switch (AS) {
+    case 0:
+      return LangAS::opencl_generic;
+    case 1:
+      return LangAS::opencl_global;
+    case 3:
+      return LangAS::opencl_local;
+    case 4:
+      return LangAS::opencl_constant;
+    case 5:
+      return LangAS::opencl_private;
+    default:
+      return getLangASFromTargetAS(AS);
+    }
+  }
+
+  llvm::Optional<LangAS> getConstantAddressSpace() const override {
+    return getLangASFromTargetAS(Constant);
+  }
+
+  CallingConvCheckResult checkCallingConvention(CallingConv CC) const override {
+    switch (CC) {
+    default:
+      return CCCR_Warning;
+    case CC_C:
+    case CC_OpenCLKernel:
+      return CCCR_OK;
+    }
+  }
 };
 class LLVM_LIBRARY_VISIBILITY RISCV32TargetInfo : public RISCVTargetInfo {
 public:
@@ -119,8 +189,8 @@ public:
     //HasLegalHalfType = true;
     //HasFloat16 = true;
     //resetDataLayout("e-m:e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256"
-    //       "-v256:256-v512:512-v1024:1024-n32:64-S128");
-    resetDataLayout("e-m:e-p:32:32-i64:64-n32-S128");
+    //       "-v256:256-v512:512-v1024:1024-n32:64-S128-A5-G1");
+    resetDataLayout("e-m:e-p:32:32-i64:64-n32-S128-A5-G1");
   }
 
   bool setABI(const std::string &Name) override {
@@ -137,25 +207,6 @@ public:
     if (ISAInfo->hasExtension("a"))
       MaxAtomicInlineWidth = 32;
   }
-
-  void setSupportedOpenCLOpts() override {
-    auto &Opts = getSupportedOpenCLOpts();
-    Opts["cl_khr_fp16"] = true;
-    Opts["cl_clang_storage_class_specifiers"] = true;
-    Opts["__cl_clang_variadic_functions"] = true;
-    Opts["__opencl_c_images"] = true;
-    Opts["__opencl_c_3d_image_writes"] = true;
-  }
-
-  CallingConvCheckResult checkCallingConvention(CallingConv CC) const override {
-    switch (CC) {
-    default:
-      return CCCR_Warning;
-    case CC_C:
-    case CC_OpenCLKernel:
-      return CCCR_OK;
-    }
-  }
 };
 class LLVM_LIBRARY_VISIBILITY RISCV64TargetInfo : public RISCVTargetInfo {
 public:
@@ -163,7 +214,7 @@ public:
       : RISCVTargetInfo(Triple, Opts) {
     LongWidth = LongAlign = PointerWidth = PointerAlign = 64;
     IntMaxType = Int64Type = SignedLong;
-    resetDataLayout("e-m:e-p:64:64-i64:64-i128:128-n32:64-S128");
+    resetDataLayout("e-m:e-p:64:64-i64:64-i128:128-n32:64-S128-A5-G1");
   }
 
   bool setABI(const std::string &Name) override {

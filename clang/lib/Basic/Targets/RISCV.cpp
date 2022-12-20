@@ -21,6 +21,30 @@
 using namespace clang;
 using namespace clang::targets;
 
+const LangASMap RISCVTargetInfo::VentusAddrSpaceMap = {
+    Generic,  // Default
+    Global,   // opencl_global
+    Local,    // opencl_local
+    Constant, // opencl_constant
+    Private,  // opencl_private
+    Generic,  // opencl_generic
+    Global,   // opencl_global_device
+    Global,   // opencl_global_host
+    Global,   // cuda_device
+    Constant, // cuda_constant
+    Local,    // cuda_shared
+    Global,   // sycl_global
+    Global,   // sycl_global_device
+    Global,   // sycl_global_host
+    Local,    // sycl_local
+    Private,  // sycl_private
+    Generic,  // ptr32_sptr
+    Generic,  // ptr32_uptr
+    Generic,  // ptr64
+    Generic,  // hlsl_groupshared
+};
+
+
 ArrayRef<const char *> RISCVTargetInfo::getGCCRegNames() const {
   static const char *const GCCRegNames[] = {
       // Integer registers
