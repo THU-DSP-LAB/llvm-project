@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RISCVBaseInfo.h"
+#include "llvm/IR/IntrinsicsRISCV.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/MC/MCSubtargetInfo.h"
@@ -150,8 +151,6 @@ void RISCVVType::printVType(unsigned VType, raw_ostream &OS) {
   OS << "e" << Sew << ", m1, ta, ma";
 }
 
-} // namespace llvm
-
 namespace {
 struct SourceOfDivergence {
   unsigned Intr;
@@ -162,6 +161,12 @@ const SourceOfDivergence *lookupSourceOfDivergence(unsigned Intr);
 #include "RISCVGenSearchableTables.inc"
 } // end anonymous namespace
 
+namespace RISCVII {
+
 bool isIntrinsicSourceOfDivergence(unsigned IntrID) {
   return lookupSourceOfDivergence(IntrID);
 }
+
+} // namespace RISCVII
+
+} // namespace llvm

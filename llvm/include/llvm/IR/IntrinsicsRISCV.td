@@ -39,10 +39,13 @@ multiclass RISCVReadPreloadRegisterIntrinsic_xyz_named<string prefix> {
 
 //===----------------------------------------------------------------------===//
 // ABI Special Intrinsics
+let TargetPrefix = "riscv" in {
 
 defm int_riscv_workitem_id : RISCVReadPreloadRegisterIntrinsic_xyz;
 defm int_riscv_workgroup_id : RISCVReadPreloadRegisterIntrinsic_xyz_named
                                <"__builtin_riscv_workgroup_id">;
+
+} // TargetPrefix = "riscv"
 
 //===----------------------------------------------------------------------===//
 // Atomics
