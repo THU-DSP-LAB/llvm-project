@@ -69,12 +69,12 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
 static StringRef computeDataLayout(const Triple &TT, StringRef CPU) {
   // if (CPU == "ventus-gpgpu")
   //  return "e-m:e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256"
-  //         "-v256:256-v512:512-v1024:1024-n32:64-S128";
+  //         "-v256:256-v512:512-v1024:1024-n32:64-S128-A5-G1";
 
   if (TT.isArch64Bit())
-    return "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128";
+    return "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128-A5-G1";
   assert(TT.isArch32Bit() && "only RV32 and RV64 are currently supported");
-  return "e-m:e-p:32:32-i64:64-n32-S128";
+  return "e-m:e-p:32:32-i64:64-n32-S128-A5-G1";
 }
 
 static Reloc::Model getEffectiveRelocModel(const Triple &TT,
@@ -304,4 +304,44 @@ bool RISCVTargetMachine::parseMachineFunctionInfo(
       static_cast<const yaml::RISCVMachineFunctionInfo &>(MFI);
   PFS.MF.getInfo<RISCVMachineFunctionInfo>()->initializeBaseYamlFields(YamlMFI);
   return false;
+}
+
+unsigned RISCVTargetMachine::getAssumedAddrSpace(const Value *V) const {
+  const auto *LD = dyn_cast<LoadInst>(V);
+  if (!LD)
+    return RISCVAS::UNKNOWN_ADDRESS_SPACE;
+
+  // It must be a generic pointer loaded.
+  assert(V->getType()->isPointerTy() &&
+         V->getType()->getPointerAddressSpace() == RISCVAS::FLAT_ADDRESS);
+
+  const auto *Ptr = LD->getPointerOperand();
+  if (Ptr->getType()->getPointerAddressSpace() != RISCVAS::CONSTANT_ADDRESS)
+    return RISCVAS::UNKNOWN_ADDRESS_SPACE;
+  // For a generic pointer loaded from the constant memory, it could be assumed
+  // as a global pointer since the constant memory is only populated on the
+  // host side. As implied by the offload programming model, only global
+  // pointers could be referenced on the host side.
+  return RISCVAS::GLOBAL_ADDRESS;
+}
+
+std::pair<const Value *, unsigned>
+RISCVTargetMachine::getPredicatedAddrSpace(const Value *V) const {
+  assert(0 && "TODO!");
+}
+
+unsigned
+RISCVTargetMachine::getAddressSpaceForPseudoSourceKind(unsigned Kind) const {
+  switch (Kind) {
+  case PseudoSourceValue::Stack:
+  case PseudoSourceValue::FixedStack:
+    return RISCVAS::PRIVATE_ADDRESS;
+  case PseudoSourceValue::ConstantPool:
+  case PseudoSourceValue::GOT:
+  case PseudoSourceValue::JumpTable:
+  case PseudoSourceValue::GlobalValueCallEntry:
+  case PseudoSourceValue::ExternalSymbolCallEntry:
+    return RISCVAS::CONSTANT_ADDRESS;
+  }
+  return RISCVAS::FLAT_ADDRESS;
 }

@@ -625,6 +625,14 @@ private:
 
   SDValue lowerEH_DWARF_CFA(SDValue Op, SelectionDAG &DAG) const;
 
+  SDValue lowerKernArgParameterPtr(SelectionDAG &DAG, const SDLoc &SL,
+                                   SDValue Chain, uint64_t Offset) const;
+  SDValue lowerKernargMemParameter(SelectionDAG &DAG, EVT VT, EVT MemVT,
+                                   const SDLoc &SL, SDValue Chain,
+                                   uint64_t Offset, Align Alignment,
+                                   bool Signed,
+                                   const ISD::InputArg *Arg = nullptr) const;
+
   bool isEligibleForTailCallOptimization(
       CCState &CCInfo, CallLoweringInfo &CLI, MachineFunction &MF,
       const SmallVector<CCValAssign, 16> &ArgLocs) const;

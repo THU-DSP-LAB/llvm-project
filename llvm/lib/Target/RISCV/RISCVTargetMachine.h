@@ -55,6 +55,13 @@ public:
                                 PerFunctionMIParsingState &PFS,
                                 SMDiagnostic &Error,
                                 SMRange &SourceRange) const override;
+
+  unsigned getAssumedAddrSpace(const Value *V) const override;
+
+  std::pair<const Value *, unsigned>
+  getPredicatedAddrSpace(const Value *V) const override;
+
+  unsigned getAddressSpaceForPseudoSourceKind(unsigned Kind) const override;
 };
 } // namespace llvm
 

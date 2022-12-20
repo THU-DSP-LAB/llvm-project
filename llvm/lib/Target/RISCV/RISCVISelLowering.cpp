@@ -436,19 +436,6 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   if (Subtarget.hasVInstructions()) {
     setBooleanVectorContents(ZeroOrOneBooleanContent);
 
-    // RVV intrinsics may have illegal operands.
-    // We also need to custom legalize vmv.x.s.
-    setOperationAction({ISD::INTRINSIC_WO_CHAIN, ISD::INTRINSIC_W_CHAIN},
-                       {MVT::i8, MVT::i16}, Custom);
-    if (Subtarget.is64Bit())
-      setOperationAction(ISD::INTRINSIC_W_CHAIN, MVT::i32, Custom);
-    else
-      setOperationAction({ISD::INTRINSIC_WO_CHAIN, ISD::INTRINSIC_W_CHAIN},
-                         MVT::i64, Custom);
-
-    setOperationAction({ISD::INTRINSIC_W_CHAIN, ISD::INTRINSIC_VOID},
-                       MVT::Other, Custom);
-
     for (MVT VT : BoolVecVTs) {
       if (!isTypeLegal(VT))
         continue;
@@ -539,8 +526,6 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
       setOperationAction(ISD::FNEARBYINT, VT, Expand);
 
       setOperationAction(ISD::FCOPYSIGN, VT, Legal);
-
-      setOperationAction({ISD::LOAD, ISD::STORE}, VT, Custom);
 
       setOperationAction(ISD::SELECT, VT, Custom);
       setOperationAction(ISD::SELECT_CC, VT, Expand);
@@ -689,12 +674,6 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   if (Subtarget.hasStdExtF())
     setTargetDAGCombine({ISD::ZERO_EXTEND, ISD::FP_TO_SINT, ISD::FP_TO_UINT,
                          ISD::FP_TO_SINT_SAT, ISD::FP_TO_UINT_SAT});
-  if (Subtarget.hasVInstructions())
-    setTargetDAGCombine({ISD::FCOPYSIGN, ISD::MGATHER, ISD::MSCATTER,
-                         ISD::VP_GATHER, ISD::VP_SCATTER, ISD::SRA, ISD::SRL,
-                         ISD::SHL, ISD::STORE, ISD::SPLAT_VECTOR});
-  if (Subtarget.useRVVForFixedLengthVectors())
-    setTargetDAGCombine(ISD::BITCAST);
 
   setLibcallName(RTLIB::FPEXT_F16_F32, "__extendhfsf2");
   setLibcallName(RTLIB::FPROUND_F32_F16, "__truncsfhf2");
@@ -735,43 +714,6 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
     Info.align = Align(4);
     Info.flags = MachineMemOperand::MOLoad | MachineMemOperand::MOStore |
                  MachineMemOperand::MOVolatile;
-    return true;
-  case Intrinsic::riscv_masked_strided_load:
-    Info.opc = ISD::INTRINSIC_W_CHAIN;
-    Info.ptrVal = I.getArgOperand(1);
-    Info.memVT = getValueType(DL, I.getType()->getScalarType());
-    Info.align = Align(DL.getTypeSizeInBits(I.getType()->getScalarType()) / 8);
-    Info.size = MemoryLocation::UnknownSize;
-    Info.flags |= MachineMemOperand::MOLoad;
-    return true;
-  case Intrinsic::riscv_masked_strided_store:
-    Info.opc = ISD::INTRINSIC_VOID;
-    Info.ptrVal = I.getArgOperand(1);
-    Info.memVT =
-        getValueType(DL, I.getArgOperand(0)->getType()->getScalarType());
-    Info.align = Align(
-        DL.getTypeSizeInBits(I.getArgOperand(0)->getType()->getScalarType()) /
-        8);
-    Info.size = MemoryLocation::UnknownSize;
-    Info.flags |= MachineMemOperand::MOStore;
-    return true;
-  case Intrinsic::riscv_seg2_load:
-  case Intrinsic::riscv_seg3_load:
-  case Intrinsic::riscv_seg4_load:
-  case Intrinsic::riscv_seg5_load:
-  case Intrinsic::riscv_seg6_load:
-  case Intrinsic::riscv_seg7_load:
-  case Intrinsic::riscv_seg8_load:
-    Info.opc = ISD::INTRINSIC_W_CHAIN;
-    Info.ptrVal = I.getArgOperand(0);
-    Info.memVT =
-        getValueType(DL, I.getType()->getStructElementType(0)->getScalarType());
-    Info.align =
-        Align(DL.getTypeSizeInBits(
-                  I.getType()->getStructElementType(0)->getScalarType()) /
-              8);
-    Info.size = MemoryLocation::UnknownSize;
-    Info.flags |= MachineMemOperand::MOLoad;
     return true;
   }
 }
@@ -1892,17 +1834,6 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
         IntNo == Intrinsic::riscv_zip ? RISCVISD::ZIP : RISCVISD::UNZIP;
     return DAG.getNode(Opc, DL, XLenVT, Op.getOperand(1));
   }
-  case Intrinsic::riscv_vmv_x_s:
-    assert(Op.getValueType() == XLenVT && "Unexpected VT!");
-    return DAG.getNode(RISCVISD::VMV_X_S, DL, Op.getValueType(),
-                       Op.getOperand(1));
-  case Intrinsic::riscv_vmv_v_x:
-    assert(0 && "sGPR to vGPR move!");
-  case Intrinsic::riscv_vfmv_v_f:
-    return DAG.getNode(RISCVISD::VFMV_V_F_VL, DL, Op.getValueType(),
-                       Op.getOperand(1), Op.getOperand(2), Op.getOperand(3));
-  case Intrinsic::riscv_vmv_s_x:
-    assert(0 && "vGPR to sGPR move!");
   }
 }
 
@@ -1976,6 +1907,69 @@ SDValue RISCVTargetLowering::lowerEH_DWARF_CFA(SDValue Op,
 
   int FI = MF.getFrameInfo().CreateFixedObject(isRISCV64 ? 8 : 4, 0, false);
   return DAG.getFrameIndex(FI, PtrVT);
+}
+
+
+SDValue RISCVTargetLowering::lowerKernArgParameterPtr(SelectionDAG &DAG,
+                                                      const SDLoc &SL,
+                                                      SDValue Chain,
+                                                      uint64_t Offset) const {
+  const DataLayout &DL = DAG.getDataLayout();
+  MachineFunction &MF = DAG.getMachineFunction();
+  MVT XLenVT = Subtarget.getXLenVT();
+
+  MVT PtrVT = getPointerTy(DL, RISCVAS::CONSTANT_ADDRESS);
+
+  MachineRegisterInfo &MRI = DAG.getMachineFunction().getRegInfo();
+  // Base address of kernel arg is stored in sGPR a0.
+  Register Reg = MF.addLiveIn(RISCV::X10, getRegClassFor(XLenVT, false));
+  SDValue BasePtr = DAG.getCopyFromReg(Chain, SL, Reg, PtrVT);
+
+  return DAG.getObjectPtrOffset(SL, BasePtr, TypeSize::Fixed(Offset));
+}
+
+
+SDValue RISCVTargetLowering::lowerKernargMemParameter(
+    SelectionDAG &DAG, EVT VT, EVT MemVT, const SDLoc &SL, SDValue Chain,
+    uint64_t Offset, Align Alignment, bool Signed,
+    const ISD::InputArg *Arg) const {
+  MachinePointerInfo PtrInfo(RISCVAS::CONSTANT_ADDRESS);
+
+  // Try to avoid using an extload by loading earlier than the argument address,
+  // and extracting the relevant bits. The load should hopefully be merged with
+  // the previous argument.
+  if (MemVT.getStoreSize() < 4 && Alignment < 4) {
+    // TODO: Handle align < 4 and size >= 4 (can happen with packed structs).
+    int64_t AlignDownOffset = alignDown(Offset, 4);
+    int64_t OffsetDiff = Offset - AlignDownOffset;
+
+    EVT IntVT = MemVT.changeTypeToInteger();
+
+    // TODO: If we passed in the base kernel offset we could have a better
+    // alignment than 4, but we don't really need it.
+    SDValue Ptr = lowerKernArgParameterPtr(DAG, SL, Chain, AlignDownOffset);
+    SDValue Load = DAG.getLoad(MVT::i32, SL, Chain, Ptr, PtrInfo, Align(4),
+                               MachineMemOperand::MODereferenceable |
+                                   MachineMemOperand::MOInvariant);
+
+    SDValue ShiftAmt = DAG.getConstant(OffsetDiff * 8, SL, MVT::i32);
+    SDValue Extract = DAG.getNode(ISD::SRL, SL, MVT::i32, Load, ShiftAmt);
+
+    SDValue ArgVal = DAG.getNode(ISD::TRUNCATE, SL, IntVT, Extract);
+    ArgVal = DAG.getNode(ISD::BITCAST, SL, MemVT, ArgVal);
+    // TODO: Support vector and half type.
+    //ArgVal = convertArgType(DAG, VT, MemVT, SL, ArgVal, Signed, Arg);
+
+    return DAG.getMergeValues({ ArgVal, Load.getValue(1) }, SL);
+  }
+
+  SDValue Ptr = lowerKernArgParameterPtr(DAG, SL, Chain, Offset);
+  SDValue Load = DAG.getLoad(MemVT, SL, Chain, Ptr, PtrInfo, Alignment,
+                             MachineMemOperand::MODereferenceable |
+                                 MachineMemOperand::MOInvariant);
+
+  // SDValue Val = convertArgType(DAG, VT, MemVT, SL, Load, Signed, Arg);
+  return DAG.getMergeValues({ Load, Load.getValue(1) }, SL);
 }
 
 // Returns the opcode of the target-specific SDNode that implements the 32-bit
@@ -4515,21 +4509,6 @@ void RISCVTargetLowering::computeKnownBitsForTargetNode(const SDValue Op,
     Known.One = computeGREVOrGORC(Known.One.getZExtValue(), 7, IsGORC);
     break;
   }
-  case RISCVISD::READ_VLENB: {
-    // We can use the minimum and maximum VLEN values to bound VLENB.  We
-    // know VLEN must be a power of two.
-    const unsigned MinVLenB = Subtarget.getRealMinVLen() / 8;
-    const unsigned MaxVLenB = Subtarget.getRealMaxVLen() / 8;
-    assert(MinVLenB > 0 && "READ_VLENB without vector extension enabled?");
-    Known.Zero.setLowBits(Log2_32(MinVLenB));
-    Known.Zero.setBitsFrom(Log2_32(MaxVLenB)+1);
-    if (MaxVLenB == MinVLenB)
-      Known.One.setBit(Log2_32(MinVLenB));
-    break;
-  }
-  case ISD::INTRINSIC_W_CHAIN:
-  case ISD::INTRINSIC_WO_CHAIN:
-    break;
   }
 }
 
@@ -5618,14 +5597,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
 
   MachineFunction &MF = DAG.getMachineFunction();
 
-  switch (CallConv) {
-  default:
-    report_fatal_error("Unsupported calling convention");
-  case CallingConv::C:
-  case CallingConv::Fast:
-  case CallingConv::SPIR_KERNEL:
-    break;
-  }
+  bool IsKernel = CallConv == CallingConv::SPIR_KERNEL;
 
   EVT PtrVT = getPointerTy(DAG.getDataLayout());
   MVT XLenVT = Subtarget.getXLenVT();
@@ -5637,7 +5609,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, IsVarArg, MF, ArgLocs, *DAG.getContext());
 
-  if (CallConv == CallingConv::SPIR_KERNEL)
+  if (IsKernel)
     analyzeFormalArgumentsCompute(MF, CCInfo, Ins);
   else
     analyzeInputArgs(MF, CCInfo, Ins, /*IsRet=*/false, CC_Ventus);
@@ -5645,40 +5617,58 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
     SDValue ArgValue;
-    // Passing f64 on RV32D with a soft float ABI must be handled as a special
-    // case.
-    if (VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::f64)
-      ArgValue = unpackF64OnRV32DSoftABI(DAG, Chain, VA, DL);
-    else if (VA.isRegLoc())
-      ArgValue = unpackFromRegLoc(DAG, Chain, VA, DL, Ins[i], *this);
-    else
-      ArgValue = unpackFromMemLoc(DAG, Chain, VA, DL);
 
-    if (VA.getLocInfo() == CCValAssign::Indirect) {
-      // If the original argument was split and passed by reference (e.g. i128
-      // on RV32), we need to load all parts of it here (using the same
-      // address). Vectors may be partly split to registers and partly to the
-      // stack, in which case the base address is partly offset and subsequent
-      // stores are relative to that.
-      InVals.push_back(DAG.getLoad(VA.getValVT(), DL, Chain, ArgValue,
-                                   MachinePointerInfo()));
-      unsigned ArgIndex = Ins[i].OrigArgIndex;
-      unsigned ArgPartOffset = Ins[i].PartOffset;
-      assert(VA.getValVT().isVector() || ArgPartOffset == 0);
-      while (i + 1 != e && Ins[i + 1].OrigArgIndex == ArgIndex) {
-        CCValAssign &PartVA = ArgLocs[i + 1];
-        unsigned PartOffset = Ins[i + 1].PartOffset - ArgPartOffset;
-        SDValue Offset = DAG.getIntPtrConstant(PartOffset, DL);
-        if (PartVA.getValVT().isScalableVector())
-          Offset = DAG.getNode(ISD::VSCALE, DL, XLenVT, Offset);
-        SDValue Address = DAG.getNode(ISD::ADD, DL, PtrVT, ArgValue, Offset);
-        InVals.push_back(DAG.getLoad(PartVA.getValVT(), DL, Chain, Address,
-                                     MachinePointerInfo()));
-        ++i;
+    if (IsKernel) {
+      // OpenCL kernel function
+      assert(VA.isMemLoc() && "Kernel arg must be passed as isMemLoc == true!");
+
+      MVT VT = Ins[i].VT;
+      EVT MemVT = VA.getLocVT();
+      const uint64_t Offset = VA.getLocMemOffset();
+      Align Alignment = commonAlignment(Align(4), Offset);
+
+      SDValue Arg = lowerKernargMemParameter(
+        DAG, VT, MemVT, DL, Chain, Offset, Alignment,
+        Ins[i].Flags.isSExt(), &Ins[i]);
+      OutChains.push_back(Arg.getValue(1));
+      InVals.push_back(Arg);
+    } else {
+      // Non-kernel function
+      // Passing f64 on RV32D with a soft float ABI must be handled as a special
+      // case.
+      if (VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::f64)
+        ArgValue = unpackF64OnRV32DSoftABI(DAG, Chain, VA, DL);
+      else if (VA.isRegLoc())
+        ArgValue = unpackFromRegLoc(DAG, Chain, VA, DL, Ins[i], *this);
+      else
+        ArgValue = unpackFromMemLoc(DAG, Chain, VA, DL);
+
+      if (VA.getLocInfo() == CCValAssign::Indirect) {
+        // If the original argument was split and passed by reference (e.g. i128
+        // on RV32), we need to load all parts of it here (using the same
+        // address). Vectors may be partly split to registers and partly to the
+        // stack, in which case the base address is partly offset and subsequent
+        // stores are relative to that.
+        InVals.push_back(DAG.getLoad(VA.getValVT(), DL, Chain, ArgValue,
+                                    MachinePointerInfo()));
+        unsigned ArgIndex = Ins[i].OrigArgIndex;
+        unsigned ArgPartOffset = Ins[i].PartOffset;
+        assert(VA.getValVT().isVector() || ArgPartOffset == 0);
+        while (i + 1 != e && Ins[i + 1].OrigArgIndex == ArgIndex) {
+          CCValAssign &PartVA = ArgLocs[i + 1];
+          unsigned PartOffset = Ins[i + 1].PartOffset - ArgPartOffset;
+          SDValue Offset = DAG.getIntPtrConstant(PartOffset, DL);
+          if (PartVA.getValVT().isScalableVector())
+            Offset = DAG.getNode(ISD::VSCALE, DL, XLenVT, Offset);
+          SDValue Address = DAG.getNode(ISD::ADD, DL, PtrVT, ArgValue, Offset);
+          InVals.push_back(DAG.getLoad(PartVA.getValVT(), DL, Chain, Address,
+                                      MachinePointerInfo()));
+          ++i;
+        }
+        continue;
       }
-      continue;
+      InVals.push_back(ArgValue);
     }
-    InVals.push_back(ArgValue);
   }
 
   if (IsVarArg) {
@@ -5848,7 +5838,7 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
   CCState ArgCCInfo(CallConv, IsVarArg, MF, ArgLocs, *DAG.getContext());
 
   analyzeOutputArgs(MF, ArgCCInfo, Outs, /*IsRet=*/false, &CLI,
-                   CC_Ventus);
+                    CC_Ventus);
 
   // Check if it's really possible to do a tail call.
   if (IsTailCall)
@@ -7176,10 +7166,7 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
   }
   case ISD::LOAD: {
     const LoadSDNode *L = cast<LoadSDNode>(N);
-    unsigned AS = L->getAddressSpace();
-    // A flat load may access private memory.
-    // return AS == AMDGPUAS::PRIVATE_ADDRESS || AS == AMDGPUAS::FLAT_ADDRESS;
-    return true;
+    return L->getAddressingMode() == RISCVAS::PRIVATE_ADDRESS;
   }
   case ISD::CALLSEQ_END:
     return true;

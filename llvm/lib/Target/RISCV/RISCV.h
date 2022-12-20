@@ -71,4 +71,27 @@ InstructionSelector *createRISCVInstructionSelector(const RISCVTargetMachine &,
                                                     RISCVRegisterBankInfo &);
 }
 
+
+/// OpenCL uses address spaces to differentiate between
+/// various memory regions on the hardware. On the CPU
+/// all of the address spaces point to the same memory,
+/// however on the GPU, each address space points to
+/// a separate piece of memory that is unique from other
+/// memory locations.
+namespace RISCVAS {
+  enum : unsigned {
+    // The maximum value for flat, generic, local, private, constant and region.
+    MAX_VENTUS_ADDRESS = 4,
+
+    FLAT_ADDRESS = 0,     ///< Address space for flat memory.
+    GLOBAL_ADDRESS = 1,   ///< Address space for global memory
+    CONSTANT_ADDRESS = 1, ///< Address space for constant memory
+    LOCAL_ADDRESS = 2,    ///< Address space for local memory.
+    PRIVATE_ADDRESS = 3,  ///< Address space for private memory.
+
+    // Some places use this if the address space can't be determined.
+    UNKNOWN_ADDRESS_SPACE = ~0u,
+  };
+}
+
 #endif
