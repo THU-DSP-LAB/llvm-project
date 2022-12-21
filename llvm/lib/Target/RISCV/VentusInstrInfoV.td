@@ -20,9 +20,9 @@ include "VentusInstrFormatsV.td"
 
 // RVV VV, VX, VI instruction pattern class for binary operations
 multiclass PatVBin<SDPatternOperator Op, list<RVInst> Insts> {
-  def : Pat<(Op VGPR:$rs1, VGPR:$rs2), (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
-
   def : Pat<(Op VGPR:$rs1, GPR:$rs2), (Insts[1] VGPR:$rs1, GPR:$rs2)>;
+
+  def : Pat<(Op VGPR:$rs1, VGPR:$rs2), (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
 
   if !eq(!size(Insts), 3) then
     def : Pat<(XLenVT (Op (XLenVT VGPR:$rs1), uimm5:$imm)),
@@ -768,8 +768,8 @@ defm VMSLTU_V : VCMP_IV_V_X_I<"vmsltu", 0b011010>;
 defm VMSLT_V : VCMP_IV_V_X_I<"vmslt", 0b011011>;
 defm VMSLEU_V : VCMP_IV_V_X_I<"vmsleu", 0b011100>;
 defm VMSLE_V : VCMP_IV_V_X_I<"vmsle", 0b011101>;
-defm VMSGTU_V : VCMP_IV_V_X_I<"vmsgtu", 0b011110>;
-defm VMSGT_V : VCMP_IV_V_X_I<"vmsgt", 0b011111>;
+defm VMSGTU_V : VCMP_IV_X_I<"vmsgtu", 0b011110>;
+defm VMSGT_V : VCMP_IV_X_I<"vmsgt", 0b011111>;
 } // RVVConstraint = NoConstraint
 
 def : InstAlias<"vmsgtu.vv $vd, $va, $vb",
