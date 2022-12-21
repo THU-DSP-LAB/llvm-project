@@ -5,7 +5,7 @@
 define i32 @vadd_v(i32 %a, i32 %b) nounwind {
 ; VENTUS-LABEL: vadd_v:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vadd.vv v2, v1, v0
+; VENTUS-NEXT:    vadd.vv v2, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = add i32 %a, %b
   ret i32 %1
