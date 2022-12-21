@@ -15,7 +15,7 @@ define i32 @urem_constant_lhs(i32 %a) nounwind {
 ; VENTUS-LABEL: urem_constant_lhs:
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    li a1, 10
-; VENTUS-NEXT:    vremu.vx v2, v1, a0
+; VENTUS-NEXT:    vremu.vx v2, v1, a1
 ; VENTUS-NEXT:    ret
   %1 = urem i32 10, %a
   ret i32 %1
