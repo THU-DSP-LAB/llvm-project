@@ -34,6 +34,7 @@
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/IPO.h"
 #include <optional>
 using namespace llvm;
@@ -200,6 +201,11 @@ TargetPassConfig *RISCVTargetMachine::createPassConfig(PassManagerBase &PM) {
 }
 
 void RISCVPassConfig::addIRPasses() {
+  if (getOptLevel() != CodeGenOpt::None) {
+    addPass(createSROAPass());
+    addPass(createInferAddressSpacesPass());
+  }
+
   addPass(createAtomicExpandPass());
 
   if (getOptLevel() != CodeGenOpt::None)

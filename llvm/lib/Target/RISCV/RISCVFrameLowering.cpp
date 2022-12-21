@@ -912,69 +912,6 @@ RISCVFrameLowering::assignRVVStackObjectOffsets(MachineFunction &MF) const {
   return std::make_pair(StackSize, RVVStackAlign);
 }
 
-static unsigned getScavSlotsNumForRVV(MachineFunction &MF) {
-  // For RVV spill, scalable stack offsets computing requires up to two scratch
-  // registers
-  static constexpr unsigned ScavSlotsNumRVVSpillScalableObject = 2;
-
-  // For RVV spill, non-scalable stack offsets computing requires up to one
-  // scratch register.
-  static constexpr unsigned ScavSlotsNumRVVSpillNonScalableObject = 1;
-
-  // ADDI instruction's destination register can be used for computing
-  // offsets. So Scalable stack offsets require up to one scratch register.
-  static constexpr unsigned ScavSlotsADDIScalableObject = 1;
-
-  static constexpr unsigned MaxScavSlotsNumKnown =
-      std::max({ScavSlotsADDIScalableObject, ScavSlotsNumRVVSpillScalableObject,
-                ScavSlotsNumRVVSpillNonScalableObject});
-
-  unsigned MaxScavSlotsNum = 0;
-  if (!MF.getSubtarget<RISCVSubtarget>().hasVInstructions())
-    return false;
-  for (const MachineBasicBlock &MBB : MF)
-    for (const MachineInstr &MI : MBB) {
-      bool IsRVVSpill = RISCV::isRVVSpill(MI);
-      for (auto &MO : MI.operands()) {
-        if (!MO.isFI())
-          continue;
-        bool IsScalableVectorID = MF.getFrameInfo().getStackID(MO.getIndex()) ==
-                                  TargetStackID::ScalableVector;
-        if (IsRVVSpill) {
-          MaxScavSlotsNum = std::max(
-              MaxScavSlotsNum, IsScalableVectorID
-                                   ? ScavSlotsNumRVVSpillScalableObject
-                                   : ScavSlotsNumRVVSpillNonScalableObject);
-        } else if (MI.getOpcode() == RISCV::ADDI && IsScalableVectorID) {
-          MaxScavSlotsNum =
-              std::max(MaxScavSlotsNum, ScavSlotsADDIScalableObject);
-        }
-      }
-      if (MaxScavSlotsNum == MaxScavSlotsNumKnown)
-        return MaxScavSlotsNumKnown;
-    }
-  return MaxScavSlotsNum;
-}
-
-static bool hasRVVFrameObject(const MachineFunction &MF) {
-  // Originally, the function will scan all the stack objects to check whether
-  // if there is any scalable vector object on the stack or not. However, it
-  // causes errors in the register allocator. In issue 53016, it returns false
-  // before RA because there is no RVV stack objects. After RA, it returns true
-  // because there are spilling slots for RVV values during RA. It will not
-  // reserve BP during register allocation and generate BP access in the PEI
-  // pass due to the inconsistent behavior of the function.
-  //
-  // The function is changed to use hasVInstructions() as the return value. It
-  // is not precise, but it can make the register allocation correct.
-  //
-  // FIXME: Find a better way to make the decision or revisit the solution in
-  // D103622.
-  //
-  // Refer to https://github.com/llvm/llvm-project/issues/53016.
-  return MF.getSubtarget<RISCVSubtarget>().hasVInstructions();
-}
-
 static unsigned estimateFunctionSizeInBytes(const MachineFunction &MF,
                                             const RISCVInstrInfo &TII) {
   unsigned FnSize = 0;
@@ -1022,20 +959,6 @@ void RISCVFrameLowering::processFunctionBeforeFrameFinalized(
   const TargetRegisterClass *RC = &RISCV::GPRRegClass;
   auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
 
-  int64_t RVVStackSize;
-  Align RVVStackAlign;
-  std::tie(RVVStackSize, RVVStackAlign) = assignRVVStackObjectOffsets(MF);
-
-  RVFI->setRVVStackSize(RVVStackSize);
-  RVFI->setRVVStackAlign(RVVStackAlign);
-
-  if (hasRVVFrameObject(MF)) {
-    // Ensure the entire stack is aligned to at least the RVV requirement: some
-    // scalable-vector object alignments are not considered by the
-    // target-independent code.
-    MFI.ensureMaxAlignment(RVVStackAlign);
-  }
-
   unsigned ScavSlotsNum = 0;
 
   // estimateStackSize has been observed to under-estimate the final stack
@@ -1048,11 +971,6 @@ void RISCVFrameLowering::processFunctionBeforeFrameFinalized(
   bool IsLargeFunction = !isInt<20>(estimateFunctionSizeInBytes(MF, *TII));
   if (IsLargeFunction)
     ScavSlotsNum = std::max(ScavSlotsNum, 1u);
-
-  // RVV loads & stores have no capacity to hold the immediate address offsets
-  // so we must always reserve an emergency spill slot if the MachineFunction
-  // contains any RVV spills.
-  ScavSlotsNum = std::max(ScavSlotsNum, getScavSlotsNumForRVV(MF));
 
   for (unsigned I = 0; I < ScavSlotsNum; I++) {
     int FI = MFI.CreateStackObject(RegInfo->getSpillSize(*RC),
@@ -1084,8 +1002,7 @@ void RISCVFrameLowering::processFunctionBeforeFrameFinalized(
 // by the frame pointer.
 // Let eliminateCallFramePseudoInstr preserve stack space for it.
 bool RISCVFrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
-  return !MF.getFrameInfo().hasVarSizedObjects() &&
-         !(hasFP(MF) && hasRVVFrameObject(MF));
+  return !MF.getFrameInfo().hasVarSizedObjects();
 }
 
 // Eliminate ADJCALLSTACKDOWN, ADJCALLSTACKUP pseudo instructions.

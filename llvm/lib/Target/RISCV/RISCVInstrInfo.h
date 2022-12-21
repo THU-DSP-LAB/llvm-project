@@ -205,10 +205,6 @@ bool isSEXT_W(const MachineInstr &MI);
 bool isZEXT_W(const MachineInstr &MI);
 bool isZEXT_B(const MachineInstr &MI);
 
-// Returns true if the given MI is an RVV instruction opcode for which we may
-// expect to see a FrameIndex operand.
-bool isRVVSpill(const MachineInstr &MI);
-
 // Implemented in RISCVGenInstrInfo.inc
 int16_t getNamedOperandIdx(uint16_t Opcode, uint16_t NamedIndex);
 

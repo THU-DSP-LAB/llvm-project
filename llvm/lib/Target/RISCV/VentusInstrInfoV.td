@@ -30,18 +30,28 @@ multiclass PatVBin<SDPatternOperator Op, list<RVInst> Insts> {
 }
 
 // RVV VX, VI instruction pattern class for binary operations
-multiclass PatXIBin<SDPatternOperator Op, list<RVInst> Insts, 
+multiclass PatXIBin<SDPatternOperator Op, list<RVInst> Insts,
                                 int IsReverseOperation = 0> {
   if !eq(IsReverseOperation, 1) then {
     def : Pat<(Op GPR:$rs1, VGPR:$rs2), (Insts[0] VGPR:$rs2, GPR:$rs1)>;
     def : Pat<(XLenVT (Op uimm5:$imm, (XLenVT VGPR:$rs1))),
               (Insts[1] VGPR:$rs1, uimm5:$imm)>;
-  } 
+  }
   else {
     def : Pat<(Op VGPR:$rs1, GPR:$rs2), (Insts[0] VGPR:$rs1, GPR:$rs2)>;
     def : Pat<(XLenVT (Op (XLenVT VGPR:$rs1), uimm5:$imm)),
               (Insts[1] VGPR:$rs1, uimm5:$imm)>;
   }
+}
+
+multiclass DivergentLdPat<PatFrag LoadOp, RVInst Inst, ValueType vt = XLenVT> {
+  def : Pat<(vt (DivergentUnaryFrag<LoadOp> (AddrRegImm GPR:$rs1, VGPR:$vs2))),
+            (Inst GPR:$rs1, VGPR:$vs2)>;
+}
+
+multiclass DivergentStPat<PatFrag StoreOp, RVInst Inst, ValueType vt = XLenVT> {
+  def : Pat<(DivergentBinFrag<StoreOp> (vt VGPR:$vs3), (AddrRegImm GPR:$rs1, VGPR:$vs2)),
+            (Inst VGPR:$vs3, GPR:$rs1, VGPR:$vs2)>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -112,9 +122,6 @@ def simm5_plus1_nonzero : ImmLeaf<XLenVT,
 // Scheduling definitions.
 //===----------------------------------------------------------------------===//
 
-class VMVRSched<int n>: Sched <[!cast<SchedReadWrite>("WriteVMov" # n # "V"),
-                                !cast<SchedReadWrite>("ReadVMov" # n # "V")]>;
-
 class VLESched : Sched <[WriteVLDE, ReadVLDX]>;
 
 class VSESched : Sched <[WriteVSTE, ReadVSTEV, ReadVSTX]>;
@@ -141,38 +148,24 @@ class VLFSched : Sched <[ReadVLDX]>;
 // Instruction class templates
 //===----------------------------------------------------------------------===//
 
+//
+// FIXME: The encoding for vluxei/vsuxei is not correct!!
+//
+
 let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in {
-// unit-stride load vd, (rs1), vm
-class VUnitStrideLoad<RISCVWidth width, string opcodestr>
+// vluxei vd, (rs1), vs2 which vs2 is used as offset, not indexing
+class VectorLoad<RISCVWidth width, string opcodestr>
     : RVInstVLU<0b000, width.Value{3}, LUMOPUnitStride, width.Value{2-0},
                 (outs VGPR:$vd),
-                (ins GPRMem:$rs1), opcodestr, "$vd, (${rs1})">;
-
-let RVVConstraint = NoConstraint in {
-// unit-stride whole register load vl<nf>r.v vd, (rs1)
-class VWholeLoad<bits<3> nf, RISCVWidth width, string opcodestr, RegisterClass VRC>
-    : RVInstVLU<nf, width.Value{3}, LUMOPUnitStrideWholeReg,
-                width.Value{2-0}, (outs VRC:$vd), (ins GPRMem:$rs1),
-                opcodestr, "$vd, (${rs1})"> {
-  let Uses = [];
-}
-} // RVVConstraint = NoConstraint
+                (ins GPRMem:$rs1, VGPR:$vs2), opcodestr, "$vd, (${rs1}), $vs2">;
 } // hasSideEffects = 0, mayLoad = 1, mayStore = 0
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in {
-// unit-stride store vd, vs3, (rs1), vm
-class VUnitStrideStore<RISCVWidth width, string opcodestr>
+// vsuxei vs3, (rs1), vs2 where vs2 is used as offset, not indexing
+class VectorStore<RISCVWidth width, string opcodestr>
     : RVInstVSU<0b000, width.Value{3}, SUMOPUnitStride, width.Value{2-0},
-                (outs), (ins VGPR:$vs3, GPRMem:$rs1), opcodestr,
-                "$vs3, (${rs1})">;
-
-// vs<nf>r.v vd, (rs1)
-class VWholeStore<bits<3> nf, string opcodestr, RegisterClass VRC>
-    : RVInstVSU<nf, 0, SUMOPUnitStrideWholeReg,
-                0b000, (outs), (ins VRC:$vs3, GPRMem:$rs1),
-                opcodestr, "$vs3, (${rs1})"> {
-  let Uses = [];
-}
+                (outs), (ins VGPR:$vs3, GPRMem:$rs1, VGPR:$vs2), opcodestr,
+                "$vs3, (${rs1}), $vs2">;
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 1
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
@@ -628,20 +621,6 @@ multiclass VNCLP_IV_V_X_I<string opcodestr, bits<6> funct6, Operand optype = sim
            Sched<[WriteVNClipI_UpperBound, ReadVNClipV_UpperBound]>;
 }
 
-multiclass VWholeLoadN<bits<3> nf, string opcodestr, RegisterClass VRC> {
-  foreach l = [8, 16, 32] in {
-    defvar w = !cast<RISCVWidth>("LSWidth" # l);
-    defvar s = !cast<SchedWrite>("WriteVLD" # !add(nf, 1) # "R");
-
-    def E # l # _V : VWholeLoad<nf, w, opcodestr # "e" # l # ".v", VRC>,
-                     Sched<[s, ReadVLDX]>;
-  }
-}
-multiclass VWholeLoadEEW64<bits<3> nf, string opcodestr, RegisterClass VRC, SchedReadWrite schedrw> {
-  def E64_V : VWholeLoad<nf, LSWidth64, opcodestr # "e64.v", VRC>,
-              Sched<[schedrw, ReadVLDX]>;
-}
-
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
     isBranch = 1, isTerminator = 1 in
 class BranchCC_vvi<bits<3> funct3, string opcodestr>
@@ -660,35 +639,17 @@ def VBLTU : BranchCC_vvi<0b110, "vbltu">;
 def VBGEU : BranchCC_vvi<0b111, "vbgeu">;
 def JOIN  : BranchCC_vvi<0b011, "join">;
 
-foreach eew = [8, 16, 32] in {
-  defvar w = !cast<RISCVWidth>("LSWidth" # eew);
+def VLUXEI8  : VectorLoad<LSWidth8,  "vluxei8.v">;
+def VLUXEI16 : VectorLoad<LSWidth16, "vluxei16.v">;
+def VLUXEI32 : VectorLoad<LSWidth32, "vluxei32.v">;
 
-  // Ventus use Vector Unit-Stride Instructions as basic load/store like sALU's
-  // lb/lh/lw.
-  // TODO: We may add load multiple byte/short/word version of it.
-  def VLE#eew#_V : VUnitStrideLoad<w, "vle"#eew#".v">, VLESched;
-  def VSE#eew#_V  : VUnitStrideStore<w,  "vse"#eew#".v">, VSESched;
-}
+// TODO: Encoding for these 2 instructions are not correct.
+//def VLUXEI8U  : VectorLoad<LSWidth8,  "vluxei8u.v">;
+//def VLUXEI16U : VectorLoad<LSWidth16, "vluxei16u.v">;
 
-let Predicates = [HasVInstructions] in {
-defm VL1R : VWholeLoadN<0, "vl1r", VGPR>;
-
-def VS1R_V : VWholeStore<0, "vs1r.v", VGPR>,
-             Sched<[WriteVST1R, ReadVST1R, ReadVSTX]>;
-
-def : InstAlias<"vl1r.v $vd, (${rs1})", (VL1RE8_V VGPR:$vd, GPR:$rs1)>;
-} // Predicates = [HasVInstructions]
-
-let Predicates = [HasVInstructionsI64] in {
-// Vector Unit-Stride Instructions
-def VLE64_V : VUnitStrideLoad<LSWidth64, "vle64.v">,
-              VLESched;
-
-def VSE64_V : VUnitStrideStore<LSWidth64, "vse64.v">,
-              VSESched;
-
-defm VL1R: VWholeLoadEEW64<0, "vl1r", VGPR, WriteVLD1R>;
-} // Predicates = [HasVInstructionsI64]
+def VSUXEI8  : VectorStore<LSWidth8,  "vsuxei8.v">;
+def VSUXEI16 : VectorStore<LSWidth16, "vsuxei16.v">;
+def VSUXEI32 : VectorStore<LSWidth32, "vsuxei32.v">;
 
 let Predicates = [HasVInstructions] in {
 // Vector Single-Width Integer Add and Subtract
@@ -1098,6 +1059,16 @@ defm : PatVBin<DivergentBinFrag<udiv>, [VDIVU_VV, VDIVU_VX]>;
 defm : PatVBin<DivergentBinFrag<srem>, [VREM_VV, VREM_VX]>;
 defm : PatVBin<DivergentBinFrag<urem>, [VREMU_VV, VREMU_VX]>;
 
+defm : DivergentLdPat<sextloadi8, VLUXEI8>;
+defm : DivergentLdPat<extloadi8, VLUXEI8>;
+defm : DivergentLdPat<sextloadi16, VLUXEI16>;
+defm : DivergentLdPat<extloadi16, VLUXEI16>;
+defm : DivergentLdPat<load, VLUXEI32>;
+//defm : DivergentLdPat<zextloadi8, VLUXEI8U>;
+//defm : DivergentLdPat<zextloadi16, VLUXEI16U>;
+defm : DivergentStPat<truncstorei8, VSUXEI8>;
+defm : DivergentStPat<truncstorei16, VSUXEI16>;
+defm : DivergentStPat<store, VSUXEI32>;
 
 // Match `riscv_brcc` and lower to the appropriate RISC-V branch instruction.
 class DivergentBccPat<CondCode Cond, RVInstVB Inst>

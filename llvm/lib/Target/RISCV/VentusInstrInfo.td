@@ -1572,7 +1572,6 @@ def PseudoZEXT_W : Pseudo<(outs GPR:$rd), (ins GPR:$rs), [], "zext.w", "$rd, $rs
 } // Predicates = [IsRV64], ...
 
 /// Loads
-
 multiclass UniformLdPat<PatFrag LoadOp, RVInst Inst, ValueType vt = XLenVT> {
   def : Pat<(vt (UniformUnaryFrag<LoadOp> (AddrRegImm GPR:$rs1, simm12:$imm12))),
             (Inst GPR:$rs1, simm12:$imm12)>;
@@ -1587,7 +1586,6 @@ defm : UniformLdPat<zextloadi8, LBU>;
 defm : UniformLdPat<zextloadi16, LHU>;
 
 /// Stores
-
 multiclass UniformStPat<PatFrag StoreOp, RVInst Inst, RegisterClass StTy,
                         ValueType vt> {
   def : Pat<(UniformBinFrag<StoreOp> (vt StTy:$rs2), (AddrRegImm GPR:$rs1, simm12:$imm12)),
