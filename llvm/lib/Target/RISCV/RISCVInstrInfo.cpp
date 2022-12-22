@@ -136,7 +136,8 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   // vGPR -> sGPR move
   if (RISCV::GPRRegClass.contains(DstReg) &&
       RISCV::VGPRRegClass.contains(SrcReg)) {
-    BuildMI(MBB, MBBI, DL, get(RISCV::VMV_X_S), DstReg).addReg(SrcReg);
+    BuildMI(MBB, MBBI, DL, get(RISCV::VMV_X_S), DstReg)
+        .addReg(SrcReg, getKillRegState(KillSrc));
     return;
   }
 
@@ -144,7 +145,8 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   if (RISCV::GPRRegClass.contains(SrcReg) &&
       RISCV::VGPRRegClass.contains(DstReg)) {
     BuildMI(MBB, MBBI, DL, get(RISCV::VMV_S_X), DstReg)
-        .addReg(DstReg).addReg(SrcReg);
+        .addReg(DstReg, RegState::Undef)
+        .addReg(SrcReg, getKillRegState(KillSrc));
     return;
   }
 
