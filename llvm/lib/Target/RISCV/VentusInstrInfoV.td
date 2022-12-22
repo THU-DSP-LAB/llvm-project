@@ -1108,14 +1108,9 @@ multiclass SelectCC_VGPR_rrirr<RegisterClass valty> {
                               [(set valty:$dst,
                                 (DivergentSelectCCFrag:$cc VGPR:$lhs, VGPR:$rhs, cond,
                                                         valty:$truev, valty:$falsev))]>;
-  // Explicitly select 0 in the condition to X0. The register coalescer doesn't
-  // always do it.
-  def : Pat<(DivergentSelectCCFrag:$cc VGPR:$lhs, 0, cond, valty:$truev,
-                                     valty:$falsev),
-            (!cast<Instruction>(NAME#"_Using_CC_VGPR") VGPR:$lhs, X0,
-             (IntCCtoRISCVCC $cc), valty:$truev, valty:$falsev)>;
 }
 
+// This pattern with about multiclass generate a node: Select_VGPR_Using_CC_VGPR
 let Predicates = [NoShortForwardBranchOpt] in
 defm Select_VGPR : SelectCC_VGPR_rrirr<VGPR>;
 
