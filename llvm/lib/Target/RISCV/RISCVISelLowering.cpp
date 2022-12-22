@@ -5110,8 +5110,8 @@ static MachineBasicBlock *emitVSelectPseudo(MachineInstr &MI,
   MachineBasicBlock *IfTrueMBB = F->CreateMachineBasicBlock(LLVM_BB);
   MachineBasicBlock *IfFalseMBB = F->CreateMachineBasicBlock(LLVM_BB);
 
-  F->insert(I, IfTrueMBB);
   F->insert(I, IfFalseMBB);
+  F->insert(I, IfTrueMBB);
   F->insert(I, JoinMBB);
 
   // Transfer debug instructions associated with the selects to JoinMBB.
