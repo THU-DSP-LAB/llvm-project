@@ -186,6 +186,7 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
 
   MachineFunction *MF = MBB.getParent();
   MachineFrameInfo &MFI = MF->getFrameInfo();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
 
   unsigned Opcode;
   if (RISCV::GPRRegClass.hasSubClassEq(RC)) {
@@ -206,11 +207,23 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
       MachinePointerInfo::getFixedStack(*MF, FI), MachineMemOperand::MOStore,
       MFI.getObjectSize(FI), MFI.getObjectAlign(FI));
 
-  BuildMI(MBB, I, DL, get(Opcode))
-      .addReg(SrcReg, getKillRegState(IsKill))
-      .addFrameIndex(FI)
-      .addImm(0)
-      .addMemOperand(MMO);
+  // We don't have 0 VGPR in Ventus.
+  if (Opcode == RISCV::VSUXEI32) {
+    Register ScratchReg = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
+    BuildMI(MBB, I, DL, get(RISCV::VMV_S_X))
+      .addReg(ScratchReg).addReg(RISCV::X0);
+    BuildMI(MBB, I, DL, get(Opcode))
+        .addReg(SrcReg, getKillRegState(IsKill))
+        .addFrameIndex(FI)
+        .addReg(ScratchReg)
+        .addMemOperand(MMO);
+  } else {
+    BuildMI(MBB, I, DL, get(Opcode))
+        .addReg(SrcReg, getKillRegState(IsKill))
+        .addFrameIndex(FI)
+        .addImm(0)
+        .addMemOperand(MMO);
+  }
 }
 
 void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
@@ -224,6 +237,7 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 
   MachineFunction *MF = MBB.getParent();
   MachineFrameInfo &MFI = MF->getFrameInfo();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
 
   unsigned Opcode;
   if (RISCV::GPRRegClass.hasSubClassEq(RC)) {
@@ -244,10 +258,21 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
       MachinePointerInfo::getFixedStack(*MF, FI), MachineMemOperand::MOLoad,
       MFI.getObjectSize(FI), MFI.getObjectAlign(FI));
 
-  BuildMI(MBB, I, DL, get(Opcode), DstReg)
-      .addFrameIndex(FI)
-      .addImm(0)
-      .addMemOperand(MMO);
+  // We don't have 0 VGPR in Ventus.
+  if (Opcode == RISCV::VLUXEI32) {
+    Register ScratchReg = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
+    BuildMI(MBB, I, DL, get(RISCV::VMV_S_X))
+      .addReg(ScratchReg).addReg(RISCV::X0);
+    BuildMI(MBB, I, DL, get(Opcode), DstReg)
+        .addFrameIndex(FI)
+        .addImm(ScratchReg)
+        .addMemOperand(MMO);
+  } else {
+    BuildMI(MBB, I, DL, get(Opcode), DstReg)
+        .addFrameIndex(FI)
+        .addImm(0)
+        .addMemOperand(MMO);
+  }
 }
 
 MachineInstr *RISCVInstrInfo::foldMemoryOperandImpl(
