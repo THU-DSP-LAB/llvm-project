@@ -628,6 +628,15 @@ class BranchCC_vvi<bits<3> funct3, string opcodestr>
     : RVInstVB<funct3, (outs), (ins VGPR:$vs1, VGPR:$vs2, simm13_lsb0:$imm12),
                opcodestr, "$vs1, $vs2, $imm12">, Sched<[]>;
 
+let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
+    isBarrier = 1, isBranch = 1, isTerminator = 1 in
+class Branch_i<bits<3> funct3, string opcodestr>
+    : RVInstVB<funct3, (outs), (ins simm13_lsb0:$imm12),
+               opcodestr, "$imm12">, Sched<[]> {
+  let vs1 = 0;
+  let vs2 = 0;
+}
+
 //===----------------------------------------------------------------------===//
 // Instructions
 //===----------------------------------------------------------------------===//
@@ -638,7 +647,7 @@ def VBLT  : BranchCC_vvi<0b100, "vblt">;
 def VBGE  : BranchCC_vvi<0b101, "vbge">;
 def VBLTU : BranchCC_vvi<0b110, "vbltu">;
 def VBGEU : BranchCC_vvi<0b111, "vbgeu">;
-def JOIN  : BranchCC_vvi<0b011, "join">;
+def JOIN  : Branch_i<0b011, "join">;
 
 def VLUXEI8  : VectorLoad<LSWidth8,  "vluxei8.v">;
 def VLUXEI16 : VectorLoad<LSWidth16, "vluxei16.v">;
@@ -1067,6 +1076,48 @@ defm : DivergentLdPat<load, VLUXEI32>;
 defm : DivergentStPat<truncstorei8, VSUXEI8>;
 defm : DivergentStPat<truncstorei16, VSUXEI16>;
 defm : DivergentStPat<store, VSUXEI32>;
+
+
+def DivergentSelectCCFrag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
+                                       node:$truev, node:$falsev),
+                                  (riscv_selectcc node:$lhs, node:$rhs,
+                                                  node:$cc, node:$truev,
+                                                  node:$falsev),
+                                  [{ return N->isDivergent(); }],
+                                  IntCCtoRISCVCC>;
+
+let Predicates = [HasShortForwardBranchOpt],
+    Constraints = "$dst = $falsev", isCommutable = 1, Size = 8 in {
+// This instruction moves $truev to $dst when the condition is true. It will
+// be expanded to control flow in RISCVExpandPseudoInsts.
+def PseudoCCMOVVGPR : Pseudo<(outs VGPR:$dst),
+                            (ins VGPR:$lhs, VGPR:$rhs, ixlenimm:$cc,
+                             VGPR:$falsev, VGPR:$truev),
+                            [(set VGPR:$dst,
+                              (DivergentSelectCCFrag:$cc VGPR:$lhs, VGPR:$rhs,
+                                                       cond, VGPR:$truev,
+                                                       VGPR:$falsev))]>,
+                     Sched<[WriteSFB, ReadSFB, ReadSFB, ReadSFB, ReadSFB]>;
+}
+
+multiclass SelectCC_VGPR_rrirr<RegisterClass valty> {
+  let usesCustomInserter = 1 in
+  def _Using_CC_VGPR : Pseudo<(outs valty:$dst),
+                              (ins VGPR:$lhs, VGPR:$rhs, ixlenimm:$cc,
+                               valty:$truev, valty:$falsev),
+                              [(set valty:$dst,
+                                (DivergentSelectCCFrag:$cc VGPR:$lhs, VGPR:$rhs, cond,
+                                                        valty:$truev, valty:$falsev))]>;
+  // Explicitly select 0 in the condition to X0. The register coalescer doesn't
+  // always do it.
+  def : Pat<(DivergentSelectCCFrag:$cc VGPR:$lhs, 0, cond, valty:$truev,
+                                     valty:$falsev),
+            (!cast<Instruction>(NAME#"_Using_CC_VGPR") VGPR:$lhs, X0,
+             (IntCCtoRISCVCC $cc), valty:$truev, valty:$falsev)>;
+}
+
+let Predicates = [NoShortForwardBranchOpt] in
+defm Select_VGPR : SelectCC_VGPR_rrirr<VGPR>;
 
 // Match `riscv_brcc` and lower to the appropriate RISC-V branch instruction.
 class DivergentBccPat<CondCode Cond, RVInstVB Inst>

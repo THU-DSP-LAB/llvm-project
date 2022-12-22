@@ -385,19 +385,40 @@ static RISCVCC::CondCode getCondFromBranchOpc(unsigned Opc) {
   default:
     return RISCVCC::COND_INVALID;
   case RISCV::BEQ:
+  case RISCV::VBEQ:
     return RISCVCC::COND_EQ;
   case RISCV::BNE:
+  case RISCV::VBNE:
     return RISCVCC::COND_NE;
   case RISCV::BLT:
+  case RISCV::VBLT:
     return RISCVCC::COND_LT;
   case RISCV::BGE:
+  case RISCV::VBGE:
     return RISCVCC::COND_GE;
   case RISCV::BLTU:
+  case RISCV::VBLTU:
     return RISCVCC::COND_LTU;
   case RISCV::BGEU:
+  case RISCV::VBGEU:
     return RISCVCC::COND_GEU;
   }
 }
+
+static bool isDivergentBranch(MachineInstr &I) {
+  switch (I.getOpcode()) {
+  default:
+    return false;
+  case RISCV::VBEQ:
+  case RISCV::VBNE:
+  case RISCV::VBLT:
+  case RISCV::VBGE:
+  case RISCV::VBLTU:
+  case RISCV::VBGEU:
+    return true;
+  }
+}
+
 
 // The contents of values added to Cond are not examined outside of
 // RISCVInstrInfo, giving us flexibility in what to push to it. For RISCV, we
@@ -430,6 +451,25 @@ const MCInstrDesc &RISCVInstrInfo::getBrCond(RISCVCC::CondCode CC) const {
     return get(RISCV::BLTU);
   case RISCVCC::COND_GEU:
     return get(RISCV::BGEU);
+  }
+}
+
+const MCInstrDesc &RISCVInstrInfo::getVBrCond(RISCVCC::CondCode CC) const {
+  switch (CC) {
+  default:
+    llvm_unreachable("Unknown condition code!");
+  case RISCVCC::COND_EQ:
+    return get(RISCV::VBEQ);
+  case RISCVCC::COND_NE:
+    return get(RISCV::VBNE);
+  case RISCVCC::COND_LT:
+    return get(RISCV::VBLT);
+  case RISCVCC::COND_GE:
+    return get(RISCV::VBGE);
+  case RISCVCC::COND_LTU:
+    return get(RISCV::VBLTU);
+  case RISCVCC::COND_GEU:
+    return get(RISCV::VBGEU);
   }
 }
 
@@ -535,6 +575,7 @@ unsigned RISCVInstrInfo::removeBranch(MachineBasicBlock &MBB,
   // Remove the branch.
   if (BytesRemoved)
     *BytesRemoved += getInstSizeInBytes(*I);
+  IsDivergentBranch = isDivergentBranch(*I);
   I->eraseFromParent();
 
   I = MBB.end();
@@ -548,6 +589,7 @@ unsigned RISCVInstrInfo::removeBranch(MachineBasicBlock &MBB,
   // Remove the branch.
   if (BytesRemoved)
     *BytesRemoved += getInstSizeInBytes(*I);
+  IsDivergentBranch = isDivergentBranch(*I);
   I->eraseFromParent();
   return 2;
 }
@@ -565,9 +607,11 @@ unsigned RISCVInstrInfo::insertBranch(
   assert((Cond.size() == 3 || Cond.size() == 0) &&
          "RISCV branch conditions have two components!");
 
+  unsigned UncondBr = IsDivergentBranch ? RISCV::JOIN : RISCV::PseudoBR;
+
   // Unconditional branch.
   if (Cond.empty()) {
-    MachineInstr &MI = *BuildMI(&MBB, DL, get(RISCV::PseudoBR)).addMBB(TBB);
+    MachineInstr &MI = *BuildMI(&MBB, DL, get(UncondBr)).addMBB(TBB);
     if (BytesAdded)
       *BytesAdded += getInstSizeInBytes(MI);
     return 1;
@@ -575,8 +619,9 @@ unsigned RISCVInstrInfo::insertBranch(
 
   // Either a one or two-way conditional branch.
   auto CC = static_cast<RISCVCC::CondCode>(Cond[0].getImm());
+  const MCInstrDesc& CondBr = IsDivergentBranch ? getVBrCond(CC) : getBrCond(CC);
   MachineInstr &CondMI =
-      *BuildMI(&MBB, DL, getBrCond(CC)).add(Cond[1]).add(Cond[2]).addMBB(TBB);
+      *BuildMI(&MBB, DL, CondBr).add(Cond[1]).add(Cond[2]).addMBB(TBB);
   if (BytesAdded)
     *BytesAdded += getInstSizeInBytes(CondMI);
 
@@ -585,7 +630,7 @@ unsigned RISCVInstrInfo::insertBranch(
     return 1;
 
   // Two-way conditional branch.
-  MachineInstr &MI = *BuildMI(&MBB, DL, get(RISCV::PseudoBR)).addMBB(FBB);
+  MachineInstr &MI = *BuildMI(&MBB, DL, get(UncondBr)).addMBB(FBB);
   if (BytesAdded)
     *BytesAdded += getInstSizeInBytes(MI);
   return 2;
@@ -596,6 +641,7 @@ void RISCVInstrInfo::insertIndirectBranch(MachineBasicBlock &MBB,
                                           MachineBasicBlock &RestoreBB,
                                           const DebugLoc &DL, int64_t BrOffset,
                                           RegScavenger *RS) const {
+  assert(0 && "Add vALU support!");
   assert(RS && "RegScavenger required for long branching");
   assert(MBB.empty() &&
          "new block should be inserted for expanding unconditional branch");
@@ -682,11 +728,18 @@ bool RISCVInstrInfo::isBranchOffsetInRange(unsigned BranchOp,
   default:
     llvm_unreachable("Unexpected opcode!");
   case RISCV::BEQ:
+  case RISCV::VBEQ:
   case RISCV::BNE:
+  case RISCV::VBNE:
   case RISCV::BLT:
+  case RISCV::VBLT:
   case RISCV::BGE:
+  case RISCV::VBGE:
   case RISCV::BLTU:
+  case RISCV::VBLTU:
   case RISCV::BGEU:
+  case RISCV::VBGEU:
+  case RISCV::JOIN:
     return isIntN(13, BrOffset);
   case RISCV::JAL:
   case RISCV::PseudoBR:

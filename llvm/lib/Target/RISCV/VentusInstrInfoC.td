@@ -753,7 +753,7 @@ def : InstAlias<"c.fsdsp $rs2, (${rs1})", (C_FSDSP FPR64C:$rs2, SPMem:$rs1, 0)>;
 //===----------------------------------------------------------------------===//
 
 class SelectCompressOpt<CondCode Cond>: Pat<
-  (riscv_selectcc_frag:$select GPR:$lhs, simm12_no6:$Constant, Cond,
+  (UniformSelectCCFrag:$select GPR:$lhs, simm12_no6:$Constant, Cond,
    GPR:$truev, GPR:$falsev),
   (Select_GPR_Using_CC_GPR (ADDI GPR:$lhs, (NegImm simm12:$Constant)), X0,
                            (IntCCtoRISCVCC $select), GPR:$truev, GPR:$falsev)>;

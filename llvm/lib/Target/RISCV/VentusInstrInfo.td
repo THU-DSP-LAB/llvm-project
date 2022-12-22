@@ -1386,11 +1386,12 @@ def IntCCtoRISCVCC : SDNodeXForm<riscv_selectcc, [{
   return CurDAG->getTargetConstant(BrCC, SDLoc(N), Subtarget->getXLenVT());
 }]>;
 
-def riscv_selectcc_frag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
+def UniformSelectCCFrag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
                                        node:$truev, node:$falsev),
                                   (riscv_selectcc node:$lhs, node:$rhs,
                                                   node:$cc, node:$truev,
-                                                  node:$falsev), [{}],
+                                                  node:$falsev),
+                                  [{ return !N->isDivergent(); }],
                                   IntCCtoRISCVCC>;
 
 let Predicates = [HasShortForwardBranchOpt],
@@ -1401,7 +1402,7 @@ def PseudoCCMOVGPR : Pseudo<(outs GPR:$dst),
                             (ins GPR:$lhs, GPR:$rhs, ixlenimm:$cc,
                              GPR:$falsev, GPR:$truev),
                             [(set GPR:$dst,
-                              (riscv_selectcc_frag:$cc GPR:$lhs, GPR:$rhs,
+                              (UniformSelectCCFrag:$cc GPR:$lhs, GPR:$rhs,
                                                        cond, GPR:$truev,
                                                        GPR:$falsev))]>,
                      Sched<[WriteSFB, ReadSFB, ReadSFB, ReadSFB, ReadSFB]>;
@@ -1413,11 +1414,11 @@ multiclass SelectCC_GPR_rrirr<RegisterClass valty> {
                              (ins GPR:$lhs, GPR:$rhs, ixlenimm:$cc,
                               valty:$truev, valty:$falsev),
                              [(set valty:$dst,
-                               (riscv_selectcc_frag:$cc GPR:$lhs, GPR:$rhs, cond,
+                               (UniformSelectCCFrag:$cc GPR:$lhs, GPR:$rhs, cond,
                                                         valty:$truev, valty:$falsev))]>;
   // Explicitly select 0 in the condition to X0. The register coalescer doesn't
   // always do it.
-  def : Pat<(riscv_selectcc_frag:$cc GPR:$lhs, 0, cond, valty:$truev,
+  def : Pat<(UniformSelectCCFrag:$cc GPR:$lhs, 0, cond, valty:$truev,
                                      valty:$falsev),
             (!cast<Instruction>(NAME#"_Using_CC_GPR") GPR:$lhs, X0,
              (IntCCtoRISCVCC $cc), valty:$truev, valty:$falsev)>;

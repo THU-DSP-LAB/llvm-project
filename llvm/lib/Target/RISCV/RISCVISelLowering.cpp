@@ -4771,6 +4771,7 @@ static bool isSelectPseudo(MachineInstr &MI) {
   default:
     return false;
   case RISCV::Select_GPR_Using_CC_GPR:
+  case RISCV::Select_VGPR_Using_CC_VGPR:
   case RISCV::Select_FPR16_Using_CC_GPR:
   case RISCV::Select_FPR32_Using_CC_GPR:
   case RISCV::Select_FPR64_Using_CC_GPR:
@@ -5050,6 +5051,120 @@ static MachineBasicBlock *emitSelectPseudo(MachineInstr &MI,
   return TailMBB;
 }
 
+
+static MachineBasicBlock *emitVSelectPseudo(MachineInstr &MI,
+                                            MachineBasicBlock *BB,
+                                            const RISCVSubtarget &Subtarget) {
+  // vALU version of emitSelectPseudo, explicit join instruction should be
+  // generated for each branch.
+  //
+  // We produce the following control flow:
+  //              HeadMBB
+  //               /  \
+  //         TrueMBB  FalseMBB
+  //               \  /
+  //              JoinMBB
+  Register LHS = MI.getOperand(1).getReg();
+  Register RHS = MI.getOperand(2).getReg();
+  auto CC = static_cast<RISCVCC::CondCode>(MI.getOperand(3).getImm());
+
+  SmallVector<MachineInstr *, 4> SelectDebugValues;
+  SmallSet<Register, 4> SelectDests;
+  SelectDests.insert(MI.getOperand(0).getReg());
+
+  MachineInstr *LastSelectPseudo = &MI;
+
+  for (auto E = BB->end(), SequenceMBBI = MachineBasicBlock::iterator(MI);
+       SequenceMBBI != E; ++SequenceMBBI) {
+    if (SequenceMBBI->isDebugInstr())
+      continue;
+    if (isSelectPseudo(*SequenceMBBI)) {
+      if (SequenceMBBI->getOperand(1).getReg() != LHS ||
+          SequenceMBBI->getOperand(2).getReg() != RHS ||
+          SequenceMBBI->getOperand(3).getImm() != CC ||
+          SelectDests.count(SequenceMBBI->getOperand(4).getReg()) ||
+          SelectDests.count(SequenceMBBI->getOperand(5).getReg()))
+        break;
+      LastSelectPseudo = &*SequenceMBBI;
+      SequenceMBBI->collectDebugValues(SelectDebugValues);
+      SelectDests.insert(SequenceMBBI->getOperand(0).getReg());
+      continue;
+    }
+    if (SequenceMBBI->hasUnmodeledSideEffects() ||
+        SequenceMBBI->mayLoadOrStore())
+      break;
+    if (llvm::any_of(SequenceMBBI->operands(), [&](MachineOperand &MO) {
+          return MO.isReg() && MO.isUse() && SelectDests.count(MO.getReg());
+        }))
+      break;
+  }
+
+  const RISCVInstrInfo &TII = *Subtarget.getInstrInfo();
+  const BasicBlock *LLVM_BB = BB->getBasicBlock();
+  DebugLoc DL = MI.getDebugLoc();
+  MachineFunction::iterator I = ++BB->getIterator();
+
+  MachineBasicBlock *HeadMBB = BB;
+  MachineFunction *F = BB->getParent();
+  MachineBasicBlock *JoinMBB = F->CreateMachineBasicBlock(LLVM_BB);
+  MachineBasicBlock *IfTrueMBB = F->CreateMachineBasicBlock(LLVM_BB);
+  MachineBasicBlock *IfFalseMBB = F->CreateMachineBasicBlock(LLVM_BB);
+
+  F->insert(I, IfTrueMBB);
+  F->insert(I, IfFalseMBB);
+  F->insert(I, JoinMBB);
+
+  // Transfer debug instructions associated with the selects to JoinMBB.
+  for (MachineInstr *DebugInstr : SelectDebugValues) {
+    JoinMBB->push_back(DebugInstr->removeFromParent());
+  }
+
+  // Move all instructions after the sequence to JoinMBB.
+  JoinMBB->splice(JoinMBB->end(), HeadMBB,
+                  std::next(LastSelectPseudo->getIterator()), HeadMBB->end());
+  // Update machine-CFG edges by transferring all successors of the current
+  // block to the new block which will contain the Phi nodes for the selects.
+  JoinMBB->transferSuccessorsAndUpdatePHIs(HeadMBB);
+  // Set the successors for HeadMBB.
+  HeadMBB->addSuccessor(IfTrueMBB);
+  HeadMBB->addSuccessor(IfFalseMBB);
+
+  // Insert appropriate branch.
+  BuildMI(HeadMBB, DL, TII.getVBrCond(CC))
+    .addReg(LHS)
+    .addReg(RHS)
+    .addMBB(IfTrueMBB);
+
+  // Insert appropriate join
+  BuildMI(IfTrueMBB, DL, TII.get(RISCV::JOIN)).addMBB(JoinMBB);
+  BuildMI(IfFalseMBB, DL, TII.get(RISCV::JOIN)).addMBB(JoinMBB);
+
+  IfTrueMBB->addSuccessor(JoinMBB);
+  IfFalseMBB->addSuccessor(JoinMBB);
+
+  // Create PHIs for all of the select pseudo-instructions.
+  auto SelectMBBI = MI.getIterator();
+  auto SelectEnd = std::next(LastSelectPseudo->getIterator());
+  auto InsertionPoint = JoinMBB->begin();
+  while (SelectMBBI != SelectEnd) {
+    auto Next = std::next(SelectMBBI);
+    if (isSelectPseudo(*SelectMBBI)) {
+      // %Result = phi [ %TrueValue, IfTrueMBB ], [ %FalseValue, IfFalseMBB ]
+      BuildMI(*JoinMBB, InsertionPoint, SelectMBBI->getDebugLoc(),
+              TII.get(RISCV::PHI), SelectMBBI->getOperand(0).getReg())
+          .addReg(SelectMBBI->getOperand(4).getReg())
+          .addMBB(IfTrueMBB)
+          .addReg(SelectMBBI->getOperand(5).getReg())
+          .addMBB(IfFalseMBB);
+      SelectMBBI->eraseFromParent();
+    }
+    SelectMBBI = Next;
+  }
+
+  F->getProperties().reset(MachineFunctionProperties::Property::NoPHIs);
+  return JoinMBB;
+}
+
 static MachineBasicBlock *emitFROUND(MachineInstr &MI, MachineBasicBlock *MBB,
                                      const RISCVSubtarget &Subtarget) {
   unsigned CmpOpc, F2IOpc, I2FOpc, FSGNJOpc, FSGNJXOpc;
@@ -5172,6 +5287,8 @@ RISCVTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
   case RISCV::Select_FPR32_Using_CC_GPR:
   case RISCV::Select_FPR64_Using_CC_GPR:
     return emitSelectPseudo(MI, BB, Subtarget);
+  case RISCV::Select_VGPR_Using_CC_VGPR:
+    return emitVSelectPseudo(MI, BB, Subtarget);
   case RISCV::BuildPairF64Pseudo:
     return emitBuildPairF64Pseudo(MI, BB);
   case RISCV::SplitF64Pseudo:
