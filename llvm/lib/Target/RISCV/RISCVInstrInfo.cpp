@@ -415,6 +415,7 @@ static bool isDivergentBranch(MachineInstr &I) {
   case RISCV::VBGE:
   case RISCV::VBLTU:
   case RISCV::VBGEU:
+  case RISCV::JOIN:
     return true;
   }
 }
@@ -537,19 +538,22 @@ bool RISCVInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
     return true;
 
   // Handle a single unconditional branch.
-  if (NumTerminators == 1 && I->getDesc().isUnconditionalBranch()) {
+  if (NumTerminators == 1 && !isDivergentBranch(*I) &&
+      I->getDesc().isUnconditionalBranch()) {
     TBB = getBranchDestBlock(*I);
     return false;
   }
 
   // Handle a single conditional branch.
-  if (NumTerminators == 1 && I->getDesc().isConditionalBranch()) {
+  if (NumTerminators == 1 && !isDivergentBranch(*I) &&
+      I->getDesc().isConditionalBranch()) {
     parseCondBranch(*I, TBB, Cond);
     return false;
   }
 
   // Handle a conditional branch followed by an unconditional branch.
-  if (NumTerminators == 2 && std::prev(I)->getDesc().isConditionalBranch() &&
+  if (NumTerminators == 2 && !isDivergentBranch(*I) &&
+      std::prev(I)->getDesc().isConditionalBranch() &&
       I->getDesc().isUnconditionalBranch()) {
     parseCondBranch(*std::prev(I), TBB, Cond);
     FBB = getBranchDestBlock(*I);
