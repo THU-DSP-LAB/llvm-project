@@ -998,7 +998,6 @@ defm VFNCVT_ROD_F_F_W : VNCVTF_FV_VS2<"vfncvt.rod.f.f.w", 0b010010, 0b10101>;
 } // Constraints = "@earlyclobber $vd", mayRaiseFPException = true
 } // Predicates = HasVInstructionsAnyF]
 
-let Predicates = [HasVInstructions] in {
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 // Integer Scalar Move Instructions
@@ -1013,8 +1012,6 @@ def VMV_S_X : RVInstV2<0b010000, 0b00000, OPMVX, (outs VGPR:$vd_wb),
 } // RVVConstraint = NoConstraint
 
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
-
-} // Predicates = [HasVInstructions]
 
 
 let Predicates = [HasVInstructionsAnyF] in {
