@@ -144,6 +144,27 @@ class RVInstV<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, dag outs,
   let Opcode = OPC_OP_V.Value;
 }
 
+class RVInstVLX<bits<3> nf, bit mew, bits<3> width,
+                dag outs, dag ins, string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+  bits<5> vs2;
+  bits<5> rs1;
+  bits<5> vd;
+
+  let Inst{31-29} = nf;
+  let Inst{28} = mew;
+  let Inst{27-26} = 1; // mop[1:0]: Indexed-unordered
+  let Inst{25} = 1;
+  let Inst{24-20} = vs2;
+  let Inst{19-15} = rs1;
+  let Inst{14-12} = width;
+  let Inst{11-7} = vd;
+  let Opcode = OPC_LOAD_FP.Value;
+
+  let Uses = [VTYPE, VL];
+  let RVVConstraint = VMConstraint;
+}
+
 class RVInstVLU<bits<3> nf, bit mew, RISCVLSUMOP lumop,
                 bits<3> width, dag outs, dag ins, string opcodestr,
                 string argstr>
@@ -180,7 +201,7 @@ class RVInstVSU<bits<3> nf, bit mew, RISCVLSUMOP sumop,
   let Opcode = OPC_STORE_FP.Value;
 }
 
-class RVInstVSX<bits<3> nf, bit mew, RISCVMOP mop, bits<3> width,
+class RVInstVSX<bits<3> nf, bit mew, bits<3> width,
                 dag outs, dag ins, string opcodestr, string argstr>
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
   bits<5> vs2;
@@ -189,7 +210,7 @@ class RVInstVSX<bits<3> nf, bit mew, RISCVMOP mop, bits<3> width,
 
   let Inst{31-29} = nf;
   let Inst{28} = mew;
-  let Inst{27-26} = mop.Value;
+  let Inst{27-26} = 1; // mop[1:0]: Index-unordered
   let Inst{25} = 1;
   let Inst{24-20} = vs2;
   let Inst{19-15} = rs1;

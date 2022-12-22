@@ -45,12 +45,12 @@ multiclass PatXIBin<SDPatternOperator Op, list<RVInst> Insts,
 }
 
 multiclass DivergentLdPat<PatFrag LoadOp, RVInst Inst, ValueType vt = XLenVT> {
-  def : Pat<(vt (DivergentUnaryFrag<LoadOp> (AddrRegImm GPR:$rs1, VGPR:$vs2))),
+  def : Pat<(vt (DivergentUnaryFrag<LoadOp> (AddrRegReg GPR:$rs1, VGPR:$vs2))),
             (Inst GPR:$rs1, VGPR:$vs2)>;
 }
 
 multiclass DivergentStPat<PatFrag StoreOp, RVInst Inst, ValueType vt = XLenVT> {
-  def : Pat<(DivergentBinFrag<StoreOp> (vt VGPR:$vs3), (AddrRegImm GPR:$rs1, VGPR:$vs2)),
+  def : Pat<(DivergentBinFrag<StoreOp> (vt VGPR:$vs3), (AddrRegReg GPR:$rs1, VGPR:$vs2)),
             (Inst VGPR:$vs3, GPR:$rs1, VGPR:$vs2)>;
 }
 
@@ -153,20 +153,21 @@ class VLFSched : Sched <[ReadVLDX]>;
 //
 
 let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in {
-// vluxei vd, (rs1), vs2 which vs2 is used as offset, not indexing
+// Indexed load vd, (rs1), vs2
 class VectorLoad<RISCVWidth width, string opcodestr>
-    : RVInstVLU<0b000, width.Value{3}, LUMOPUnitStride, width.Value{2-0},
+    : RVInstVLX<0b000, width.Value{3}, width.Value{2-0},
                 (outs VGPR:$vd),
-                (ins GPRMem:$rs1, VGPR:$vs2), opcodestr, "$vd, (${rs1}), $vs2">;
-} // hasSideEffects = 0, mayLoad = 1, mayStore = 0
+                (ins GPRMem:$rs1, VGPR:$vs2), opcodestr,
+                "$vd, (${rs1}), $vs2">;
+}
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in {
-// vsuxei vs3, (rs1), vs2 where vs2 is used as offset, not indexing
+// Indexed store vd, vs3, (rs1), vs2
 class VectorStore<RISCVWidth width, string opcodestr>
-    : RVInstVSU<0b000, width.Value{3}, SUMOPUnitStride, width.Value{2-0},
-                (outs), (ins VGPR:$vs3, GPRMem:$rs1, VGPR:$vs2), opcodestr,
-                "$vs3, (${rs1}), $vs2">;
-} // hasSideEffects = 0, mayLoad = 0, mayStore = 1
+    : RVInstVSX<0b000, width.Value{3}, width.Value{2-0}, (outs),
+                (ins VGPR:$vs3, GPRMem:$rs1, VGPR:$vs2),
+                opcodestr, "$vs3, (${rs1}), $vs2">;
+}
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 // op vd, vs2, vs1

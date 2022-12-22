@@ -828,8 +828,110 @@ bool RISCVDAGToDAGISel::SelectAddrRegImm(SDValue Addr, SDValue &Base,
 
   Base = Addr;
   Offset = CurDAG->getTargetConstant(0, DL, VT);
+
   return true;
 }
+
+// FIXME: This is almost identical to SelectAddrRegImm now, but it will be
+// modified to support more vALU addressing patterns.
+bool RISCVDAGToDAGISel::SelectAddrRegReg(SDValue Addr, SDValue &Base,
+                                         SDValue &Offset) {
+  if (SelectAddrFrameIndex(Addr, Base, Offset))
+    return true;
+
+  SDLoc DL(Addr);
+  MVT VT = Addr.getSimpleValueType();
+
+  if (Addr.getOpcode() == RISCVISD::ADD_LO) {
+    Base = Addr.getOperand(0);
+    assert(0 && "TODO");
+    // Offset = Addr.getOperand(1);
+    return true;
+  }
+
+  if (CurDAG->isBaseWithConstantOffset(Addr)) {
+    int64_t CVal = cast<ConstantSDNode>(Addr.getOperand(1))->getSExtValue();
+    if (isInt<12>(CVal)) {
+      Base = Addr.getOperand(0);
+      if (Base.getOpcode() == RISCVISD::ADD_LO) {
+        SDValue LoOperand = Base.getOperand(1);
+        if (auto *GA = dyn_cast<GlobalAddressSDNode>(LoOperand)) {
+          // If the Lo in (ADD_LO hi, lo) is a global variable's address
+          // (its low part, really), then we can rely on the alignment of that
+          // variable to provide a margin of safety before low part can overflow
+          // the 12 bits of the load/store offset. Check if CVal falls within
+          // that margin; if so (low part + CVal) can't overflow.
+          const DataLayout &DL = CurDAG->getDataLayout();
+          Align Alignment = commonAlignment(
+              GA->getGlobal()->getPointerAlignment(DL), GA->getOffset());
+          if (CVal == 0 || Alignment > CVal) {
+            int64_t CombinedOffset = CVal + GA->getOffset();
+            Base = Base.getOperand(0);
+            assert(0 && "TODO");
+            /*
+            Offset = CurDAG->getTargetGlobalAddress(
+                GA->getGlobal(), SDLoc(LoOperand), LoOperand.getValueType(),
+                CombinedOffset, GA->getTargetFlags());
+            */
+            return true;
+          }
+        }
+      }
+
+      if (auto *FIN = dyn_cast<FrameIndexSDNode>(Base))
+        Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), VT);
+      assert(0 && "TODO");
+      // Offset = CurDAG->getTargetConstant(CVal, DL, VT);
+      return true;
+    }
+  }
+
+  // Handle ADD with large immediates.
+  if (Addr.getOpcode() == ISD::ADD && isa<ConstantSDNode>(Addr.getOperand(1))) {
+    int64_t CVal = cast<ConstantSDNode>(Addr.getOperand(1))->getSExtValue();
+    assert(!isInt<12>(CVal) && "simm12 not already handled?");
+
+    // Handle immediates in the range [-4096,-2049] or [2048, 4094]. We can use
+    // an ADDI for part of the offset and fold the rest into the load/store.
+    // This mirrors the AddiPair PatFrag in RISCVInstrInfo.td.
+    if (isInt<12>(CVal / 2) && isInt<12>(CVal - CVal / 2)) {
+      int64_t Adj = CVal < 0 ? -2048 : 2047;
+      Base = SDValue(
+          CurDAG->getMachineNode(RISCV::ADDI, DL, VT, Addr.getOperand(0),
+                                 CurDAG->getTargetConstant(Adj, DL, VT)),
+          0);
+      assert(0 && "TODO");
+      // Offset = CurDAG->getTargetConstant(CVal - Adj, DL, VT);
+      return true;
+    }
+
+    // For larger immediates, we might be able to save one instruction from
+    // constant materialization by folding the Lo12 bits of the immediate into
+    // the address. We should only do this if the ADD is only used by loads and
+    // stores that can fold the lo12 bits. Otherwise, the ADD will get iseled
+    // separately with the full materialized immediate creating extra
+    // instructions.
+    if (isWorthFoldingAdd(Addr) &&
+        selectConstantAddr(CurDAG, DL, VT, Subtarget, Addr.getOperand(1), Base,
+                           Offset)) {
+      // Insert an ADD instruction with the materialized Hi52 bits.
+      Base = SDValue(
+          CurDAG->getMachineNode(RISCV::ADD, DL, VT, Addr.getOperand(0), Base),
+          0);
+      return true;
+    }
+  }
+
+  if (selectConstantAddr(CurDAG, DL, VT, Subtarget, Addr, Base, Offset))
+    return true;
+
+  Base = Addr;
+  Offset = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), DL, RISCV::X0,
+                                  Subtarget->getXLenVT());
+
+  return true;
+}
+
 
 bool RISCVDAGToDAGISel::selectShiftMask(SDValue N, unsigned ShiftWidth,
                                         SDValue &ShAmt) {
