@@ -5,7 +5,7 @@
 define i32 @urem(i32 %a, i32 %b) nounwind {
 ; VENTUS-LABEL: urem:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vremu.vv v2, v1, v0
+; VENTUS-NEXT:    vremu.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = urem i32 %a, %b
   ret i32 %1
@@ -14,8 +14,9 @@ define i32 @urem(i32 %a, i32 %b) nounwind {
 define i32 @urem_constant_lhs(i32 %a) nounwind {
 ; VENTUS-LABEL: urem_constant_lhs:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    li a1, 10
-; VENTUS-NEXT:    vremu.vx v2, v1, a1
+; VENTUS-NEXT:    li x10, 10
+; VENTUS-NEXT:    vmv.s.x v1, x10
+; VENTUS-NEXT:    vremu.vv v0, v1, v0
 ; VENTUS-NEXT:    ret
   %1 = urem i32 10, %a
   ret i32 %1
@@ -24,7 +25,7 @@ define i32 @urem_constant_lhs(i32 %a) nounwind {
 define i32 @srem(i32 %a, i32 %b) nounwind {
 ; VENTUS-LABEL: srem:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vrem.vv v2, v1, v0
+; VENTUS-NEXT:    vrem.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = srem i32 %a, %b
   ret i32 %1
@@ -36,7 +37,9 @@ define i32 @srem_pow2(i32 %a) nounwind {
 ; VENTUS-NEXT:    vsra.vi v1, v0, 31
 ; VENTUS-NEXT:    vsrl.vi v1, v1, 29
 ; VENTUS-NEXT:    vadd.vv v1, v0, v1
-; VENTUS-NEXT:    vandi.vi v1, v1, -8
+; VENTUS-NEXT:    li x10, -8
+; VENTUS-NEXT:    vmv.s.x v2, x10
+; VENTUS-NEXT:    vand.vv v1, v1, v2
 ; VENTUS-NEXT:    vsub.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = srem i32 %a, 8
@@ -46,12 +49,13 @@ define i32 @srem_pow2(i32 %a) nounwind {
 define i32 @srem_pow2_2(i32 %a) nounwind {
 ; VENTUS-LABEL: srem_pow2_2:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    srai a1, a0, 31
-; VENTUS-NEXT:    srli a1, a1, 16
-; VENTUS-NEXT:    add a1, a0, a1
-; VENTUS-NEXT:    lui a2, 1048560
-; VENTUS-NEXT:    and a1, a1, a2
-; VENTUS-NEXT:    sub a0, a0, a1
+; VENTUS-NEXT:    vsra.vi v1, v0, 31
+; VENTUS-NEXT:    vsrl.vi v1, v1, 16
+; VENTUS-NEXT:    vadd.vv v1, v0, v1
+; VENTUS-NEXT:    lui x10, 1048560
+; VENTUS-NEXT:    vmv.s.x v2, x10
+; VENTUS-NEXT:    vand.vv v1, v1, v2
+; VENTUS-NEXT:    vsub.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = srem i32 %a, 65536
   ret i32 %1
@@ -60,8 +64,9 @@ define i32 @srem_pow2_2(i32 %a) nounwind {
 define i32 @srem_constant_lhs(i32 %a) nounwind {
 ; VENTUS-LABEL: srem_constant_lhs:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    li a1, -10
-; VENTUS-NEXT:    rem a0, a1, a0
+; VENTUS-NEXT:    li x10, -10
+; VENTUS-NEXT:    vmv.s.x v1, x10
+; VENTUS-NEXT:    vrem.vv v0, v1, v0
 ; VENTUS-NEXT:    ret
   %1 = srem i32 -10, %a
   ret i32 %1
