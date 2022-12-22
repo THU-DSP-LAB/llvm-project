@@ -582,7 +582,6 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
           {ISD::SADDSAT, ISD::UADDSAT, ISD::SSUBSAT, ISD::USUBSAT}, VT,
           Custom);
 
-      setOperationAction(ISD::VSELECT, VT, Custom);
       setOperationAction(ISD::SELECT_CC, VT, Expand);
 
       setOperationAction(
@@ -1223,79 +1222,16 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
     return lowerShiftRightParts(Op, DAG, true);
   case ISD::SRL_PARTS:
     return lowerShiftRightParts(Op, DAG, false);
-  case ISD::BITCAST: {
-    SDLoc DL(Op);
-    EVT VT = Op.getValueType();
-    SDValue Op0 = Op.getOperand(0);
-    EVT Op0VT = Op0.getValueType();
-    MVT XLenVT = Subtarget.getXLenVT();
-    if (VT == MVT::f16 && Op0VT == MVT::i16 && Subtarget.hasStdExtZfh()) {
-      SDValue NewOp0 = DAG.getNode(ISD::ANY_EXTEND, DL, XLenVT, Op0);
-      SDValue FPConv = DAG.getNode(RISCVISD::FMV_H_X, DL, MVT::f16, NewOp0);
-      return FPConv;
-    }
-    if (VT == MVT::f32 && Op0VT == MVT::i32 && Subtarget.is64Bit() &&
-        Subtarget.hasStdExtF()) {
-      SDValue NewOp0 = DAG.getNode(ISD::ANY_EXTEND, DL, MVT::i64, Op0);
-      SDValue FPConv =
-          DAG.getNode(RISCVISD::FMV_W_X_RV64, DL, MVT::f32, NewOp0);
-      return FPConv;
-    }
-
-    // Consider other scalar<->scalar casts as legal if the types are legal.
-    // Otherwise expand them.
-    if (!VT.isVector() && !Op0VT.isVector()) {
-      if (isTypeLegal(VT) && isTypeLegal(Op0VT))
-        return Op;
-      return SDValue();
-    }
-
-    assert(0 && "TODO: vALU!!");
-    return SDValue();
-  }
+  case ISD::BITCAST:
+    return lowerBITCAST(Op, DAG);
   case ISD::INTRINSIC_WO_CHAIN:
     return LowerINTRINSIC_WO_CHAIN(Op, DAG);
-  case ISD::BITREVERSE: {
-    MVT VT = Op.getSimpleValueType();
-    SDLoc DL(Op);
-    assert(Subtarget.hasStdExtZbkb() && "Unexpected custom legalization");
-    assert(Op.getOpcode() == ISD::BITREVERSE && "Unexpected opcode");
-    // Expand bitreverse to a bswap(rev8) followed by brev8.
-    SDValue BSwap = DAG.getNode(ISD::BSWAP, DL, VT, Op.getOperand(0));
-    return DAG.getNode(RISCVISD::BREV8, DL, VT, BSwap);
-  }
-  case ISD::FPOWI: {
-    // Custom promote f16 powi with illegal i32 integer type on RV64. Once
-    // promoted this will be legalized into a libcall by LegalizeIntegerTypes.
-    if (Op.getValueType() == MVT::f16 && Subtarget.is64Bit() &&
-        Op.getOperand(1).getValueType() == MVT::i32) {
-      SDLoc DL(Op);
-      SDValue Op0 = DAG.getNode(ISD::FP_EXTEND, DL, MVT::f32, Op.getOperand(0));
-      SDValue Powi =
-          DAG.getNode(ISD::FPOWI, DL, MVT::f32, Op0, Op.getOperand(1));
-      return DAG.getNode(ISD::FP_ROUND, DL, MVT::f16, Powi,
-                         DAG.getIntPtrConstant(0, DL, /*isTarget=*/true));
-    }
-    return SDValue();
-  }
-  case ISD::SELECT_CC: {
-    // This occurs because we custom legalize SETGT and SETUGT for setcc. That
-    // causes LegalizeDAG to think we need to custom legalize select_cc. Expand
-    // into separate SETCC+SELECT_CC just like LegalizeDAG.
-    SDValue Tmp1 = Op.getOperand(0);
-    SDValue Tmp2 = Op.getOperand(1);
-    SDValue True = Op.getOperand(2);
-    SDValue False = Op.getOperand(3);
-    EVT VT = Op.getValueType();
-    SDValue CC = Op.getOperand(4);
-    EVT CmpVT = Tmp1.getValueType();
-    EVT CCVT =
-        getSetCCResultType(DAG.getDataLayout(), *DAG.getContext(), CmpVT);
-    SDLoc DL(Op);
-    SDValue Cond =
-        DAG.getNode(ISD::SETCC, DL, CCVT, Tmp1, Tmp2, CC, Op->getFlags());
-    return DAG.getSelect(DL, VT, Cond, True, False);
-  }
+  case ISD::BITREVERSE:
+    return lowerBITREVERSE(Op, DAG);
+  case ISD::FPOWI:
+    return lowerFPOWI(Op, DAG);
+  case ISD::SELECT_CC:
+    return lowerSELECT_CC(Op, DAG);
   case ISD::CTLZ_ZERO_UNDEF:
   case ISD::CTTZ_ZERO_UNDEF:
     return lowerCTLZ_CTTZ_ZERO_UNDEF(Op, DAG);
@@ -1514,6 +1450,83 @@ SDValue RISCVTargetLowering::lowerGlobalTLSAddress(SDValue Op,
   return Addr;
 }
 
+SDValue RISCVTargetLowering::lowerBITCAST(SDValue Op, SelectionDAG &DAG) const {
+  SDLoc DL(Op);
+  EVT VT = Op.getValueType();
+  SDValue Op0 = Op.getOperand(0);
+  EVT Op0VT = Op0.getValueType();
+  MVT XLenVT = Subtarget.getXLenVT();
+  if (VT == MVT::f16 && Op0VT == MVT::i16 && Subtarget.hasStdExtZfh()) {
+    SDValue NewOp0 = DAG.getNode(ISD::ANY_EXTEND, DL, XLenVT, Op0);
+    SDValue FPConv = DAG.getNode(RISCVISD::FMV_H_X, DL, MVT::f16, NewOp0);
+    return FPConv;
+  }
+  if (VT == MVT::f32 && Op0VT == MVT::i32 && Subtarget.is64Bit() &&
+      Subtarget.hasStdExtF()) {
+    SDValue NewOp0 = DAG.getNode(ISD::ANY_EXTEND, DL, MVT::i64, Op0);
+    SDValue FPConv =
+        DAG.getNode(RISCVISD::FMV_W_X_RV64, DL, MVT::f32, NewOp0);
+    return FPConv;
+  }
+
+  // Consider other scalar<->scalar casts as legal if the types are legal.
+  // Otherwise expand them.
+  if (!VT.isVector() && !Op0VT.isVector()) {
+    if (isTypeLegal(VT) && isTypeLegal(Op0VT))
+      return Op;
+    return SDValue();
+  }
+
+  assert(0 && "TODO: vALU!!");
+  return SDValue();
+}
+
+SDValue
+RISCVTargetLowering::lowerBITREVERSE(SDValue Op, SelectionDAG &DAG) const {
+  MVT VT = Op.getSimpleValueType();
+  SDLoc DL(Op);
+  assert(Subtarget.hasStdExtZbkb() && "Unexpected custom legalization");
+  assert(Op.getOpcode() == ISD::BITREVERSE && "Unexpected opcode");
+  // Expand bitreverse to a bswap(rev8) followed by brev8.
+  SDValue BSwap = DAG.getNode(ISD::BSWAP, DL, VT, Op.getOperand(0));
+  return DAG.getNode(RISCVISD::BREV8, DL, VT, BSwap);
+}
+
+/// Custom promote f16 powi with illegal i32 integer type on RV64. Once
+/// promoted this will be legalized into a libcall by LegalizeIntegerTypes.
+SDValue RISCVTargetLowering::lowerFPOWI(SDValue Op, SelectionDAG &DAG) const {
+  if (Op.getValueType() == MVT::f16 && Subtarget.is64Bit() &&
+      Op.getOperand(1).getValueType() == MVT::i32) {
+    SDLoc DL(Op);
+    SDValue Op0 = DAG.getNode(ISD::FP_EXTEND, DL, MVT::f32, Op.getOperand(0));
+    SDValue Powi =
+        DAG.getNode(ISD::FPOWI, DL, MVT::f32, Op0, Op.getOperand(1));
+    return DAG.getNode(ISD::FP_ROUND, DL, MVT::f16, Powi,
+                        DAG.getIntPtrConstant(0, DL, /*isTarget=*/true));
+  }
+  return SDValue();
+}
+
+/// This occurs because we custom legalize SETGT and SETUGT for setcc. That
+/// causes LegalizeDAG to think we need to custom legalize select_cc. Expand
+/// into separate SETCC+SELECT_CC just like LegalizeDAG.
+SDValue
+RISCVTargetLowering::lowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const {
+  SDValue Tmp1 = Op.getOperand(0);
+  SDValue Tmp2 = Op.getOperand(1);
+  SDValue True = Op.getOperand(2);
+  SDValue False = Op.getOperand(3);
+  EVT VT = Op.getValueType();
+  SDValue CC = Op.getOperand(4);
+  EVT CmpVT = Tmp1.getValueType();
+  EVT CCVT =
+      getSetCCResultType(DAG.getDataLayout(), *DAG.getContext(), CmpVT);
+  SDLoc DL(Op);
+  SDValue Cond =
+      DAG.getNode(ISD::SETCC, DL, CCVT, Tmp1, Tmp2, CC, Op->getFlags());
+  return DAG.getSelect(DL, VT, Cond, True, False);
+}
+
 SDValue RISCVTargetLowering::lowerSELECT(SDValue Op, SelectionDAG &DAG) const {
   SDValue CondV = Op.getOperand(0);
   SDValue TrueV = Op.getOperand(1);
@@ -1521,13 +1534,6 @@ SDValue RISCVTargetLowering::lowerSELECT(SDValue Op, SelectionDAG &DAG) const {
   SDLoc DL(Op);
   MVT VT = Op.getSimpleValueType();
   MVT XLenVT = Subtarget.getXLenVT();
-
-  // Lower vector SELECTs to VSELECTs by splatting the condition.
-  if (VT.isVector()) {
-    MVT SplatCondVT = VT.changeVectorElementType(MVT::i1);
-    SDValue CondSplat = DAG.getSplat(SplatCondVT, DL, CondV);
-    return DAG.getNode(ISD::VSELECT, DL, VT, CondSplat, TrueV, FalseV);
-  }
 
   if (!Subtarget.hasShortForwardBranchOpt()) {
     // (select c, -1, y) -> -c | y
