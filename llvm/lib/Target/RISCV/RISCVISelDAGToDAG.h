@@ -32,6 +32,8 @@ public:
     return "RISCV DAG->DAG Pattern Instruction Selection";
   }
 
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
+
   bool runOnMachineFunction(MachineFunction &MF) override {
     Subtarget = &MF.getSubtarget<RISCVSubtarget>();
     return SelectionDAGISel::runOnMachineFunction(MF);

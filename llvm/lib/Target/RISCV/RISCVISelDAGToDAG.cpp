@@ -15,6 +15,7 @@
 #include "MCTargetDesc/RISCVMatInt.h"
 #include "RISCVISelLowering.h"
 #include "RISCVMachineFunctionInfo.h"
+#include "llvm/Analysis/LegacyDivergenceAnalysis.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/IR/IntrinsicsRISCV.h"
 #include "llvm/Support/Alignment.h"
@@ -36,6 +37,11 @@ static unsigned getLastNonGlueOrChainOpIdx(const SDNode *Node) {
   if (Node->getOperand(LastOpIdx).getValueType() == MVT::Other)
     --LastOpIdx;
   return LastOpIdx;
+}
+
+void RISCVDAGToDAGISel::getAnalysisUsage(AnalysisUsage &AU) const {
+  AU.addRequired<LegacyDivergenceAnalysis>();
+  SelectionDAGISel::getAnalysisUsage(AU);
 }
 
 void RISCVDAGToDAGISel::PostprocessISelDAG() {
