@@ -212,8 +212,9 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   // We don't have 0 VGPR in Ventus.
   if (Opcode == RISCV::VSUXEI32) {
     Register ScratchReg = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
-    BuildMI(MBB, I, DL, get(RISCV::VMV_S_X))
-      .addReg(ScratchReg).addReg(RISCV::X0);
+    BuildMI(MBB, I, DL, get(RISCV::VMV_S_X), ScratchReg)
+        .addReg(ScratchReg, RegState::Undef)
+        .addReg(RISCV::X0);
     BuildMI(MBB, I, DL, get(Opcode))
         .addReg(SrcReg, getKillRegState(IsKill))
         .addFrameIndex(FI)
@@ -263,8 +264,9 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   // We don't have 0 VGPR in Ventus.
   if (Opcode == RISCV::VLUXEI32) {
     Register ScratchReg = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
-    BuildMI(MBB, I, DL, get(RISCV::VMV_S_X))
-      .addReg(ScratchReg).addReg(RISCV::X0);
+    BuildMI(MBB, I, DL, get(RISCV::VMV_S_X), ScratchReg)
+        .addReg(ScratchReg, RegState::Undef)
+        .addReg(RISCV::X0);
     BuildMI(MBB, I, DL, get(Opcode), DstReg)
         .addFrameIndex(FI)
         .addImm(ScratchReg)
