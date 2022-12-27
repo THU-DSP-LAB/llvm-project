@@ -1009,7 +1009,10 @@ bool RISCVFrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
 MachineBasicBlock::iterator RISCVFrameLowering::eliminateCallFramePseudoInstr(
     MachineFunction &MF, MachineBasicBlock &MBB,
     MachineBasicBlock::iterator MI) const {
-  Register SPReg = RISCV::X2;
+
+  const RISCVMachineFunctionInfo *MFI = MF.getInfo<RISCVMachineFunctionInfo>();
+  // Kernel and normal function has different stack pointer for Ventus GPGPU.
+  Register SPReg = MFI->isEntryFunction() ? RISCV::X2 : RISCV::X4;
   DebugLoc DL = MI->getDebugLoc();
 
   if (!hasReservedCallFrame(MF)) {

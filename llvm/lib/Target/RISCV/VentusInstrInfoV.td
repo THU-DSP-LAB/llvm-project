@@ -676,6 +676,16 @@ def VSUXEI8  : VectorStore<LSWidth8,  "vsuxei8.v">;
 def VSUXEI16 : VectorStore<LSWidth16, "vsuxei16.v">;
 def VSUXEI32 : VectorStore<LSWidth32, "vsuxei32.v">;
 
+let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in {
+def VLW : RVInstSetVLi<1, (outs VGPR:$vd), (ins GPRMem:$rs1, simm11:$imm11),
+                       "vlw", "$vd, ${imm11}(${rs1})">;
+}
+
+let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in {
+def VSW : RVInstSetVLi<0, (outs), (ins VGPR:$vd, GPRMem:$rs1, simm11:$imm11),
+                       "vsw", "$vd, ${imm11}(${rs1})">;
+}
+
 let Predicates = [HasVInstructions] in {
 // Vector Single-Width Integer Add and Subtract
 defm VADD_V : VALU_IV_V_X_I<"vadd", 0b000000>;

@@ -310,6 +310,20 @@ def uimm7 : Operand<XLenVT> {
   let OperandNamespace = "RISCVOp";
 }
 
+def simm11 : Operand<XLenVT>, ImmLeaf<XLenVT, [{return isInt<11>(Imm);}]> {
+  let ParserMatchClass = SImmAsmOperand<11>;
+  let EncoderMethod = "getImmOpValue";
+  let DecoderMethod = "decodeSImmOperand<11>";
+  let MCOperandPredicate = [{
+    int64_t Imm;
+    if (MCOp.evaluateAsConstantImm(Imm))
+      return isInt<11>(Imm);
+    return MCOp.isBareSymbolRef();
+  }];
+  let OperandType = "OPERAND_SIMM11";
+  let OperandNamespace = "RISCVOp";
+}
+
 def simm12 : Operand<XLenVT>, ImmLeaf<XLenVT, [{return isInt<12>(Imm);}]> {
   let ParserMatchClass = SImmAsmOperand<12>;
   let EncoderMethod = "getImmOpValue";

@@ -48,6 +48,21 @@ def LSWidth16    : RISCVWidth<0b0101>;
 def LSWidth32    : RISCVWidth<0b0110>;
 def LSWidth64    : RISCVWidth<0b0111>;
 
+// vsetvli inst format is used for VLW/VST instruction encoding.
+class RVInstSetVLi<bit isLoad, dag outs, dag ins, string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI> {
+  bits<5> rs1;
+  bits<5> vd;
+  bits<11> imm11;
+
+  let Inst{31} = isLoad;
+  let Inst{30-20} = imm11;
+  let Inst{19-15} = rs1;
+  let Inst{14-12} = OPCFG.Value;
+  let Inst{11-7} = vd;
+  let Opcode = OPC_OP_V.Value;
+}
+
 class RVInstVV<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
                string opcodestr, string argstr>
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
@@ -160,9 +175,6 @@ class RVInstVLX<bits<3> nf, bit mew, bits<3> width,
   let Inst{14-12} = width;
   let Inst{11-7} = vd;
   let Opcode = OPC_LOAD_FP.Value;
-
-  let Uses = [VTYPE, VL];
-  let RVVConstraint = VMConstraint;
 }
 
 class RVInstVLU<bits<3> nf, bit mew, RISCVLSUMOP lumop,

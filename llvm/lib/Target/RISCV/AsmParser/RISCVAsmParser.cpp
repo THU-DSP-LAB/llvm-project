@@ -673,7 +673,7 @@ public:
            VK == RISCVMCExpr::VK_RISCV_None;
   }
 
-  bool isSImm12() const {
+  template<int Length> bool isSImm() const {
     RISCVMCExpr::VariantKind VK = RISCVMCExpr::VK_RISCV_None;
     int64_t Imm;
     bool IsValid;
@@ -683,11 +683,19 @@ public:
     if (!IsConstantImm)
       IsValid = RISCVAsmParser::classifySymbolRef(getImm(), VK);
     else
-      IsValid = isInt<12>(Imm);
+      IsValid = isInt<Length>(Imm);
     return IsValid && ((IsConstantImm && VK == RISCVMCExpr::VK_RISCV_None) ||
                        VK == RISCVMCExpr::VK_RISCV_LO ||
                        VK == RISCVMCExpr::VK_RISCV_PCREL_LO ||
                        VK == RISCVMCExpr::VK_RISCV_TPREL_LO);
+  }
+
+  bool isSImm11() const {
+    return isSImm<11>();
+  }
+
+  bool isSImm12() const {
+    return isSImm<12>();
   }
 
   bool isSImm12Lsb0() const { return isBareSimmNLsb0<12>(); }

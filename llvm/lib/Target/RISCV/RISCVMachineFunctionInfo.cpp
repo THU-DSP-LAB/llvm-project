@@ -34,6 +34,7 @@ void RISCVMachineFunctionInfo::initializeBaseYamlFields(
     const yaml::RISCVMachineFunctionInfo &YamlMFI) {
   VarArgsFrameIndex = YamlMFI.VarArgsFrameIndex;
   VarArgsSaveSize = YamlMFI.VarArgsSaveSize;
+  IsEntryFunction = YamlMFI.IsEntryFunction;
 }
 
 void RISCVMachineFunctionInfo::addSExt32Register(Register Reg) {

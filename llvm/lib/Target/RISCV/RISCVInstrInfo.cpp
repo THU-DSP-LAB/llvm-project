@@ -218,7 +218,7 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   } else if (RISCV::FPR64RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FSD;
   } else if (RISCV::VGPRRegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::VSUXEI32;
+    Opcode = RISCV::VSW;
   } else
     llvm_unreachable("Can't store this register to stack slot");
 
@@ -226,24 +226,11 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
       MachinePointerInfo::getFixedStack(*MF, FI), MachineMemOperand::MOStore,
       MFI.getObjectSize(FI), MFI.getObjectAlign(FI));
 
-  // We don't have 0 VGPR in Ventus.
-  if (Opcode == RISCV::VSUXEI32) {
-    Register ScratchReg = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
-    BuildMI(MBB, I, DL, get(RISCV::VMV_S_X), ScratchReg)
-        .addReg(ScratchReg, RegState::Undef)
-        .addReg(RISCV::X0);
-    BuildMI(MBB, I, DL, get(Opcode))
-        .addReg(SrcReg, getKillRegState(IsKill))
-        .addFrameIndex(FI)
-        .addReg(ScratchReg)
-        .addMemOperand(MMO);
-  } else {
-    BuildMI(MBB, I, DL, get(Opcode))
-        .addReg(SrcReg, getKillRegState(IsKill))
-        .addFrameIndex(FI)
-        .addImm(0)
-        .addMemOperand(MMO);
-  }
+  BuildMI(MBB, I, DL, get(Opcode))
+      .addReg(SrcReg, getKillRegState(IsKill))
+      .addFrameIndex(FI)
+      .addImm(0)
+      .addMemOperand(MMO);
 }
 
 void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
@@ -270,7 +257,7 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   } else if (RISCV::FPR64RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FLD;
   } else if (RISCV::VGPRRegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::VLUXEI32;
+    Opcode = RISCV::VLW;
   } else
     llvm_unreachable("Can't load this register from stack slot");
 
@@ -278,22 +265,10 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
       MachinePointerInfo::getFixedStack(*MF, FI), MachineMemOperand::MOLoad,
       MFI.getObjectSize(FI), MFI.getObjectAlign(FI));
 
-  // We don't have 0 VGPR in Ventus.
-  if (Opcode == RISCV::VLUXEI32) {
-    Register ScratchReg = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
-    BuildMI(MBB, I, DL, get(RISCV::VMV_S_X), ScratchReg)
-        .addReg(ScratchReg, RegState::Undef)
-        .addReg(RISCV::X0);
-    BuildMI(MBB, I, DL, get(Opcode), DstReg)
-        .addFrameIndex(FI)
-        .addImm(ScratchReg)
-        .addMemOperand(MMO);
-  } else {
-    BuildMI(MBB, I, DL, get(Opcode), DstReg)
-        .addFrameIndex(FI)
-        .addImm(0)
-        .addMemOperand(MMO);
-  }
+  BuildMI(MBB, I, DL, get(Opcode), DstReg)
+      .addFrameIndex(FI)
+      .addImm(0)
+      .addMemOperand(MMO);
 }
 
 MachineInstr *RISCVInstrInfo::foldMemoryOperandImpl(
@@ -1165,6 +1140,9 @@ bool RISCVInstrInfo::verifyInstruction(const MachineInstr &MI,
           break;
         case RISCVOp::OPERAND_VTYPEI11:
           Ok = isUInt<11>(Imm);
+          break;
+        case RISCVOp::OPERAND_SIMM11:
+          Ok = isInt<11>(Imm);
           break;
         case RISCVOp::OPERAND_SIMM12:
           Ok = isInt<12>(Imm);

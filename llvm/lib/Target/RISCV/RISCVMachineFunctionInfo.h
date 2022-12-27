@@ -26,6 +26,7 @@ namespace yaml {
 struct RISCVMachineFunctionInfo final : public yaml::MachineFunctionInfo {
   int VarArgsFrameIndex;
   int VarArgsSaveSize;
+  bool IsEntryFunction = false;
 
   RISCVMachineFunctionInfo() = default;
   RISCVMachineFunctionInfo(const llvm::RISCVMachineFunctionInfo &MFI);
@@ -38,6 +39,7 @@ template <> struct MappingTraits<RISCVMachineFunctionInfo> {
   static void mapping(IO &YamlIO, RISCVMachineFunctionInfo &MFI) {
     YamlIO.mapOptional("varArgsFrameIndex", MFI.VarArgsFrameIndex);
     YamlIO.mapOptional("varArgsSaveSize", MFI.VarArgsSaveSize);
+    YamlIO.mapOptional("isEntryFunction", MFI.IsEntryFunction, false);
   }
 };
 } // end namespace yaml
@@ -50,6 +52,9 @@ private:
   int VarArgsFrameIndex = 0;
   /// Size of the save area used for varargs
   int VarArgsSaveSize = 0;
+  /// OpenCL kernel. i.e. functions called by the hardware and not called
+  /// by other functions.
+  bool IsEntryFunction = false;
   /// FrameIndex used for transferring values between 64-bit FPRs and a pair
   /// of 32-bit GPRs via the stack.
   int MoveF64FrameIndex = -1;
@@ -82,6 +87,8 @@ public:
 
   unsigned getVarArgsSaveSize() const { return VarArgsSaveSize; }
   void setVarArgsSaveSize(int Size) { VarArgsSaveSize = Size; }
+
+  bool isEntryFunction() const { return IsEntryFunction; }
 
   int getMoveF64FrameIndex(MachineFunction &MF) {
     if (MoveF64FrameIndex == -1)
