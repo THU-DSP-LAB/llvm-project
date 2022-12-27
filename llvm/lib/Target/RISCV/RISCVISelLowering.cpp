@@ -177,6 +177,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   // Compute derived properties from the register classes.
   computeRegisterProperties(STI.getRegisterInfo());
 
+  // TODO: We have 2 stack pointers: 1 for sALU, 1 for vALU
   setStackPointerRegisterToSaveRestore(RISCV::X2);
 
   setLoadExtAction({ISD::EXTLOAD, ISD::SEXTLOAD, ISD::ZEXTLOAD}, XLenVT,
@@ -5795,6 +5796,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
   }
 
   if (IsVarArg) {
+    assert(0 && "TODO: VarArg lowering is not finished!");
     ArrayRef<MCPhysReg> ArgRegs = makeArrayRef(ArgGPRs);
     unsigned Idx = CCInfo.getFirstUnallocated(ArgRegs);
     const TargetRegisterClass *RC = &RISCV::GPRRegClass;
@@ -6301,7 +6303,8 @@ RISCVTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
       Chain = DAG.getCopyToReg(Chain, DL, RegHi, Hi, Glue);
       Glue = Chain.getValue(1);
       RetOps.push_back(DAG.getRegister(RegHi, MVT::i32));
-    } else if (VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::i32) {
+    } else if ((VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::i32) ||
+               (VA.getLocVT() == MVT::f32 && VA.getValVT() == MVT::f32)) {
       // Handle a 'normal' return.
       Chain = DAG.getCopyToReg(Chain, DL, VA.getLocReg(), Val, Glue);
 
