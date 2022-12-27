@@ -18,18 +18,20 @@ include "VentusInstrFormatsV.td"
 
 /// Generic pattern classes
 
-// RVV VV, VX, VI instruction pattern class for binary operations
-multiclass PatVBin<SDPatternOperator Op, list<RVInst> Insts> {
-  def : Pat<(Op VGPR:$rs1, GPR:$rs2), (Insts[1] VGPR:$rs1, GPR:$rs2)>;
+// RVV VV, VX, VI instruction pattern class for integer binary operations
+multiclass PatVXIBin<SDPatternOperator Op, list<RVInst> Insts> {
+  def : Pat<(Op (XLenVT VGPR:$rs1), GPR:$rs2),
+            (Insts[1] VGPR:$rs1, GPR:$rs2)>;
 
-  def : Pat<(Op VGPR:$rs1, VGPR:$rs2), (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
+  def : Pat<(Op (XLenVT VGPR:$rs1), (XLenVT VGPR:$rs2)),
+            (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
 
   if !eq(!size(Insts), 3) then
     def : Pat<(XLenVT (Op (XLenVT VGPR:$rs1), uimm5:$imm)),
               (Insts[2] VGPR:$rs1, uimm5:$imm)>;
 }
 
-// RVV VX, VI instruction pattern class for binary operations
+// RVV VX, VI instruction pattern class for integer binary operations
 multiclass PatXIBin<SDPatternOperator Op, list<RVInst> Insts,
                                 int IsReverseOperation = 0> {
   if !eq(IsReverseOperation, 1) then {
@@ -44,15 +46,15 @@ multiclass PatXIBin<SDPatternOperator Op, list<RVInst> Insts,
   }
 }
 
-multiclass DivergentLdPat<PatFrag LoadOp, RVInst Inst, ValueType vt = XLenVT> {
-  def : Pat<(vt (DivergentUnaryFrag<LoadOp> (AddrRegReg GPR:$rs1, VGPR:$vs2))),
-            (Inst GPR:$rs1, VGPR:$vs2)>;
-}
+class DivergentLdPat<PatFrag LoadOp, RVInst Inst>
+ : Pat<(XLenVT (DivergentUnaryFrag<LoadOp>
+                (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2)))),
+                (Inst GPR:$rs1, VGPR:$vs2)>;
 
-multiclass DivergentStPat<PatFrag StoreOp, RVInst Inst, ValueType vt = XLenVT> {
-  def : Pat<(DivergentBinFrag<StoreOp> (vt VGPR:$vs3), (AddrRegReg GPR:$rs1, VGPR:$vs2)),
-            (Inst VGPR:$vs3, GPR:$rs1, VGPR:$vs2)>;
-}
+class DivergentStPat<PatFrag StoreOp, RVInst Inst>
+  : Pat<(DivergentBinFrag<StoreOp>
+         (XLenVT VGPR:$vs3), (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2))),
+         (Inst VGPR:$vs3, GPR:$rs1, VGPR:$vs2)>;
 
 //===----------------------------------------------------------------------===//
 // Operand and SDNode transformation definitions.
@@ -1045,78 +1047,73 @@ def VFMV_S_F : RVInstV2<0b010000, 0b00000, OPFVF, (outs VGPR:$vd_wb),
 // Ventus vALU divergent execution patterns
 //===----------------------------------------------------------------------===//
 
-defm : PatVBin<DivergentBinFrag<smin>, [VMIN_VV, VMIN_VX]>;
-defm : PatVBin<DivergentBinFrag<umin>, [VMINU_VV, VMINU_VX]>;
-defm : PatVBin<DivergentBinFrag<smax>, [VMAX_VV, VMAX_VX]>;
-defm : PatVBin<DivergentBinFrag<umax>, [VMAXU_VV, VMAXU_VX]>;
-defm : PatVBin<DivergentBinFrag<add>,  [VADD_VV, VADD_VX, VADD_VI]>;
-defm : PatVBin<DivergentBinFrag<sub>,  [VSUB_VV, VSUB_VX]>;
+defm : PatVXIBin<DivergentBinFrag<smin>, [VMIN_VV, VMIN_VX]>;
+defm : PatVXIBin<DivergentBinFrag<umin>, [VMINU_VV, VMINU_VX]>;
+defm : PatVXIBin<DivergentBinFrag<smax>, [VMAX_VV, VMAX_VX]>;
+defm : PatVXIBin<DivergentBinFrag<umax>, [VMAXU_VV, VMAXU_VX]>;
+defm : PatVXIBin<DivergentBinFrag<add>,  [VADD_VV, VADD_VX, VADD_VI]>;
+defm : PatVXIBin<DivergentBinFrag<sub>,  [VSUB_VV, VSUB_VX]>;
 defm : PatXIBin<DivergentBinFrag<sub>,  [VRSUB_VX, VRSUB_VI], 1>;
-defm : PatVBin<DivergentBinFrag<and>,  [VAND_VV, VAND_VX, VAND_VI]>;
-defm : PatVBin<DivergentBinFrag<or>,   [VOR_VV, VOR_VX, VOR_VI]>;
-defm : PatVBin<DivergentBinFrag<xor>,  [VXOR_VV, VXOR_VX, VXOR_VI]>;
-defm : PatVBin<DivergentBinFrag<shl>,  [VSLL_VV, VSLL_VX, VSLL_VI]>;
-defm : PatVBin<DivergentBinFrag<srl>,  [VSRL_VV, VSRL_VX, VSRL_VI]>;
-defm : PatVBin<DivergentBinFrag<sra>,  [VSRA_VV, VSRA_VX, VSRA_VI]>;
-defm : PatVBin<DivergentBinFrag<mul>,  [VMUL_VV, VMUL_VX]>;
-defm : PatVBin<DivergentBinFrag<mulhs>,[VMULH_VV, VMULH_VX]>;
-defm : PatVBin<DivergentBinFrag<mulhu>,[VMULHU_VV, VMULHU_VX]>;
-defm : PatVBin<DivergentBinFrag<sdiv>, [VDIV_VV, VDIV_VX]>;
-defm : PatVBin<DivergentBinFrag<udiv>, [VDIVU_VV, VDIVU_VX]>;
-defm : PatVBin<DivergentBinFrag<srem>, [VREM_VV, VREM_VX]>;
-defm : PatVBin<DivergentBinFrag<urem>, [VREMU_VV, VREMU_VX]>;
+defm : PatVXIBin<DivergentBinFrag<and>,  [VAND_VV, VAND_VX, VAND_VI]>;
+defm : PatVXIBin<DivergentBinFrag<or>,   [VOR_VV, VOR_VX, VOR_VI]>;
+defm : PatVXIBin<DivergentBinFrag<xor>,  [VXOR_VV, VXOR_VX, VXOR_VI]>;
+defm : PatVXIBin<DivergentBinFrag<shl>,  [VSLL_VV, VSLL_VX, VSLL_VI]>;
+defm : PatVXIBin<DivergentBinFrag<srl>,  [VSRL_VV, VSRL_VX, VSRL_VI]>;
+defm : PatVXIBin<DivergentBinFrag<sra>,  [VSRA_VV, VSRA_VX, VSRA_VI]>;
+defm : PatVXIBin<DivergentBinFrag<mul>,  [VMUL_VV, VMUL_VX]>;
+defm : PatVXIBin<DivergentBinFrag<mulhs>,[VMULH_VV, VMULH_VX]>;
+defm : PatVXIBin<DivergentBinFrag<mulhu>,[VMULHU_VV, VMULHU_VX]>;
+defm : PatVXIBin<DivergentBinFrag<sdiv>, [VDIV_VV, VDIV_VX]>;
+defm : PatVXIBin<DivergentBinFrag<udiv>, [VDIVU_VV, VDIVU_VX]>;
+defm : PatVXIBin<DivergentBinFrag<srem>, [VREM_VV, VREM_VX]>;
+defm : PatVXIBin<DivergentBinFrag<urem>, [VREMU_VV, VREMU_VX]>;
 
-defm : DivergentLdPat<sextloadi8, VLUXEI8>;
-defm : DivergentLdPat<extloadi8, VLUXEI8>;
-defm : DivergentLdPat<sextloadi16, VLUXEI16>;
-defm : DivergentLdPat<extloadi16, VLUXEI16>;
-defm : DivergentLdPat<load, VLUXEI32>;
-//defm : DivergentLdPat<zextloadi8, VLUXEI8U>;
-//defm : DivergentLdPat<zextloadi16, VLUXEI16U>;
-defm : DivergentStPat<truncstorei8, VSUXEI8>;
-defm : DivergentStPat<truncstorei16, VSUXEI16>;
-defm : DivergentStPat<store, VSUXEI32>;
-
+def : DivergentLdPat<sextloadi8, VLUXEI8>;
+def : DivergentLdPat<extloadi8, VLUXEI8>;
+def : DivergentLdPat<sextloadi16, VLUXEI16>;
+def : DivergentLdPat<extloadi16, VLUXEI16>;
+def : DivergentLdPat<load, VLUXEI32>;
+//def : DivergentLdPat<zextloadi8, VLUXEI8U>;
+//def : DivergentLdPat<zextloadi16, VLUXEI16U>;
+def : DivergentStPat<truncstorei8, VSUXEI8>;
+def : DivergentStPat<truncstorei16, VSUXEI16>;
+def : DivergentStPat<store, VSUXEI32>;
 
 def DivergentSelectCCFrag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
                                        node:$truev, node:$falsev),
-                                  (riscv_selectcc node:$lhs, node:$rhs,
-                                                  node:$cc, node:$truev,
-                                                  node:$falsev),
-                                  [{ return N->isDivergent(); }],
-                                  IntCCtoRISCVCC>;
+                                    (riscv_selectcc node:$lhs, node:$rhs,
+                                                    node:$cc, node:$truev,
+                                                    node:$falsev),
+                                    [{ return N->isDivergent(); }],
+                                    IntCCtoRISCVCC>;
 
 let Predicates = [HasShortForwardBranchOpt],
     Constraints = "$dst = $falsev", isCommutable = 1, Size = 8 in {
 // This instruction moves $truev to $dst when the condition is true. It will
 // be expanded to control flow in RISCVExpandPseudoInsts.
 def PseudoCCMOVVGPR : Pseudo<(outs VGPR:$dst),
-                            (ins VGPR:$lhs, VGPR:$rhs, ixlenimm:$cc,
-                             VGPR:$falsev, VGPR:$truev),
-                            [(set VGPR:$dst,
-                              (DivergentSelectCCFrag:$cc VGPR:$lhs, VGPR:$rhs,
-                                                       cond, VGPR:$truev,
-                                                       VGPR:$falsev))]>,
+                             (ins VGPR:$lhs, VGPR:$rhs, ixlenimm:$cc,
+                              VGPR:$truev, VGPR:$falsev),
+                             [(set (XLenVT VGPR:$dst),
+                               (DivergentSelectCCFrag:$cc
+                                (XLenVT VGPR:$lhs), (XLenVT VGPR:$rhs), cond,
+                                (XLenVT VGPR:$truev), (XLenVT VGPR:$falsev)))]>,
                      Sched<[WriteSFB, ReadSFB, ReadSFB, ReadSFB, ReadSFB]>;
 }
 
-multiclass SelectCC_VGPR_rrirr<RegisterClass valty> {
-  let usesCustomInserter = 1 in
-  def _Using_CC_VGPR : Pseudo<(outs valty:$dst),
-                              (ins VGPR:$lhs, VGPR:$rhs, ixlenimm:$cc,
-                               valty:$truev, valty:$falsev),
-                              [(set valty:$dst,
-                                (DivergentSelectCCFrag:$cc VGPR:$lhs, VGPR:$rhs, cond,
-                                                        valty:$truev, valty:$falsev))]>;
-}
-
-// This pattern with about multiclass generate a node: Select_VGPR_Using_CC_VGPR
-let Predicates = [NoShortForwardBranchOpt] in
-defm Select_VGPR : SelectCC_VGPR_rrirr<VGPR>;
+let usesCustomInserter = 1, Predicates = [NoShortForwardBranchOpt] in
+def Select_VGPR_Using_CC_VGPR : Pseudo<(outs VGPR:$dst),
+                            (ins VGPR:$lhs, VGPR:$rhs, ixlenimm:$cc,
+                             VGPR:$truev, VGPR:$falsev),
+                            [(set i32:$dst,
+                              (DivergentSelectCCFrag:$cc
+                               (XLenVT VGPR:$lhs), (XLenVT VGPR:$rhs), cond,
+                               (XLenVT VGPR:$truev), (XLenVT VGPR:$falsev)))]>;
 
 // Match `riscv_brcc` and lower to the appropriate RISC-V branch instruction.
 class DivergentBccPat<CondCode Cond, RVInstVB Inst>
-    : Pat<(DivergentTetradFrag<riscv_brcc> VGPR:$vs1, VGPR:$vs2, Cond, bb:$imm12),
+    : Pat<(DivergentTetradFrag<riscv_brcc>
+           (XLenVT VGPR:$vs1), (XLenVT VGPR:$vs2), Cond, bb:$imm12),
            (Inst VGPR:$vs1, VGPR:$vs2, simm13_lsb0:$imm12)>;
 
 def : DivergentBccPat<SETEQ, VBEQ>;

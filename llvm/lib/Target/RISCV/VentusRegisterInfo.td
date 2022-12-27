@@ -481,14 +481,12 @@ class RegisterTypes<list<ValueType> reg_types> {
 def Reg16Types : RegisterTypes<[i16, f16]>;
 def Reg32Types : RegisterTypes<[i32, f32, v2i16, v2f16]>;
 
-// TODO: Add half and register pair support!!
-// FIMXE: BranchCC_vvi doesn't support f32 VGPR in pattern(riscv_brcc).
 // VGPR 32-bit registers class
 def VGPR : RVRegisterClass<"RISCV",
-                            // !listconcat(Reg32Types.types, Reg16Types.types),
-                            [i32/*, f32*/],
+                            !listconcat(Reg32Types.types, Reg16Types.types),
                             32,
                             (add (sequence "V%u", 0, 255))> {
+  let Size = 32;
   let IsVGPR = 1;
 }
 
