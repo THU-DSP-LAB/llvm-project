@@ -46,10 +46,10 @@ multiclass PatXIBin<SDPatternOperator Op, list<RVInst> Insts,
   }
 }
 
-// RVV VV, VF, instruction pattern class for floating point binary operations
+// RVV VV, VF instruction pattern class for floating point binary operations
 multiclass PatVFBin<SDPatternOperator Op, list<RVInst> Insts> {
-  /*def : Pat<(Op (f32 VGPR:$rs1), GPR:$rs2),
-            (Insts[1] VGPR:$rs1, GPR:$rs2)>;*/
+  def : Pat<(Op (f32 VGPR:$rs1), GPRF32:$rs2),
+            (Insts[1] VGPR:$rs1, GPRF32:$rs2)>;
 
   def : Pat<(Op (f32 VGPR:$rs1), (f32 VGPR:$rs2)),
             (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
@@ -215,13 +215,13 @@ class VALUVI<bits<6> funct6, string opcodestr, Operand optype = simm5>
 // op vd, vs2, rs1 (Float)
 class VALUVF<bits<6> funct6, RISCVVFormat opv, string opcodestr>
     : RVInstVX<funct6, opv, (outs VGPR:$vd),
-                (ins VGPR:$vs2, FPR32:$rs1),
+                (ins VGPR:$vs2, GPRF32:$rs1),
                 opcodestr, "$vd, $vs2, $rs1">;
 
 // op vd, rs1, vs2 (Float) (reverse the order of rs1 and vs2)
 class VALUrVF<bits<6> funct6, RISCVVFormat opv, string opcodestr>
     : RVInstVX<funct6, opv, (outs VGPR:$vd),
-                (ins FPR32:$rs1, VGPR:$vs2),
+                (ins GPRF32:$rs1, VGPR:$vs2),
                 opcodestr, "$vd, $rs1, $vs2">;
 
 // op vd, vs2 (use vs1 as instruction encoding)
@@ -969,7 +969,7 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 let RVVConstraint = NoConstraint in
 let vs2 = 0 in
 def VFMV_V_F : RVInstVX<0b010111, OPFVF, (outs VGPR:$vd),
-                       (ins FPR32:$rs1), "vfmv.v.f", "$vd, $rs1">,
+                       (ins GPRF32:$rs1), "vfmv.v.f", "$vd, $rs1">,
                Sched<[WriteVFMovV_UpperBound, ReadVFMovF_UpperBound]>;
 
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
@@ -1040,12 +1040,12 @@ let Predicates = [HasVInstructionsAnyF] in {
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
     RVVConstraint = NoConstraint  in {
 // Floating-Point Scalar Move Instructions
-def VFMV_F_S : RVInstV<0b010000, 0b00000, OPFVV, (outs FPR32:$vd),
+def VFMV_F_S : RVInstV<0b010000, 0b00000, OPFVV, (outs GPRF32:$vd),
                       (ins VGPR:$vs2), "vfmv.f.s", "$vd, $vs2">,
                Sched<[WriteVFMovVF, ReadVFMovVF]>;
 let Constraints = "$vd = $vd_wb" in
 def VFMV_S_F : RVInstV2<0b010000, 0b00000, OPFVF, (outs VGPR:$vd_wb),
-                       (ins VGPR:$vd, FPR32:$rs1), "vfmv.s.f", "$vd, $rs1">,
+                       (ins VGPR:$vd, GPRF32:$rs1), "vfmv.s.f", "$vd, $rs1">,
                Sched<[WriteVFMovFV, ReadVFMovFV, ReadVFMovFX]>;
 
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
@@ -1077,7 +1077,7 @@ defm : PatVXIBin<DivergentBinFrag<udiv>, [VDIVU_VV, VDIVU_VX]>;
 defm : PatVXIBin<DivergentBinFrag<srem>, [VREM_VV, VREM_VX]>;
 defm : PatVXIBin<DivergentBinFrag<urem>, [VREMU_VV, VREMU_VX]>;
 
-defm : PatVFBin<DivergentBinFrag<fmul>,  [VFMUL_VV/*, VFMUL_VF*/]>;
+defm : PatVFBin<DivergentBinFrag<fmul>,  [VFMUL_VV, VFMUL_VF]>;
 
 def : DivergentLdPat<sextloadi8, VLUXEI8>;
 def : DivergentLdPat<extloadi8, VLUXEI8>;

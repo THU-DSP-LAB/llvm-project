@@ -11,3 +11,10 @@ entry:
   %mul = fmul float %a, %b
   ret float %mul
 }
+
+
+define float @foo_constant(float noundef %a) {
+entry:
+  %mul = fmul float %a, 2.0
+  ret float %mul
+}

@@ -133,6 +133,23 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     return;
   }
 
+  // vGPR -> sGPRF32 move
+  if (RISCV::GPRF32RegClass.contains(DstReg) &&
+      RISCV::VGPRRegClass.contains(SrcReg)) {
+    BuildMI(MBB, MBBI, DL, get(RISCV::VFMV_F_S), DstReg)
+        .addReg(SrcReg, getKillRegState(KillSrc));
+    return;
+  }
+
+  // sGPRF32 -> vGPR move
+  if (RISCV::GPRF32RegClass.contains(SrcReg) &&
+      RISCV::VGPRRegClass.contains(DstReg)) {
+    BuildMI(MBB, MBBI, DL, get(RISCV::VFMV_S_F), DstReg)
+        .addReg(DstReg, RegState::Undef)
+        .addReg(SrcReg, getKillRegState(KillSrc));
+    return;
+  }
+
   // vGPR -> sGPR move
   if (RISCV::GPRRegClass.contains(DstReg) &&
       RISCV::VGPRRegClass.contains(SrcReg)) {

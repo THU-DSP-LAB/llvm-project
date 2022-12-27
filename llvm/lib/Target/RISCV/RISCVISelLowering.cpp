@@ -103,11 +103,19 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   // Set up the register classes.
   addRegisterClass(XLenVT, &RISCV::GPRRegClass);
 
-  if (Subtarget.hasStdExtZfh())
+  if (Subtarget.hasStdExtZhinx())
+    addRegisterClass(MVT::f16, &RISCV::GPRF16RegClass);
+  else if (Subtarget.hasStdExtZfh())
     addRegisterClass(MVT::f16, &RISCV::FPR16RegClass);
-  if (Subtarget.hasStdExtF())
+
+  if (Subtarget.hasStdExtZfinx())
+    addRegisterClass(MVT::f32, &RISCV::GPRF32RegClass);
+  else if (Subtarget.hasStdExtF())
     addRegisterClass(MVT::f32, &RISCV::FPR32RegClass);
-  if (Subtarget.hasStdExtD())
+
+  if (Subtarget.hasStdExtZdinx())
+    addRegisterClass(MVT::f32, &RISCV::GPRF64RegClass);
+  else if (Subtarget.hasStdExtD())
     addRegisterClass(MVT::f64, &RISCV::FPR64RegClass);
 
   static const MVT::SimpleValueType BoolVecVTs[] = {

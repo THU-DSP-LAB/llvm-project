@@ -73,6 +73,12 @@ static DecodeStatus DecodeGPRRegisterClass(MCInst &Inst, uint64_t RegNo,
   return MCDisassembler::Success;
 }
 
+static DecodeStatus DecodeGPRF32RegisterClass(MCInst &Inst, uint64_t RegNo,
+                                           uint64_t Address,
+                                           const MCDisassembler *Decoder) {
+    return DecodeGPRRegisterClass(Inst, RegNo, Address, Decoder);
+}
+
 static DecodeStatus DecodeFPR16RegisterClass(MCInst &Inst, uint64_t RegNo,
                                              uint64_t Address,
                                              const MCDisassembler *Decoder) {
