@@ -12,34 +12,9 @@
 define dso_local spir_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr addrspace(1) nocapture noundef writeonly align 4 %c) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    lw x11, 0(x10)
+; VENTUS-NEXT:    lw x11, 4(x10)
 ; VENTUS-NEXT:    lw x12, 8(x10)
-; VENTUS-NEXT:    lw x10, 16(x10)
-; VENTUS-NEXT:    add x11, x12, x11
-; VENTUS-NEXT:    sw x11, 0(x10)
-; VENTUS-NEXT:    ret
-  %add = add nsw i32 %b, %a
-  store i32 %add, ptr addrspace(1) %c, align 4
-  ret void
-}
-
-
-
-; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: write) vscale_range(1,2048)
-define dso_local spir_kernel void @foo64(i32 noundef %a, i32 noundef %b, ptr addrspace(1) nocapture noundef writeonly align 4 %c) {
-; VENTUS64-LABEL: foo64:
-; VENTUS64:       # %bb.0:
-; VENTUS64-NEXT:    lw a5, (a[0:1]), 0
-; VENTUS64-NEXT:    lw a6, (a[0:1]), 4
-; VENTUS64-NEXT:    lw.m x[18:19], (a[0:1]), 8
-; VENTUS64-NEXT:    add a5, a5, a6
-; VENTUS64-NEXT:    sw a5, (x[18:19]), 0
-; VENTUS64-NEXT:    ret
-; VENTUS-LABEL: foo64:
-; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    lw x11, 0(x10)
-; VENTUS-NEXT:    lw x12, 8(x10)
-; VENTUS-NEXT:    lw x10, 16(x10)
+; VENTUS-NEXT:    lw x10, 12(x10)
 ; VENTUS-NEXT:    add x11, x12, x11
 ; VENTUS-NEXT:    sw x11, 0(x10)
 ; VENTUS-NEXT:    ret

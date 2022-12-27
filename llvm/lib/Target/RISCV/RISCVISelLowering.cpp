@@ -5551,7 +5551,7 @@ void RISCVTargetLowering::analyzeFormalArgumentsCompute(MachineFunction &MF,
   LLVMContext &Ctx = Fn.getParent()->getContext();
   CallingConv::ID CC = Fn.getCallingConv();
 
-  uint64_t ExplicitArgOffset = 0;
+  uint64_t ArgOffset = 0;
   const DataLayout &DL = Fn.getParent()->getDataLayout();
 
   unsigned InIndex = 0;
@@ -5563,9 +5563,7 @@ void RISCVTargetLowering::analyzeFormalArgumentsCompute(MachineFunction &MF,
     Align Alignment = DL.getValueOrABITypeAlignment(
         IsByRef ? Arg.getParamAlign() : std::nullopt, MemArgTy);
     uint64_t AllocSize = DL.getTypeAllocSize(MemArgTy);
-
-    uint64_t ArgOffset = alignTo(ExplicitArgOffset, Alignment) + ExplicitArgOffset;
-    ExplicitArgOffset = alignTo(ExplicitArgOffset, Alignment) + AllocSize;
+    ArgOffset = alignTo(ArgOffset + AllocSize, Alignment);
 
     SmallVector<EVT, 16> ValueVTs;
     SmallVector<uint64_t, 16> Offsets;
