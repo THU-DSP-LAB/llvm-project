@@ -1013,8 +1013,9 @@ MVT RISCVTargetLowering::getRegisterTypeForCallingConv(LLVMContext &Context,
     return MVT::f32;
 
   MVT SVT = VT.getSimpleVT();
+  // FIXME: Add v2i16/v2f16 support
   if (Subtarget.getCPU() == "ventus-gpgpu" && SVT.isVector())
-    return SVT;
+    return SVT.getScalarType();
 
   return TargetLowering::getRegisterTypeForCallingConv(Context, CC, VT);
 }
@@ -1028,8 +1029,9 @@ unsigned RISCVTargetLowering::getNumRegistersForCallingConv(LLVMContext &Context
   if (VT == MVT::f16 && Subtarget.hasStdExtF() && !Subtarget.hasStdExtZfh())
     return 1;
 
-  if (Subtarget.getCPU() == "ventus-gpgpu")
-    return 1;
+  // FIXME: Add v2i16/v2f16 support
+  if (Subtarget.getCPU() == "ventus-gpgpu" && VT.isVector())
+    return VT.getVectorNumElements();
 
   return TargetLowering::getNumRegistersForCallingConv(Context, CC, VT);
 }
@@ -5648,7 +5650,6 @@ void RISCVTargetLowering::analyzeFormalArgumentsCompute(MachineFunction &MF,
 // passed with CCValAssign::Indirect.
 static SDValue unpackFromRegLoc(SelectionDAG &DAG, SDValue Chain,
                                 const CCValAssign &VA, const SDLoc &DL,
-                                const ISD::InputArg &In,
                                 const RISCVTargetLowering &TLI) {
   MachineFunction &MF = DAG.getMachineFunction();
   MachineRegisterInfo &RegInfo = MF.getRegInfo();
@@ -5785,7 +5786,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
       if (VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::f64)
         ArgValue = unpackF64OnRV32DSoftABI(DAG, Chain, VA, DL);
       else if (VA.isRegLoc())
-        ArgValue = unpackFromRegLoc(DAG, Chain, VA, DL, Ins[i], *this);
+        ArgValue = unpackFromRegLoc(DAG, Chain, VA, DL, *this);
       else
         ArgValue = unpackFromMemLoc(DAG, Chain, VA, DL);
 
