@@ -2,8 +2,18 @@
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs < %s \
 ; RUN:   | FileCheck -check-prefix=VENTUS %s
 
-define float @foo(float noundef %a, float noundef %b) {
-; VENTUS-LABEL: foo:
+define float @foo_fadd(float noundef %a, float noundef %b) {
+; VENTUS-LABEL: foo_fadd:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfadd.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+entry:
+  %add = fadd float %a, %b
+  ret float %add
+}
+
+define float @foo_fmul(float noundef %a, float noundef %b) {
+; VENTUS-LABEL: foo_fmul:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vfmul.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
@@ -12,9 +22,25 @@ entry:
   ret float %mul
 }
 
+define float @foo_fdiv(float noundef %a, float noundef %b) {
+; VENTUS-LABEL: foo_fdiv:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfdiv.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+entry:
+  %div = fdiv float %a, %b
+  ret float %div
+}
 
 define float @foo_constant(float noundef %a) {
+; VENTUS-LABEL: foo_constant:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    lui x10, %hi(.LCPI3_0)
+; VENTUS-NEXT:    lw x10, %lo(.LCPI3_0)(x10)
+; VENTUS-NEXT:    vfmv.s.f v1, x10
+; VENTUS-NEXT:    vfmul.vv v0, v0, v1
+; VENTUS-NEXT:    ret
 entry:
-  %mul = fmul float %a, 2.0
+  %mul = fmul float %a, 1.25
   ret float %mul
 }

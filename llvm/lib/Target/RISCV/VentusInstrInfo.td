@@ -1770,6 +1770,14 @@ defm : UniformStPat<truncstorei32, SW, GPR, i64>;
 defm : UniformStPat<store, SD, GPR, i64>;
 } // Predicates = [IsRV64]
 
+// FIXME: It is still work by omitting 2 of the following bitcast patterns.
+let Predicates = [HasStdExtZfinx] in {
+def : Pat<(i32 (bitconvert f32:$src)), (i32 GPR:$src)>;
+def : Pat<(i32 (bitconvert f32:$src)), (i32 VGPR:$src)>;
+def : Pat<(f32 (bitconvert i32:$src)), (f32 GPRF32:$src)>;
+def : Pat<(f32 (bitconvert i32:$src)), (f32 VGPR:$src)>;
+} // Predicates = [HasStdExtZfinx]
+
 /// readcyclecounter
 // On RV64, we can directly read the 64-bit "cycle" CSR.
 let Predicates = [IsRV64] in

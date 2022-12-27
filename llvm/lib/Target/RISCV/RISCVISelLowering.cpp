@@ -218,6 +218,20 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
 
   setOperationAction(ISD::EH_DWARF_CFA, MVT::i32, Custom);
 
+  if (Subtarget.hasStdExtZhinx()) {
+    setOperationAction(ISD::LOAD, MVT::f16, Promote);
+    AddPromotedToType(ISD::LOAD, MVT::f16, MVT::i16);
+    setOperationAction(ISD::STORE, MVT::f16, Promote);
+    AddPromotedToType(ISD::STORE, MVT::f16, MVT::i16);
+  }
+
+  if (Subtarget.hasStdExtZfinx()) {
+    setOperationAction(ISD::LOAD, MVT::f32, Promote);
+    AddPromotedToType(ISD::LOAD, MVT::f32, MVT::i32);
+    setOperationAction(ISD::STORE, MVT::f32, Promote);
+    AddPromotedToType(ISD::STORE, MVT::f32, MVT::i32);
+  }
+
   if (!Subtarget.hasStdExtZbb())
     setOperationAction(ISD::SIGN_EXTEND_INREG, {MVT::i8, MVT::i16}, Expand);
 

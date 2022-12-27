@@ -46,13 +46,17 @@ multiclass PatXIBin<SDPatternOperator Op, list<RVInst> Insts,
   }
 }
 
-// RVV VV, VF instruction pattern class for floating point binary operations
-multiclass PatVFBin<SDPatternOperator Op, list<RVInst> Insts> {
+// RVV VV, VF, FV instruction pattern class for floating point binary operations
+multiclass PatVFRBin<SDPatternOperator Op, list<RVInst> Insts> {
+  def : Pat<(Op (f32 VGPR:$rs1), (f32 VGPR:$rs2)),
+            (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
+
   def : Pat<(Op (f32 VGPR:$rs1), GPRF32:$rs2),
             (Insts[1] VGPR:$rs1, GPRF32:$rs2)>;
 
-  def : Pat<(Op (f32 VGPR:$rs1), (f32 VGPR:$rs2)),
-            (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
+  if !eq(!size(Insts), 3) then
+    def : Pat<(Op (f32 VGPR:$rs1), GPRF32:$rs2),
+              (Insts[2] GPRF32:$rs2, VGPR:$rs1)>;
 }
 
 class DivergentLdPat<PatFrag LoadOp, RVInst Inst>
@@ -1077,7 +1081,12 @@ defm : PatVXIBin<DivergentBinFrag<udiv>, [VDIVU_VV, VDIVU_VX]>;
 defm : PatVXIBin<DivergentBinFrag<srem>, [VREM_VV, VREM_VX]>;
 defm : PatVXIBin<DivergentBinFrag<urem>, [VREMU_VV, VREMU_VX]>;
 
-defm : PatVFBin<DivergentBinFrag<fmul>,  [VFMUL_VV, VFMUL_VF]>;
+defm : PatVFRBin<DivergentBinFrag<fadd>,  [VFADD_VV, VFADD_VF]>;
+defm : PatVFRBin<DivergentBinFrag<fsub>,  [VFSUB_VV, VFSUB_VF, VFRSUB_VF]>;
+defm : PatVFRBin<DivergentBinFrag<fmul>,  [VFMUL_VV, VFMUL_VF]>;
+defm : PatVFRBin<DivergentBinFrag<fdiv>,  [VFDIV_VV, VFDIV_VF, VFRDIV_VF]>;
+defm : PatVFRBin<DivergentBinFrag<fminimum>,  [VFMIN_VV, VFMIN_VF]>;
+defm : PatVFRBin<DivergentBinFrag<fmaximum>,  [VFMAX_VV, VFMAX_VF]>;
 
 def : DivergentLdPat<sextloadi8, VLUXEI8>;
 def : DivergentLdPat<extloadi8, VLUXEI8>;
