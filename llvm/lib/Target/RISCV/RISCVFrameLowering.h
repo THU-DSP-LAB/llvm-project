@@ -31,16 +31,11 @@ public:
   void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
 
-  uint64_t getStackSizeWithRVVPadding(const MachineFunction &MF) const;
-
   StackOffset getFrameIndexReference(const MachineFunction &MF, int FI,
                                      Register &FrameReg) const override;
 
   void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
                             RegScavenger *RS) const override;
-
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF,
-                                           RegScavenger *RS) const override;
 
   bool hasFP(const MachineFunction &MF) const override;
 
@@ -71,18 +66,12 @@ public:
   bool enableShrinkWrapping(const MachineFunction &MF) const override;
 
   bool isSupportedStackID(TargetStackID::Value ID) const override;
-  TargetStackID::Value getStackIDForScalableVectors() const override;
 
 protected:
   const RISCVSubtarget &STI;
 
 private:
   void determineFrameLayout(MachineFunction &MF) const;
-  void adjustStackForRVV(MachineFunction &MF, MachineBasicBlock &MBB,
-                         MachineBasicBlock::iterator MBBI, const DebugLoc &DL,
-                         int64_t Amount, MachineInstr::MIFlag Flag) const;
-  std::pair<int64_t, Align>
-  assignRVVStackObjectOffsets(MachineFunction &MF) const;
 };
 } // namespace llvm
 #endif

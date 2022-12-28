@@ -55,17 +55,9 @@ RISCVRegisterInfo::RISCVRegisterInfo(unsigned HwMode)
 
 const MCPhysReg *
 RISCVRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+  assert(!MF->getFunction().hasFnAttribute("interrupt") &&
+         "Ventus GPGPU doesn't support interrupt!");
   auto &Subtarget = MF->getSubtarget<RISCVSubtarget>();
-  if (MF->getFunction().getCallingConv() == CallingConv::GHC)
-    return CSR_NoRegs_SaveList;
-  if (MF->getFunction().hasFnAttribute("interrupt")) {
-    if (Subtarget.hasStdExtD())
-      return CSR_XLEN_F64_Interrupt_SaveList;
-    if (Subtarget.hasStdExtF())
-      return CSR_XLEN_F32_Interrupt_SaveList;
-    return CSR_Interrupt_SaveList;
-  }
-
   switch (Subtarget.getTargetABI()) {
   default:
     llvm_unreachable("Unrecognized ABI");
@@ -314,7 +306,7 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
 Register RISCVRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = getFrameLowering(MF);
-  return RISCV::X4;
+  return TFI->hasFP(MF) ? RISCV::X8 : RISCV::X4;
 }
 
 const uint32_t *

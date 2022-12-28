@@ -2,10 +2,11 @@
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs < %s \
 ; RUN:   | FileCheck -check-prefix=VENTUS %s
 
-define spir_kernel void @foo(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
-; VENTUS-LABEL: foo:
+define spir_kernel void @foo_ker(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
+; VENTUS-LABEL: foo_ker:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi x2, x2, -16
+; VENTUS-NEXT:    addi x4, x4, -16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
 ; VENTUS-NEXT:    sw x1, 12(x2) # 4-byte Folded Spill
 ; VENTUS-NEXT:    sw x8, 8(x2) # 4-byte Folded Spill
@@ -35,6 +36,7 @@ define spir_kernel void @foo(ptr addrspace(1) nocapture noundef align 4 %A, ptr 
 ; VENTUS-NEXT:    lw x8, 8(x2) # 4-byte Folded Reload
 ; VENTUS-NEXT:    lw x9, 4(x2) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi x2, x2, 16
+; VENTUS-NEXT:    addi x4, x4, 16
 ; VENTUS-NEXT:    ret
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
@@ -46,5 +48,51 @@ entry:
   store i32 %add, ptr addrspace(1) %arrayidx1, align 4
   ret void
 }
+
+define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrspace(1) nocapture noundef readonly %B) {
+; VENTUS-LABEL: foo_fun:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    addi x2, x2, -16
+; VENTUS-NEXT:    addi x4, x4, -16
+; VENTUS-NEXT:    .cfi_def_cfa_offset 16
+; VENTUS-NEXT:    sw x1, 12(x2) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw v32, 8(x4) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw v33, 4(x4) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset x1, -4
+; VENTUS-NEXT:    .cfi_offset v32.l, -8
+; VENTUS-NEXT:    .cfi_offset v33.l, -12
+; VENTUS-NEXT:    vadd.vx v32, v1, x0
+; VENTUS-NEXT:    vadd.vx v33, v0, x0
+; VENTUS-NEXT:    vfmv.s.f v0, x0
+; VENTUS-NEXT:    call _Z13get_global_idj
+; VENTUS-NEXT:    vfmv.s.f v1, x0
+; VENTUS-NEXT:    vsll.vi v0, v0, 2
+; VENTUS-NEXT:    vfmv.f.s x10, v0
+; VENTUS-NEXT:    vadd.vx v0, v32, x10
+; VENTUS-NEXT:    vfmv.f.s x11, v0
+; VENTUS-NEXT:    vluxei32.v v0, (x11), v1
+; VENTUS-NEXT:    vadd.vx v2, v33, x10
+; VENTUS-NEXT:    vfmv.f.s x10, v2
+; VENTUS-NEXT:    vluxei32.v v2, (x10), v1
+; VENTUS-NEXT:    vfmv.f.s x11, v0
+; VENTUS-NEXT:    vadd.vx v0, v2, x11
+; VENTUS-NEXT:    vsuxei32.v v0, (x10), v1
+; VENTUS-NEXT:    lw x1, 12(x2) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw v32, 8(x4) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw v33, 4(x4) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi x2, x2, 16
+; VENTUS-NEXT:    addi x4, x4, 16
+; VENTUS-NEXT:    ret
+entry:
+  %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
+  %arrayidx = getelementptr inbounds i32, ptr addrspace(1) %B, i32 %call
+  %0 = load i32, ptr addrspace(1) %arrayidx, align 4
+  %arrayidx1 = getelementptr inbounds i32, ptr addrspace(1) %A, i32 %call
+  %1 = load i32, ptr addrspace(1) %arrayidx1, align 4
+  %add = add nsw i32 %1, %0
+  store i32 %add, ptr addrspace(1) %arrayidx1, align 4
+  ret void
+}
+
 
 declare dso_local i32 @_Z13get_global_idj(i32 noundef)

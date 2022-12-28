@@ -874,7 +874,9 @@ void PEI::calculateFrameObjectOffsets(MachineFunction &MF) {
   // object.
   for (int i = MFI.getObjectIndexBegin(); i != 0; ++i) {
     // Only allocate objects on the default stack.
-    if (MFI.getStackID(i) != TargetStackID::Default)
+    // WORKAROUND: We now summed up the 2 stack size together!
+    if (MFI.getStackID(i) != TargetStackID::Default &&
+        MFI.getStackID(i) != TargetStackID::SGPRSpill)
       continue;
 
     int64_t FixedOff;
@@ -900,7 +902,8 @@ void PEI::calculateFrameObjectOffsets(MachineFunction &MF) {
           StackGrowsDown ? MinCSFrameIndex + i : MaxCSFrameIndex - i;
 
       // Only allocate objects on the default stack.
-      if (MFI.getStackID(FrameIndex) != TargetStackID::Default)
+      if (MFI.getStackID(FrameIndex) != TargetStackID::Default &&
+          MFI.getStackID(FrameIndex) != TargetStackID::SGPRSpill)
         continue;
 
       // TODO: should this just be if (MFI.isDeadObjectIndex(FrameIndex))
@@ -1006,7 +1009,8 @@ void PEI::calculateFrameObjectOffsets(MachineFunction &MF) {
       if (StackProtectorFI == (int)i || EHRegNodeFrameIndex == (int)i)
         continue;
       // Only allocate objects on the default stack.
-      if (MFI.getStackID(i) != TargetStackID::Default)
+      if (MFI.getStackID(i) != TargetStackID::Default &&
+          MFI.getStackID(i) != TargetStackID::SGPRSpill)
         continue;
 
       switch (MFI.getObjectSSPLayout(i)) {
@@ -1060,7 +1064,8 @@ void PEI::calculateFrameObjectOffsets(MachineFunction &MF) {
     if (ProtectedObjs.count(i))
       continue;
     // Only allocate objects on the default stack.
-    if (MFI.getStackID(i) != TargetStackID::Default)
+    if (MFI.getStackID(i) != TargetStackID::Default &&
+        MFI.getStackID(i) != TargetStackID::SGPRSpill)
       continue;
 
     // Add the objects that we need to allocate to our working set.

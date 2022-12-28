@@ -126,10 +126,19 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MBBI,
                                  const DebugLoc &DL, MCRegister DstReg,
                                  MCRegister SrcReg, bool KillSrc) const {
+  // sGPR -> sGPR move
   if (RISCV::GPRRegClass.contains(DstReg, SrcReg)) {
     BuildMI(MBB, MBBI, DL, get(RISCV::ADDI), DstReg)
         .addReg(SrcReg, getKillRegState(KillSrc))
         .addImm(0);
+    return;
+  }
+
+  // vGPR -> vGPR move
+  if (RISCV::VGPRRegClass.contains(DstReg, SrcReg)) {
+    BuildMI(MBB, MBBI, DL, get(RISCV::VADD_VX), DstReg)
+        .addReg(SrcReg, getKillRegState(KillSrc))
+        .addReg(RISCV::X0);
     return;
   }
 
@@ -208,6 +217,7 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   MachineRegisterInfo &MRI = MF->getRegInfo();
 
   unsigned Opcode;
+
   if (RISCV::GPRRegClass.hasSubClassEq(RC)) {
     Opcode = TRI->getRegSizeInBits(RISCV::GPRRegClass) == 32 ?
              RISCV::SW : RISCV::SD;
@@ -221,6 +231,11 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
     Opcode = RISCV::VSW;
   } else
     llvm_unreachable("Can't store this register to stack slot");
+
+  // VGPR spills to per-thread stack, SGPR spills to local mem stack
+  if (Opcode != RISCV::VSW) {
+    MFI.setStackID(FI, TargetStackID::SGPRSpill);
+  }
 
   MachineMemOperand *MMO = MF->getMachineMemOperand(
       MachinePointerInfo::getFixedStack(*MF, FI), MachineMemOperand::MOStore,

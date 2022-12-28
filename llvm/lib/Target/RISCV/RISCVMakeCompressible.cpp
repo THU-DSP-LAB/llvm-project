@@ -186,7 +186,7 @@ static RegImmPair getRegImmPairPreventingCompression(const MachineInstr &MI) {
 
     // Memory accesses via the stack pointer do not have a requirement for
     // either of the registers to be compressible and can take a larger offset.
-    if (RISCV::SPRegClass.contains(Base)) {
+    if (RISCV::TPRegClass.contains(Base)) {
       if (!compressibleSPOffset(Offset, Opcode) && NewBaseAdjust)
         return RegImmPair(Base, NewBaseAdjust);
     } else {

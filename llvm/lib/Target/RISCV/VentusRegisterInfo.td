@@ -270,7 +270,7 @@ def GPRNoX0 : RVRegisterClass<"RISCV", [XLenVT], 32, (sub GPR, X0)> {
   let IsSGPR = 1;
 }
 
-def GPRNoX0X2 : RVRegisterClass<"RISCV", [XLenVT], 32, (sub GPR, X0, X2)> {
+def GPRNoX0X2 : RVRegisterClass<"RISCV", [XLenVT], 32, (sub GPR, X0, X2, X4)> {
   let RegInfos = XLenRI;
   let IsSGPR = 1;
 }
@@ -305,7 +305,8 @@ def GPRTC : RVRegisterClass<"RISCV", [XLenVT], 32, (add
   let IsSGPR = 1;
 }
 
-def SP : RVRegisterClass<"RISCV", [XLenVT], 32, (add X2)> {
+// TP is used as per-thread stack pointer on Ventus GPGPU.
+def TP : RVRegisterClass<"RISCV", [XLenVT], 32, (add X4)> {
   let RegInfos = XLenRI;
   let IsSGPR = 1;
 }
