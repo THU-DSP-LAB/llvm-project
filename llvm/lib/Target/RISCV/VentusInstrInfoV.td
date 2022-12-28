@@ -19,31 +19,17 @@ include "VentusInstrFormatsV.td"
 /// Generic pattern classes
 
 // RVV VV, VX, VI instruction pattern class for integer binary operations
-multiclass PatVXIBin<SDPatternOperator Op, list<RVInst> Insts> {
-  def : Pat<(Op (XLenVT VGPR:$rs1), GPR:$rs2),
-            (Insts[1] VGPR:$rs1, GPR:$rs2)>;
+multiclass PatVXIBin<SDPatternOperator Op, list<RVInst> Insts> { 
 
   def : Pat<(Op (XLenVT VGPR:$rs1), (XLenVT VGPR:$rs2)),
             (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
 
+  def : Pat<(Op (XLenVT VGPR:$rs1), GPR:$rs2),
+            (Insts[1] VGPR:$rs1, GPR:$rs2)>;
+
   if !eq(!size(Insts), 3) then
     def : Pat<(XLenVT (Op (XLenVT VGPR:$rs1), uimm5:$imm)),
               (Insts[2] VGPR:$rs1, uimm5:$imm)>;
-}
-
-// RVV VX, VI instruction pattern class for integer binary operations
-multiclass PatXIBin<SDPatternOperator Op, list<RVInst> Insts,
-                                int IsReverseOperation = 0> {
-  if !eq(IsReverseOperation, 1) then {
-    def : Pat<(Op GPR:$rs1, VGPR:$rs2), (Insts[0] VGPR:$rs2, GPR:$rs1)>;
-    def : Pat<(XLenVT (Op uimm5:$imm, (XLenVT VGPR:$rs1))),
-              (Insts[1] VGPR:$rs1, uimm5:$imm)>;
-  }
-  else {
-    def : Pat<(Op VGPR:$rs1, GPR:$rs2), (Insts[0] VGPR:$rs1, GPR:$rs2)>;
-    def : Pat<(XLenVT (Op (XLenVT VGPR:$rs1), uimm5:$imm)),
-              (Insts[1] VGPR:$rs1, uimm5:$imm)>;
-  }
 }
 
 // RVV VV, VF, FV instruction pattern class for floating point binary operations
@@ -68,6 +54,25 @@ class DivergentStPat<PatFrag StoreOp, RVInst Inst>
   : Pat<(DivergentBinFrag<StoreOp>
          (XLenVT VGPR:$vs3), (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2))),
          (Inst VGPR:$vs3, GPR:$rs1, VGPR:$vs2)>;
+
+// RVV VV, VF instruction pattern class for floating point ternary operations
+multiclass PatVFRTer<list<SDPatternOperator> Ops, list<RVInst> Insts> { 
+
+  def : Pat<(Ops[0] (Ops[1] (f32 VGPR:$rs1), (f32 VGPR:$rs2)),
+        (f32 VGPR:$rs3)), (Insts[0] VGPR:$rs2, VGPR:$rs1, VGPR:$rs3)>;
+
+  def : Pat<(Ops[0] (Ops[1] GPRF32:$rs1, (f32 VGPR:$rs2)),
+        (f32 VGPR:$rs3)), (Insts[1] VGPR:$rs2, GPRF32:$rs1, VGPR:$rs3)>;
+}
+
+multiclass AnyPatVFRTer<PatFrags Op, list<RVInst> Insts> { 
+
+  def : Pat<(Op (f32 VGPR:$rs1), (f32 VGPR:$rs2), (f32 VGPR:$rs3)),
+        (Insts[0]  VGPR:$rs2, VGPR:$rs1, VGPR:$rs3)>;
+
+  def : Pat<(Op GPRF32:$rs1, (f32 VGPR:$rs2), (f32 VGPR:$rs3)),
+        (Insts[1] VGPR:$rs2, GPRF32:$rs1, VGPR:$rs3)>;
+}
 
 //===----------------------------------------------------------------------===//
 // Operand and SDNode transformation definitions.
@@ -193,10 +198,9 @@ class VALUVV<bits<6> funct6, RISCVVFormat opv, string opcodestr>
 
 // op vd, vs1, vs2 (reverse the order of vs1 and vs2)
 class VALUrVV<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVV<funct6, opv, (outs VGPR:$vd),
-                (ins VGPR:$vs1, VGPR:$vs2),
+    : RVInstVV<funct6, opv, (outs VGPR:$vd_w),
+                (ins VGPR:$vd, VGPR:$vs1, VGPR:$vs2),
                 opcodestr, "$vd, $vs1, $vs2">;
-
 
 // op vd, vs2, rs1
 class VALUVX<bits<6> funct6, RISCVVFormat opv, string opcodestr>
@@ -224,8 +228,8 @@ class VALUVF<bits<6> funct6, RISCVVFormat opv, string opcodestr>
 
 // op vd, rs1, vs2 (Float) (reverse the order of rs1 and vs2)
 class VALUrVF<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVX<funct6, opv, (outs VGPR:$vd),
-                (ins GPRF32:$rs1, VGPR:$vs2),
+    : RVInstVX<funct6, opv, (outs VGPR:$vd_w),
+                (ins VGPR:$vd, GPRF32:$rs1, VGPR:$vs2),
                 opcodestr, "$vd, $rs1, $vs2">;
 
 // op vd, vs2 (use vs1 as instruction encoding)
@@ -920,10 +924,12 @@ defm VFMACC_V : VMAC_FV_V_F<"vfmacc", 0b101100>;
 defm VFNMACC_V : VMAC_FV_V_F<"vfnmacc", 0b101101>;
 defm VFMSAC_V : VMAC_FV_V_F<"vfmsac", 0b101110>;
 defm VFNMSAC_V : VMAC_FV_V_F<"vfnmsac", 0b101111>;
-defm VFMADD_V : VMAC_FV_V_F<"vfmadd", 0b101000>;
-defm VFNMADD_V : VMAC_FV_V_F<"vfnmadd", 0b101001>;
-defm VFMSUB_V : VMAC_FV_V_F<"vfmsub", 0b101010>;
-defm VFNMSUB_V : VMAC_FV_V_F<"vfnmsub", 0b101011>;
+let Constraints = "$vd = $vd_w" in {
+  defm VFMADD_V : VMAC_FV_V_F<"vfmadd", 0b101000>;
+  defm VFNMADD_V : VMAC_FV_V_F<"vfnmadd", 0b101001>;
+  defm VFMSUB_V : VMAC_FV_V_F<"vfmsub", 0b101010>;  
+  defm VFNMSUB_V : VMAC_FV_V_F<"vfnmsub", 0b101011>;
+} 
 }
 
 // Vector Widening Floating-Point Fused Multiply-Add Instructions
@@ -1076,7 +1082,6 @@ defm : PatVXIBin<DivergentBinFrag<smax>, [VMAX_VV, VMAX_VX]>;
 defm : PatVXIBin<DivergentBinFrag<umax>, [VMAXU_VV, VMAXU_VX]>;
 defm : PatVXIBin<DivergentBinFrag<add>,  [VADD_VV, VADD_VX, VADD_VI]>;
 defm : PatVXIBin<DivergentBinFrag<sub>,  [VSUB_VV, VSUB_VX]>;
-defm : PatXIBin<DivergentBinFrag<sub>,   [VRSUB_VX, VRSUB_VI], 1>;
 defm : PatVXIBin<DivergentBinFrag<and>,  [VAND_VV, VAND_VX, VAND_VI]>;
 defm : PatVXIBin<DivergentBinFrag<or>,   [VOR_VV, VOR_VX, VOR_VI]>;
 defm : PatVXIBin<DivergentBinFrag<xor>,  [VXOR_VV, VXOR_VX, VXOR_VI]>;
@@ -1091,12 +1096,27 @@ defm : PatVXIBin<DivergentBinFrag<udiv>, [VDIVU_VV, VDIVU_VX]>;
 defm : PatVXIBin<DivergentBinFrag<srem>, [VREM_VV, VREM_VX]>;
 defm : PatVXIBin<DivergentBinFrag<urem>, [VREMU_VV, VREMU_VX]>;
 
+// Patterns for vrsub.vx and vrsub.vi
+def : Pat<(sub GPR:$rs1, VGPR:$rs2), (VRSUB_VX VGPR:$rs2, GPR:$rs1)>;
+def : Pat<(XLenVT (sub uimm5:$imm, (XLenVT VGPR:$rs1))),
+              (VRSUB_VI VGPR:$rs1, uimm5:$imm)>;
+
 defm : PatVFRBin<DivergentBinFrag<fadd>,  [VFADD_VV, VFADD_VF]>;
-defm : PatVFRBin<DivergentBinFrag<fsub>,  [VFSUB_VV, VFSUB_VF, VFRSUB_VF]>;
+defm : PatVFRBin<DivergentBinFrag<fsub>,  [VFSUB_VV, VFSUB_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fmul>,  [VFMUL_VV, VFMUL_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fdiv>,  [VFDIV_VV, VFDIV_VF, VFRDIV_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fminimum>,  [VFMIN_VV, VFMIN_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fmaximum>,  [VFMAX_VV, VFMAX_VF]>;
+
+// Patterns for ternary operations
+// vfmadd.vv && vfmadd.vf
+defm : PatVFRTer<[DivergentBinFrag<fadd>, DivergentBinFrag<fmul>], 
+                                          [VFMADD_VV, VFMADD_VF]>;
+defm : AnyPatVFRTer<any_fma, [VFMADD_VV, VFMADD_VF]>;
+
+// vfmsub.vv && vfmsub.vf
+defm : PatVFRTer<[DivergentBinFrag<fsub>, DivergentBinFrag<fmul>],
+                                          [VFMSUB_VV, VFMSUB_VF]>;
 
 def : DivergentLdPat<sextloadi8, VLUXEI8>;
 def : DivergentLdPat<extloadi8, VLUXEI8>;

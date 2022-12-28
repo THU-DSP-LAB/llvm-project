@@ -2,19 +2,19 @@
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs < %s \
 ; RUN:   | FileCheck -check-prefix=VENTUS %s
 
-define i32 @vand_v(i32 %a, i32 %b) {
+define float @vand_v(float %a, float %b) {
 ; VENTUS-LABEL: vand_v:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vand.vv v2, v0, v1
+; VENTUS-NEXT:    vand.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
-  %1 = and i32 %a, %b
-  ret i32 %1
+  %1 = fadd float %a, %b
+  ret float %1
 }
 
 define i32 @vand_i(i32 %a) {
 ; VENTUS-LABEL: vand_i:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vand.vi v1, v0, 4
+; VENTUS-NEXT:    vand.vi v0, v0, 4
 ; VENTUS-NEXT:    ret
   %1 = and i32 %a, 4
   ret i32 %1
@@ -23,7 +23,7 @@ define i32 @vand_i(i32 %a) {
 define i32 @vor_v(i32 %a, i32 %b) {
 ; VENTUS-LABEL: vor_v:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vor.vv v2, v0, v1
+; VENTUS-NEXT:    vor.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = or i32 %a, %b
   ret i32 %1
@@ -32,7 +32,7 @@ define i32 @vor_v(i32 %a, i32 %b) {
 define i32 @vor_i(i32 %a) {
 ; VENTUS-LABEL: vor_i:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vor.vi v1, v0, 4
+; VENTUS-NEXT:    vor.vi v0, v0, 4
 ; VENTUS-NEXT:    ret
   %1 = or i32 %a, 4
   ret i32 %1
@@ -41,7 +41,7 @@ define i32 @vor_i(i32 %a) {
 define i32 @vxor_v(i32 %a, i32 %b) {
 ; VENTUS-LABEL: vxor_v:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vor.vv v2, v0, v1
+; VENTUS-NEXT:    vor.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = xor i32 %a, %b
   ret i32 %1
@@ -50,7 +50,7 @@ define i32 @vxor_v(i32 %a, i32 %b) {
 define i32 @vxor_i(i32 %a) {
 ; VENTUS-LABEL: vxor_i:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vxor.vi v1, v0, 4
+; VENTUS-NEXT:    vxor.vi v0, v0, 4
 ; VENTUS-NEXT:    ret
   %1 = xor i32 %a, 4
   ret i32 %1
