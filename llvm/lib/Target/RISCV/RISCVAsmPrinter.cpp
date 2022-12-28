@@ -402,32 +402,32 @@ void RISCVAsmPrinter::EmitHwasanMemaccessSymbols(Module &M) {
 
     // Adjust sp
     OutStreamer->emitInstruction(MCInstBuilder(RISCV::ADDI)
-                                     .addReg(RISCV::X2)
-                                     .addReg(RISCV::X2)
+                                     .addReg(RISCV::X4)
+                                     .addReg(RISCV::X4)
                                      .addImm(-256),
                                  *STI);
 
     // store x10(arg0) by new sp
     OutStreamer->emitInstruction(MCInstBuilder(RISCV::SD)
                                      .addReg(RISCV::X10)
-                                     .addReg(RISCV::X2)
+                                     .addReg(RISCV::X4)
                                      .addImm(8 * 10),
                                  *STI);
     // store x11(arg1) by new sp
     OutStreamer->emitInstruction(MCInstBuilder(RISCV::SD)
                                      .addReg(RISCV::X11)
-                                     .addReg(RISCV::X2)
+                                     .addReg(RISCV::X4)
                                      .addImm(8 * 11),
                                  *STI);
 
     // store x8(fp) by new sp
     OutStreamer->emitInstruction(
-        MCInstBuilder(RISCV::SD).addReg(RISCV::X8).addReg(RISCV::X2).addImm(8 *
+        MCInstBuilder(RISCV::SD).addReg(RISCV::X8).addReg(RISCV::X4).addImm(8 *
                                                                             8),
         *STI);
     // store x1(ra) by new sp
     OutStreamer->emitInstruction(
-        MCInstBuilder(RISCV::SD).addReg(RISCV::X1).addReg(RISCV::X2).addImm(1 *
+        MCInstBuilder(RISCV::SD).addReg(RISCV::X1).addReg(RISCV::X4).addImm(1 *
                                                                             8),
         *STI);
     if (Reg != RISCV::X10)

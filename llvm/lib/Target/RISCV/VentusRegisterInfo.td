@@ -164,6 +164,9 @@ class VentusRegisterTuples<list<SubRegIndex> Indices, RegisterClass RC,
 // compressed instruction set. This will influence the greedy register
 // allocator to reduce the use of registers that can't be encoded in 16 bit
 // instructions.
+// Ventus ABI:
+//  sp is used as sGPR spill/restore stack pointer on local memory
+//  tp is used as per-thread stack pointer on private memory
 
 let RegAltNameIndices = [ABIRegAltName] in {
   let isConstant = true in
@@ -490,20 +493,27 @@ def VGPR : RVRegisterClass<"RISCV",
   let IsVGPR = 1;
 }
 
-// VGPR 64-bit registers class
+// VGPR 64-bit registers
 def VGPR_64 : VentusRegisterTuples<getSubRegs<2>.ret, VGPR, 255, 1, 2, "v">;
 
-// VGPR 96-bit registers class
+// VGPR 96-bit registers
 def VGPR_96 : VentusRegisterTuples<getSubRegs<3>.ret, VGPR, 255, 1, 3, "v">;
 
-// VGPR 128-bit registers class
+// VGPR 128-bit registers
 def VGPR_128 : VentusRegisterTuples<getSubRegs<4>.ret, VGPR, 255, 1, 4, "v">;
 
-// VGPR 256-bit registers class
+// VGPR 256-bit registers
 def VGPR_256 : VentusRegisterTuples<getSubRegs<8>.ret, VGPR, 255, 1, 8, "v">;
 
-// VGPR 512-bit registers class
+// VGPR 512-bit registers
 def VGPR_512 : VentusRegisterTuples<getSubRegs<16>.ret, VGPR, 255, 1, 16, "v">;
+
+// VGPR 64 ~ 512 registers
+def VReg_64  : RVRegisterClass<"RISCV", [i64, f64, v2i32, v2f32, v4f16, v4i16], 64, (add VGPR_64)>;
+def VReg_96  : RVRegisterClass<"RISCV", [v3i32, v3f32], 64, (add VGPR_96)>;
+def VReg_128 : RVRegisterClass<"RISCV", [v4i32, v4f32, v8i16, v8f16], 64, (add VGPR_128)>;
+def VReg_256 : RVRegisterClass<"RISCV", [v8i32, v8f32, v16i16, v16f16], 64, (add VGPR_256)>;
+def VReg_512 : RVRegisterClass<"RISCV", [v16i32, v16f32], 64, (add VGPR_512)>;
 
 // Any type register. Used for .insn directives when we don't know what the
 // register types could be.

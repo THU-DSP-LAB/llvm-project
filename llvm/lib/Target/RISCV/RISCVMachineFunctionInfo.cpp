@@ -17,7 +17,8 @@ using namespace llvm;
 yaml::RISCVMachineFunctionInfo::RISCVMachineFunctionInfo(
     const llvm::RISCVMachineFunctionInfo &MFI)
     : VarArgsFrameIndex(MFI.getVarArgsFrameIndex()),
-      VarArgsSaveSize(MFI.getVarArgsSaveSize()) {}
+      VarArgsSaveSize(MFI.getVarArgsSaveSize()),
+      IsEntryFunction(MFI.isEntryFunction()) {}
 
 MachineFunctionInfo *RISCVMachineFunctionInfo::clone(
     BumpPtrAllocator &Allocator, MachineFunction &DestMF,

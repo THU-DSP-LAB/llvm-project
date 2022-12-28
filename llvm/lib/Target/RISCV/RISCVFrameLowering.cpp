@@ -293,7 +293,7 @@ uint64_t RISCVFrameLowering::getStackSizeWithRVVPadding(
 static Register getFPReg(const RISCVSubtarget &STI) { return RISCV::X8; }
 
 // Returns the register used to hold the stack pointer.
-static Register getSPReg(const RISCVSubtarget &STI) { return RISCV::X2; }
+static Register getSPReg(const RISCVSubtarget &STI) { return RISCV::X4; }
 
 static SmallVector<CalleeSavedInfo, 8>
 getNonLibcallCSI(const MachineFunction &MF,
@@ -673,7 +673,7 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
   }
 
   if (FI >= MinCSFI && FI <= MaxCSFI) {
-    FrameReg = RISCV::X2;
+    FrameReg = RISCV::X4;
 
     if (FirstSPAdjustAmount)
       Offset += StackOffset::getFixed(FirstSPAdjustAmount);
@@ -720,7 +720,7 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
     } else {
       // VarSize objects must be empty in this case!
       assert(!MFI.hasVarSizedObjects());
-      FrameReg = RISCV::X2;
+      FrameReg = RISCV::X4;
     }
   } else {
     FrameReg = RI->getFrameRegister(MF);
@@ -1012,7 +1012,7 @@ MachineBasicBlock::iterator RISCVFrameLowering::eliminateCallFramePseudoInstr(
 
   const RISCVMachineFunctionInfo *MFI = MF.getInfo<RISCVMachineFunctionInfo>();
   // Kernel and normal function has different stack pointer for Ventus GPGPU.
-  Register SPReg = MFI->isEntryFunction() ? RISCV::X2 : RISCV::X4;
+  Register SPReg = RISCV::X4; // MFI->isEntryFunction() ? RISCV::X2 : RISCV::X4;
   DebugLoc DL = MI->getDebugLoc();
 
   if (!hasReservedCallFrame(MF)) {

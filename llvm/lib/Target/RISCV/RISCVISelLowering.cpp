@@ -141,52 +141,12 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     addRegisterClass(MVT::i32, &RISCV::VGPRRegClass);
     addRegisterClass(MVT::f32, &RISCV::VGPRRegClass);
   }
-  /*
-  // Load float with int operation.
-  setOperationAction(ISD::LOAD, MVT::f32, Promote);
-  AddPromotedToType(ISD::LOAD, MVT::f32, MVT::i32);
 
-  setOperationAction(ISD::LOAD, MVT::v2f32, Promote);
-  AddPromotedToType(ISD::LOAD, MVT::v2f32, MVT::v2i32);
-
-  setOperationAction(ISD::LOAD, MVT::v3f32, Promote);
-  AddPromotedToType(ISD::LOAD, MVT::v3f32, MVT::v3i32);
-
-  setOperationAction(ISD::LOAD, MVT::v4f32, Promote);
-  AddPromotedToType(ISD::LOAD, MVT::v4f32, MVT::v4i32);
-
-  setOperationAction(ISD::LOAD, MVT::v5f32, Promote);
-  AddPromotedToType(ISD::LOAD, MVT::v5f32, MVT::v5i32);
-
-  setOperationAction(ISD::LOAD, MVT::v6f32, Promote);
-  AddPromotedToType(ISD::LOAD, MVT::v6f32, MVT::v6i32);
-
-  setOperationAction(ISD::LOAD, MVT::v7f32, Promote);
-  AddPromotedToType(ISD::LOAD, MVT::v7f32, MVT::v7i32);
-
-  setOperationAction(ISD::LOAD, MVT::v8f32, Promote);
-  AddPromotedToType(ISD::LOAD, MVT::v8f32, MVT::v8i32);
-
-  setOperationAction(ISD::LOAD, MVT::v9f32, Promote);
-  AddPromotedToType(ISD::LOAD, MVT::v9f32, MVT::v9i32);
-
-  setOperationAction(ISD::LOAD, MVT::v10f32, Promote);
-  AddPromotedToType(ISD::LOAD, MVT::v10f32, MVT::v10i32);
-
-  setOperationAction(ISD::LOAD, MVT::v11f32, Promote);
-  AddPromotedToType(ISD::LOAD, MVT::v11f32, MVT::v11i32);
-
-  setOperationAction(ISD::LOAD, MVT::v12f32, Promote);
-  AddPromotedToType(ISD::LOAD, MVT::v12f32, MVT::v12i32);
-
-  setOperationAction(ISD::LOAD, MVT::v16f32, Promote);
-  AddPromotedToType(ISD::LOAD, MVT::v16f32, MVT::v16i32);
-  */
   // Compute derived properties from the register classes.
   computeRegisterProperties(STI.getRegisterInfo());
 
-  // TODO: We have 2 stack pointers: 1 for sALU, 1 for vALU
-  setStackPointerRegisterToSaveRestore(RISCV::X2);
+  // This per-thread stack pointer.
+  setStackPointerRegisterToSaveRestore(RISCV::X4);
 
   setLoadExtAction({ISD::EXTLOAD, ISD::SEXTLOAD, ISD::ZEXTLOAD}, XLenVT,
                    MVT::i1, Promote);
@@ -5378,20 +5338,14 @@ void RISCVTargetLowering::AdjustInstrPostInstrSelection(MachineInstr &MI,
 // register-size fields in the same situations they would be for fixed
 // arguments.
 
-static const MCPhysReg ArgGPRs[] = {
-  RISCV::X10, RISCV::X11, RISCV::X12, RISCV::X13,
-  RISCV::X14, RISCV::X15, RISCV::X16, RISCV::X17
-};
-
-// Calling convention for Ventus GPGPU
-// TODO: Add up to 96 argument registers.
+// Calling convention for Ventus GPGPU: V0-V31 as arg registers
 static const MCPhysReg ArgVGPRs[] = {
   RISCV::V0,  RISCV::V1,  RISCV::V2,  RISCV::V3,  RISCV::V4,  RISCV::V5,
   RISCV::V6,  RISCV::V7,  RISCV::V8,  RISCV::V9,  RISCV::V10, RISCV::V11,
   RISCV::V12, RISCV::V13, RISCV::V14, RISCV::V15, RISCV::V16, RISCV::V17,
   RISCV::V18, RISCV::V19, RISCV::V20, RISCV::V21, RISCV::V22, RISCV::V23,
   RISCV::V24, RISCV::V25, RISCV::V26, RISCV::V27, RISCV::V28, RISCV::V29,
-  RISCV::V30, RISCV::V31, RISCV::V32, RISCV::V33, RISCV::V34, RISCV::V35
+  RISCV::V30, RISCV::V31
 };
 
 // Pass a 2*XLEN argument that has been split into two XLEN values through
@@ -5401,7 +5355,7 @@ static bool CC_RISCVAssign2XLen(unsigned XLen, CCState &State, CCValAssign VA1,
                                 MVT ValVT2, MVT LocVT2,
                                 ISD::ArgFlagsTy ArgFlags2) {
   unsigned XLenInBytes = XLen / 8;
-  if (Register Reg = State.AllocateReg(ArgGPRs)) {
+  if (Register Reg = State.AllocateReg(ArgVGPRs)) {
     // At least one half can be passed via register.
     State.addLoc(CCValAssign::getReg(VA1.getValNo(), VA1.getValVT(), Reg,
                                      VA1.getLocVT(), CCValAssign::Full));
@@ -5419,7 +5373,7 @@ static bool CC_RISCVAssign2XLen(unsigned XLen, CCState &State, CCValAssign VA1,
     return false;
   }
 
-  if (Register Reg = State.AllocateReg(ArgGPRs)) {
+  if (Register Reg = State.AllocateReg(ArgVGPRs)) {
     // The second half can also be passed via register.
     State.addLoc(
         CCValAssign::getReg(ValNo2, ValVT2, Reg, LocVT2, CCValAssign::Full));
@@ -5818,7 +5772,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
 
   if (IsVarArg) {
     assert(0 && "TODO: VarArg lowering is not finished!");
-    ArrayRef<MCPhysReg> ArgRegs = makeArrayRef(ArgGPRs);
+    ArrayRef<MCPhysReg> ArgRegs = makeArrayRef(ArgVGPRs);
     unsigned Idx = CCInfo.getFirstUnallocated(ArgRegs);
     const TargetRegisterClass *RC = &RISCV::GPRRegClass;
     MachineFrameInfo &MFI = MF.getFrameInfo();
@@ -6050,7 +6004,7 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
         // Second half of f64 is passed on the stack.
         // Work out the address of the stack slot.
         if (!StackPtr.getNode())
-          StackPtr = DAG.getCopyFromReg(Chain, DL, RISCV::X2, PtrVT);
+          StackPtr = DAG.getCopyFromReg(Chain, DL, RISCV::X4, PtrVT);
         // Emit the store.
         MemOpChains.push_back(
             DAG.getStore(Chain, DL, Hi, StackPtr, MachinePointerInfo()));
@@ -6129,7 +6083,7 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
 
       // Work out the address of the stack slot.
       if (!StackPtr.getNode())
-        StackPtr = DAG.getCopyFromReg(Chain, DL, RISCV::X2, PtrVT);
+        StackPtr = DAG.getCopyFromReg(Chain, DL, RISCV::X4, PtrVT);
       SDValue Address =
           DAG.getNode(ISD::ADD, DL, PtrVT, StackPtr,
                       DAG.getIntPtrConstant(VA.getLocMemOffset(), DL));
@@ -6236,9 +6190,9 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
     Glue = RetValue.getValue(2);
 
     if (VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::f64) {
-      assert(VA.getLocReg() == ArgGPRs[0] && "Unexpected reg assignment");
+      assert(VA.getLocReg() == ArgVGPRs[0] && "Unexpected reg assignment");
       SDValue RetValue2 =
-          DAG.getCopyFromReg(Chain, DL, ArgGPRs[1], MVT::i32, Glue);
+          DAG.getCopyFromReg(Chain, DL, ArgVGPRs[1], MVT::i32, Glue);
       Chain = RetValue2.getValue(1);
       Glue = RetValue2.getValue(2);
       RetValue = DAG.getNode(RISCVISD::BuildPairF64, DL, MVT::f64, RetValue,
