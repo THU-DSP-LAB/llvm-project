@@ -37,7 +37,7 @@ define float @foo_constant(float noundef %a) {
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui x10, %hi(.LCPI3_0)
 ; VENTUS-NEXT:    lw x10, %lo(.LCPI3_0)(x10)
-; VENTUS-NEXT:    vfmv.s.f v1, x10
+; VENTUS-NEXT:    vmv.s.x v1, x10
 ; VENTUS-NEXT:    vfmul.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
 entry:

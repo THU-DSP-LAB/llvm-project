@@ -24,13 +24,14 @@ define dso_local spir_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr addrs
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi x2, x2, -16
+; VENTUS-NEXT:    addi x4, x4, -16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
 ; VENTUS-NEXT:    sw x1, 12(x2) # 4-byte Folded Spill
 ; VENTUS-NEXT:    sw x8, 8(x2) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset x1, -4
 ; VENTUS-NEXT:    .cfi_offset x8, -8
-; VENTUS-NEXT:    lw x8, 16(x10)
-; VENTUS-NEXT:    lw x11, 8(x10)
+; VENTUS-NEXT:    lw x8, 8(x10)
+; VENTUS-NEXT:    lw x11, 4(x10)
 ; VENTUS-NEXT:    lw x10, 0(x10)
 ; VENTUS-NEXT:    vmv.s.x v0, x10
 ; VENTUS-NEXT:    vmv.s.x v1, x11
@@ -40,6 +41,7 @@ define dso_local spir_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr addrs
 ; VENTUS-NEXT:    lw x1, 12(x2) # 4-byte Folded Reload
 ; VENTUS-NEXT:    lw x8, 8(x2) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi x2, x2, 16
+; VENTUS-NEXT:    addi x4, x4, 16
 ; VENTUS-NEXT:    ret
 entry:
   %a.addr = alloca i32, align 4, addrspace(5)

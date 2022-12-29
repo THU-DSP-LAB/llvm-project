@@ -5,7 +5,7 @@
 define float @vand_v(float %a, float %b) {
 ; VENTUS-LABEL: vand_v:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vand.vv v0, v0, v1
+; VENTUS-NEXT:    vfadd.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = fadd float %a, %b
   ret float %1
@@ -41,7 +41,7 @@ define i32 @vor_i(i32 %a) {
 define i32 @vxor_v(i32 %a, i32 %b) {
 ; VENTUS-LABEL: vxor_v:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vor.vv v0, v0, v1
+; VENTUS-NEXT:    vxor.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = xor i32 %a, %b
   ret i32 %1

@@ -6,14 +6,10 @@
 define <4 x i32> @foo(<4 x i32> noundef %a, <4 x i32> noundef %b) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vfmv.f.s x10, v0
-; VENTUS-NEXT:    vadd.vx v0, v4, x10
-; VENTUS-NEXT:    vfmv.f.s x10, v1
-; VENTUS-NEXT:    vadd.vx v1, v5, x10
-; VENTUS-NEXT:    vfmv.f.s x10, v2
-; VENTUS-NEXT:    vadd.vx v2, v6, x10
-; VENTUS-NEXT:    vfmv.f.s x10, v3
-; VENTUS-NEXT:    vadd.vx v3, v7, x10
+; VENTUS-NEXT:    vadd.vv v0, v4, v0
+; VENTUS-NEXT:    vadd.vv v1, v5, v1
+; VENTUS-NEXT:    vadd.vv v2, v6, v2
+; VENTUS-NEXT:    vadd.vv v3, v7, v3
 ; VENTUS-NEXT:    ret
 entry:
   %add = add <4 x i32> %b, %a

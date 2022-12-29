@@ -12,6 +12,10 @@ define i32 @vadd_v(i32 %a, i32 %b) nounwind {
 }
 
 define i32 @vadd_x(i32 %a) nounwind {
+; VENTUS-LABEL: vadd_x:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vadd.vi v0, v0, 12
+; VENTUS-NEXT:    ret
   %1 = alloca i32
   store i32 12, ptr %1
   %2 = load i32,ptr %1
@@ -38,6 +42,12 @@ define i32 @vsub_v(i32 %a, i32 %b) nounwind {
 }
 
 define i32 @vsub_x(i32 %a) nounwind {
+; VENTUS-LABEL: vsub_x:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    li x10, -12
+; VENTUS-NEXT:    vmv.s.x v1, x10
+; VENTUS-NEXT:    vadd.vv v0, v0, v1
+; VENTUS-NEXT:    ret
   %1 = alloca i32
   store i32 12, ptr %1
   %2 = load i32, ptr %1
@@ -46,6 +56,10 @@ define i32 @vsub_x(i32 %a) nounwind {
 }
 
 define i32 @vrsub_x(i32 %a) nounwind {
+; VENTUS-LABEL: vrsub_x:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vrsub.vi v0, v0, 12
+; VENTUS-NEXT:    ret
   %1 = alloca i32
   store i32 12, ptr %1
   %2 = load i32, ptr %1
@@ -66,7 +80,8 @@ define i32 @vrsub_bigimm(i32 %a) nounwind {
 ; VENTUS-LABEL: vrsub_bigimm:
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    lui x10, 16
-; VENTUS-NEXT:    vrsub.vx v0, v0, x10
+; VENTUS-NEXT:    vmv.s.x v1, x10
+; VENTUS-NEXT:    vsub.vv v0, v1, v0
 ; VENTUS-NEXT:    ret
   %1 = sub i32 65536, %a
   ret i32 %1

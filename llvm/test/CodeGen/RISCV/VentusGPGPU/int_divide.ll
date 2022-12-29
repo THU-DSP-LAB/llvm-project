@@ -5,13 +5,21 @@
 define i32 @vdivu_v(i32 %a, i32 %b) {
 ; VENTUS-LABEL: vdivu_v:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vand.vv v0, v0, v1
+; VENTUS-NEXT:    vdivu.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = udiv i32 %a, %b
   ret i32 %1
 }
 
 define i32 @vdivu_x(i32 %a) {
+; VENTUS-LABEL: vdivu_x:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    lui x10, 699051
+; VENTUS-NEXT:    addi x10, x10, -1365
+; VENTUS-NEXT:    vmv.s.x v1, x10
+; VENTUS-NEXT:    vmulhu.vv v0, v0, v1
+; VENTUS-NEXT:    vsrl.vi v0, v0, 3
+; VENTUS-NEXT:    ret
   %1 = alloca i32
   store i32 12, ptr %1
   %2 = load i32, ptr %1
@@ -22,13 +30,19 @@ define i32 @vdivu_x(i32 %a) {
 define i32 @vdiv_v(i32 %a, i32 %b) {
 ; VENTUS-LABEL: vdiv_v:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vand.vv v0, v0, v1
+; VENTUS-NEXT:    vdiv.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = sdiv i32 %a, %b
   ret i32 %1
 }
 
 define i32 @vdiv_x(i32 %a) {
+; VENTUS-LABEL: vdiv_x:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vsrl.vi v1, v0, 31
+; VENTUS-NEXT:    vadd.vv v0, v0, v1
+; VENTUS-NEXT:    vsra.vi v0, v0, 1
+; VENTUS-NEXT:    ret
   %1 = alloca i32
   store i32 2, ptr %1
   %2 = load i32, ptr %1

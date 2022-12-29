@@ -18,21 +18,21 @@ define dso_local spir_kernel void @func(ptr addrspace(1) nocapture noundef align
 ; VENTUS-NEXT:    .cfi_offset v32.l, -16
 ; VENTUS-NEXT:    lw x8, 0(x10)
 ; VENTUS-NEXT:    lw x9, 4(x10)
-; VENTUS-NEXT:    vfmv.s.f v0, x0
+; VENTUS-NEXT:    vmv.s.x v0, x0
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vadd.vx v32, v0, x0
-; VENTUS-NEXT:    vfmv.s.f v0, x0
+; VENTUS-NEXT:    vmv.s.x v0, x0
 ; VENTUS-NEXT:    call _Z12get_local_idj
-; VENTUS-NEXT:    vfmv.s.f v1, x0
+; VENTUS-NEXT:    vmv.s.x v1, x0
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
-; VENTUS-NEXT:    vfmv.s.f v2, x9
+; VENTUS-NEXT:    vmv.s.x v2, x9
 ; VENTUS-NEXT:    vadd.vv v0, v2, v0
-; VENTUS-NEXT:    vfmv.f.s x10, v0
+; VENTUS-NEXT:    vmv.x.s x10, v0
 ; VENTUS-NEXT:    vluxei32.v v0, (x10), v1
 ; VENTUS-NEXT:    vsll.vi v2, v32, 2
-; VENTUS-NEXT:    vfmv.s.f v3, x8
+; VENTUS-NEXT:    vmv.s.x v3, x8
 ; VENTUS-NEXT:    vadd.vv v2, v3, v2
-; VENTUS-NEXT:    vfmv.f.s x10, v2
+; VENTUS-NEXT:    vmv.x.s x10, v2
 ; VENTUS-NEXT:    vluxei32.v v2, (x10), v1
 ; VENTUS-NEXT:    vadd.vv v0, v2, v0
 ; VENTUS-NEXT:    vsuxei32.v v0, (x10), v1

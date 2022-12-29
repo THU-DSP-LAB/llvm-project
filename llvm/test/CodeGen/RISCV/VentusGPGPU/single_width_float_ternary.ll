@@ -4,6 +4,33 @@
 ; Function Attrs: noinline nounwind optnone
 
 define dso_local ptr @fmadd(ptr noundef %a, ptr noundef %b, ptr noundef %c) #0 {
+; VENTUS-LABEL: fmadd:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    li x10, 0
+; VENTUS-NEXT:    li x11, 0
+; VENTUS-NEXT:    li x12, 9
+; VENTUS-NEXT:    vmv.s.x v3, x0
+; VENTUS-NEXT:    blt x12, x11, .LBB0_2
+; VENTUS-NEXT:  .LBB0_1: # %for.body
+; VENTUS-NEXT:    # =>This Inner Loop Header: Depth=1
+; VENTUS-NEXT:    vmv.s.x v4, x10
+; VENTUS-NEXT:    vadd.vv v5, v0, v4
+; VENTUS-NEXT:    vmv.x.s x13, v5
+; VENTUS-NEXT:    vluxei32.v v5, (x13), v3
+; VENTUS-NEXT:    vadd.vv v6, v2, v4
+; VENTUS-NEXT:    vmv.x.s x13, v6
+; VENTUS-NEXT:    vluxei32.v v6, (x13), v3
+; VENTUS-NEXT:    vadd.vv v4, v1, v4
+; VENTUS-NEXT:    vmv.x.s x14, v4
+; VENTUS-NEXT:    vluxei32.v v4, (x14), v3
+; VENTUS-NEXT:    vfmadd.vv v6, v5, v4
+; VENTUS-NEXT:    vsuxei32.v v6, (x13), v3
+; VENTUS-NEXT:    addi x11, x11, 1
+; VENTUS-NEXT:    addi x10, x10, 4
+; VENTUS-NEXT:    bge x12, x11, .LBB0_1
+; VENTUS-NEXT:  .LBB0_2: # %for.end
+; VENTUS-NEXT:    vadd.vx v0, v2, x0
+; VENTUS-NEXT:    ret
 entry:
   %a.addr = alloca ptr, align 4, addrspace(5)
   %b.addr = alloca ptr, align 4, addrspace(5)
@@ -22,21 +49,6 @@ for.cond:                                         ; preds = %for.inc, %entry
   br i1 %cmp, label %for.body, label %for.end
 
 for.body:                                         ; preds = %for.cond
-; VENTUS-NEXT:    vfmv.s.f v4, x10
-; VENTUS-NEXT:    vadd.vv	v5, v0, v4
-; VENTUS-NEXT:    vfmv.f.s	x13, v5
-; VENTUS-NEXT:    vluxei32.v	v5, (x13), v3
-; VENTUS-NEXT:    vadd.vv	v6, v2, v4
-; VENTUS-NEXT:    vfmv.f.s	x13, v6
-; VENTUS-NEXT:    vluxei32.v	v6, (x13), v3
-; VENTUS-NEXT:    vadd.vv	v4, v1, v4
-; VENTUS-NEXT:    vfmv.f.s	x14, v4
-; VENTUS-NEXT:    vluxei32.v	v4, (x14), v3
-; VENTUS-NEXT:    vfmadd.vv	v6, v5, v4
-; VENTUS-NEXT:    vsuxei32.v	v6, (x13), v3
-; VENTUS-NEXT:    addi	x11, x11, 1
-; VENTUS-NEXT:    addi	x10, x10, 4
-; VENTUS-NEXT:    bge	x12, x11, .LBB0_1
   %1 = load ptr, ptr addrspace(5) %a.addr, align 4
   %2 = load i32, ptr addrspace(5) %i, align 4
   %arrayidx = getelementptr inbounds float, ptr %1, i32 %2
@@ -74,8 +86,8 @@ for.end:                                          ; preds = %for.cond
 define dso_local float @fmadd_llvm(float noundef %a, float noundef %b, float noundef %c) #0 {
 ; VENTUS-LABEL: fmadd_llvm:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vfmadd.vv	v1, v0, v2
-; VENTUS-NEXT:    vadd.vx	v0, v1, x0
+; VENTUS-NEXT:    vfmadd.vv v1, v0, v2
+; VENTUS-NEXT:    vadd.vx v0, v1, x0
 ; VENTUS-NEXT:    ret
   %result = call float @llvm.fmuladd.f32(float %a, float %b, float %c)
   ret float %result
@@ -86,11 +98,11 @@ declare float @llvm.fmuladd.f32(float, float, float) #1
 
 ; Function Attrs: noinline nounwind optnone
 define dso_local float @fmsub(float noundef %a, float noundef %b, float noundef %c) #0 {
-; VENTUS-LABEL: fmadd_llvm:
+; VENTUS-LABEL: fmsub:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vfmsub.vv	v1, v0, v2
-; VENTUS-NEXT:    vadd.vx	v0, v1, x0
-; VENTUS-NEXT:    ret 
+; VENTUS-NEXT:    vfmsub.vv v1, v0, v2
+; VENTUS-NEXT:    vadd.vx v0, v1, x0
+; VENTUS-NEXT:    ret
   %mul = fmul float %a, %b
   %sub = fsub float %mul, %c
   ret float %sub

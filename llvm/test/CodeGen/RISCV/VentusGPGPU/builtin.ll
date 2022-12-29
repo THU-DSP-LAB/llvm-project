@@ -14,23 +14,21 @@ define spir_kernel void @foo_ker(ptr addrspace(1) nocapture noundef align 4 %A, 
 ; VENTUS-NEXT:    .cfi_offset x1, -4
 ; VENTUS-NEXT:    .cfi_offset x8, -8
 ; VENTUS-NEXT:    .cfi_offset x9, -12
-; VENTUS-NEXT:    lw x8, 4(x10)
-; VENTUS-NEXT:    lw x9, 8(x10)
-; VENTUS-NEXT:    vfmv.s.f v0, x0
+; VENTUS-NEXT:    lw x8, 0(x10)
+; VENTUS-NEXT:    lw x9, 4(x10)
+; VENTUS-NEXT:    vmv.s.x v0, x0
 ; VENTUS-NEXT:    call _Z13get_global_idj
-; VENTUS-NEXT:    vfmv.s.f v1, x0
+; VENTUS-NEXT:    vmv.s.x v1, x0
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
-; VENTUS-NEXT:    vfmv.s.f v2, x9
-; VENTUS-NEXT:    vfmv.f.s x10, v0
-; VENTUS-NEXT:    vadd.vx v0, v2, x10
-; VENTUS-NEXT:    vfmv.f.s x11, v0
-; VENTUS-NEXT:    vluxei32.v v0, (x11), v1
-; VENTUS-NEXT:    vfmv.s.f v2, x8
-; VENTUS-NEXT:    vadd.vx v2, v2, x10
-; VENTUS-NEXT:    vfmv.f.s x10, v2
+; VENTUS-NEXT:    vmv.s.x v2, x9
+; VENTUS-NEXT:    vadd.vv v2, v2, v0
+; VENTUS-NEXT:    vmv.x.s x10, v2
 ; VENTUS-NEXT:    vluxei32.v v2, (x10), v1
-; VENTUS-NEXT:    vfmv.f.s x11, v0
-; VENTUS-NEXT:    vadd.vx v0, v2, x11
+; VENTUS-NEXT:    vmv.s.x v3, x8
+; VENTUS-NEXT:    vadd.vv v0, v3, v0
+; VENTUS-NEXT:    vmv.x.s x10, v0
+; VENTUS-NEXT:    vluxei32.v v0, (x10), v1
+; VENTUS-NEXT:    vadd.vv v0, v0, v2
 ; VENTUS-NEXT:    vsuxei32.v v0, (x10), v1
 ; VENTUS-NEXT:    lw x1, 12(x2) # 4-byte Folded Reload
 ; VENTUS-NEXT:    lw x8, 8(x2) # 4-byte Folded Reload
@@ -63,19 +61,17 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    .cfi_offset v33.l, -12
 ; VENTUS-NEXT:    vadd.vx v32, v1, x0
 ; VENTUS-NEXT:    vadd.vx v33, v0, x0
-; VENTUS-NEXT:    vfmv.s.f v0, x0
+; VENTUS-NEXT:    vmv.s.x v0, x0
 ; VENTUS-NEXT:    call _Z13get_global_idj
-; VENTUS-NEXT:    vfmv.s.f v1, x0
+; VENTUS-NEXT:    vmv.s.x v1, x0
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
-; VENTUS-NEXT:    vfmv.f.s x10, v0
-; VENTUS-NEXT:    vadd.vx v0, v32, x10
-; VENTUS-NEXT:    vfmv.f.s x11, v0
-; VENTUS-NEXT:    vluxei32.v v0, (x11), v1
-; VENTUS-NEXT:    vadd.vx v2, v33, x10
-; VENTUS-NEXT:    vfmv.f.s x10, v2
+; VENTUS-NEXT:    vadd.vv v2, v32, v0
+; VENTUS-NEXT:    vmv.x.s x10, v2
 ; VENTUS-NEXT:    vluxei32.v v2, (x10), v1
-; VENTUS-NEXT:    vfmv.f.s x11, v0
-; VENTUS-NEXT:    vadd.vx v0, v2, x11
+; VENTUS-NEXT:    vadd.vv v0, v33, v0
+; VENTUS-NEXT:    vmv.x.s x10, v0
+; VENTUS-NEXT:    vluxei32.v v0, (x10), v1
+; VENTUS-NEXT:    vadd.vv v0, v0, v2
 ; VENTUS-NEXT:    vsuxei32.v v0, (x10), v1
 ; VENTUS-NEXT:    lw x1, 12(x2) # 4-byte Folded Reload
 ; VENTUS-NEXT:    vlw v32, 8(x4) # 4-byte Folded Reload
