@@ -5516,12 +5516,13 @@ void RISCVTargetLowering::analyzeFormalArgumentsCompute(MachineFunction &MF,
     Type *MemArgTy = IsByRef ? Arg.getParamByRefType() : BaseArgTy;
     Align Alignment = DL.getValueOrABITypeAlignment(
         IsByRef ? Arg.getParamAlign() : std::nullopt, MemArgTy);
-    uint64_t AllocSize = DL.getTypeAllocSize(MemArgTy);
-    ArgOffset = alignTo(ArgOffset + AllocSize, Alignment);
+    ArgOffset = alignTo(ArgOffset, Alignment);
 
     SmallVector<EVT, 16> ValueVTs;
     SmallVector<uint64_t, 16> Offsets;
     ComputeValueVTs(*this, DL, BaseArgTy, ValueVTs, &Offsets, ArgOffset);
+
+    ArgOffset += DL.getTypeAllocSize(MemArgTy);
 
     for (unsigned Value = 0, NumValues = ValueVTs.size();
          Value != NumValues; ++Value) {
