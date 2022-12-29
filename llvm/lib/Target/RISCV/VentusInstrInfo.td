@@ -871,6 +871,16 @@ def SRAW  : ALUW_rr<0b0100000, 0b101, "sraw">,
 } // Predicates = [IsRV64]
 
 //===----------------------------------------------------------------------===//
+// Ventus GPGPU extended instructions
+//===----------------------------------------------------------------------===//
+
+// imm12 is divided into 4 x 3bits to encode extended register range.
+let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
+def REGEXT : RVInstI<0b000, OPC_CUSTOM_0, (outs GPR:$rd),
+                     (ins GPR:$rs1, simm12:$imm12),
+                     "regext", "$rd, $rs1, $imm12">;
+
+//===----------------------------------------------------------------------===//
 // Privileged instructions
 //===----------------------------------------------------------------------===//
 
