@@ -612,6 +612,7 @@ private:
   SDValue lowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerSELECT(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerSETCC(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerVASTART(SDValue Op, SelectionDAG &DAG) const;

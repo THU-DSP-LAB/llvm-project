@@ -24,11 +24,13 @@
 #include "llvm/Analysis/LegacyDivergenceAnalysis.h"
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
+#include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/DiagnosticInfo.h"
@@ -1217,6 +1219,8 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
     return lowerFPOWI(Op, DAG);
   case ISD::SELECT_CC:
     return lowerSELECT_CC(Op, DAG);
+  case ISD::SETCC:
+    return lowerSETCC(Op, DAG);
   case ISD::CTLZ_ZERO_UNDEF:
   case ISD::CTTZ_ZERO_UNDEF:
     return lowerCTLZ_CTTZ_ZERO_UNDEF(Op, DAG);
@@ -1510,6 +1514,42 @@ RISCVTargetLowering::lowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue Cond =
       DAG.getNode(ISD::SETCC, DL, CCVT, Tmp1, Tmp2, CC, Op->getFlags());
   return DAG.getSelect(DL, VT, Cond, True, False);
+}
+
+// Legalize SETCC for integer compare instructions like vmslt, etc
+SDValue RISCVTargetLowering::lowerSETCC(SDValue Op, SelectionDAG &DAG) const {
+  MVT OpVT = Op.getOperand(0).getSimpleValueType();
+  MVT VT = Op.getSimpleValueType();
+  SDValue LHS = Op.getOperand(0);
+  SDValue RHS = Op.getOperand(1);
+  ISD::CondCode CCVal = cast<CondCodeSDNode>(Op.getOperand(2))->get();
+  assert((CCVal == ISD::SETGT || CCVal == ISD::SETUGT) &&
+          "Unexpected CondCode");
+
+  SDLoc DL(Op);
+
+  // If the RHS is a constant in the range [-2049, 0) or (0, 2046], we can
+  // convert this to the equivalent of (set(u)ge X, C+1) by using
+  // (xori (slti(u) X, C+1), 1). This avoids materializing a small constant
+  // in a register.
+  if (isa<ConstantSDNode>(RHS)) {
+    int64_t Imm = cast<ConstantSDNode>(RHS)->getSExtValue();
+    if (Imm != 0 && isInt<12>((uint64_t)Imm + 1)) {
+      // X > -1 should have been replaced with false.
+      assert((CCVal != ISD::SETUGT || Imm != -1) &&
+              "Missing canonicalization");
+      // Using getSetCCSwappedOperands will convert SET(U)GT->SET(U)LT.
+      CCVal = ISD::getSetCCSwappedOperands(CCVal);
+      SDValue SetCC = DAG.getSetCC(
+          DL, VT, LHS, DAG.getConstant(Imm + 1, DL, OpVT), CCVal);
+      return DAG.getLogicalNOT(DL, SetCC, VT);
+    }
+  }
+
+  // Not a constant we could handle, swap the operands and condition code to
+  // SETLT/SETULT.
+  CCVal = ISD::getSetCCSwappedOperands(CCVal);
+  return DAG.getSetCC(DL, VT, RHS, LHS, CCVal);
 }
 
 SDValue RISCVTargetLowering::lowerSELECT(SDValue Op, SelectionDAG &DAG) const {
