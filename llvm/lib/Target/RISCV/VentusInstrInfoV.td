@@ -1120,9 +1120,9 @@ defm : PatVXIBin<DivergentBinFrag<setne>, [VMSNE_VV, VMSNE_VX, VMSNE_VI]>;
 defm : PatVXIBin<DivergentBinFrag<seteq>, [VMSEQ_VV, VMSEQ_VX, VMSEQ_VI]>;
 
 // For now, some instructions are aliaed to other instructions
-defm :  MultySlOpePatVXIBin<[DivergentBinFrag<xor>, DivergentBinFrag<setlt>],
+defm : SleOpePatVXIBin<[DivergentBinFrag<xor>, DivergentBinFrag<setlt>],
                                             [VMSLE_VV, VMSLE_VX, VMSGT_VI]>;
-defm :  MultySlOpePatVXIBin<[DivergentBinFrag<xor>, DivergentBinFrag<setult>],
+defm : SleOpePatVXIBin<[DivergentBinFrag<xor>, DivergentBinFrag<setult>],
                                             [VMSLEU_VV, VMSLEU_VX, VMSGTU_VI]>;
 
 // Patterns for vrsub.vx and vrsub.vi
