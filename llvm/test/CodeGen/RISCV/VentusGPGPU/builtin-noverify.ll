@@ -20,17 +20,17 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    vadd.vx v1, v1, x0
 ; VENTUS-NEXT:    regext x0, x0, 1
 ; VENTUS-NEXT:    vadd.vx v2, v0, x0
-; VENTUS-NEXT:    vfmv.s.f v0, x0
+; VENTUS-NEXT:    vmv.s.x v0, x0
 ; VENTUS-NEXT:    call _Z13get_global_idj
-; VENTUS-NEXT:    vfmv.s.f v1, x0
+; VENTUS-NEXT:    vmv.s.x v1, x0
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
 ; VENTUS-NEXT:    regext x0, x0, 1
 ; VENTUS-NEXT:    vadd.vv v2, v1, v0
-; VENTUS-NEXT:    vfmv.f.s x10, v2
+; VENTUS-NEXT:    vmv.x.s x10, v2
 ; VENTUS-NEXT:    vluxei32.v v2, (x10), v1
 ; VENTUS-NEXT:    regext x0, x0, 1
 ; VENTUS-NEXT:    vadd.vv v0, v2, v0
-; VENTUS-NEXT:    vfmv.f.s x10, v0
+; VENTUS-NEXT:    vmv.x.s x10, v0
 ; VENTUS-NEXT:    vluxei32.v v0, (x10), v1
 ; VENTUS-NEXT:    vadd.vv v0, v0, v2
 ; VENTUS-NEXT:    vsuxei32.v v0, (x10), v1

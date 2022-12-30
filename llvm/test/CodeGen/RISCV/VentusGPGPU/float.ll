@@ -44,3 +44,13 @@ entry:
   %mul = fmul float %a, 1.25
   ret float %mul
 }
+
+define float @sqrt_f32(float %a) {
+; VENTUS-LABEL: sqrt_f32:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vfsqrt.v v0, v0
+; VENTUS-NEXT:    ret
+  %b = call float @llvm.sqrt.f32(float %a)
+  ret float %b
+}
+declare float @llvm.sqrt.f32(float %Val)

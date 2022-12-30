@@ -19,19 +19,18 @@ include "VentusInstrFormatsV.td"
 /// Generic pattern classes
 
 // RVV VV, VX, VI instruction pattern class for integer binary operations
-multiclass PatVXIBin<SDPatternOperator Op, list<RVInst> Insts> { 
+multiclass PatVXIBin<SDPatternOperator Op, list<RVInst> Insts> {
 
   def : Pat<(Op (XLenVT VGPR:$rs1), (XLenVT VGPR:$rs2)),
-            (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
+            (XLenVT (Insts[0] VGPR:$rs1, VGPR:$rs2))>;
 
   def : Pat<(Op (XLenVT VGPR:$rs1), GPR:$rs2),
-            (Insts[1] VGPR:$rs1, GPR:$rs2)>;
+            (XLenVT (Insts[1] VGPR:$rs1, GPR:$rs2))>;
 
   if !eq(!size(Insts), 3) then
     def : Pat<(XLenVT (Op (XLenVT VGPR:$rs1), uimm5:$imm)),
-              (Insts[2] VGPR:$rs1, uimm5:$imm)>;
+              (XLenVT (Insts[2] VGPR:$rs1, uimm5:$imm))>;
 }
-
 // RVV VV, VF, FV instruction pattern class for floating point binary operations
 multiclass PatVFRBin<SDPatternOperator Op, list<RVInst> Insts> {
   def : Pat<(Op (f32 VGPR:$rs1), (f32 VGPR:$rs2)),
@@ -56,7 +55,7 @@ class DivergentStPat<PatFrag StoreOp, RVInst Inst>
          (Inst VGPR:$vs3, GPR:$rs1, VGPR:$vs2)>;
 
 // RVV VV, VF instruction pattern class for floating point ternary operations
-multiclass PatVFRTer<list<SDPatternOperator> Ops, list<RVInst> Insts> { 
+multiclass PatVFRTer<list<SDPatternOperator> Ops, list<RVInst> Insts> {
 
   def : Pat<(Ops[0] (Ops[1] (f32 VGPR:$rs1), (f32 VGPR:$rs2)),
         (f32 VGPR:$rs3)), (Insts[0] VGPR:$rs2, VGPR:$rs1, VGPR:$rs3)>;
@@ -65,7 +64,7 @@ multiclass PatVFRTer<list<SDPatternOperator> Ops, list<RVInst> Insts> {
         (f32 VGPR:$rs3)), (Insts[1] VGPR:$rs2, GPRF32:$rs1, VGPR:$rs3)>;
 }
 
-multiclass AnyPatVFRTer<PatFrags Op, list<RVInst> Insts> { 
+multiclass AnyPatVFRTer<PatFrags Op, list<RVInst> Insts> {
 
   def : Pat<(Op (f32 VGPR:$rs1), (f32 VGPR:$rs2), (f32 VGPR:$rs3)),
         (Insts[0]  VGPR:$rs2, VGPR:$rs1, VGPR:$rs3)>;
@@ -74,6 +73,19 @@ multiclass AnyPatVFRTer<PatFrags Op, list<RVInst> Insts> {
         (Insts[1] VGPR:$rs2, GPRF32:$rs1, VGPR:$rs3)>;
 }
 
+// Complex VV, VX, VI instruction pattern class for integers select operation
+multiclass SleOpePatVXIBin<list<PatFrags> Ops, list<RVInst> Insts> {
+
+  def : Pat<(XLenVT (Ops[0] (Ops[1] (XLenVT VGPR:$rs1), (XLenVT VGPR:$rs2)), 1)),
+          (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
+
+  def : Pat<(XLenVT (Ops[0] (Ops[1] (XLenVT VGPR:$rs1), (XLenVT GPR:$rs2)), 1)),
+          (Insts[1] VGPR:$rs1, GPR:$rs2)>;
+
+  def : Pat<(XLenVT (Ops[0] (Ops[1] (XLenVT VGPR:$rs1), uimm5:$rs2), 1)),
+          (Insts[2] VGPR:$rs1, uimm5:$rs2)>;
+}
+// RVV VV, VF instruction pattern class for seletcing ins
 //===----------------------------------------------------------------------===//
 // Operand and SDNode transformation definitions.
 //===----------------------------------------------------------------------===//
@@ -198,7 +210,7 @@ class VALUVV<bits<6> funct6, RISCVVFormat opv, string opcodestr>
 
 // op vd, vs1, vs2 (reverse the order of vs1 and vs2)
 class VALUrVV<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVV<funct6, opv, (outs VGPR:$vd_w),
+    : RVInstVV<funct6, opv, (outs VGPR:$vd_wb),
                 (ins VGPR:$vd, VGPR:$vs1, VGPR:$vs2),
                 opcodestr, "$vd, $vs1, $vs2">;
 
@@ -228,7 +240,7 @@ class VALUVF<bits<6> funct6, RISCVVFormat opv, string opcodestr>
 
 // op vd, rs1, vs2 (Float) (reverse the order of rs1 and vs2)
 class VALUrVF<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVX<funct6, opv, (outs VGPR:$vd_w),
+    : RVInstVX<funct6, opv, (outs VGPR:$vd_wb),
                 (ins VGPR:$vd, GPRF32:$rs1, VGPR:$vs2),
                 opcodestr, "$vd, $rs1, $vs2">;
 
@@ -920,16 +932,18 @@ defm VFWMUL_V : VWMUL_FV_V_F<"vfwmul", 0b111000>;
 
 // Vector Single-Width Floating-Point Fused Multiply-Add Instructions
 let Uses = [FRM], mayRaiseFPException = true in {
-defm VFMACC_V : VMAC_FV_V_F<"vfmacc", 0b101100>;
-defm VFNMACC_V : VMAC_FV_V_F<"vfnmacc", 0b101101>;
-defm VFMSAC_V : VMAC_FV_V_F<"vfmsac", 0b101110>;
-defm VFNMSAC_V : VMAC_FV_V_F<"vfnmsac", 0b101111>;
-let Constraints = "$vd = $vd_w" in {
+let Constraints = "$vd_wb = $vs2" in {
+  defm VFMACC_V : VMAC_FV_V_F<"vfmacc", 0b101100>;
+  defm VFNMACC_V : VMAC_FV_V_F<"vfnmacc", 0b101101>;
+  defm VFMSAC_V : VMAC_FV_V_F<"vfmsac", 0b101110>;
+  defm VFNMSAC_V : VMAC_FV_V_F<"vfnmsac", 0b101111>;
+}
+let Constraints = "$vd = $vd_wb" in {
   defm VFMADD_V : VMAC_FV_V_F<"vfmadd", 0b101000>;
   defm VFNMADD_V : VMAC_FV_V_F<"vfnmadd", 0b101001>;
-  defm VFMSUB_V : VMAC_FV_V_F<"vfmsub", 0b101010>;  
+  defm VFMSUB_V : VMAC_FV_V_F<"vfmsub", 0b101010>;
   defm VFNMSUB_V : VMAC_FV_V_F<"vfnmsub", 0b101011>;
-} 
+}
 }
 
 // Vector Widening Floating-Point Fused Multiply-Add Instructions
@@ -976,6 +990,10 @@ defm VMFGT_V : VCMP_FV_F<"vmfgt", 0b011101>;
 defm VMFGE_V : VCMP_FV_F<"vmfge", 0b011111>;
 } // RVVConstraint = NoConstraint, mayRaiseFPException = true
 
+def : InstAlias<"vmsle.vi $vd, $va, !sub($vb, 1)",
+                (VMSLT_VI VGPR:$vd, VGPR:$va, uimm5:$vb), 1>;
+def : InstAlias<"vmsleu.vi $vd, $va, !sub($vb, 1)",
+                (VMSLTU_VI VGPR:$vd, VGPR:$va, uimm5:$vb), 1>;
 def : InstAlias<"vmfgt.vv $vd, $va, $vb",
                 (VMFLT_VV VGPR:$vd, VGPR:$vb, VGPR:$va), 0>;
 def : InstAlias<"vmfge.vv $vd, $va, $vb",
@@ -1076,6 +1094,7 @@ def VFMV_S_F : RVInstV2<0b010000, 0b00000, OPFVF, (outs VGPR:$vd_wb),
 // Ventus vALU divergent execution patterns
 //===----------------------------------------------------------------------===//
 
+// TODO: need to add VX instruction support later
 defm : PatVXIBin<DivergentBinFrag<smin>, [VMIN_VV, VMIN_VX]>;
 defm : PatVXIBin<DivergentBinFrag<umin>, [VMINU_VV, VMINU_VX]>;
 defm : PatVXIBin<DivergentBinFrag<smax>, [VMAX_VV, VMAX_VX]>;
@@ -1095,6 +1114,16 @@ defm : PatVXIBin<DivergentBinFrag<sdiv>, [VDIV_VV, VDIV_VX]>;
 defm : PatVXIBin<DivergentBinFrag<udiv>, [VDIVU_VV, VDIVU_VX]>;
 defm : PatVXIBin<DivergentBinFrag<srem>, [VREM_VV, VREM_VX]>;
 defm : PatVXIBin<DivergentBinFrag<urem>, [VREMU_VV, VREMU_VX]>;
+defm : PatVXIBin<DivergentBinFrag<setlt>, [VMSLT_VV, VMSLT_VX, VMSLT_VI]>;
+defm : PatVXIBin<DivergentBinFrag<setult>, [VMSLTU_VV, VMSLTU_VX, VMSLTU_VI]>;
+defm : PatVXIBin<DivergentBinFrag<setne>, [VMSNE_VV, VMSNE_VX, VMSNE_VI]>;
+defm : PatVXIBin<DivergentBinFrag<seteq>, [VMSEQ_VV, VMSEQ_VX, VMSEQ_VI]>;
+
+// For now, some instructions are aliaed to other instructions
+defm :  MultySlOpePatVXIBin<[DivergentBinFrag<xor>, DivergentBinFrag<setlt>],
+                                            [VMSLE_VV, VMSLE_VX, VMSGT_VI]>;
+defm :  MultySlOpePatVXIBin<[DivergentBinFrag<xor>, DivergentBinFrag<setult>],
+                                            [VMSLEU_VV, VMSLEU_VX, VMSGTU_VI]>;
 
 // Patterns for vrsub.vx and vrsub.vi
 def : Pat<(sub GPR:$rs1, VGPR:$rs2), (VRSUB_VX VGPR:$rs2, GPR:$rs1)>;
@@ -1110,14 +1139,16 @@ defm : PatVFRBin<DivergentBinFrag<fmaximum>,  [VFMAX_VV, VFMAX_VF]>;
 
 // Patterns for ternary operations
 // vfmadd.vv && vfmadd.vf
-defm : PatVFRTer<[DivergentBinFrag<fadd>, DivergentBinFrag<fmul>], 
+defm : PatVFRTer<[DivergentBinFrag<fadd>, DivergentBinFrag<fmul>],
                                           [VFMADD_VV, VFMADD_VF]>;
 defm : AnyPatVFRTer<any_fma, [VFMADD_VV, VFMADD_VF]>;
 
 // vfmsub.vv && vfmsub.vf
 defm : PatVFRTer<[DivergentBinFrag<fsub>, DivergentBinFrag<fmul>],
                                           [VFMSUB_VV, VFMSUB_VF]>;
-
+// vfsqrt.v
+def : Pat<(any_fsqrt (f32 VGPR:$rs1)), (VFSQRT_V (f32 VGPR:$rs1))>;
+// TODO: vfrec7.v? what is this
 def : DivergentLdPat<sextloadi8, VLUXEI8>;
 def : DivergentLdPat<extloadi8, VLUXEI8>;
 def : DivergentLdPat<sextloadi16, VLUXEI16>;
