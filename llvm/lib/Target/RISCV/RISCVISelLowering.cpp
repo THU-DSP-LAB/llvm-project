@@ -7308,7 +7308,7 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
   }
   case ISD::LOAD: {
     const LoadSDNode *L = cast<LoadSDNode>(N);
-    return L->getAddressingMode() == RISCVAS::PRIVATE_ADDRESS;
+    return L->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS;
   }
   case ISD::CALLSEQ_END:
     return true;

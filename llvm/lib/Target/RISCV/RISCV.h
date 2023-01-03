@@ -84,13 +84,13 @@ InstructionSelector *createRISCVInstructionSelector(const RISCVTargetMachine &,
 namespace RISCVAS {
   enum : unsigned {
     // The maximum value for flat, generic, local, private, constant and region.
-    MAX_VENTUS_ADDRESS = 4,
+    MAX_VENTUS_ADDRESS = 5,
 
     FLAT_ADDRESS = 0,     ///< Address space for flat memory.
     GLOBAL_ADDRESS = 1,   ///< Address space for global memory
     CONSTANT_ADDRESS = 1, ///< Address space for constant memory
-    LOCAL_ADDRESS = 2,    ///< Address space for local memory.
-    PRIVATE_ADDRESS = 3,  ///< Address space for private memory.
+    LOCAL_ADDRESS = 3,    ///< Address space for local memory.
+    PRIVATE_ADDRESS = 5,  ///< Address space for private memory.
 
     // Some places use this if the address space can't be determined.
     UNKNOWN_ADDRESS_SPACE = ~0u,
