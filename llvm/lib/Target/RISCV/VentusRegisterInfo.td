@@ -445,27 +445,28 @@ def GPRPF64 : RegisterClass<"RISCV", [f64], 64, (add
 def FFLAGS : RISCVReg<0, "fflags">;
 def FRM    : RISCVReg<0, "frm">;
 
-// TODO: Ref to SIRegisterInfo.td to finish this.
-multiclass VentusRegLoHi16 <string n, bits<8> regIdx, bit ArtificialHigh = 1> {
+let RegAltNameIndices = [ABIRegAltName] in
+multiclass VentusRegLoHi16 <string n, bits<8> regIdx> {
   // There is no special encoding for 16 bit subregs, these are not real
   // registers but rather operands for instructions preserving other 16 bits
   // of the result or reading just 16 bits of a 32 bit VGPR.
   // It is encoded as a corresponding 32 bit register.
   // Non-VGPR register classes use it as we need to have matching subregisters
   // to move instructions and data between ALUs.
-  def _LO16 : RISCVReg<regIdx, n#".l"> {
+  def _LO16 : RISCVReg<regIdx, n#".l", [n#".l"]> {
     //let HWEncoding{8} = HWEncodingHigh;
   }
-  def _HI16 : RISCVReg<regIdx, !if(ArtificialHigh, "", n#".h")> {
-    let isArtificial = ArtificialHigh;
+  def _HI16 : RISCVReg<regIdx, n#".h", [n#".h"]> {
+    //let isArtificial = ArtificialHigh;
     //let HWEncoding{8} = HWEncodingHigh;
   }
   def "" : RegisterWithSubRegs<n, [!cast<Register>(NAME#"_LO16"),
                                    !cast<Register>(NAME#"_HI16")]> {
     let Namespace = "RISCV";
     let SubRegIndices = [lo16, hi16];
-    let CoveredBySubRegs = !not(ArtificialHigh);
+    let CoveredBySubRegs = 0; // TODO: Subreg disabled for now.
     let HWEncoding{7-0} = regIdx;
+    let AltNames = [n];
     //let HWEncoding{8} = HWEncodingHigh;
   }
 }
@@ -474,7 +475,7 @@ multiclass VentusRegLoHi16 <string n, bits<8> regIdx, bit ArtificialHigh = 1> {
 // VGPR registers name
 foreach Index = 0...255 in {
   defm V#Index :
-    VentusRegLoHi16 <"v"#Index, Index, 0>,
+    VentusRegLoHi16 <"v"#Index, Index>,
     DwarfRegNum<[!add(Index, 2560), !add(Index, 1536)]>;
 }
 

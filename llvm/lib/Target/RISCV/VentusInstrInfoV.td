@@ -702,6 +702,7 @@ def VSUXEI8  : VectorStore<LSWidth8,  "vsuxei8.v">;
 def VSUXEI16 : VectorStore<LSWidth16, "vsuxei16.v">;
 def VSUXEI32 : VectorStore<LSWidth32, "vsuxei32.v">;
 
+// FIXME: simm11 is encoded into register name in assembly code.
 let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in {
 def VLW : RVInstSetVLi<1, (outs VGPR:$vd), (ins GPRMem:$rs1, simm11:$imm11),
                        "vlw", "$vd, ${imm11}(${rs1})">;

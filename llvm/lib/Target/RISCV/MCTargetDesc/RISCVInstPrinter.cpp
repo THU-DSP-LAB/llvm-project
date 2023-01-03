@@ -43,10 +43,7 @@ static cl::opt<bool>
 // instead of sp).
 // TODO: Make RISCVInstPrinter::getRegisterName non-static so that this can a
 // member.
-// FIXME: We need to define ABI name for vector registers when using non
-// ArchRegNames, Ref to the old definition of register V0~V31 in
-// RISCVRegisterInfo.td.
-static bool ArchRegNames = true;
+static bool ArchRegNames;
 
 // The command-line flags above are used by llvm-mc and llc. They can be used by
 // `llvm-objdump`, but we override their values here to handle options passed to
