@@ -30,6 +30,22 @@ class DivergentUnaryFrag<SDPatternOperator Op> : PatFrag<
   (Op $src0),
   [{ return N->isDivergent(); }]>;
 
+class DivergentPrivateLoadFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0),
+  (Op $src0),
+  [{
+    return N->isDivergent() &&
+      cast<LoadSDNode>(N)->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS;
+  }]>;
+
+class DivergentNonPrivateLoadFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0),
+  (Op $src0),
+  [{
+    return N->isDivergent() &&
+      cast<LoadSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS;
+  }]>;
+
 class UniformBinFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
   (Op $src0, $src1),
@@ -39,6 +55,22 @@ class DivergentBinFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
   (Op $src0, $src1),
   [{ return N->isDivergent(); }]>;
+
+class DivergentPrivateStoreFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{
+    return N->isDivergent() &&
+      cast<StoreSDNode>(N)->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS;
+  }]>;
+
+class DivergentNonPrivateStoreFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{
+    return N->isDivergent() &&
+      cast<StoreSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS;
+  }]>;
 
 // Widen sALU PatFrag for such as ADDW/SUBW to be selected from i64 add/sub
 // if only the lower 32 bits of their result is used.

@@ -44,13 +44,23 @@ multiclass PatVFRBin<SDPatternOperator Op, list<RVInst> Insts> {
               (Insts[2] GPRF32:$rs2, VGPR:$rs1)>;
 }
 
-class DivergentLdPat<PatFrag LoadOp, RVInst Inst>
- : Pat<(XLenVT (DivergentUnaryFrag<LoadOp>
+class DivergentPriLdPat<PatFrag LoadOp, RVInst Inst>
+ : Pat<(XLenVT (DivergentPrivateLoadFrag<LoadOp>
                 (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2)))),
                 (Inst GPR:$rs1, VGPR:$vs2)>;
 
-class DivergentStPat<PatFrag StoreOp, RVInst Inst>
-  : Pat<(DivergentBinFrag<StoreOp>
+class DivergentPriStPat<PatFrag StoreOp, RVInst Inst>
+  : Pat<(DivergentPrivateStoreFrag<StoreOp>
+         (XLenVT VGPR:$vs3), (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2))),
+         (Inst VGPR:$vs3, GPR:$rs1, VGPR:$vs2)>;
+
+class DivergentNonPriLdPat<PatFrag LoadOp, RVInst Inst>
+ : Pat<(XLenVT (DivergentNonPrivateLoadFrag<LoadOp>
+                (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2)))),
+                (Inst GPR:$rs1, VGPR:$vs2)>;
+
+class DivergentNonPriStPat<PatFrag StoreOp, RVInst Inst>
+  : Pat<(DivergentNonPrivateStoreFrag<StoreOp>
          (XLenVT VGPR:$vs3), (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2))),
          (Inst VGPR:$vs3, GPR:$rs1, VGPR:$vs2)>;
 
@@ -1147,18 +1157,26 @@ defm : AnyPatVFRTer<any_fma, [VFMADD_VV, VFMADD_VF]>;
 defm : PatVFRTer<[DivergentBinFrag<fsub>, DivergentBinFrag<fmul>],
                                           [VFMSUB_VV, VFMSUB_VF]>;
 // vfsqrt.v
-def : Pat<(any_fsqrt (f32 VGPR:$rs1)), (VFSQRT_V (f32 VGPR:$rs1))>;
 // TODO: vfrec7.v? what is this
-def : DivergentLdPat<sextloadi8, VLUXEI8>;
-def : DivergentLdPat<extloadi8, VLUXEI8>;
-def : DivergentLdPat<sextloadi16, VLUXEI16>;
-def : DivergentLdPat<extloadi16, VLUXEI16>;
-def : DivergentLdPat<load, VLUXEI32>;
-//def : DivergentLdPat<zextloadi8, VLUXEI8U>;
-//def : DivergentLdPat<zextloadi16, VLUXEI16U>;
-def : DivergentStPat<truncstorei8, VSUXEI8>;
-def : DivergentStPat<truncstorei16, VSUXEI16>;
-def : DivergentStPat<store, VSUXEI32>;
+def : Pat<(any_fsqrt (f32 VGPR:$rs1)), (VFSQRT_V (f32 VGPR:$rs1))>;
+
+
+// Non-private memory load/store
+def : DivergentNonPriLdPat<sextloadi8, VLUXEI8>;
+def : DivergentNonPriLdPat<extloadi8, VLUXEI8>;
+def : DivergentNonPriLdPat<sextloadi16, VLUXEI16>;
+def : DivergentNonPriLdPat<extloadi16, VLUXEI16>;
+def : DivergentNonPriLdPat<load, VLUXEI32>;
+//def : DivergentNonPriLdPat<zextloadi8, VLUXEI8U>;
+//def : DivergentNonPriLdPat<zextloadi16, VLUXEI16U>;
+def : DivergentNonPriStPat<truncstorei8, VSUXEI8>;
+def : DivergentNonPriStPat<truncstorei16, VSUXEI16>;
+def : DivergentNonPriStPat<store, VSUXEI32>;
+
+// Private memory per-thread load/store
+def : DivergentPriLdPat<load, VLW>;
+def : DivergentPriStPat<store, VSW>;
+
 
 def DivergentSelectCCFrag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
                                        node:$truev, node:$falsev),
