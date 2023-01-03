@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-/**	
+/**
  * crt0.S : Entry point for Ventus OpenCL C kernel programs
  */
 
@@ -21,8 +21,10 @@ _start:
   .option pop
 
   # allocate warp and per-thread level stack pointers
-  la sp, __stack_pointer # sp points to local memory
-  la tp, __thread_stack_pointer # tp points to private memory
+  csrr t0, CSR_LDS       # get baseaddr of local memory
+  li t1, 131072
+  add sp, t0, t1         # sp points to local memory + 128K
+  li tp, 1024            # tp points to upper bound of private memory(1K) of each thread
 
   # clear BSS segment
   la      a0, _edata
