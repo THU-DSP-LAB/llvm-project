@@ -5,43 +5,43 @@
 define dso_local spir_kernel void @func(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(3) nocapture noundef readonly align 4 %B) {
 ; VENTUS-LABEL: func:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi x2, x2, -16
-; VENTUS-NEXT:    addi x4, x4, -16
+; VENTUS-NEXT:    addi sp, sp, -16
+; VENTUS-NEXT:    addi tp, tp, -16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw x1, 12(x2) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw x8, 8(x2) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw x9, 4(x2) # 4-byte Folded Spill
-; VENTUS-NEXT:    vsw v32, 0(x4) # 4-byte Folded Spill
-; VENTUS-NEXT:    .cfi_offset x1, -4
-; VENTUS-NEXT:    .cfi_offset x8, -8
-; VENTUS-NEXT:    .cfi_offset x9, -12
+; VENTUS-NEXT:    sw ra, 12(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw s0, 8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw s1, 4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw v32, 0(tp) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset ra, -4
+; VENTUS-NEXT:    .cfi_offset s0, -8
+; VENTUS-NEXT:    .cfi_offset s1, -12
 ; VENTUS-NEXT:    .cfi_offset v32.l, -16
-; VENTUS-NEXT:    lw x8, 0(x10)
-; VENTUS-NEXT:    lw x9, 4(x10)
-; VENTUS-NEXT:    vmv.s.x v0, x0
+; VENTUS-NEXT:    lw s0, 0(a0)
+; VENTUS-NEXT:    lw s1, 4(a0)
+; VENTUS-NEXT:    vmv.s.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
-; VENTUS-NEXT:    vadd.vx v32, v0, x0
-; VENTUS-NEXT:    vmv.s.x v0, x0
+; VENTUS-NEXT:    vadd.vx v32, v0, zero
+; VENTUS-NEXT:    vmv.s.x v0, zero
 ; VENTUS-NEXT:    call _Z12get_local_idj
-; VENTUS-NEXT:    vmv.s.x v1, x0
+; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
-; VENTUS-NEXT:    vmv.s.x v2, x9
+; VENTUS-NEXT:    vmv.s.x v2, s1
 ; VENTUS-NEXT:    vadd.vv v0, v2, v0
-; VENTUS-NEXT:    vmv.x.s x10, v0
-; VENTUS-NEXT:    vluxei32.v v0, (x10), v1
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
 ; VENTUS-NEXT:    vsll.vi v2, v32, 2
-; VENTUS-NEXT:    vmv.s.x v3, x8
+; VENTUS-NEXT:    vmv.s.x v3, s0
 ; VENTUS-NEXT:    vadd.vv v2, v3, v2
-; VENTUS-NEXT:    vmv.x.s x10, v2
-; VENTUS-NEXT:    vluxei32.v v2, (x10), v1
+; VENTUS-NEXT:    vmv.x.s a0, v2
+; VENTUS-NEXT:    vluxei32.v v2, (a0), v1
 ; VENTUS-NEXT:    vadd.vv v0, v2, v0
-; VENTUS-NEXT:    vsuxei32.v v0, (x10), v1
-; VENTUS-NEXT:    lw x1, 12(x2) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw x8, 8(x2) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw x9, 4(x2) # 4-byte Folded Reload
-; VENTUS-NEXT:    vlw v32, 0(x4) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi x2, x2, 16
-; VENTUS-NEXT:    addi x4, x4, 16
+; VENTUS-NEXT:    vsuxei32.v v0, (a0), v1
+; VENTUS-NEXT:    lw ra, 12(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw s0, 8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw s1, 4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw v32, 0(tp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, 16
+; VENTUS-NEXT:    addi tp, tp, 16
 ; VENTUS-NEXT:    ret
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)

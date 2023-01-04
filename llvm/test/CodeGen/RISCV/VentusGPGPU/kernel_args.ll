@@ -12,11 +12,11 @@
 define dso_local spir_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr addrspace(1) nocapture noundef writeonly align 4 %c) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    lw x11, 0(x10)
-; VENTUS-NEXT:    lw x12, 4(x10)
-; VENTUS-NEXT:    lw x10, 8(x10)
-; VENTUS-NEXT:    add x11, x12, x11
-; VENTUS-NEXT:    sw x11, 0(x10)
+; VENTUS-NEXT:    lw a1, 0(a0)
+; VENTUS-NEXT:    lw a2, 4(a0)
+; VENTUS-NEXT:    lw a0, 8(a0)
+; VENTUS-NEXT:    add a1, a2, a1
+; VENTUS-NEXT:    sw a1, 0(a0)
 ; VENTUS-NEXT:    ret
   %add = add nsw i32 %b, %a
   store i32 %add, ptr addrspace(1) %c, align 4

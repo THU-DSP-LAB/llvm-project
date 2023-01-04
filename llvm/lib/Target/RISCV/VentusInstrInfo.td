@@ -84,6 +84,11 @@ class UniformTernaryFrag<SDPatternOperator Op> : PatFrag<
   (Op $src0, $src1, $src2),
   [{ return !N->isDivergent(); }]>;
 
+class DivergentTernaryFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1, node:$src2),
+  (Op $src0, $src1, $src2),
+  [{ return N->isDivergent(); }]>;
+
 class UniformTetradFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1, node:$src2, node:$src3),
   (Op $src0, $src1, $src2, $src3),

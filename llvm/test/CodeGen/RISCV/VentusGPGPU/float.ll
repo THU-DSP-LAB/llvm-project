@@ -35,9 +35,9 @@ entry:
 define float @foo_constant(float noundef %a) {
 ; VENTUS-LABEL: foo_constant:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lui x10, %hi(.LCPI3_0)
-; VENTUS-NEXT:    lw x10, %lo(.LCPI3_0)(x10)
-; VENTUS-NEXT:    vmv.s.x v1, x10
+; VENTUS-NEXT:    lui a0, %hi(.LCPI3_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI3_0)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, a0
 ; VENTUS-NEXT:    vfmul.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
 entry:
@@ -54,3 +54,217 @@ define float @sqrt_f32(float %a) {
   ret float %b
 }
 declare float @llvm.sqrt.f32(float %Val)
+
+define dso_local float @feq(float noundef %a, float noundef %b) local_unnamed_addr  {
+; VENTUS-LABEL: feq:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vmv.s.x v2, zero
+; VENTUS-NEXT:    vmfeq.vv v0, v0, v1
+; VENTUS-NEXT:    lui a0, %hi(.LCPI5_0)
+; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI5_0)
+; VENTUS-NEXT:    vbne v0, v2, .LBB5_2
+; VENTUS-NEXT:  # %bb.1: # %entry
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    join .LBB5_3
+; VENTUS-NEXT:  .LBB5_2: # %entry
+; VENTUS-NEXT:    addi a0, a0, 4
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    join .LBB5_3
+; VENTUS-NEXT:  .LBB5_3: # %entry
+; VENTUS-NEXT:    vmv.s.x v1, zero
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
+; VENTUS-NEXT:    ret
+entry:
+  %cmp = fcmp oeq float %a, %b
+  %conv = uitofp i1 %cmp to float
+  ret float %conv
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local float @fneq(float noundef %a, float noundef %b) local_unnamed_addr  {
+; VENTUS-LABEL: fneq:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vmv.s.x v2, zero
+; VENTUS-NEXT:    vmfne.vv v0, v0, v1
+; VENTUS-NEXT:    lui a0, %hi(.LCPI6_0)
+; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI6_0)
+; VENTUS-NEXT:    vbne v0, v2, .LBB6_2
+; VENTUS-NEXT:  # %bb.1: # %entry
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    join .LBB6_3
+; VENTUS-NEXT:  .LBB6_2: # %entry
+; VENTUS-NEXT:    addi a0, a0, 4
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    join .LBB6_3
+; VENTUS-NEXT:  .LBB6_3: # %entry
+; VENTUS-NEXT:    vmv.s.x v1, zero
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
+; VENTUS-NEXT:    ret
+entry:
+  %cmp = fcmp une float %a, %b
+  %conv = uitofp i1 %cmp to float
+  ret float %conv
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local float @flt(float noundef %a, float noundef %b) local_unnamed_addr  {
+; VENTUS-LABEL: flt:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vmv.s.x v2, zero
+; VENTUS-NEXT:    vmflt.vv v0, v0, v1
+; VENTUS-NEXT:    lui a0, %hi(.LCPI7_0)
+; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI7_0)
+; VENTUS-NEXT:    vbne v0, v2, .LBB7_2
+; VENTUS-NEXT:  # %bb.1: # %entry
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    join .LBB7_3
+; VENTUS-NEXT:  .LBB7_2: # %entry
+; VENTUS-NEXT:    addi a0, a0, 4
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    join .LBB7_3
+; VENTUS-NEXT:  .LBB7_3: # %entry
+; VENTUS-NEXT:    vmv.s.x v1, zero
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
+; VENTUS-NEXT:    ret
+entry:
+  %cmp = fcmp olt float %a, %b
+  %conv = uitofp i1 %cmp to float
+  ret float %conv
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local float @fle(float noundef %a, float noundef %b) local_unnamed_addr  {
+; VENTUS-LABEL: fle:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vmv.s.x v2, zero
+; VENTUS-NEXT:    vmfle.vv v0, v0, v1
+; VENTUS-NEXT:    lui a0, %hi(.LCPI8_0)
+; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI8_0)
+; VENTUS-NEXT:    vbne v0, v2, .LBB8_2
+; VENTUS-NEXT:  # %bb.1: # %entry
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    join .LBB8_3
+; VENTUS-NEXT:  .LBB8_2: # %entry
+; VENTUS-NEXT:    addi a0, a0, 4
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    join .LBB8_3
+; VENTUS-NEXT:  .LBB8_3: # %entry
+; VENTUS-NEXT:    vmv.s.x v1, zero
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
+; VENTUS-NEXT:    ret
+entry:
+  %cmp = fcmp ole float %a, %b
+  %conv = uitofp i1 %cmp to float
+  ret float %conv
+}
+
+; Function Attrs: noinline nounwind optnone
+define dso_local float @fgt(float noundef %a)  {
+; VENTUS-LABEL: fgt:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    lui a0, %hi(.LCPI9_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI9_0)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, zero
+; VENTUS-NEXT:    vmfgt.vf v0, v0, a0
+; VENTUS-NEXT:    lui a0, %hi(.LCPI9_1)
+; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI9_1)
+; VENTUS-NEXT:    vbne v0, v1, .LBB9_2
+; VENTUS-NEXT:  # %bb.1: # %entry
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    join .LBB9_3
+; VENTUS-NEXT:  .LBB9_2: # %entry
+; VENTUS-NEXT:    addi a0, a0, 4
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    join .LBB9_3
+; VENTUS-NEXT:  .LBB9_3: # %entry
+; VENTUS-NEXT:    vmv.s.x v1, zero
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
+; VENTUS-NEXT:    ret
+entry:
+  %b = alloca float, align 4, addrspace(5)
+  store float 0x3FF3333340000000, ptr addrspace(5) %b, align 4
+  %0 = load float, ptr addrspace(5) %b, align 4
+  %cmp = fcmp ogt float %a, %0
+  %cond = select i1 %cmp, i32 1, i32 0
+  %conv = sitofp i32 %cond to float
+  ret float %conv
+}
+
+; Function Attrs: noinline nounwind optnone
+define dso_local float @fge(float noundef %a)  {
+; VENTUS-LABEL: fge:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    lui a0, %hi(.LCPI10_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI10_0)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, zero
+; VENTUS-NEXT:    vmfge.vf v0, v0, a0
+; VENTUS-NEXT:    lui a0, %hi(.LCPI10_1)
+; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI10_1)
+; VENTUS-NEXT:    vbne v0, v1, .LBB10_2
+; VENTUS-NEXT:  # %bb.1: # %entry
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    join .LBB10_3
+; VENTUS-NEXT:  .LBB10_2: # %entry
+; VENTUS-NEXT:    addi a0, a0, 4
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    join .LBB10_3
+; VENTUS-NEXT:  .LBB10_3: # %entry
+; VENTUS-NEXT:    vmv.s.x v1, zero
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
+; VENTUS-NEXT:    ret
+entry:
+  %b = alloca float, align 4, addrspace(5)
+  store float 0x3FF3333340000000, ptr addrspace(5) %b, align 4
+  %0 = load float, ptr addrspace(5) %b, align 4
+  %cmp = fcmp oge float %a, %0
+  %cond = select i1 %cmp, i32 1, i32 0
+  %conv = sitofp i32 %cond to float
+  ret float %conv
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local noundef float @fmadd(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
+; VENTUS-LABEL: fmadd:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfmadd.vv v1, v0, v2
+; VENTUS-NEXT:    vadd.vx v0, v1, zero
+; VENTUS-NEXT:    ret
+entry:
+  %mul = fmul float %a, %b
+  %add = fadd float %mul, %c
+  ret float %add
+}
+
+; Function Attrs: mustprogress nofree nosync nounwind willreturn memory(none)
+define dso_local noundef float @fmadd_llvm(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
+; VENTUS-LABEL: fmadd_llvm:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfmadd.vv v1, v0, v2
+; VENTUS-NEXT:    vadd.vx v0, v1, zero
+; VENTUS-NEXT:    ret
+entry:
+  %0 = tail call float @llvm.fmuladd.f32(float %a, float %b, float %c)
+  ret float %0
+}
+
+; Function Attrs: mustprogress nocallback nofree nosync nounwind speculatable willreturn memory(none)
+declare float @llvm.fmuladd.f32(float, float, float)
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local noundef float @fmsub(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
+; VENTUS-LABEL: fmsub:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfmsub.vv v1, v0, v2
+; VENTUS-NEXT:    vadd.vx v0, v1, zero
+; VENTUS-NEXT:    ret
+entry:
+  %mul = fmul float %a, %b
+  %sub = fsub float %mul, %c
+  ret float %sub
+}

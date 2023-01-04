@@ -7,58 +7,58 @@
 define spir_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi x2, x2, -48
-; VENTUS-NEXT:    addi x4, x4, -48
+; VENTUS-NEXT:    addi sp, sp, -48
+; VENTUS-NEXT:    addi tp, tp, -48
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 48
-; VENTUS-NEXT:    sw x1, 44(x2) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw x8, 40(x2) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw x9, 36(x2) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw x18, 32(x2) # 4-byte Folded Spill
-; VENTUS-NEXT:    .cfi_offset x1, -4
-; VENTUS-NEXT:    .cfi_offset x8, -8
-; VENTUS-NEXT:    .cfi_offset x9, -12
-; VENTUS-NEXT:    .cfi_offset x18, -16
-; VENTUS-NEXT:    lw x8, 0(x10)
-; VENTUS-NEXT:    lui x10, %hi(foo.b)
-; VENTUS-NEXT:    addi x9, x10, %lo(foo.b)
-; VENTUS-NEXT:    addi x18, x4, 12
-; VENTUS-NEXT:    vmv.s.x v0, x18
-; VENTUS-NEXT:    vmv.s.x v1, x9
-; VENTUS-NEXT:    vmv.s.x v2, x8
+; VENTUS-NEXT:    sw ra, 44(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw s0, 40(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw s1, 36(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw s2, 32(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset ra, -4
+; VENTUS-NEXT:    .cfi_offset s0, -8
+; VENTUS-NEXT:    .cfi_offset s1, -12
+; VENTUS-NEXT:    .cfi_offset s2, -16
+; VENTUS-NEXT:    lw s0, 0(a0)
+; VENTUS-NEXT:    lui a0, %hi(foo.b)
+; VENTUS-NEXT:    addi s1, a0, %lo(foo.b)
+; VENTUS-NEXT:    addi s2, tp, 12
+; VENTUS-NEXT:    vmv.s.x v0, s2
+; VENTUS-NEXT:    vmv.s.x v1, s1
+; VENTUS-NEXT:    vmv.s.x v2, s0
 ; VENTUS-NEXT:    call bar
-; VENTUS-NEXT:    vmv.s.x v0, x0
+; VENTUS-NEXT:    vmv.s.x v0, zero
 ; VENTUS-NEXT:    call _Z12get_local_idj
-; VENTUS-NEXT:    vmv.x.s x10, v0
-; VENTUS-NEXT:    li x11, 4
-; VENTUS-NEXT:    vmv.s.x v0, x11
-; VENTUS-NEXT:    vmv.s.x v1, x10
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    li a1, 4
+; VENTUS-NEXT:    vmv.s.x v0, a1
+; VENTUS-NEXT:    vmv.s.x v1, a0
 ; VENTUS-NEXT:    vbltu v0, v1, .LBB0_2
 ; VENTUS-NEXT:  # %bb.1: # %if.then
-; VENTUS-NEXT:    vmv.s.x v0, x0
-; VENTUS-NEXT:    slli x10, x10, 2
-; VENTUS-NEXT:    add x18, x18, x10
-; VENTUS-NEXT:    add x9, x9, x10
-; VENTUS-NEXT:    lw x11, 0(x9)
-; VENTUS-NEXT:    vlw v1, x0(x18)
-; VENTUS-NEXT:    vmv.s.x v2, x11
-; VENTUS-NEXT:    add x10, x8, x10
-; VENTUS-NEXT:    lw x11, 0(x10)
+; VENTUS-NEXT:    vmv.s.x v0, zero
+; VENTUS-NEXT:    slli a0, a0, 2
+; VENTUS-NEXT:    add s2, s2, a0
+; VENTUS-NEXT:    add s1, s1, a0
+; VENTUS-NEXT:    lw a1, 0(s1)
+; VENTUS-NEXT:    vlw v1, zero(s2)
+; VENTUS-NEXT:    vmv.s.x v2, a1
+; VENTUS-NEXT:    add a0, s0, a0
+; VENTUS-NEXT:    lw a1, 0(a0)
 ; VENTUS-NEXT:    vmul.vv v1, v2, v1
-; VENTUS-NEXT:    vmv.s.x v2, x11
+; VENTUS-NEXT:    vmv.s.x v2, a1
 ; VENTUS-NEXT:    vadd.vv v1, v2, v1
-; VENTUS-NEXT:    vsuxei32.v v1, (x10), v0
+; VENTUS-NEXT:    vsuxei32.v v1, (a0), v0
 ; VENTUS-NEXT:    j .LBB0_3
 ; VENTUS-NEXT:  .LBB0_2: # %if.else
-; VENTUS-NEXT:    slli x10, x10, 2
-; VENTUS-NEXT:    add x10, x8, x10
-; VENTUS-NEXT:    sw x0, 0(x10)
+; VENTUS-NEXT:    slli a0, a0, 2
+; VENTUS-NEXT:    add a0, s0, a0
+; VENTUS-NEXT:    sw zero, 0(a0)
 ; VENTUS-NEXT:  .LBB0_3: # %if.end
-; VENTUS-NEXT:    lw x1, 44(x2) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw x8, 40(x2) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw x9, 36(x2) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw x18, 32(x2) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi x2, x2, 48
-; VENTUS-NEXT:    addi x4, x4, 48
+; VENTUS-NEXT:    lw ra, 44(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw s0, 40(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw s1, 36(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw s2, 32(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, 48
+; VENTUS-NEXT:    addi tp, tp, 48
 ; VENTUS-NEXT:    ret
 entry:
   %a = alloca [5 x i32], align 4, addrspace(5)

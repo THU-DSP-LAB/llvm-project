@@ -95,7 +95,17 @@ multiclass SleOpePatVXIBin<list<PatFrags> Ops, list<RVInst> Insts> {
   def : Pat<(XLenVT (Ops[0] (Ops[1] (XLenVT VGPR:$rs1), uimm5:$rs2), 1)),
           (Insts[2] VGPR:$rs1, uimm5:$rs2)>;
 }
-// RVV VV, VF instruction pattern class for seletcing ins
+
+// Setcc pattern for interger operations
+// FIXME: this pattern class can substitude the multiclass above
+// class PatIntSetCC<list<DAGOperand> Ty, CondCode Cond, RVInst Inst>
+//  : Pat<(setcc (XLenVT Ty[0]:$rs1), (XLenVT Ty[1]:$rs2), Cond), (i32 (Inst Ty[0]:$rs1, Ty[1]:$rs2))>;
+
+// Setcc pattern for float operations
+class PatFloatSetCC<list<DAGOperand> Ty, CondCode Cond, RVInst Inst>
+  : Pat<(DivergentTernaryFrag<any_fsetcc> (f32 Ty[0]:$rs1), (f32 Ty[1]:$rs2), Cond),
+                          (i32 (Inst Ty[0]:$rs1, Ty[1]:$rs2))>;
+
 //===----------------------------------------------------------------------===//
 // Operand and SDNode transformation definitions.
 //===----------------------------------------------------------------------===//
@@ -1105,6 +1115,18 @@ def VFMV_S_F : RVInstV2<0b010000, 0b00000, OPFVF, (outs VGPR:$vd_wb),
 // Ventus vALU divergent execution patterns
 //===----------------------------------------------------------------------===//
 
+// FIXME: check this review: https://reviews.llvm.org/D131729#inline-1269307
+// def : PatIntSetCC<[VGPR, VGPR], SETLE, VMSLE_VV>;
+// def : PatIntSetCC<[VGPR, GPR], SETLE, VMSLE_VX>;
+// def : PatIntSetCC<[VGPR, uimm5], SETLE, VMSLE_VI>;
+// def : PatIntSetCC<[VGPR, GPR], SETGT, VMSGT_VX>;
+// def : PatIntSetCC<[VGPR, uimm5], SETGT, VMSGT_VI>;
+// def : PatIntSetCC<[VGPR, VGPR], SETULE, VMSLEU_VV>;
+// def : PatIntSetCC<[VGPR, GPR], SETULE, VMSLEU_VX>;
+// def : PatIntSetCC<[VGPR, uimm5], SETULE, VMSLEU_VI>;
+// def : PatIntSetCC<[VGPR, GPR], SETUGT, VMSGTU_VX>;
+// def : PatIntSetCC<[VGPR, uimm5], SETUGT, VMSGTU_VI>;
+
 // TODO: need to add VX instruction support later
 defm : PatVXIBin<DivergentBinFrag<smin>, [VMIN_VV, VMIN_VX]>;
 defm : PatVXIBin<DivergentBinFrag<umin>, [VMINU_VV, VMINU_VX]>;
@@ -1136,6 +1158,17 @@ defm : SleOpePatVXIBin<[DivergentBinFrag<xor>, DivergentBinFrag<setlt>],
 defm : SleOpePatVXIBin<[DivergentBinFrag<xor>, DivergentBinFrag<setult>],
                                             [VMSLEU_VV, VMSLEU_VX, VMSGTU_VI]>;
 
+
+def : PatFloatSetCC<[VGPR, VGPR], SETOEQ, VMFEQ_VV>;
+def : PatFloatSetCC<[VGPR, GPRF32], SETOEQ, VMFEQ_VF>;
+def : PatFloatSetCC<[VGPR, VGPR], SETUNE, VMFNE_VV>;
+def : PatFloatSetCC<[VGPR, GPRF32], SETUNE, VMFNE_VF>;
+def : PatFloatSetCC<[VGPR, VGPR], SETOLT, VMFLT_VV>;
+def : PatFloatSetCC<[VGPR, GPRF32], SETOLT, VMFLT_VF>;
+def : PatFloatSetCC<[VGPR, VGPR], SETOLE, VMFLE_VV>;
+def : PatFloatSetCC<[VGPR, GPRF32], SETOLE, VMFLE_VV>;
+def : PatFloatSetCC<[VGPR, GPRF32], SETOGT, VMFGT_VF>;
+def : PatFloatSetCC<[VGPR, GPRF32], SETOGE, VMFGE_VF>;
 // Patterns for vrsub.vx and vrsub.vi
 def : Pat<(sub GPR:$rs1, VGPR:$rs2), (VRSUB_VX VGPR:$rs2, GPR:$rs1)>;
 def : Pat<(XLenVT (sub uimm5:$imm, (XLenVT VGPR:$rs1))),
