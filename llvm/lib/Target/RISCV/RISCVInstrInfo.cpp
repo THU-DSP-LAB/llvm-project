@@ -54,7 +54,7 @@ using namespace RISCV;
 } // namespace llvm::RISCVVPseudosTable
 
 RISCVInstrInfo::RISCVInstrInfo(RISCVSubtarget &STI)
-    : RISCVGenInstrInfo(RISCV::ADJCALLSTACKDOWN, RISCV::ADJCALLSTACKUP),
+    : RISCVGenInstrInfo(RISCV::ADJCALLSTACKUP, RISCV::ADJCALLSTACKDOWN),
       STI(STI) {}
 
 MCInst RISCVInstrInfo::getNop() const {
@@ -81,6 +81,7 @@ unsigned RISCVInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
   case RISCV::LWU:
   case RISCV::LD:
   case RISCV::FLD:
+  case RISCV::VLW:
     break;
   }
 
@@ -105,6 +106,7 @@ unsigned RISCVInstrInfo::isStoreToStackSlot(const MachineInstr &MI,
   case RISCV::FSW:
   case RISCV::SD:
   case RISCV::FSD:
+  case RISCV::VSW:
     break;
   }
 

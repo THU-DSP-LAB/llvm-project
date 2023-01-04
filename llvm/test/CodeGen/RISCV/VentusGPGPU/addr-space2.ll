@@ -7,21 +7,21 @@
 define spir_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, -48
-; VENTUS-NEXT:    addi tp, tp, -48
+; VENTUS-NEXT:    addi sp, sp, 48
+; VENTUS-NEXT:    addi tp, tp, 48
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 48
-; VENTUS-NEXT:    sw ra, 44(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw s0, 40(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw s1, 36(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw s2, 32(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    .cfi_offset ra, -4
-; VENTUS-NEXT:    .cfi_offset s0, -8
-; VENTUS-NEXT:    .cfi_offset s1, -12
-; VENTUS-NEXT:    .cfi_offset s2, -16
+; VENTUS-NEXT:    sw ra, -36(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw s0, -40(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw s1, -44(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw s2, -48(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset ra, 12
+; VENTUS-NEXT:    .cfi_offset s0, 8
+; VENTUS-NEXT:    .cfi_offset s1, 4
+; VENTUS-NEXT:    .cfi_offset s2, 0
 ; VENTUS-NEXT:    lw s0, 0(a0)
 ; VENTUS-NEXT:    lui a0, %hi(foo.b)
 ; VENTUS-NEXT:    addi s1, a0, %lo(foo.b)
-; VENTUS-NEXT:    addi s2, tp, 12
+; VENTUS-NEXT:    addi s2, tp, -32
 ; VENTUS-NEXT:    vmv.s.x v0, s2
 ; VENTUS-NEXT:    vmv.s.x v1, s1
 ; VENTUS-NEXT:    vmv.s.x v2, s0
@@ -39,7 +39,7 @@ define spir_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    add s2, s2, a0
 ; VENTUS-NEXT:    add s1, s1, a0
 ; VENTUS-NEXT:    lw a1, 0(s1)
-; VENTUS-NEXT:    vlw v1, zero(s2)
+; VENTUS-NEXT:    vlw v1, 0(s2)
 ; VENTUS-NEXT:    vmv.s.x v2, a1
 ; VENTUS-NEXT:    add a0, s0, a0
 ; VENTUS-NEXT:    lw a1, 0(a0)
@@ -53,12 +53,12 @@ define spir_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    add a0, s0, a0
 ; VENTUS-NEXT:    sw zero, 0(a0)
 ; VENTUS-NEXT:  .LBB0_3: # %if.end
-; VENTUS-NEXT:    lw ra, 44(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s0, 40(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s1, 36(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s2, 32(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi sp, sp, 48
-; VENTUS-NEXT:    addi tp, tp, 48
+; VENTUS-NEXT:    lw ra, -36(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw s0, -40(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw s1, -44(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw s2, -48(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -48
+; VENTUS-NEXT:    addi tp, tp, -48
 ; VENTUS-NEXT:    ret
 entry:
   %a = alloca [5 x i32], align 4, addrspace(5)

@@ -22,7 +22,7 @@ class RISCVSubtarget;
 class RISCVFrameLowering : public TargetFrameLowering {
 public:
   explicit RISCVFrameLowering(const RISCVSubtarget &STI)
-      : TargetFrameLowering(StackGrowsDown,
+      : TargetFrameLowering(StackGrowsUp,
                             /*StackAlignment=*/Align(16),
                             /*LocalAreaOffset=*/0,
                             /*TransientStackAlignment=*/Align(16)),

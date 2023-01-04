@@ -371,10 +371,10 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
     RealStackSize = FirstSPAdjustAmount;
   }
 
-  // Allocate space on the local-mem stack and per-stack stack if necessary.
-  RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(-StackSize),
+  // Allocate space on the local-mem stack and private-mem stack if necessary.
+  RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(StackSize),
                 MachineInstr::FrameSetup, getStackAlign());
-  RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg, StackOffset::getFixed(-StackSize),
+  RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg, StackOffset::getFixed(StackSize),
                 MachineInstr::FrameSetup, getStackAlign());
 
   // Emit ".cfi_def_cfa_offset RealStackSize"
@@ -440,7 +440,7 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
     assert(SecondSPAdjustAmount > 0 &&
            "SecondSPAdjustAmount should be greater than zero");
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
-                  StackOffset::getFixed(-SecondSPAdjustAmount),
+                  StackOffset::getFixed(SecondSPAdjustAmount),
                   MachineInstr::FrameSetup, getStackAlign());
 
     // If we are using a frame-pointer, and thus emitted ".cfi_def_cfa fp, 0",
@@ -560,7 +560,7 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
            "SecondSPAdjustAmount should be greater than zero");
 
     RI->adjustReg(MBB, LastFrameDestroy, DL, SPReg, SPReg,
-                  StackOffset::getFixed(SecondSPAdjustAmount),
+                  StackOffset::getFixed(-SecondSPAdjustAmount),
                   MachineInstr::FrameDestroy, getStackAlign());
   }
 
@@ -568,9 +568,9 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
     StackSize = FirstSPAdjustAmount;
 
   // Deallocate stack
-  RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(StackSize),
+  RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(-StackSize),
                 MachineInstr::FrameDestroy, getStackAlign());
-  RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg, StackOffset::getFixed(StackSize),
+  RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg, StackOffset::getFixed(-StackSize),
                 MachineInstr::FrameDestroy, getStackAlign());
 
   // Emit epilogue for shadow call stack.
@@ -609,9 +609,9 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
   if (FI >= MinCSFI && FI <= MaxCSFI) {
     FrameReg = StackID == TargetStackID::SGPRSpill ? RISCV::X2 : RISCV::X4;
     if (FirstSPAdjustAmount)
-      Offset += StackOffset::getFixed(FirstSPAdjustAmount);
+      Offset -= StackOffset::getFixed(FirstSPAdjustAmount);
     else
-      Offset += StackOffset::getFixed(MFI.getStackSize());
+      Offset -= StackOffset::getFixed(MFI.getStackSize());
     return Offset;
   }
 
@@ -619,6 +619,7 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
          "SGPRSpill stack should not reach here!");
 
   if (RI->hasStackRealignment(MF) && !MFI.isFixedObjectIndex(FI)) {
+    assert(0 && "TODO: Add stack realignment support for Ventus?");
     // If the per-thread stack was realigned, the frame pointer is set in order
     // to allow TP to be restored, so we need another base register to record
     // the stack after realignment.
@@ -648,6 +649,7 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
   }
 
   if (FrameReg == getFPReg(STI)) {
+    assert(0 && "TODO: Add fp support for Ventus?");
     Offset += StackOffset::getFixed(RVFI->getVarArgsSaveSize());
     if (FI >= 0)
       Offset -= StackOffset::getFixed(RVFI->getLibCallStackSize());
@@ -683,12 +685,13 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
   // |--------------------------| -- <-- SP
   //
   if (MFI.isFixedObjectIndex(FI)) {
+    assert(0 && "TODO!");
     assert(!RI->hasStackRealignment(MF) &&
             "Can't index across variable sized realign");
-    Offset += StackOffset::get(MFI.getStackSize() +
-                                RVFI->getLibCallStackSize(),0);
+    Offset -= StackOffset::get(MFI.getStackSize() +
+                               RVFI->getLibCallStackSize(),0);
   } else {
-    Offset += StackOffset::getFixed(MFI.getStackSize());
+    Offset -= StackOffset::getFixed(MFI.getStackSize());
   }
 
   return Offset;
@@ -812,16 +815,17 @@ RISCVFrameLowering::getFirstSPAdjustAmount(const MachineFunction &MF) const {
   if (RVFI->getLibCallStackSize())
     return 0;
 
+  // Align to VSW/VLW signed 11 bits offset
   // Return the FirstSPAdjustAmount if the StackSize can not fit in a signed
-  // 12-bit and there exists a callee-saved register needing to be pushed.
-  if (!isInt<12>(StackSize) && (CSI.size() > 0)) {
-    // FirstSPAdjustAmount is chosen as (2048 - StackAlign) because 2048 will
-    // cause sp = sp + 2048 in the epilogue to be split into multiple
-    // instructions. Offsets smaller than 2048 can fit in a single load/store
-    // instruction, and we have to stick with the stack alignment. 2048 has
+  // 11-bit and there exists a callee-saved register needing to be pushed.
+  if (!isInt<11>(StackSize) && (CSI.size() > 0)) {
+    // FirstSPAdjustAmount is chosen as (1024 - StackAlign) because 1024 will
+    // cause sp = sp + 1024 in the epilogue to be split into multiple
+    // instructions. Offsets smaller than 1024 can fit in a single load/store
+    // instruction, and we have to stick with the stack alignment. 1024 has
     // 16-byte alignment. The stack alignment for RV32 and RV64 is 16 and for
-    // RV32E it is 4. So (2048 - StackAlign) will satisfy the stack alignment.
-    return 2048 - getStackAlign().value();
+    // RV32E it is 4. So (1024 - StackAlign) will satisfy the stack alignment.
+    return 1024 - getStackAlign().value();
   }
   return 0;
 }

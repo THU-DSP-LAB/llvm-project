@@ -1741,12 +1741,12 @@ def WriteFFLAGS : WriteSysReg<SysRegFFLAGS, [FFLAGS]>;
 /// Other pseudo-instructions
 
 // Pessimistically assume the per-thread stack pointer will be clobbered
-let Defs = [X4], Uses = [X4] in {
-def ADJCALLSTACKDOWN : Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
+let Defs = [X2, X4], Uses = [X2, X4] in {
+def ADJCALLSTACKUP : Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
                               [(callseq_start timm:$amt1, timm:$amt2)]>;
-def ADJCALLSTACKUP   : Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
+def ADJCALLSTACKDOWN : Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
                               [(callseq_end timm:$amt1, timm:$amt2)]>;
-} // Defs = [X4], Uses = [X4]
+} // Defs = [X2, X4], Uses = [X2, X4]
 
 /// RV64 patterns
 
