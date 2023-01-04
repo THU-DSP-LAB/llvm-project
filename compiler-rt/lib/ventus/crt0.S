@@ -42,4 +42,8 @@ _start:
 
   # call exit routine
   # tail    exit
+
+  # End of warp execution
+  endprg
+
 .size  _start, .-_start
