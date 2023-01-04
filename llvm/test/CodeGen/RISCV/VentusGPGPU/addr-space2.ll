@@ -39,7 +39,7 @@ define spir_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    add s2, s2, a0
 ; VENTUS-NEXT:    add s1, s1, a0
 ; VENTUS-NEXT:    lw a1, 0(s1)
-; VENTUS-NEXT:    vlw v1, 0(s2)
+; VENTUS-NEXT:    vlw v1, zero(s2)
 ; VENTUS-NEXT:    vmv.s.x v2, a1
 ; VENTUS-NEXT:    add a0, s0, a0
 ; VENTUS-NEXT:    lw a1, 0(a0)

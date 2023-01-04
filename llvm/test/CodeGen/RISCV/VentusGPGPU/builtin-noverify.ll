@@ -5,17 +5,17 @@
 define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrspace(1) nocapture noundef readonly %B) {
 ; VENTUS-LABEL: foo_fun:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, -16
-; VENTUS-NEXT:    addi tp, tp, -16
+; VENTUS-NEXT:    addi sp, sp, 16
+; VENTUS-NEXT:    addi tp, tp, 16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, 12(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 1
-; VENTUS-NEXT:    vsw v1, 8(tp) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw v1, -12(tp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 1
-; VENTUS-NEXT:    vsw v2, 4(tp) # 4-byte Folded Spill
-; VENTUS-NEXT:    .cfi_offset ra, -4
-; VENTUS-NEXT:    .cfi_offset v32.l, -8
-; VENTUS-NEXT:    .cfi_offset v33.l, -12
+; VENTUS-NEXT:    vsw v2, -16(tp) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset ra, 8
+; VENTUS-NEXT:    .cfi_offset v32.l, 4
+; VENTUS-NEXT:    .cfi_offset v33.l, 0
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vadd.vx v1, v1, zero
 ; VENTUS-NEXT:    regext zero, zero, 1
@@ -34,13 +34,13 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
 ; VENTUS-NEXT:    vadd.vv v0, v0, v2
 ; VENTUS-NEXT:    vsuxei32.v v0, (a0), v1
-; VENTUS-NEXT:    lw ra, 12(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 1
-; VENTUS-NEXT:    vlw v1, 8(tp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw v1, -12(tp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 1
-; VENTUS-NEXT:    vlw v2, 4(tp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi sp, sp, 16
-; VENTUS-NEXT:    addi tp, tp, 16
+; VENTUS-NEXT:    vlw v2, -16(tp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -16
+; VENTUS-NEXT:    addi tp, tp, -16
 ; VENTUS-NEXT:    ret
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)

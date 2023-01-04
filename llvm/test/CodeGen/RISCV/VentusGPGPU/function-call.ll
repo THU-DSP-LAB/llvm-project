@@ -23,13 +23,13 @@ entry:
 define dso_local spir_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr addrspace(1) noundef align 4 %c) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, -16
-; VENTUS-NEXT:    addi tp, tp, -16
+; VENTUS-NEXT:    addi sp, sp, 16
+; VENTUS-NEXT:    addi tp, tp, 16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, 12(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw s0, 8(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    .cfi_offset ra, -4
-; VENTUS-NEXT:    .cfi_offset s0, -8
+; VENTUS-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw s0, -16(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset ra, 4
+; VENTUS-NEXT:    .cfi_offset s0, 0
 ; VENTUS-NEXT:    lw s0, 8(a0)
 ; VENTUS-NEXT:    lw a1, 4(a0)
 ; VENTUS-NEXT:    lw a0, 0(a0)
@@ -38,10 +38,10 @@ define dso_local spir_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr addrs
 ; VENTUS-NEXT:    call bar
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vsuxei32.v v0, (s0), v1
-; VENTUS-NEXT:    lw ra, 12(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s0, 8(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi sp, sp, 16
-; VENTUS-NEXT:    addi tp, tp, 16
+; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw s0, -16(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -16
+; VENTUS-NEXT:    addi tp, tp, -16
 ; VENTUS-NEXT:    ret
 entry:
   %a.addr = alloca i32, align 4, addrspace(5)

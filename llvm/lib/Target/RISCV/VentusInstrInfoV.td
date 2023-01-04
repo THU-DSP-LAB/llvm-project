@@ -106,6 +106,10 @@ class PatFloatSetCC<list<DAGOperand> Ty, CondCode Cond, RVInst Inst>
   : Pat<(DivergentTernaryFrag<any_fsetcc> (f32 Ty[0]:$rs1), (f32 Ty[1]:$rs2), Cond),
                           (i32 (Inst Ty[0]:$rs1, Ty[1]:$rs2))>;
 
+// Float/integer type convert pattern
+class PatFXConvert<PatFrag Frag, list<ValueType> Ty, RVInst Inst>
+  : Pat<(Ty[0] (Frag (Ty[1] VGPR:$rs1))),(Inst VGPR:$rs1)>;
+
 //===----------------------------------------------------------------------===//
 // Operand and SDNode transformation definitions.
 //===----------------------------------------------------------------------===//
@@ -1169,6 +1173,15 @@ def : PatFloatSetCC<[VGPR, VGPR], SETOLE, VMFLE_VV>;
 def : PatFloatSetCC<[VGPR, GPRF32], SETOLE, VMFLE_VV>;
 def : PatFloatSetCC<[VGPR, GPRF32], SETOGT, VMFGT_VF>;
 def : PatFloatSetCC<[VGPR, GPRF32], SETOGE, VMFGE_VF>;
+
+// TODO: add vfcvt.rtz
+def : PatFXConvert<DivergentUnaryFrag<any_fp_to_sint>, [i32, f32], VFCVT_X_F_V>;
+def : PatFXConvert<DivergentUnaryFrag<any_fp_to_uint>,
+                                                  [i32, f32], VFCVT_XU_F_V>;
+def : PatFXConvert<DivergentUnaryFrag<any_sint_to_fp>, [f32, i32], VFCVT_F_X_V>;
+def : PatFXConvert<DivergentUnaryFrag<any_uint_to_fp>,
+                                                  [f32, i32], VFCVT_F_XU_V>;
+
 // Patterns for vrsub.vx and vrsub.vi
 def : Pat<(sub GPR:$rs1, VGPR:$rs2), (VRSUB_VX VGPR:$rs2, GPR:$rs1)>;
 def : Pat<(XLenVT (sub uimm5:$imm, (XLenVT VGPR:$rs1))),

@@ -268,3 +268,47 @@ entry:
   %sub = fsub float %mul, %c
   ret float %sub
 }
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) vscale_range(1,2048)
+define dso_local i32 @fcvt_x_f(float noundef %a) local_unnamed_addr  {
+; VENTUS-LABEL: fcvt_x_f:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfcvt.x.f.v v0, v0
+; VENTUS-NEXT:    ret
+entry:
+  %conv = fptosi float %a to i32
+  ret i32 %conv
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) vscale_range(1,2048)
+define dso_local i32 @fcvtu_xu_f(float noundef %a) local_unnamed_addr  {
+; VENTUS-LABEL: fcvtu_xu_f:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfcvt.xu.f.v v0, v0
+; VENTUS-NEXT:    ret
+entry:
+  %conv = fptoui float %a to i32
+  ret i32 %conv
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) vscale_range(1,2048)
+define dso_local float @fcvt_f_x(i32 noundef %a) local_unnamed_addr  {
+; VENTUS-LABEL: fcvt_f_x:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfcvt.f.x.v v0, v0
+; VENTUS-NEXT:    ret
+entry:
+  %conv = sitofp i32 %a to float
+  ret float %conv
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) vscale_range(1,2048)
+define dso_local float @fcvt_f_xu(i32 noundef %a) local_unnamed_addr  {
+; VENTUS-LABEL: fcvt_f_xu:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfcvt.f.xu.v v0, v0
+; VENTUS-NEXT:    ret
+entry:
+  %conv = uitofp i32 %a to float
+  ret float %conv
+}

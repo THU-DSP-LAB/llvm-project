@@ -5,15 +5,15 @@
 define spir_kernel void @foo_ker(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
 ; VENTUS-LABEL: foo_ker:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, -16
-; VENTUS-NEXT:    addi tp, tp, -16
+; VENTUS-NEXT:    addi sp, sp, 16
+; VENTUS-NEXT:    addi tp, tp, 16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, 12(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw s0, 8(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw s1, 4(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    .cfi_offset ra, -4
-; VENTUS-NEXT:    .cfi_offset s0, -8
-; VENTUS-NEXT:    .cfi_offset s1, -12
+; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw s0, -12(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw s1, -16(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset ra, 8
+; VENTUS-NEXT:    .cfi_offset s0, 4
+; VENTUS-NEXT:    .cfi_offset s1, 0
 ; VENTUS-NEXT:    lw s0, 0(a0)
 ; VENTUS-NEXT:    lw s1, 4(a0)
 ; VENTUS-NEXT:    vmv.s.x v0, zero
@@ -30,11 +30,11 @@ define spir_kernel void @foo_ker(ptr addrspace(1) nocapture noundef align 4 %A, 
 ; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
 ; VENTUS-NEXT:    vadd.vv v0, v0, v2
 ; VENTUS-NEXT:    vsuxei32.v v0, (a0), v1
-; VENTUS-NEXT:    lw ra, 12(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s0, 8(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s1, 4(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi sp, sp, 16
-; VENTUS-NEXT:    addi tp, tp, 16
+; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw s0, -12(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw s1, -16(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -16
+; VENTUS-NEXT:    addi tp, tp, -16
 ; VENTUS-NEXT:    ret
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
@@ -50,15 +50,15 @@ entry:
 define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrspace(1) nocapture noundef readonly %B) {
 ; VENTUS-LABEL: foo_fun:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, -16
-; VENTUS-NEXT:    addi tp, tp, -16
+; VENTUS-NEXT:    addi sp, sp, 16
+; VENTUS-NEXT:    addi tp, tp, 16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, 12(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    vsw v32, 8(tp) # 4-byte Folded Spill
-; VENTUS-NEXT:    vsw v33, 4(tp) # 4-byte Folded Spill
-; VENTUS-NEXT:    .cfi_offset ra, -4
-; VENTUS-NEXT:    .cfi_offset v32.l, -8
-; VENTUS-NEXT:    .cfi_offset v33.l, -12
+; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw v32, -12(tp) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw v33, -16(tp) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset ra, 8
+; VENTUS-NEXT:    .cfi_offset v32.l, 4
+; VENTUS-NEXT:    .cfi_offset v33.l, 0
 ; VENTUS-NEXT:    vadd.vx v32, v1, zero
 ; VENTUS-NEXT:    vadd.vx v33, v0, zero
 ; VENTUS-NEXT:    vmv.s.x v0, zero
@@ -73,11 +73,11 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
 ; VENTUS-NEXT:    vadd.vv v0, v0, v2
 ; VENTUS-NEXT:    vsuxei32.v v0, (a0), v1
-; VENTUS-NEXT:    lw ra, 12(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    vlw v32, 8(tp) # 4-byte Folded Reload
-; VENTUS-NEXT:    vlw v33, 4(tp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi sp, sp, 16
-; VENTUS-NEXT:    addi tp, tp, 16
+; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw v32, -12(tp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw v33, -16(tp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -16
+; VENTUS-NEXT:    addi tp, tp, -16
 ; VENTUS-NEXT:    ret
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
