@@ -20,11 +20,10 @@ _start:
   la gp, __global_pointer
   .option pop
 
-  # allocate warp and per-thread level stack pointers
-  csrr t0, CSR_LDS       # get baseaddr of local memory
-  li t1, 131072
-  add sp, t0, t1         # sp points to local memory + 128K
-  li tp, 1024            # tp points to upper bound of private memory(1K) of each thread
+  # allocate warp and per-thread level stack pointers, both
+  # stacks grows upwards
+  csrr sp, CSR_LDS      # sp points to baseaddr of local memory of each SM
+  addi tp, zero, 0      # tp points to the lower bound of private memory(1K) of each thread
 
   # clear BSS segment
   la      a0, _edata
