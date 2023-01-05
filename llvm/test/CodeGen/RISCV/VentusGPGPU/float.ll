@@ -312,3 +312,116 @@ entry:
   %conv = uitofp i32 %a to float
   ret float %conv
 }
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local float @fmadd_v(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
+; VENTUS-LABEL: fmadd_v:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfmadd.vv v1, v0, v2
+; VENTUS-NEXT:    vadd.vx v0, v1, zero
+; VENTUS-NEXT:    ret
+entry:
+  %mul = fmul float %a, %b
+  %add = fadd float %mul, %c
+  ret float %add
+}
+
+; Function Attrs: mustprogress nofree nosync nounwind willreturn memory(none)
+define dso_local float @fmadd_f(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
+; VENTUS-LABEL: fmadd_f:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    lui a0, %hi(.LCPI19_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI19_0)(a0)
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    vfmadd.vv v0, v1, v2
+; VENTUS-NEXT:    ret
+entry:
+  %0 = tail call float @llvm.fmuladd.f32(float %b, float 0x3FF3333340000000, float %c)
+  ret float %0
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local float @fnmadd_v(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
+; VENTUS-LABEL: fnmadd_v:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfnmadd.vv v1, v0, v2
+; VENTUS-NEXT:    vadd.vx v0, v1, zero
+; VENTUS-NEXT:    ret
+entry:
+  %0 = fneg float %a
+  %fneg = fmul float %0, %b
+  %sub = fsub float %fneg, %c
+  ret float %sub
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local float @fnmadd_f(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
+; VENTUS-LABEL: fnmadd_f:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    lui a0, %hi(.LCPI21_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI21_0)(a0)
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    vfmsub.vv v0, v1, v2
+; VENTUS-NEXT:    ret
+entry:
+  %fneg = fmul float %b, 0xBFF3333340000000
+  %sub = fsub float %fneg, %c
+  ret float %sub
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local float @fmsub_v(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
+; VENTUS-LABEL: fmsub_v:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfmsub.vv v1, v0, v2
+; VENTUS-NEXT:    vadd.vx v0, v1, zero
+; VENTUS-NEXT:    ret
+entry:
+  %mul = fmul float %a, %b
+  %sub = fsub float %mul, %c
+  ret float %sub
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local float @fmsub_f(float noundef %a, float noundef %b) local_unnamed_addr  {
+; VENTUS-LABEL: fmsub_f:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    lui a0, %hi(.LCPI23_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI23_0)(a0)
+; VENTUS-NEXT:    vmv.s.x v2, a0
+; VENTUS-NEXT:    vfmsub.vv v2, v0, v1
+; VENTUS-NEXT:    vadd.vx v0, v2, zero
+; VENTUS-NEXT:    ret
+entry:
+  %mul = fmul float %a, 0x3FF3333340000000
+  %sub = fsub float %mul, %b
+  ret float %sub
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local float @fnmsub_v(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
+; VENTUS-LABEL: fnmsub_v:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfnmsub.vv v1, v0, v2
+; VENTUS-NEXT:    vadd.vx v0, v1, zero
+; VENTUS-NEXT:    ret
+entry:
+  %0 = fmul float %a, %b
+  %add = fsub float %c, %0
+  ret float %add
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local float @fnmsub_f(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
+; VENTUS-LABEL: fnmsub_f:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    lui a0, %hi(.LCPI25_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI25_0)(a0)
+; VENTUS-NEXT:    vmv.s.x v0, a0
+; VENTUS-NEXT:    vfmadd.vv v0, v1, v2
+; VENTUS-NEXT:    ret
+entry:
+  %fneg = fmul float %b, 0x3FF3333340000000
+  %0 = fsub float %c, %fneg
+  ret float %0
+}

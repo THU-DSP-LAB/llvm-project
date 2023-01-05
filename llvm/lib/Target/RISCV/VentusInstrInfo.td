@@ -56,6 +56,11 @@ class DivergentBinFrag<SDPatternOperator Op> : PatFrag<
   (Op $src0, $src1),
   [{ return N->isDivergent(); }]>;
 
+class ReverseDivergentBinFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src1, $src0),
+  [{ return N->isDivergent(); }]>;
+
 class DivergentPrivateStoreFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
   (Op $src0, $src1),

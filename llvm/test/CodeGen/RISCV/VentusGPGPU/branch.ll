@@ -6,16 +6,17 @@
 define i32 @foo(i32 noundef %cond, i32 noundef %a, i32 noundef %b, i32 noundef %c) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vmv.s.x v4, zero
-; VENTUS-NEXT:    vmul.vv v1, v2, v1
-; VENTUS-NEXT:    vbeq v0, v4, .LBB0_2
+; VENTUS-NEXT:    vadd.vx v4, v0, zero
+; VENTUS-NEXT:    vmv.s.x v5, zero
+; VENTUS-NEXT:    vadd.vx v0, v1, zero
+; VENTUS-NEXT:    vbeq v4, v5, .LBB0_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    join .LBB0_3
 ; VENTUS-NEXT:  .LBB0_2: # %entry
 ; VENTUS-NEXT:    vrsub.vi v3, v3, 0
 ; VENTUS-NEXT:    join .LBB0_3
 ; VENTUS-NEXT:  .LBB0_3: # %entry
-; VENTUS-NEXT:    vadd.vv v0, v3, v1
+; VENTUS-NEXT:    vmadd.vv v0, v2, v3
 ; VENTUS-NEXT:    ret
 entry:
   %tobool.not = icmp eq i32 %cond, 0

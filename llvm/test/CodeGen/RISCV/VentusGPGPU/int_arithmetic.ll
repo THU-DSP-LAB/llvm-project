@@ -204,3 +204,79 @@ define i32 @vrsub_bigimm(i32 %a) nounwind {
   %1 = sub i32 65536, %a
   ret i32 %1
 }
+define dso_local i32 @fmadd_v(i32 noundef %a, i32 noundef %b, i32 noundef %c) local_unnamed_addr {
+; VENTUS-LABEL: fmadd_v:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vmadd.vv v0, v1, v2
+; VENTUS-NEXT:    ret
+entry:
+  %mul = mul nsw i32 %b, %a
+  %add = add nsw i32 %mul, %c
+  ret i32 %add
+}
+
+define dso_local i32 @fmadd_x(i32 noundef %a, i32 noundef %b) local_unnamed_addr {
+; VENTUS-LABEL: fmadd_x:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vsll.vi v2, v0, 2
+; VENTUS-NEXT:    vadd.vv v0, v2, v0
+; VENTUS-NEXT:    vadd.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+entry:
+  %mul = mul nsw i32 %a, 5
+  %add = add nsw i32 %mul, %b
+  ret i32 %add
+}
+
+define dso_local i32 @nmsub_v(i32 noundef %a, i32 noundef %b, i32 noundef %c) local_unnamed_addr  {
+; VENTUS-LABEL: nmsub_v:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vnmsub.vv v0, v1, v2
+; VENTUS-NEXT:    ret
+entry:
+  %mul = mul nsw i32 %b, %a
+  %add = sub i32 %c, %mul
+  ret i32 %add
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local i32 @nmsub_x(i32 noundef %a, i32 noundef %b) local_unnamed_addr  {
+; VENTUS-LABEL: nmsub_x:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    li a0, -11
+; VENTUS-NEXT:    vmv.s.x v2, a0
+; VENTUS-NEXT:    vmadd.vv v2, v0, v1
+; VENTUS-NEXT:    vadd.vx v0, v2, zero
+; VENTUS-NEXT:    ret
+entry:
+  %mul.neg = mul i32 %a, -11
+  %add = add nsw i32 %mul.neg, %b
+  ret i32 %add
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local i32 @madd_v(i32 noundef %a, i32 noundef %b, i32 noundef %c) local_unnamed_addr  {
+; VENTUS-LABEL: madd_v:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vmadd.vv v0, v1, v2
+; VENTUS-NEXT:    ret
+entry:
+  %mul = mul nsw i32 %b, %a
+  %add = add nsw i32 %mul, %c
+  ret i32 %add
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local i32 @madd_x(i32 noundef %a, i32 noundef %b) local_unnamed_addr  {
+; VENTUS-LABEL: madd_x:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    li a0, 11
+; VENTUS-NEXT:    vmv.s.x v2, a0
+; VENTUS-NEXT:    vmadd.vv v2, v0, v1
+; VENTUS-NEXT:    vadd.vx v0, v2, zero
+; VENTUS-NEXT:    ret
+entry:
+  %mul = mul nsw i32 %a, 11
+  %add = add nsw i32 %mul, %b
+  ret i32 %add
+}
