@@ -1007,9 +1007,9 @@ defm VFSGNJN_V : VSGNJ_FV_V_F<"vfsgnjn", 0b001001>;
 defm VFSGNJX_V : VSGNJ_FV_V_F<"vfsgnjx", 0b001010>;
 
 def : InstAlias<"vfneg.v $vd, $vs",
-                (VFSGNJN_VV VGPR:$vd, VGPR:$vs, VGPR:$vs)>;
+                (VFSGNJN_VV VGPR:$vd, VGPR:$vs, VGPR:$vs), 0>;
 def : InstAlias<"vfabs.v $vd, $vs",
-                (VFSGNJX_VV VGPR:$vd, VGPR:$vs, VGPR:$vs)>;
+                (VFSGNJX_VV VGPR:$vd, VGPR:$vs, VGPR:$vs), 0>;
 
 // Vector Floating-Point Compare Instructions
 let RVVConstraint = NoConstraint, mayRaiseFPException = true in {
@@ -1161,7 +1161,11 @@ defm : PatVXIBin<DivergentBinFrag<setlt>, [VMSLT_VV, VMSLT_VX, VMSLT_VI]>;
 defm : PatVXIBin<DivergentBinFrag<setult>, [VMSLTU_VV, VMSLTU_VX, VMSLTU_VI]>;
 defm : PatVXIBin<DivergentBinFrag<setne>, [VMSNE_VV, VMSNE_VX, VMSNE_VI]>;
 defm : PatVXIBin<DivergentBinFrag<seteq>, [VMSEQ_VV, VMSEQ_VX, VMSEQ_VI]>;
-
+// Patterns for vrsub.vx and vrsub.vi
+def : Pat<(sub GPR:$rs1, VGPR:$rs2), (VRSUB_VX VGPR:$rs2, GPR:$rs1)>;
+def : Pat<(XLenVT (sub uimm5:$imm, (XLenVT VGPR:$rs1))),
+              (VRSUB_VI VGPR:$rs1, uimm5:$imm)>;
+              
 // For now, some instructions are aliaed to other instructions
 defm : SleOpePatVXIBin<[DivergentBinFrag<xor>, DivergentBinFrag<setlt>],
                                             [VMSLE_VV, VMSLE_VX, VMSGT_VI]>;
@@ -1188,17 +1192,17 @@ def : PatFXConvert<DivergentUnaryFrag<any_sint_to_fp>, [f32, XLenVT], VFCVT_F_X_
 def : PatFXConvert<DivergentUnaryFrag<any_uint_to_fp>,
                                                   [f32, XLenVT], VFCVT_F_XU_V>;
 
-// Patterns for vrsub.vx and vrsub.vi
-def : Pat<(sub GPR:$rs1, VGPR:$rs2), (VRSUB_VX VGPR:$rs2, GPR:$rs1)>;
-def : Pat<(XLenVT (sub uimm5:$imm, (XLenVT VGPR:$rs1))),
-              (VRSUB_VI VGPR:$rs1, uimm5:$imm)>;
-
 defm : PatVFRBin<DivergentBinFrag<fadd>,  [VFADD_VV, VFADD_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fsub>,  [VFSUB_VV, VFSUB_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fmul>,  [VFMUL_VV, VFMUL_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fdiv>,  [VFDIV_VV, VFDIV_VF, VFRDIV_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fminimum>,  [VFMIN_VV, VFMIN_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fmaximum>,  [VFMAX_VV, VFMAX_VF]>;
+defm : PatVFRBin<DivergentBinFrag<fcopysign>, [VFSGNJ_VV, VFSGNJ_VF]>;
+def : Pat<(fcopysign (f32 VGPR:$rs1), (f32 (fneg VGPR:$rs2))), (VFSGNJN_VV $rs1, $rs2)>;
+def : Pat<(fcopysign (f32 VGPR:$rs1), (fneg GPRF32:$rs2)), (VFSGNJN_VF $rs1, $rs2)>;
+def : Pat<(fneg (f32 VGPR:$rs1)), (VFSGNJN_VV $rs1, $rs1)>;
+def : Pat<(fabs (f32 VGPR:$rs1)), (VFSGNJX_VV $rs1, $rs1)>;
 
 // Patterns for ternary operations
 // TODO: vmacc/vfmacc, vnmsac/vfnmsac

@@ -425,3 +425,46 @@ entry:
   %0 = fsub float %c, %fneg
   ret float %0
 }
+
+; Function Attrs: mustprogress nocallback nofree nosync nounwind speculatable willreturn memory(none)
+define float @fsgnj_v(float %a, float %b) nounwind {
+; VENTUS-LABEL: fsgnj_v:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vfsgnj.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+  %1 = call float @llvm.copysign.f32(float %a, float %b)
+  ret float %1
+}
+
+define float @fsgnjn_v(float %a, float %b) nounwind {
+; VENTUS-LABEL: fsgnjn_v:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vfadd.vv v1, v0, v1
+; VENTUS-NEXT:    vfsgnjn.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+  %1 = fadd float %a, %b
+  %2 = fneg float %1
+  %3 = call float @llvm.copysign.f32(float %a, float %2)
+  ret float %3
+}
+
+define float @fsgnjn_v_1(float %a) nounwind {
+; VENTUS-LABEL: fsgnjn_v_1:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vfsgnjn.vv v0, v0, v0
+; VENTUS-NEXT:    ret
+  %1 = fneg float %a
+  ret float %1
+}
+define float @fsgnjnx_v(float %a) nounwind {
+; VENTUS-LABEL: fsgnjnx_v:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vfsgnjx.vv v0, v0, v0
+; VENTUS-NEXT:    ret
+  %1 = call float @llvm.fabs.f32(float %a)
+  ret float %1
+}
+
+declare float @llvm.fabs.f32(float  %Val)
+
+declare float @llvm.copysign.f32(float %a, float %b)
