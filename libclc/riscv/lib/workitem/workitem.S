@@ -37,7 +37,7 @@
  *
  * 3 dims:
  * (get_global_id(2) - global_offset_z) * global_size_x * global_size_y + global_linear_id2
- * 
+ *
  */
 
 
@@ -78,11 +78,11 @@ __builtin_riscv_global_linear_id:
   lw t6, 12(a3)           # global_size_x
   lw t7, 16(a3)           # global_size_y
   lw t5, 44(a3)           # global_offset_z
-  vsub.vx v7, v0, t5      # tmp = global_id_z - global_offset_z
-  vmul.vx v7, v7, t6      # tmp = tmp * global_size_x
-  vmul.vx v7, v7, t7      # tmp = tmp * global_size_y
-  vadd.vv v5, v6, v7      # global_linear_id3 = tmp + global_linear_id2  	
-.GLR:	
+  vsub.vx v6, v0, t5      # tmp = global_id_z - global_offset_z
+  vmul.vx v6, v6, t6      # tmp = tmp * global_size_x
+  vmul.vx v6, v6, t7      # tmp = tmp * global_size_y
+  vadd.vv v5, v5, v6      # global_linear_id3 = tmp + global_linear_id2
+.GLR:
   vadd.vx v0, v5, zero    # Return global_linear_id for 1/2/3 dims
   ret
   .size  __builtin_riscv_global_linear_id .- __builtin_riscv_global_linear_id
