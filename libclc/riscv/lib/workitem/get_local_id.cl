@@ -9,6 +9,6 @@ _CLC_DEF _CLC_OVERLOAD size_t get_local_id(uint dim) {
   case 2:
     return __builtin_riscv_workitem_id_z();
   default:
-    return 1;
+    return 0;
   }
 }
