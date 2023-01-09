@@ -12,3 +12,8 @@ _CLC_DEF _CLC_OVERLOAD size_t get_local_size(uint dim) {
     return 1;
   }
 }
+
+_CLC_DEF _CLC_OVERLOAD size_t get_enqueued_local_size(uint dim) {
+  assert(0 && "TODO: Support non-uniform work-group.");
+  return 1;
+}

@@ -304,6 +304,39 @@ __builtin_riscv_global_size_z:
 
 
   .text
+  .global __builtin_riscv_global_offset_x
+  .type __builtin_riscv_global_offset_x, @function
+__builtin_riscv_global_offset_x:
+  csrr a0, CSR_KNL          # Get kernel metadata buffer
+  lw t0, KNL_GL_OFFSET_X(a0)  # Get global_offset_x
+  vmv.s.x v0, t0
+  ret
+  .size  __builtin_riscv_global_offset_x, .-__builtin_riscv_global_offset_x
+
+
+  .text
+  .global __builtin_riscv_global_offset_y
+  .type __builtin_riscv_global_offset_y, @function
+__builtin_riscv_global_offset_y:
+  csrr a0, CSR_KNL          # Get kernel metadata buffer
+  lw t0, KNL_GL_OFFSET_Y(a0)  # Get global_offset_y
+  vmv.s.x v0, t0
+  ret
+  .size  __builtin_riscv_global_offset_y, .-__builtin_riscv_global_offset_y
+
+
+  .text
+  .global __builtin_riscv_global_offset_z
+  .type __builtin_riscv_global_offset_z, @function
+__builtin_riscv_global_offset_z:
+  csrr a0, CSR_KNL          # Get kernel metadata buffer
+  lw t0, KNL_GL_OFFSET_Z(a0)  # Get global_offset_z
+  vmv.s.x v0, t0
+  ret
+  .size  __builtin_riscv_global_offset_z, .-__builtin_riscv_global_offset_z
+
+
+  .text
   .global __builtin_riscv_num_groups_x
   .type __builtin_riscv_num_groups_x, @function
 __builtin_riscv_num_groups_x:
