@@ -331,6 +331,13 @@ def uimm5 : Operand<XLenVT>, ImmLeaf<XLenVT, [{return isUInt<5>(Imm);}]> {
   let OperandNamespace = "RISCVOp";
 }
 
+def uimm12 : Operand<XLenVT>, ImmLeaf<XLenVT, [{return isUInt<12>(Imm);}]> {
+  let ParserMatchClass = UImmAsmOperand<12>;
+  let DecoderMethod = "decodeUImmOperand<12>";
+  let OperandType = "OPERAND_UIMM12";
+  let OperandNamespace = "RISCVOp";
+}
+
 def InsnDirectiveOpcode : AsmOperandClass {
   let Name = "InsnDirectiveOpcode";
   let ParserMethod = "parseInsnDirectiveOpcode";
@@ -918,9 +925,19 @@ def SRAW  : ALUW_rr<0b0100000, 0b101, "sraw">,
 
 // imm12 is divided into 4 x 3bits to encode extended register range.
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
-def REGEXT : RVInstI<0b000, OPC_CUSTOM_0, (outs GPR:$rd),
+def REGEXT : RVInstI<0b010, OPC_CUSTOM_0, (outs GPR:$rd),
                      (ins GPR:$rs1, simm12:$imm12),
                      "regext", "$rd, $rs1, $imm12">;
+
+// imm12 is extended immediate from simm5 to support larger immediate
+// vadd12.vi vd, vs1, imm
+def VADDIMM12 : RVInstI<0b000, OPC_CUSTOM_0, (outs VGPR:$rd),
+                     (ins VGPR:$rs1, uimm12:$imm12),
+                     "vadd12.vi", "$rd, $rs1, $imm12">;
+// vsub12.vi vd, vs1, imm
+def VSUBIMM12 : RVInstI<0b001, OPC_CUSTOM_0, (outs VGPR:$rd),
+                     (ins VGPR:$rs1, uimm12:$imm12),
+                     "vsub12.vi", "$rd, $rs1, $imm12">;
 
 //===----------------------------------------------------------------------===//
 // Privileged instructions

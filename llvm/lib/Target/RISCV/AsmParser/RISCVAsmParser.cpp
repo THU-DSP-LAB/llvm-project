@@ -571,6 +571,7 @@ public:
   bool isUImm3() { return IsUImm<3>(); }
   bool isUImm5() { return IsUImm<5>(); }
   bool isUImm7() { return IsUImm<7>(); }
+  bool isUImm12() { return IsUImm<12>(); }
 
   bool isRnumArg() const {
     int64_t Imm;

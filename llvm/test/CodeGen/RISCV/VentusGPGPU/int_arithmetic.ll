@@ -162,9 +162,7 @@ define i32 @vsub_v(i32 %a, i32 %b) nounwind {
 define i32 @vsub_x(i32 %a) nounwind {
 ; VENTUS-LABEL: vsub_x:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    li a0, -12
-; VENTUS-NEXT:    vmv.s.x v1, a0
-; VENTUS-NEXT:    vadd.vv v0, v0, v1
+; VENTUS-NEXT:    vsub12.vi v0, v0, 12
 ; VENTUS-NEXT:    ret
   %1 = alloca i32
   store i32 12, ptr %1
@@ -279,4 +277,26 @@ entry:
   %mul = mul nsw i32 %a, 11
   %add = add nsw i32 %mul, %b
   ret i32 %add
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local i32 @vaddimm12(i32 noundef %a) local_unnamed_addr {
+; VENTUS-LABEL: vaddimm12:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vadd12.vi v0, v0, 1024
+; VENTUS-NEXT:    ret
+entry:
+  %add = add nsw i32 %a, 1024
+  ret i32 %add
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
+define dso_local i32 @vsubimm12(i32 noundef %a) local_unnamed_addr{
+; VENTUS-LABEL: vsubimm12:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vsub12.vi v0, v0, 1024
+; VENTUS-NEXT:    ret
+entry:
+  %sub = sub nsw i32 %a, 1024
+  ret i32 %sub
 }

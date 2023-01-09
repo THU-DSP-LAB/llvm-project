@@ -1165,7 +1165,7 @@ defm : PatVXIBin<DivergentBinFrag<seteq>, [VMSEQ_VV, VMSEQ_VX, VMSEQ_VI]>;
 def : Pat<(sub GPR:$rs1, VGPR:$rs2), (VRSUB_VX VGPR:$rs2, GPR:$rs1)>;
 def : Pat<(XLenVT (sub uimm5:$imm, (XLenVT VGPR:$rs1))),
               (VRSUB_VI VGPR:$rs1, uimm5:$imm)>;
-              
+
 // For now, some instructions are aliaed to other instructions
 defm : SleOpePatVXIBin<[DivergentBinFrag<xor>, DivergentBinFrag<setlt>],
                                             [VMSLE_VV, VMSLE_VX, VMSGT_VI]>;
@@ -1185,13 +1185,14 @@ def : PatFloatSetCC<[VGPR, GPRF32], SETOGT, VMFGT_VF>;
 def : PatFloatSetCC<[VGPR, GPRF32], SETOGE, VMFGE_VF>;
 
 // TODO: add vfcvt.rtz
+def : Pat<(XLenVT (DivergentUnaryFrag<any_fp_to_sint> (ftrunc (f32 VGPR:$rs1)))),
+                                                        (VFCVT_RTZ_X_F_V $rs1)>;
 def : PatFXConvert<DivergentUnaryFrag<any_fp_to_sint>, [XLenVT, f32], VFCVT_X_F_V>;
 def : PatFXConvert<DivergentUnaryFrag<any_fp_to_uint>,
                                                   [XLenVT, f32], VFCVT_XU_F_V>;
 def : PatFXConvert<DivergentUnaryFrag<any_sint_to_fp>, [f32, XLenVT], VFCVT_F_X_V>;
 def : PatFXConvert<DivergentUnaryFrag<any_uint_to_fp>,
                                                   [f32, XLenVT], VFCVT_F_XU_V>;
-
 defm : PatVFRBin<DivergentBinFrag<fadd>,  [VFADD_VV, VFADD_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fsub>,  [VFSUB_VV, VFSUB_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fmul>,  [VFMUL_VV, VFMUL_VF]>;
@@ -1302,3 +1303,11 @@ foreach n = [1] in {
 
 // TODO: Will enable this after non divergent execution path are implemented.
 // include "VentusInstrInfoVPseudos.td"
+
+//===----------------------------------------------------------------------===//
+// Ventus vALU divergent extended execution patterns
+//===----------------------------------------------------------------------===//
+def : Pat<(XLenVT (DivergentBinFrag<sub> (XLenVT VGPR:$rs1), uimm12:$imm)),
+              (XLenVT (VSUBIMM12 VGPR:$rs1, uimm12:$imm))>;
+def : Pat<(XLenVT (DivergentBinFrag<add> (XLenVT VGPR:$rs1), uimm12:$imm)),
+              (XLenVT (VADDIMM12 VGPR:$rs1, uimm12:$imm))>;

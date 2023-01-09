@@ -3458,11 +3458,12 @@ SDValue DAGCombiner::visitSUB(SDNode *N) {
 
   ConstantSDNode *N1C = getAsNonOpaqueConstant(N1);
 
+  // For now there's no need to fold sub to add in ventus
   // fold (sub x, c) -> (add x, -c)
-  if (N1C) {
-    return DAG.getNode(ISD::ADD, DL, VT, N0,
-                       DAG.getConstant(-N1C->getAPIntValue(), DL, VT));
-  }
+  // if (N1C) {
+  //   return DAG.getNode(ISD::ADD, DL, VT, N0,
+  //                      DAG.getConstant(-N1C->getAPIntValue(), DL, VT));
+  // }
 
   if (isNullOrNullSplat(N0)) {
     unsigned BitWidth = VT.getScalarSizeInBits();
