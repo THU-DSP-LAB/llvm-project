@@ -930,14 +930,14 @@ def REGEXT : RVInstI<0b010, OPC_CUSTOM_0, (outs GPR:$rd),
                      "regext", "$rd, $rs1, $imm12">;
 
 // imm12 is extended immediate from simm5 to support larger immediate
+class ALU_ri_ventus<bits<3> funct3, string opcode> : RVInstI<funct3, OPC_CUSTOM_0,
+                  (outs VGPR:$rd), (ins VGPR:$rs1, uimm12:$imm12),
+                                "v" # opcode # "12.vi", "$rd, $rs1, $imm12">;
 // vadd12.vi vd, vs1, imm
-def VADDIMM12 : RVInstI<0b000, OPC_CUSTOM_0, (outs VGPR:$rd),
-                     (ins VGPR:$rs1, uimm12:$imm12),
-                     "vadd12.vi", "$rd, $rs1, $imm12">;
+def VADDIMM12 : ALU_ri_ventus<0b000, "add">;
 // vsub12.vi vd, vs1, imm
-def VSUBIMM12 : RVInstI<0b001, OPC_CUSTOM_0, (outs VGPR:$rd),
-                     (ins VGPR:$rs1, uimm12:$imm12),
-                     "vsub12.vi", "$rd, $rs1, $imm12">;
+def VSUBIMM12 : ALU_ri_ventus<0b001, "sub">;
+
 
 //===----------------------------------------------------------------------===//
 // Privileged instructions

@@ -276,6 +276,12 @@ class VALUVs2<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, string opcodestr>
     : RVInstV<funct6, vs1, opv, (outs VGPR:$vd),
                (ins VGPR:$vs2),
                opcodestr, "$vd, $vs2">;
+
+// op vd, vs2 (use vs1 as instruction encoding)
+class VALUVs2_frm<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, string opcodestr>
+    : RVInstV<funct6, vs1, opv, (outs VGPR:$vd),
+               (ins VGPR:$vs2, frmarg:$frm),
+               opcodestr, "$vd, $vs2">;
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
 
 //===----------------------------------------------------------------------===//
@@ -470,6 +476,11 @@ multiclass VCVTF_IV_VS2<string opcodestr, bits<6> funct6, bits<5> vs1> {
 
 multiclass VCVTI_FV_VS2<string opcodestr, bits<6> funct6, bits<5> vs1> {
   def "" : VALUVs2<funct6, vs1, OPFVV, opcodestr>,
+           Sched<[WriteVFCvtFToIV_UpperBound, ReadVFCvtFToIV_UpperBound]>;
+}
+
+multiclass VCVTI_FV_VS2_FRM<string opcodestr, bits<6> funct6, bits<5> vs1> {
+  def "" : VALUVs2_frm<funct6, vs1, OPFVV, opcodestr>,
            Sched<[WriteVFCvtFToIV_UpperBound, ReadVFCvtFToIV_UpperBound]>;
 }
 
@@ -705,7 +716,7 @@ def VBLT  : BranchCC_vvi<0b100, "vblt">;
 def VBGE  : BranchCC_vvi<0b101, "vbge">;
 def VBLTU : BranchCC_vvi<0b110, "vbltu">;
 def VBGEU : BranchCC_vvi<0b111, "vbgeu">;
-def JOIN  : Branch_i<0b011, "join">;
+def JOIN  : Branch_i<0b011, "vjoin">;
 
 def VLUXEI8  : VectorLoad<LSWidth8,  "vluxei8.v">;
 def VLUXEI16 : VectorLoad<LSWidth16, "vluxei16.v">;
@@ -1049,8 +1060,8 @@ let Uses = [FRM] in {
 defm VFCVT_XU_F_V : VCVTI_FV_VS2<"vfcvt.xu.f.v", 0b010010, 0b00000>;
 defm VFCVT_X_F_V : VCVTI_FV_VS2<"vfcvt.x.f.v", 0b010010, 0b00001>;
 }
-defm VFCVT_RTZ_XU_F_V : VCVTI_FV_VS2<"vfcvt.rtz.xu.f.v", 0b010010, 0b00110>;
-defm VFCVT_RTZ_X_F_V : VCVTI_FV_VS2<"vfcvt.rtz.x.f.v", 0b010010, 0b00111>;
+defm VFCVT_RTZ_XU_F_V : VCVTI_FV_VS2_FRM<"vfcvt.rtz.xu.f.v", 0b010010, 0b00110>;
+defm VFCVT_RTZ_X_F_V : VCVTI_FV_VS2_FRM<"vfcvt.rtz.x.f.v", 0b010010, 0b00111>;
 let Uses = [FRM] in {
 defm VFCVT_F_XU_V : VCVTF_IV_VS2<"vfcvt.f.xu.v", 0b010010, 0b00010>;
 defm VFCVT_F_X_V : VCVTF_IV_VS2<"vfcvt.f.x.v", 0b010010, 0b00011>;
@@ -1184,9 +1195,8 @@ def : PatFloatSetCC<[VGPR, GPRF32], SETOLE, VMFLE_VV>;
 def : PatFloatSetCC<[VGPR, GPRF32], SETOGT, VMFGT_VF>;
 def : PatFloatSetCC<[VGPR, GPRF32], SETOGE, VMFGE_VF>;
 
-// TODO: add vfcvt.rtz
-def : Pat<(XLenVT (DivergentUnaryFrag<any_fp_to_sint> (ftrunc (f32 VGPR:$rs1)))),
-                                                        (VFCVT_RTZ_X_F_V $rs1)>;
+def : Pat<(i32 (riscv_fcvt_x (f32 VGPR:$rs1), timm:$frm)), (VFCVT_RTZ_X_F_V (f32 VGPR:$rs1), $frm)>;
+def : Pat<(i32 (riscv_fcvt_xu (f32 VGPR:$rs1), timm:$frm)), (VFCVT_RTZ_XU_F_V (f32 VGPR:$rs1), $frm)>;
 def : PatFXConvert<DivergentUnaryFrag<any_fp_to_sint>, [XLenVT, f32], VFCVT_X_F_V>;
 def : PatFXConvert<DivergentUnaryFrag<any_fp_to_uint>,
                                                   [XLenVT, f32], VFCVT_XU_F_V>;

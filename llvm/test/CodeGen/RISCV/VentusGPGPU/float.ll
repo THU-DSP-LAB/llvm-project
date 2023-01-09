@@ -53,7 +53,6 @@ define float @sqrt_f32(float %a) {
   %b = call float @llvm.sqrt.f32(float %a)
   ret float %b
 }
-declare float @llvm.sqrt.f32(float %Val)
 
 define dso_local float @feq(float noundef %a, float noundef %b) local_unnamed_addr  {
 ; VENTUS-LABEL: feq:
@@ -65,11 +64,11 @@ define dso_local float @feq(float noundef %a, float noundef %b) local_unnamed_ad
 ; VENTUS-NEXT:    vbne v0, v2, .LBB5_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    join .LBB5_3
+; VENTUS-NEXT:    vjoin .LBB5_3
 ; VENTUS-NEXT:  .LBB5_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    join .LBB5_3
+; VENTUS-NEXT:    vjoin .LBB5_3
 ; VENTUS-NEXT:  .LBB5_3: # %entry
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmv.x.s a0, v0
@@ -92,11 +91,11 @@ define dso_local float @fneq(float noundef %a, float noundef %b) local_unnamed_a
 ; VENTUS-NEXT:    vbne v0, v2, .LBB6_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    join .LBB6_3
+; VENTUS-NEXT:    vjoin .LBB6_3
 ; VENTUS-NEXT:  .LBB6_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    join .LBB6_3
+; VENTUS-NEXT:    vjoin .LBB6_3
 ; VENTUS-NEXT:  .LBB6_3: # %entry
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmv.x.s a0, v0
@@ -119,11 +118,11 @@ define dso_local float @flt(float noundef %a, float noundef %b) local_unnamed_ad
 ; VENTUS-NEXT:    vbne v0, v2, .LBB7_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    join .LBB7_3
+; VENTUS-NEXT:    vjoin .LBB7_3
 ; VENTUS-NEXT:  .LBB7_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    join .LBB7_3
+; VENTUS-NEXT:    vjoin .LBB7_3
 ; VENTUS-NEXT:  .LBB7_3: # %entry
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmv.x.s a0, v0
@@ -146,11 +145,11 @@ define dso_local float @fle(float noundef %a, float noundef %b) local_unnamed_ad
 ; VENTUS-NEXT:    vbne v0, v2, .LBB8_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    join .LBB8_3
+; VENTUS-NEXT:    vjoin .LBB8_3
 ; VENTUS-NEXT:  .LBB8_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    join .LBB8_3
+; VENTUS-NEXT:    vjoin .LBB8_3
 ; VENTUS-NEXT:  .LBB8_3: # %entry
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmv.x.s a0, v0
@@ -175,11 +174,11 @@ define dso_local float @fgt(float noundef %a)  {
 ; VENTUS-NEXT:    vbne v0, v1, .LBB9_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    join .LBB9_3
+; VENTUS-NEXT:    vjoin .LBB9_3
 ; VENTUS-NEXT:  .LBB9_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    join .LBB9_3
+; VENTUS-NEXT:    vjoin .LBB9_3
 ; VENTUS-NEXT:  .LBB9_3: # %entry
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmv.x.s a0, v0
@@ -208,11 +207,11 @@ define dso_local float @fge(float noundef %a)  {
 ; VENTUS-NEXT:    vbne v0, v1, .LBB10_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    join .LBB10_3
+; VENTUS-NEXT:    vjoin .LBB10_3
 ; VENTUS-NEXT:  .LBB10_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    join .LBB10_3
+; VENTUS-NEXT:    vjoin .LBB10_3
 ; VENTUS-NEXT:  .LBB10_3: # %entry
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmv.x.s a0, v0
@@ -252,9 +251,6 @@ entry:
   %0 = tail call float @llvm.fmuladd.f32(float %a, float %b, float %c)
   ret float %0
 }
-
-; Function Attrs: mustprogress nocallback nofree nosync nounwind speculatable willreturn memory(none)
-declare float @llvm.fmuladd.f32(float, float, float)
 
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 define dso_local noundef float @fmsub(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
@@ -456,6 +452,7 @@ define float @fsgnjn_v_1(float %a) nounwind {
   %1 = fneg float %a
   ret float %1
 }
+
 define float @fsgnjnx_v(float %a) nounwind {
 ; VENTUS-LABEL: fsgnjnx_v:
 ; VENTUS:       # %bb.0:
@@ -465,6 +462,28 @@ define float @fsgnjnx_v(float %a) nounwind {
   ret float %1
 }
 
-declare float @llvm.fabs.f32(float  %Val)
+define i32 @fcvt_rtz_x_f_v(float %a) nounwind {
+; VENTUS-LABEL: fcvt_rtz_x_f_v:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vfcvt.rtz.x.f.v v0, v0
+; VENTUS-NEXT:    ret
+  %1 = call float @llvm.trunc.f32(float %a)
+  %conv = fptosi float %1 to i32
+  ret i32 %conv
+}
 
+define i32 @fcvt_rtz_xu_f_v(float %x) {
+; VENTUS-LABEL: fcvt_rtz_xu_f_v:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vfcvt.rtz.xu.f.v v0, v0
+; VENTUS-NEXT:    ret
+  %a = call float @llvm.trunc.f32(float %x)
+  %b = fptoui float %a to i32
+  ret i32 %b
+}
+
+declare float @llvm.sqrt.f32(float %Val)
+declare float @llvm.fmuladd.f32(float, float, float)
+declare float @llvm.trunc.f32(float)
+declare float @llvm.fabs.f32(float  %Val)
 declare float @llvm.copysign.f32(float %a, float %b)

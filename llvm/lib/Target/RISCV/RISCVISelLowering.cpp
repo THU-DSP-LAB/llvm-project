@@ -188,6 +188,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   }
 
   if (Subtarget.hasStdExtZfinx()) {
+    setTargetDAGCombine({ISD::FP_TO_SINT,ISD::FP_TO_UINT});
     setOperationAction(ISD::LOAD, MVT::f32, Promote);
     AddPromotedToType(ISD::LOAD, MVT::f32, MVT::i32);
     setOperationAction(ISD::STORE, MVT::f32, Promote);
@@ -294,7 +295,6 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
 
   if (Subtarget.hasStdExtZfh())
     setOperationAction(ISD::BITCAST, MVT::i16, Custom);
-
   if (Subtarget.hasStdExtZfh()) {
     setOperationAction(FPLegalNodeTypes, MVT::f16, Legal);
     setOperationAction(ISD::FCEIL, MVT::f16, Custom);

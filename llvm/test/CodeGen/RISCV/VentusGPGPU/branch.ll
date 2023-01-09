@@ -11,10 +11,10 @@ define i32 @foo(i32 noundef %cond, i32 noundef %a, i32 noundef %b, i32 noundef %
 ; VENTUS-NEXT:    vadd.vx v0, v1, zero
 ; VENTUS-NEXT:    vbeq v4, v5, .LBB0_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
-; VENTUS-NEXT:    join .LBB0_3
+; VENTUS-NEXT:    vjoin .LBB0_3
 ; VENTUS-NEXT:  .LBB0_2: # %entry
 ; VENTUS-NEXT:    vrsub.vi v3, v3, 0
-; VENTUS-NEXT:    join .LBB0_3
+; VENTUS-NEXT:    vjoin .LBB0_3
 ; VENTUS-NEXT:  .LBB0_3: # %entry
 ; VENTUS-NEXT:    vmadd.vv v0, v2, v3
 ; VENTUS-NEXT:    ret
