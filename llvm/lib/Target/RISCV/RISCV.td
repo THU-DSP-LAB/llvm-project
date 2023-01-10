@@ -470,6 +470,10 @@ def FeatureRV32E
 def IsRV32E : Predicate<"Subtarget->isRV32E()">,
                         AssemblerPredicate<(all_of FeatureRV32E)>;
 
+// TODO: Maybe needed later
+def AllowFPOpFusion : Predicate<"TM.Options.AllowFPOpFusion =="
+                                " FPOpFusion::Fast">;
+
 def FeatureRelax
     : SubtargetFeature<"relax", "EnableLinkerRelax", "true",
                        "Enable Linker relaxation.">;

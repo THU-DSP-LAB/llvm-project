@@ -1060,6 +1060,7 @@ let Uses = [FRM] in {
 defm VFCVT_XU_F_V : VCVTI_FV_VS2<"vfcvt.xu.f.v", 0b010010, 0b00000>;
 defm VFCVT_X_F_V : VCVTI_FV_VS2<"vfcvt.x.f.v", 0b010010, 0b00001>;
 }
+// Follow the way by RISCVInstrInfoF
 defm VFCVT_RTZ_XU_F_V : VCVTI_FV_VS2_FRM<"vfcvt.rtz.xu.f.v", 0b010010, 0b00110>;
 defm VFCVT_RTZ_X_F_V : VCVTI_FV_VS2_FRM<"vfcvt.rtz.x.f.v", 0b010010, 0b00111>;
 let Uses = [FRM] in {
@@ -1195,14 +1196,18 @@ def : PatFloatSetCC<[VGPR, GPRF32], SETOLE, VMFLE_VV>;
 def : PatFloatSetCC<[VGPR, GPRF32], SETOGT, VMFGT_VF>;
 def : PatFloatSetCC<[VGPR, GPRF32], SETOGE, VMFGE_VF>;
 
-def : Pat<(i32 (riscv_fcvt_x (f32 VGPR:$rs1), timm:$frm)), (VFCVT_RTZ_X_F_V (f32 VGPR:$rs1), $frm)>;
-def : Pat<(i32 (riscv_fcvt_xu (f32 VGPR:$rs1), timm:$frm)), (VFCVT_RTZ_XU_F_V (f32 VGPR:$rs1), $frm)>;
-def : PatFXConvert<DivergentUnaryFrag<any_fp_to_sint>, [XLenVT, f32], VFCVT_X_F_V>;
+def : Pat<(i32 (DivergentBinFrag<riscv_fcvt_x> (f32 VGPR:$rs1), timm:$frm)),
+                (VFCVT_RTZ_X_F_V (f32 VGPR:$rs1), $frm)>;
+def : Pat<(i32 (DivergentBinFrag<riscv_fcvt_xu> (f32 VGPR:$rs1), timm:$frm)),
+                (VFCVT_RTZ_XU_F_V (f32 VGPR:$rs1), $frm)>;
+def : PatFXConvert<DivergentUnaryFrag<any_fp_to_sint>,
+                          [XLenVT, f32], VFCVT_X_F_V>;
 def : PatFXConvert<DivergentUnaryFrag<any_fp_to_uint>,
-                                                  [XLenVT, f32], VFCVT_XU_F_V>;
-def : PatFXConvert<DivergentUnaryFrag<any_sint_to_fp>, [f32, XLenVT], VFCVT_F_X_V>;
+                          [XLenVT, f32], VFCVT_XU_F_V>;
+def : PatFXConvert<DivergentUnaryFrag<any_sint_to_fp>,
+                          [f32, XLenVT], VFCVT_F_X_V>;
 def : PatFXConvert<DivergentUnaryFrag<any_uint_to_fp>,
-                                                  [f32, XLenVT], VFCVT_F_XU_V>;
+                        [f32, XLenVT], VFCVT_F_XU_V>;
 defm : PatVFRBin<DivergentBinFrag<fadd>,  [VFADD_VV, VFADD_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fsub>,  [VFSUB_VV, VFSUB_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fmul>,  [VFMUL_VV, VFMUL_VF]>;
@@ -1210,8 +1215,10 @@ defm : PatVFRBin<DivergentBinFrag<fdiv>,  [VFDIV_VV, VFDIV_VF, VFRDIV_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fminimum>,  [VFMIN_VV, VFMIN_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fmaximum>,  [VFMAX_VV, VFMAX_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fcopysign>, [VFSGNJ_VV, VFSGNJ_VF]>;
-def : Pat<(fcopysign (f32 VGPR:$rs1), (f32 (fneg VGPR:$rs2))), (VFSGNJN_VV $rs1, $rs2)>;
-def : Pat<(fcopysign (f32 VGPR:$rs1), (fneg GPRF32:$rs2)), (VFSGNJN_VF $rs1, $rs2)>;
+def : Pat<(fcopysign (f32 VGPR:$rs1), (f32 (fneg VGPR:$rs2))),
+                                    (VFSGNJN_VV $rs1, $rs2)>;
+def : Pat<(fcopysign (f32 VGPR:$rs1), (fneg GPRF32:$rs2)),
+                                (VFSGNJN_VF $rs1, $rs2)>;
 def : Pat<(fneg (f32 VGPR:$rs1)), (VFSGNJN_VV $rs1, $rs1)>;
 def : Pat<(fabs (f32 VGPR:$rs1)), (VFSGNJX_VV $rs1, $rs1)>;
 
@@ -1224,14 +1231,11 @@ defm : PatVXFTer<[DivergentBinFrag<fsub>, DivergentBinFrag<fmul>], GPRF32,
 defm : PatVXFTer<[ReverseDivergentBinFrag<fsub>, DivergentBinFrag<fmul>],
                                   GPRF32, f32, [VFNMSUB_VV, VFNMSUB_VF]>;
 defm : PatVXFTer<[DivergentBinFrag<add>, DivergentBinFrag<mul>], GPR,
-                                       XLenVT, [VMADD_VV, VMADD_VX]>;
+                                      XLenVT, [VMADD_VV, VMADD_VX]>;
 defm : PatVXFTer<[ReverseDivergentBinFrag<sub>, DivergentBinFrag<mul>],
                                   GPR, XLenVT, [VNMSUB_VV, VNMSUB_VX]>;
-
-// vfsqrt.v
 // TODO: vfrec7.v? what is this
 def : Pat<(any_fsqrt (f32 VGPR:$rs1)), (VFSQRT_V (f32 VGPR:$rs1))>;
-
 
 // Non-private memory load/store
 def : DivergentNonPriLdPat<sextloadi8, VLUXEI8>;
