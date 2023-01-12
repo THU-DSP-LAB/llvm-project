@@ -14,17 +14,14 @@ define i32 @vdivu_v(i32 %a, i32 %b) {
 define i32 @vdivu_x(i32 %a) {
 ; VENTUS-LABEL: vdivu_x:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    lui a0, 699051
-; VENTUS-NEXT:    addi a0, a0, -1365
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
 ; VENTUS-NEXT:    vmv.s.x v1, a0
-; VENTUS-NEXT:    vmulhu.vv v0, v0, v1
-; VENTUS-NEXT:    vsrl.vi v0, v0, 3
+; VENTUS-NEXT:    vdivu.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
-  %1 = alloca i32
-  store i32 12, ptr %1
-  %2 = load i32, ptr %1
-  %3 = udiv i32 %a, %2
-  ret i32 %3
+  %val = load i32, ptr @global_val
+  %udiv = udiv i32 %a, %val
+  ret i32 %udiv
 }
 
 define i32 @vdiv_v(i32 %a, i32 %b) {
@@ -39,15 +36,14 @@ define i32 @vdiv_v(i32 %a, i32 %b) {
 define i32 @vdiv_x(i32 %a) {
 ; VENTUS-LABEL: vdiv_x:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vsrl.vi v1, v0, 31
-; VENTUS-NEXT:    vadd.vv v0, v0, v1
-; VENTUS-NEXT:    vsra.vi v0, v0, 1
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vdiv.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
-  %1 = alloca i32
-  store i32 2, ptr %1
-  %2 = load i32, ptr %1
-  %3 = sdiv i32 %a, %2
-  ret i32 %3
+  %val = load i32, ptr @global_val
+  %sdiv = sdiv i32 %a, %val
+  ret i32 %sdiv
 }
 
 define i32 @urem(i32 %a, i32 %b) nounwind {
@@ -132,13 +128,14 @@ define i32 @vadd_v(i32 %a, i32 %b) nounwind {
 define i32 @vadd_x(i32 %a) nounwind {
 ; VENTUS-LABEL: vadd_x:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vadd.vi v0, v0, 12
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vadd.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
-  %1 = alloca i32
-  store i32 12, ptr %1
-  %2 = load i32,ptr %1
-  %3 = add i32 %a, %2
-  ret i32 %3
+  %val = load i32, ptr @global_val
+  %add = add i32 %a, %val
+  ret i32 %add
 }
 
 define i32 @vadd_i(i32 %a) nounwind {
@@ -162,25 +159,138 @@ define i32 @vsub_v(i32 %a, i32 %b) nounwind {
 define i32 @vsub_x(i32 %a) nounwind {
 ; VENTUS-LABEL: vsub_x:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vsub12.vi v0, v0, 12
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vsub.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
-  %1 = alloca i32
-  store i32 12, ptr %1
-  %2 = load i32, ptr %1
-  %3 = sub i32 %a, %2
-  ret i32 %3
+  %val = load i32, ptr @global_val
+  %sub = sub i32 %a, %val
+  ret i32 %sub
 }
 
 define i32 @vrsub_x(i32 %a) nounwind {
 ; VENTUS-LABEL: vrsub_x:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vrsub.vi v0, v0, 12
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vsub.vv v0, v1, v0
 ; VENTUS-NEXT:    ret
-  %1 = alloca i32
-  store i32 12, ptr %1
-  %2 = load i32, ptr %1
-  %3 = sub i32 %2, %a
-  ret i32 %3
+  %val = load i32, ptr @global_val
+  %sub = sub i32 %val, %a
+  ret i32 %sub
+}
+
+define i32 @vmul_v(i32 %a, i32 %b) nounwind {
+; VENTUS-LABEL: vmul_v:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vmul.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+  %mul = mul i32 %a, %b
+  ret i32 %mul
+}
+
+define i32 @vmul_x(i32 %a) nounwind {
+; VENTUS-LABEL: vmul_x:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vmul.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+  %val = load i32, ptr @global_val
+  %mul = mul i32 %a, %val
+  ret i32 %mul
+}
+
+define i32 @vmulh_v(i32 %a, i32 %b) nounwind {
+; VENTUS-LABEL: vmulh_v:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vmulh.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+  %1 = sext i32 %a to i64
+  %2 = sext i32 %b to i64
+  %3 = mul i64 %1, %2
+  %4 = lshr i64 %3, 32
+  %5 = trunc i64 %4 to i32
+  ret i32 %5
+}
+
+define i32 @vmulh_x(i32 %a) nounwind {
+; VENTUS-LABEL: vmulh_x:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vmulh.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+  %val = load i32, ptr @global_val
+  %1 = sext i32 %a to i64
+  %2 = sext i32 %val to i64
+  %3 = mul i64 %1, %2
+  %4 = lshr i64 %3, 32
+  %5 = trunc i64 %4 to i32
+  ret i32 %5
+}
+
+define i32 @vmulhu_v(i32 %a, i32 %b) nounwind {
+; VENTUS-LABEL: vmulhu_v:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vmulhu.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+  %1 = zext i32 %a to i64
+  %2 = zext i32 %b to i64
+  %3 = mul i64 %1, %2
+  %4 = lshr i64 %3, 32
+  %5 = trunc i64 %4 to i32
+  ret i32 %5
+}
+
+define i32 @vmulhu_x(i32 %a) nounwind {
+; VENTUS-LABEL: vmulhu_x:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vmulhu.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+  %val = load i32, ptr @global_val
+  %1 = zext i32 %a to i64
+  %2 = zext i32 %val to i64
+  %3 = mul i64 %1, %2
+  %4 = lshr i64 %3, 32
+  %5 = trunc i64 %4 to i32
+  ret i32 %5
+}
+define i32 @vmulhsu_v(i32 %a, i32 %b) nounwind {
+; VENTUS-LABEL: vmulhsu_v:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    vmulhsu.vv v0, v1, v0
+; VENTUS-NEXT:    ret
+  %1 = zext i32 %a to i64
+  %2 = sext i32 %b to i64
+  %3 = mul i64 %1, %2
+  %4 = lshr i64 %3, 32
+  %5 = trunc i64 %4 to i32
+  ret i32 %5
+}
+
+define i32 @vmulhsu_x(i32 %a) nounwind {
+; VENTUS-LABEL: vmulhsu_x:
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vmulhsu.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+  %val = load i32, ptr @global_val
+  %1 = sext i32 %a to i64
+  %2 = zext i32 %val to i64
+  %3 = mul i64 %1, %2
+  %4 = lshr i64 %3, 32
+  %5 = trunc i64 %4 to i32
+  ret i32 %5
 }
 
 define i32 @vrsub_i(i32 %a) nounwind {
@@ -202,29 +312,6 @@ define i32 @vrsub_bigimm(i32 %a) nounwind {
   %1 = sub i32 65536, %a
   ret i32 %1
 }
-define dso_local i32 @fmadd_v(i32 noundef %a, i32 noundef %b, i32 noundef %c) local_unnamed_addr {
-; VENTUS-LABEL: fmadd_v:
-; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vmadd.vv v0, v1, v2
-; VENTUS-NEXT:    ret
-entry:
-  %mul = mul nsw i32 %b, %a
-  %add = add nsw i32 %mul, %c
-  ret i32 %add
-}
-
-define dso_local i32 @fmadd_x(i32 noundef %a, i32 noundef %b) local_unnamed_addr {
-; VENTUS-LABEL: fmadd_x:
-; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vsll.vi v2, v0, 2
-; VENTUS-NEXT:    vadd.vv v0, v2, v0
-; VENTUS-NEXT:    vadd.vv v0, v0, v1
-; VENTUS-NEXT:    ret
-entry:
-  %mul = mul nsw i32 %a, 5
-  %add = add nsw i32 %mul, %b
-  ret i32 %add
-}
 
 define dso_local i32 @nmsub_v(i32 noundef %a, i32 noundef %b, i32 noundef %c) local_unnamed_addr  {
 ; VENTUS-LABEL: nmsub_v:
@@ -241,13 +328,15 @@ entry:
 define dso_local i32 @nmsub_x(i32 noundef %a, i32 noundef %b) local_unnamed_addr  {
 ; VENTUS-LABEL: nmsub_x:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    li a0, -11
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
 ; VENTUS-NEXT:    vmv.s.x v2, a0
 ; VENTUS-NEXT:    vmadd.vv v2, v0, v1
 ; VENTUS-NEXT:    vadd.vx v0, v2, zero
 ; VENTUS-NEXT:    ret
 entry:
-  %mul.neg = mul i32 %a, -11
+  %val = load i32, ptr @global_val
+  %mul.neg = mul i32 %a, %val
   %add = add nsw i32 %mul.neg, %b
   ret i32 %add
 }
@@ -268,13 +357,15 @@ entry:
 define dso_local i32 @madd_x(i32 noundef %a, i32 noundef %b) local_unnamed_addr  {
 ; VENTUS-LABEL: madd_x:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    li a0, 11
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
 ; VENTUS-NEXT:    vmv.s.x v2, a0
 ; VENTUS-NEXT:    vmadd.vv v2, v0, v1
 ; VENTUS-NEXT:    vadd.vx v0, v2, zero
 ; VENTUS-NEXT:    ret
 entry:
-  %mul = mul nsw i32 %a, 11
+  %val = load i32, ptr @global_val
+  %mul = mul nsw i32 %a, %val
   %add = add nsw i32 %mul, %b
   ret i32 %add
 }
@@ -300,3 +391,5 @@ entry:
   %sub = sub nsw i32 %a, 1024
   ret i32 %sub
 }
+
+@global_val = dso_local global i32 10, align 4
