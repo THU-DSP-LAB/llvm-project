@@ -34,11 +34,11 @@ git clone https://github.com/THU-DSP-LAB/pocl.git
 cd pocl
 mkdir build && cd build
 # NOTE: LLC_TRIPLE and LLC_HOST_CPU is used for kernel target triple and cpu of the OpenCL device, their name should be definitely renamed.
-cmake -DCMAKE_INSTALL_PREFIX=../install -DENABLE_ICD=OFF -DENABLE_TESTS=OFF -DSTATIC_LLVM=OFF -DCMAKE_SIZEOF_VOID_P=4 -DCLANG_MARCH_FLAG=riscv32 -DLLC_TRIPLE=riscv32 -DLLC_HOST_CPU=ventus-gpgpu -G Ninja ../
+cmake -DCMAKE_INSTALL_PREFIX=../install -DENABLE_HOST_CPU_DEVICES=OFF -DENABLE_VENTUS=ON -DENABLE_ICD=ON -DENABLE_TESTS=OFF -DSTATIC_LLVM=OFF -G Ninja ../
 ninja
 
-# When building standard pocl, use following command:
-cmake -DCMAKE_INSTALL_PREFIX=../install -DENABLE_ICD=OFF -DENABLE_TESTS=OFF -DSTATIC_LLVM=OFF -DLLC_HOST_CPU=x86-64 -G Ninja ../
+# Use following command to building pocl with system installed llvm.
+cmake -DCMAKE_INSTALL_PREFIX=../install -DENABLE_ICD=ON -DENABLE_TESTS=OFF -DSTATIC_LLVM=OFF -DLLC_HOST_CPU=x86-64 -G Ninja ../
 ```
 
 Build pocl as libOpenCL.so(icd loader+icd driver) instead of libpocl.so(icd driver), `-DENABLE_ICD=OFF` must be specified to cmake.
@@ -61,12 +61,25 @@ make
 ls .libs # libOpenCL.so is located in .libs
 ```
 
-Run `export LD_LIBRARY_PATH=ocl-icd/.libs` to tell OpenCL application to use your own built `libOpenCL.so`.
+Then copy `libOpenCL.so*` from ocl-icd/.libs to `ventus-llvm/install/lib` folder(where LLVM shared libraries located)
+
+Run `export LD_LIBRARY_PATH=<path_to>/ventus-llvm/install/lib` to tell OpenCL application to use your own built `libOpenCL.so`, also to correctly locate LLVM shared libraries.
 
 
 ### Bridge icd loader `libOpenCL.so` and pocl ocl device driver `libpocl.so`(pocl built with ENABLE_ICD=ON)
 
 Run `export OCL_ICD_VENDORS=<path_to>/libpocl.so` to tell ocl icd loader where the icd driver is.
+
+You will see Ventus GPGPU device is found if your setup is correct.
+```
+$ poclcc -l
+
+LIST OF DEVICES:
+0:
+  Vendor:   Ventus
+    Name:   Ventus GPGPU device
+ Version:   2.2 HSTR: THU-ventus-gpgpu
+```
 
 Then you can build your OpenCL program with -lOpenCL.
 
