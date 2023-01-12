@@ -2,8 +2,8 @@
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs < %s \
 ; RUN:   | FileCheck -check-prefix=VENTUS %s
 
-define float @foo_fadd(float noundef %a, float noundef %b) {
-; VENTUS-LABEL: foo_fadd:
+define float @fadd_v(float noundef %a, float noundef %b) {
+; VENTUS-LABEL: fadd_v:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vfadd.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
@@ -12,8 +12,46 @@ entry:
   ret float %add
 }
 
-define float @foo_fmul(float noundef %a, float noundef %b) {
-; VENTUS-LABEL: foo_fmul:
+define float @fadd_f(float noundef %a) {
+; VENTUS-LABEL: fadd_f:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vfadd.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+entry:
+  %val = load float, ptr @global_val, align 4
+  %add = fadd float %a, %val
+  ret float %add
+}
+
+define float @fsub_v(float noundef %a, float noundef %b) {
+; VENTUS-LABEL: fsub_v:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vfsub.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+entry:
+  %add = fsub float %a, %b
+  ret float %add
+}
+
+define float @fsub_f(float noundef %a) {
+; VENTUS-LABEL: fsub_f:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vfsub.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+entry:
+  %val = load float, ptr @global_val, align 4
+  %add = fsub float %a, %val
+  ret float %add
+}
+
+define float @fmul_v(float noundef %a, float noundef %b) {
+; VENTUS-LABEL: fmul_v:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vfmul.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
@@ -22,8 +60,22 @@ entry:
   ret float %mul
 }
 
-define float @foo_fdiv(float noundef %a, float noundef %b) {
-; VENTUS-LABEL: foo_fdiv:
+define float @fmul_f(float noundef %a) {
+; VENTUS-LABEL: fmul_f:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vfmul.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+entry:
+  %val = load float, ptr @global_val, align 4
+  %mul = fmul float %a, %val
+  ret float %mul
+}
+
+define float @fdiv_v(float noundef %a, float noundef %b) {
+; VENTUS-LABEL: fdiv_v:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vfdiv.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
@@ -32,11 +84,25 @@ entry:
   ret float %div
 }
 
+define float @fdiv_f(float noundef %a, float noundef %b) {
+; VENTUS-LABEL: fdiv_f:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    lui a0, %hi(global_val)
+; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
+; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vfdiv.vv v0, v0, v1
+; VENTUS-NEXT:    ret
+entry:
+  %val = load float, ptr @global_val, align 4
+  %div = fdiv float %a, %val
+  ret float %div
+}
+
 define float @foo_constant(float noundef %a) {
 ; VENTUS-LABEL: foo_constant:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lui a0, %hi(.LCPI3_0)
-; VENTUS-NEXT:    lw a0, %lo(.LCPI3_0)(a0)
+; VENTUS-NEXT:    lui a0, %hi(.LCPI8_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI8_0)(a0)
 ; VENTUS-NEXT:    vmv.s.x v1, a0
 ; VENTUS-NEXT:    vfmul.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
@@ -59,17 +125,17 @@ define dso_local float @feq(float noundef %a, float noundef %b) local_unnamed_ad
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vmv.s.x v2, zero
 ; VENTUS-NEXT:    vmfeq.vv v0, v0, v1
-; VENTUS-NEXT:    lui a0, %hi(.LCPI5_0)
-; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI5_0)
-; VENTUS-NEXT:    vbne v0, v2, .LBB5_2
+; VENTUS-NEXT:    lui a0, %hi(.LCPI10_0)
+; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI10_0)
+; VENTUS-NEXT:    vbne v0, v2, .LBB10_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB5_3
-; VENTUS-NEXT:  .LBB5_2: # %entry
+; VENTUS-NEXT:    vjoin .LBB10_3
+; VENTUS-NEXT:  .LBB10_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB5_3
-; VENTUS-NEXT:  .LBB5_3: # %entry
+; VENTUS-NEXT:    vjoin .LBB10_3
+; VENTUS-NEXT:  .LBB10_3: # %entry
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
@@ -86,17 +152,17 @@ define dso_local float @fneq(float noundef %a, float noundef %b) local_unnamed_a
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vmv.s.x v2, zero
 ; VENTUS-NEXT:    vmfne.vv v0, v0, v1
-; VENTUS-NEXT:    lui a0, %hi(.LCPI6_0)
-; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI6_0)
-; VENTUS-NEXT:    vbne v0, v2, .LBB6_2
+; VENTUS-NEXT:    lui a0, %hi(.LCPI11_0)
+; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI11_0)
+; VENTUS-NEXT:    vbne v0, v2, .LBB11_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB6_3
-; VENTUS-NEXT:  .LBB6_2: # %entry
+; VENTUS-NEXT:    vjoin .LBB11_3
+; VENTUS-NEXT:  .LBB11_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB6_3
-; VENTUS-NEXT:  .LBB6_3: # %entry
+; VENTUS-NEXT:    vjoin .LBB11_3
+; VENTUS-NEXT:  .LBB11_3: # %entry
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
@@ -113,17 +179,17 @@ define dso_local float @flt(float noundef %a, float noundef %b) local_unnamed_ad
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vmv.s.x v2, zero
 ; VENTUS-NEXT:    vmflt.vv v0, v0, v1
-; VENTUS-NEXT:    lui a0, %hi(.LCPI7_0)
-; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI7_0)
-; VENTUS-NEXT:    vbne v0, v2, .LBB7_2
+; VENTUS-NEXT:    lui a0, %hi(.LCPI12_0)
+; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI12_0)
+; VENTUS-NEXT:    vbne v0, v2, .LBB12_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB7_3
-; VENTUS-NEXT:  .LBB7_2: # %entry
+; VENTUS-NEXT:    vjoin .LBB12_3
+; VENTUS-NEXT:  .LBB12_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB7_3
-; VENTUS-NEXT:  .LBB7_3: # %entry
+; VENTUS-NEXT:    vjoin .LBB12_3
+; VENTUS-NEXT:  .LBB12_3: # %entry
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
@@ -140,17 +206,17 @@ define dso_local float @fle(float noundef %a, float noundef %b) local_unnamed_ad
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vmv.s.x v2, zero
 ; VENTUS-NEXT:    vmfle.vv v0, v0, v1
-; VENTUS-NEXT:    lui a0, %hi(.LCPI8_0)
-; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI8_0)
-; VENTUS-NEXT:    vbne v0, v2, .LBB8_2
+; VENTUS-NEXT:    lui a0, %hi(.LCPI13_0)
+; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI13_0)
+; VENTUS-NEXT:    vbne v0, v2, .LBB13_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB8_3
-; VENTUS-NEXT:  .LBB8_2: # %entry
+; VENTUS-NEXT:    vjoin .LBB13_3
+; VENTUS-NEXT:  .LBB13_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB8_3
-; VENTUS-NEXT:  .LBB8_3: # %entry
+; VENTUS-NEXT:    vjoin .LBB13_3
+; VENTUS-NEXT:  .LBB13_3: # %entry
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
@@ -165,21 +231,21 @@ entry:
 define dso_local float @fgt(float noundef %a)  {
 ; VENTUS-LABEL: fgt:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lui a0, %hi(.LCPI9_0)
-; VENTUS-NEXT:    lw a0, %lo(.LCPI9_0)(a0)
+; VENTUS-NEXT:    lui a0, %hi(.LCPI14_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI14_0)(a0)
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmfgt.vf v0, v0, a0
-; VENTUS-NEXT:    lui a0, %hi(.LCPI9_1)
-; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI9_1)
-; VENTUS-NEXT:    vbne v0, v1, .LBB9_2
+; VENTUS-NEXT:    lui a0, %hi(.LCPI14_1)
+; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI14_1)
+; VENTUS-NEXT:    vbne v0, v1, .LBB14_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB9_3
-; VENTUS-NEXT:  .LBB9_2: # %entry
+; VENTUS-NEXT:    vjoin .LBB14_3
+; VENTUS-NEXT:  .LBB14_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB9_3
-; VENTUS-NEXT:  .LBB9_3: # %entry
+; VENTUS-NEXT:    vjoin .LBB14_3
+; VENTUS-NEXT:  .LBB14_3: # %entry
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
@@ -198,21 +264,21 @@ entry:
 define dso_local float @fge(float noundef %a)  {
 ; VENTUS-LABEL: fge:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lui a0, %hi(.LCPI10_0)
-; VENTUS-NEXT:    lw a0, %lo(.LCPI10_0)(a0)
+; VENTUS-NEXT:    lui a0, %hi(.LCPI15_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI15_0)(a0)
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmfge.vf v0, v0, a0
-; VENTUS-NEXT:    lui a0, %hi(.LCPI10_1)
-; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI10_1)
-; VENTUS-NEXT:    vbne v0, v1, .LBB10_2
+; VENTUS-NEXT:    lui a0, %hi(.LCPI15_1)
+; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI15_1)
+; VENTUS-NEXT:    vbne v0, v1, .LBB15_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB10_3
-; VENTUS-NEXT:  .LBB10_2: # %entry
+; VENTUS-NEXT:    vjoin .LBB15_3
+; VENTUS-NEXT:  .LBB15_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB10_3
-; VENTUS-NEXT:  .LBB10_3: # %entry
+; VENTUS-NEXT:    vjoin .LBB15_3
+; VENTUS-NEXT:  .LBB15_3: # %entry
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
@@ -326,8 +392,8 @@ entry:
 define dso_local float @fmadd_f(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
 ; VENTUS-LABEL: fmadd_f:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lui a0, %hi(.LCPI19_0)
-; VENTUS-NEXT:    lw a0, %lo(.LCPI19_0)(a0)
+; VENTUS-NEXT:    lui a0, %hi(.LCPI24_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI24_0)(a0)
 ; VENTUS-NEXT:    vmv.s.x v0, a0
 ; VENTUS-NEXT:    vfmadd.vv v0, v1, v2
 ; VENTUS-NEXT:    ret
@@ -354,8 +420,8 @@ entry:
 define dso_local float @fnmadd_f(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
 ; VENTUS-LABEL: fnmadd_f:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lui a0, %hi(.LCPI21_0)
-; VENTUS-NEXT:    lw a0, %lo(.LCPI21_0)(a0)
+; VENTUS-NEXT:    lui a0, %hi(.LCPI26_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI26_0)(a0)
 ; VENTUS-NEXT:    vmv.s.x v0, a0
 ; VENTUS-NEXT:    vfmsub.vv v0, v1, v2
 ; VENTUS-NEXT:    ret
@@ -382,8 +448,8 @@ entry:
 define dso_local float @fmsub_f(float noundef %a, float noundef %b) local_unnamed_addr  {
 ; VENTUS-LABEL: fmsub_f:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lui a0, %hi(.LCPI23_0)
-; VENTUS-NEXT:    lw a0, %lo(.LCPI23_0)(a0)
+; VENTUS-NEXT:    lui a0, %hi(.LCPI28_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI28_0)(a0)
 ; VENTUS-NEXT:    vmv.s.x v2, a0
 ; VENTUS-NEXT:    vfmsub.vv v2, v0, v1
 ; VENTUS-NEXT:    vadd.vx v0, v2, zero
@@ -411,8 +477,8 @@ entry:
 define dso_local float @fnmsub_f(float noundef %a, float noundef %b, float noundef %c) local_unnamed_addr  {
 ; VENTUS-LABEL: fnmsub_f:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lui a0, %hi(.LCPI25_0)
-; VENTUS-NEXT:    lw a0, %lo(.LCPI25_0)(a0)
+; VENTUS-NEXT:    lui a0, %hi(.LCPI30_0)
+; VENTUS-NEXT:    lw a0, %lo(.LCPI30_0)(a0)
 ; VENTUS-NEXT:    vmv.s.x v0, a0
 ; VENTUS-NEXT:    vfmadd.vv v0, v1, v2
 ; VENTUS-NEXT:    ret
@@ -482,6 +548,7 @@ define i32 @fcvt_rtz_xu_f_v(float %x) {
   ret i32 %b
 }
 
+@global_val = dso_local global float 0x3FF547AE20000000, align 4
 declare float @llvm.sqrt.f32(float %Val)
 declare float @llvm.fmuladd.f32(float, float, float)
 declare float @llvm.trunc.f32(float)

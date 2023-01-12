@@ -1164,6 +1164,7 @@ defm : PatVXIBin<DivergentBinFrag<srl>,  [VSRL_VV, VSRL_VX, VSRL_VI]>;
 defm : PatVXIBin<DivergentBinFrag<sra>,  [VSRA_VV, VSRA_VX, VSRA_VI]>;
 defm : PatVXIBin<DivergentBinFrag<mul>,  [VMUL_VV, VMUL_VX]>;
 defm : PatVXIBin<DivergentBinFrag<mulhs>,[VMULH_VV, VMULH_VX]>;
+defm : PatVXIBin<DivergentBinFrag<riscv_mulhsu>,[VMULHSU_VV, VMULHSU_VX]>;
 defm : PatVXIBin<DivergentBinFrag<mulhu>,[VMULHU_VV, VMULHU_VX]>;
 defm : PatVXIBin<DivergentBinFrag<sdiv>, [VDIV_VV, VDIV_VX]>;
 defm : PatVXIBin<DivergentBinFrag<udiv>, [VDIVU_VV, VDIVU_VX]>;
