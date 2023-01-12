@@ -15,9 +15,61 @@ Assume you have already installed essential build tools such as cmake, clang, ni
 git clone https://github.com/THU-DSP-LAB/llvm-project.git
 cd llvm-project
 mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_ENABLE_PROJECTS="clang;lld;libclc" -DLLVM_TARGETS_TO_BUILD="RISCV" -DCMAKE_INSTALL_PREFIX=../install -G Ninja ../llvm
+cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_CCACHE_BUILD=ON -DLLVM_ENABLE_PROJECTS="clang;lld;libclc" -DLLVM_TARGETS_TO_BUILD="AMDGPU;X86;RISCV" -DLLVM_TARGET_ARCH="riscv32" -DBUILD_SHARED_LIBS=ON -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_ENABLE_TERMINFO=ON -DCMAKE_INSTALL_PREFIX=../install -G Ninja ../llvm
 ninja
 ```
+
+### Build libclc
+
+```
+LLVM_DIR=~/workspace/ventus-llvm/build/lib/cmake/llvm cmake -DLLVM_CONFIG=~/workspace/ventus-llvm/install/bin/llvm-config ../../libclc -DCMAKE_LLAsm_COMPILER_WORKS=ON -DCMAKE_CLC_COMPILER_WORKS=ON -DCMAKE_CLC_COMPILER_FORCED=ON  -DCMAKE_LLAsm_FLAGS="-target riscv32 -mcpu=ventus-gpgpu" -DLIBCLC_TARGETS_TO_BUILD="riscv32--" -DCMAKE_CXX_FLAGS="-I ~/workspace/ventus-llvm/llvm/include -std=c++17" -G Ninja
+```
+
+### Build pocl
+
+```
+# Add ventus-llvm built llvm-config to PATH
+export PATH=<path_to_ventus_llvm_install_bin>:$PATH
+git clone https://github.com/THU-DSP-LAB/pocl.git
+cd pocl
+mkdir build && cd build
+# NOTE: LLC_TRIPLE and LLC_HOST_CPU is used for kernel target triple and cpu of the OpenCL device, their name should be definitely renamed.
+cmake -DCMAKE_INSTALL_PREFIX=../install -DENABLE_ICD=OFF -DENABLE_TESTS=OFF -DSTATIC_LLVM=OFF -DCMAKE_SIZEOF_VOID_P=4 -DCLANG_MARCH_FLAG=riscv32 -DLLC_TRIPLE=riscv32 -DLLC_HOST_CPU=ventus-gpgpu -G Ninja ../
+ninja
+
+# When building standard pocl, use following command:
+cmake -DCMAKE_INSTALL_PREFIX=../install -DENABLE_ICD=OFF -DENABLE_TESTS=OFF -DSTATIC_LLVM=OFF -DLLC_HOST_CPU=x86-64 -G Ninja ../
+```
+
+Build pocl as libOpenCL.so(icd loader+icd driver) instead of libpocl.so(icd driver), `-DENABLE_ICD=OFF` must be specified to cmake.
+
+NOTE: the install folder of ventus-pocl should be merged with the install folder of ventus-llvm in order to correctly locate shared libraries, header files etc.
+
+NOTE: `-DPOCL_DEBUG_MESSAGES=ON` is default on but not working? Should we manually specify it?
+
+
+### Build icd loader
+
+You can use `apt install ocl-icd-libopencl1` to install ocl icd loader `libOpenCL.so`, but we want to build our own icd loader with debug information, so here it is.
+
+```
+git clone https://github.com/OCL-dev/ocl-icd.git
+cd ocl-icd
+./bootstrap
+./configure
+make
+ls .libs # libOpenCL.so is located in .libs
+```
+
+Run `export LD_LIBRARY_PATH=ocl-icd/.libs` to tell OpenCL application to use your own built `libOpenCL.so`.
+
+
+### Bridge icd loader `libOpenCL.so` and pocl ocl device driver `libpocl.so`(pocl built with ENABLE_ICD=ON)
+
+Run `export OCL_ICD_VENDORS=<path_to>/libpocl.so` to tell ocl icd loader where the icd driver is.
+
+Then you can build your OpenCL program with -lOpenCL.
+
 
 ### Compile a OpenCL C program into Ventus GPGPU assembly
 
