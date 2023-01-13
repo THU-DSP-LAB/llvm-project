@@ -45,7 +45,7 @@ Build pocl as libOpenCL.so(icd loader+icd driver) instead of libpocl.so(icd driv
 
 NOTE: the install folder of ventus-pocl should be merged with the install folder of ventus-llvm in order to correctly locate shared libraries, header files etc.
 
-NOTE: `-DPOCL_DEBUG_MESSAGES=ON` is default on but not working? Should we manually specify it?
+NOTE: `-DPOCL_DEBUG_MESSAGES=ON` is default on, you can set env variable `POCL_DEBUG` to enable debugging output(see pocl_debug.c for details).
 
 
 ### Build icd loader
@@ -70,13 +70,15 @@ Run `export LD_LIBRARY_PATH=<path_to>/ventus-llvm/install/lib` to tell OpenCL ap
 
 Run `export OCL_ICD_VENDORS=<path_to>/libpocl.so` to tell ocl icd loader where the icd driver is.
 
+Finally, run `export POCL_DEVICES="ventus"` to tell pocl driver which device is available(should we set ventus as default device?).
+
 You will see Ventus GPGPU device is found if your setup is correct.
 ```
 $ poclcc -l
 
 LIST OF DEVICES:
 0:
-  Vendor:   Ventus
+  Vendor:   THU
     Name:   Ventus GPGPU device
  Version:   2.2 HSTR: THU-ventus-gpgpu
 ```
