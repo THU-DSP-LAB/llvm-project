@@ -1,5 +1,9 @@
 #include <clc/clc.h>
 
+extern size_t __buitlin_riscv_global_size_x();
+extern size_t __buitlin_riscv_global_size_y();
+extern size_t __buitlin_riscv_global_size_z();
+
 _CLC_DEF _CLC_OVERLOAD size_t get_global_size(uint dim) {
   switch (dim) {
   case 0:
