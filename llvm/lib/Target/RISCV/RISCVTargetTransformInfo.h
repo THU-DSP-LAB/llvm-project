@@ -64,8 +64,7 @@ public:
   TargetTransformInfo::PopcntSupportKind getPopcntSupport(unsigned TyWidth);
 
   TypeSize getRegisterBitWidth(TargetTransformInfo::RegisterKind K) const {
-    assert(0 && "Return 32 or 64?");
-    return TypeSize::getScalable(32);
+    return TypeSize::getFixed(ST->getXLen());
   }
 
   unsigned getRegUsageForType(Type *Ty);
