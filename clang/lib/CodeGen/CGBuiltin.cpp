@@ -19461,6 +19461,8 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
   switch (BuiltinID) {
   default: llvm_unreachable("unexpected builtin ID");
 
+  // WORKAROUND: Disabled for now.
+  /*
   // Ventus GPGPU workitem
   case RISCV::BI__builtin_riscv_workitem_id_x:
     return emitRangedBuiltin(*this, Intrinsic::riscv_workitem_id_x, 0, 1024);
@@ -19470,7 +19472,6 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
     return emitRangedBuiltin(*this, Intrinsic::riscv_workitem_id_z, 0, 1024);
 
   // FIXME: Use AMDGPU function here temporarily
-
   // Ventus GPGPU workgroup size
   case RISCV::BI__builtin_riscv_workgroup_size_x:
     return EmitAMDGPUWorkGroupSize(*this, 0);
@@ -19486,7 +19487,7 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
     return EmitAMDGPUGridSize(*this, 1);
   case RISCV::BI__builtin_riscv_grid_size_z:
     return EmitAMDGPUGridSize(*this, 2);
-
+  */
   case RISCV::BI__builtin_riscv_orc_b_32:
   case RISCV::BI__builtin_riscv_orc_b_64:
   case RISCV::BI__builtin_riscv_clz_32:

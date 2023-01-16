@@ -18,7 +18,8 @@
 //===----------------------------------------------------------------------===//
 // Ventus OpenCL builtins.
 //===----------------------------------------------------------------------===//
-
+// WORKAROUND: Disabled for now.
+/*
 BUILTIN(__builtin_riscv_workgroup_id_x, "Ui", "nc")
 BUILTIN(__builtin_riscv_workgroup_id_y, "Ui", "nc")
 BUILTIN(__builtin_riscv_workgroup_id_z, "Ui", "nc")
@@ -34,7 +35,7 @@ BUILTIN(__builtin_riscv_workgroup_size_z, "Us", "nc")
 BUILTIN(__builtin_riscv_grid_size_x, "Ui", "nc")
 BUILTIN(__builtin_riscv_grid_size_y, "Ui", "nc")
 BUILTIN(__builtin_riscv_grid_size_z, "Ui", "nc")
-
+*/
 //===----------------------------------------------------------------------===//
 // Standard RISCV instruction builtins.
 //===----------------------------------------------------------------------===//
