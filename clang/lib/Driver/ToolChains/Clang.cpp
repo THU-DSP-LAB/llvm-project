@@ -1404,11 +1404,14 @@ static bool isSignedCharDefault(const llvm::Triple &Triple) {
       return true;
     return false;
 
+  // FIXME: Only return true for Ventus GPGPU
+  case llvm::Triple::riscv32:
+  case llvm::Triple::riscv64:
+    return true;
+
   case llvm::Triple::hexagon:
   case llvm::Triple::ppcle:
   case llvm::Triple::ppc64le:
-  case llvm::Triple::riscv32:
-  case llvm::Triple::riscv64:
   case llvm::Triple::systemz:
   case llvm::Triple::xcore:
     return false;
