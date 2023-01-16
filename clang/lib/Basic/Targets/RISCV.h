@@ -28,8 +28,8 @@ class RISCVTargetInfo : public TargetInfo {
   enum AddrSpace {
     Generic = 0,
     Global = 1,
-    Constant = 1,
     Local = 3,
+    Constant = 4,
     Private = 5
   };
 
