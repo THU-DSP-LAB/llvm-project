@@ -258,6 +258,8 @@ def GPRMemZeroOffset : MemOperand<GPR> {
 
 def GPRMem : MemOperand<GPR>;
 
+def VGPRMem : MemOperand<VGPR>;
+
 def TPMem : MemOperand<TP>;
 
 def GPRCMem : MemOperand<GPRC>;
