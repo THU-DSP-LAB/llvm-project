@@ -17,6 +17,7 @@ cd llvm-project
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_CCACHE_BUILD=ON -DLLVM_ENABLE_PROJECTS="clang;lld;libclc" -DLLVM_TARGETS_TO_BUILD="AMDGPU;X86;RISCV" -DLLVM_TARGET_ARCH="riscv32" -DBUILD_SHARED_LIBS=ON -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_ENABLE_TERMINFO=ON -DCMAKE_INSTALL_PREFIX=../install -G Ninja ../llvm
 ninja
+ninja install
 ```
 
 ### Build pocl
@@ -27,7 +28,7 @@ export PATH=<path_to_ventus_llvm_install_bin>:$PATH
 git clone https://github.com/THU-DSP-LAB/pocl.git
 cd pocl
 mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX=../install -DENABLE_HOST_CPU_DEVICES=OFF -DENABLE_VENTUS=ON -DENABLE_ICD=ON -DENABLE_TESTS=OFF -DSTATIC_LLVM=OFF -G Ninja ../
+cmake -DCMAKE_INSTALL_PREFIX=../install -DENABLE_HOST_CPU_DEVICES=OFF -DENABLE_VENTUS=ON -DENABLE_ICD=ON -DDEFAULT_ENABLE_ICD=ON -DENABLE_TESTS=OFF -DSTATIC_LLVM=OFF -G Ninja ../
 ninja
 
 # You can use following command to building pocl with system installed llvm.
@@ -41,7 +42,7 @@ NOTE: the install folder of ventus-pocl should be merged with the install folder
 NOTE: `-DPOCL_DEBUG_MESSAGES=ON` is default on, you can set env variable `POCL_DEBUG` to enable debugging output(see pocl_debug.c for details).
 
 
-### Build libclc(llvm version instead of pocl) (Work in progress)
+### Build libclc(llvm version instead of pocl one) (Work in progress)
 
 ```
 # Add ventus-llvm built llvm-config to PATH
