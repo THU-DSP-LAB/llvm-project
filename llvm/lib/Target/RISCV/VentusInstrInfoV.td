@@ -743,6 +743,16 @@ def VSW : RVInstSetVLi<0, (outs), (ins VGPR:$vd, GPRMem:$rs1, simm11:$imm11),
 }
 
 let Predicates = [HasVInstructions] in {
+// Ventus extended immediate12 vALU instructions
+class VALU_ri12<bits<3> funct3, string opcode> :
+      RVInstI<funct3, OPC_CUSTOM_0,
+              (outs VGPR:$rd), (ins VGPR:$rs1, uimm12:$imm12),
+              "v" # opcode # "12.vi", "$rd, $rs1, $imm12">;
+// vadd12.vi vd, vs1, imm
+def VADDIMM12 : VALU_ri12<0b000, "add">;
+// vsub12.vi vd, vs1, imm
+def VSUBIMM12 : VALU_ri12<0b001, "sub">;
+
 // Vector Single-Width Integer Add and Subtract
 defm VADD_V : VALU_IV_V_X_I<"vadd", 0b000000>;
 defm VSUB_V : VALU_IV_V_X<"vsub", 0b000010>;
@@ -1103,6 +1113,12 @@ defm VFNCVT_ROD_F_F_W : VNCVTF_FV_VS2<"vfncvt.rod.f.f.w", 0b010010, 0b10101>;
 
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
+
+let vs2 = 0 in
+def VID_V : RVInstV<0b010100, 0b10001, OPMVV, (outs VGPR:$vd),
+                    (ins), "vid.v", "$vd">,
+            Sched<[WriteVMIdxV]>;
+
 // Integer Scalar Move Instructions
 let RVVConstraint = NoConstraint in {
 def VMV_X_S : RVInstV<0b010000, 0b00000, OPMVV, (outs GPR:$vd),
