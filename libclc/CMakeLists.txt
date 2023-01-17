@@ -194,6 +194,11 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
 		list( APPEND dirs amdgpu )
 	endif()
 
+        # Build Ventus GPGPU specific runtime and builtins
+	if( ${ARCH} STREQUAL riscv32 )
+                add_subdirectory(riscv32/lib)
+        endif()
+
 	#nvptx is special
 	if( ${ARCH} STREQUAL nvptx OR ${ARCH} STREQUAL nvptx64 )
 		set( DARCH ptx )

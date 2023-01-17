@@ -42,6 +42,29 @@
 
 #include "ventus.h"
 
+   // Workaround for pocl driver
+  .type  _local_id_x, @object
+  .section .sdata,"aw",@progbits
+  .globl _local_id_x
+  .p2align 2	
+_local_id_x:
+  .word 0
+
+  .type  _local_id_y, @object
+  .section .sdata,"aw",@progbits
+  .globl _local_id_y
+  .p2align 2	
+_local_id_y:
+  .word 0
+
+  .type  _local_id_z, @object
+  .section .sdata,"aw",@progbits
+  .globl _local_id_z
+  .p2align 2	
+_local_id_z:
+  .word 0
+  // End workaround for pocl driver
+	
   .text
   .global __builtin_riscv_workitem_linear_id
   .type __builtin_riscv_workitem_linear_id, @function
@@ -51,7 +74,6 @@ __builtin_riscv_workitem_linear_id:
   vid.v v2                # current thread offset
   vadd.vx v0, v2, t1      # local_linear_id
   ret
-  .size  __builtin_riscv_workitem_linear_id .- __builtin_riscv_workitem_linear_id
 
 
   .text
@@ -67,8 +89,8 @@ __builtin_riscv_global_linear_id:
   beq t0, t5, .GLR        # Return global_linear_id for 1 dim
 .GL_2DIM:
   call __builtin_riscv_global_id_y
-  lw t6, KL_GL_SIZE_X(a3) # global_size_x
-  lw t5, KL_GL_SIZE_Y(a3) # global_offset_y
+  lw t6, KNL_GL_SIZE_X(a3) # global_size_x
+  lw t5, KNL_GL_SIZE_Y(a3) # global_offset_y
   vsub.vx v6, v0, t5      # tmp = global_id_y - global_offset_y
   vmul.vx v6, v6, t6      # tmp = tmp * global_size_x
   vadd.vv v5, v5, v6      # global_linear_id2 = tmp + global_linear_id1
@@ -76,17 +98,16 @@ __builtin_riscv_global_linear_id:
   beq t0, t5, .GLR        # Return global_linear_id for 2 dim
 .GL_3DIM:
   call __builtin_riscv_global_id_z
-  lw t6, KL_GL_SIZE_X(a3) # global_size_x
-  lw t7, KL_GL_SIZE_Y(a3) # global_size_y
-  lw t5, KL_GL_OFFSET_Z(a3)  # global_offset_z
+  lw t6, KNL_GL_SIZE_X(a3) # global_size_x
+  lw t1, KNL_GL_SIZE_Y(a3) # global_size_y
+  lw t5, KNL_GL_OFFSET_Z(a3)  # global_offset_z
   vsub.vx v6, v0, t5      # tmp = global_id_z - global_offset_z
   vmul.vx v6, v6, t6      # tmp = tmp * global_size_x
-  vmul.vx v6, v6, t7      # tmp = tmp * global_size_y
+  vmul.vx v6, v6, t1      # tmp = tmp * global_size_y
   vadd.vv v5, v5, v6      # global_linear_id3 = tmp + global_linear_id2
 .GLR:
   vadd.vx v0, v5, zero    # Return global_linear_id for 1/2/3 dims
   ret
-  .size  __builtin_riscv_global_linear_id .- __builtin_riscv_global_linear_id
 
 
   .text
@@ -96,7 +117,6 @@ __builtin_riscv_workgroup_id_x:
   csrr a0, CSR_GID_X      # Read group_id_x
   vmv.s.x v0, a0
   ret
-  .size  __builtin_riscv_workgroup_id_x .- __builtin_riscv_workgroup_id_x
 
 
   .text
@@ -106,7 +126,6 @@ __builtin_riscv_workgroup_id_y:
   csrr a0, CSR_GID_Y      # Read group_id_y
   vmv.s.x v0, a0
   ret
-  .size  __builtin_riscv_workgroup_id_y .- __builtin_riscv_workgroup_id_y
 
 
   .text
@@ -116,7 +135,6 @@ __builtin_riscv_workgroup_id_z:
   csrr a0, CSR_GID_Z      # Read group_id_z
   vmv.s.x v0, a0
   ret
-  .size  __builtin_riscv_workgroup_id_z .- __builtin_riscv_workgroup_id_z
 
 
   .text
@@ -142,7 +160,6 @@ __builtin_riscv_workitem_id_x:
   vremu.vx v0, v0, t4      # local_id_x = local_liner_id % (local_size_x * local_size_y)
 .WIXR:
   ret
-  .size  __builtin_riscv_workitem_id_x .- __builtin_riscv_workitem_id_x
 
 
   .text
@@ -164,9 +181,8 @@ __builtin_riscv_workitem_id_y:
   lw t4, KNL_LC_SIZE_Y(a0) # local_size_y
   mul t4, t4, t3          # local_size_x * local_size_y
   vremu.vx v0, v0, t4     # x = local_linear_id % (local_size_x * local_size_y)
-  vdivu.ux v0, v0, t3     # x / local_size_x
+  vdivu.vx v0, v0, t3     # x / local_size_x
   ret
-  .size  __builtin_riscv_workitem_id_y .- __builtin_riscv_workitem_id_y
 
 
   .text
@@ -183,7 +199,6 @@ __builtin_riscv_workitem_id_z:
   vdivu.vx v0, v0, t4     # local_linear_id / (local_size_x * local_size_y)
 7:
   ret
-  .size  __builtin_riscv_workitem_id_z .- __builtin_riscv_workitem_id_z
 
 
   .text
@@ -192,7 +207,7 @@ __builtin_riscv_workitem_id_z:
 __builtin_riscv_global_id_x:
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   csrr t1, CSR_GID_X      # Get group_id_x
-  sub t1, t1, 1           # group_id_x - 1
+  addi t1, t1, -1         # group_id_x - 1
   csrr t2, CSR_TID
   vid.v v2
   vadd.vx v2, v2, t2      # workitem_id_x
@@ -200,7 +215,6 @@ __builtin_riscv_global_id_x:
   mul t3, t1, t3          # (CSR_GID_X - 1) * local_size_x
   vadd.vx v0, v2, t3      # global_id_x
   ret
-  .size  __builtin_riscv_global_id_x .- __builtin_riscv_global_idx_x
 
 
   .text
@@ -209,7 +223,7 @@ __builtin_riscv_global_id_x:
 __builtin_riscv_global_id_y:
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   csrr t1, CSR_GID_Y      # Get group_id_y
-  sub t1, t1, 1           # group_id_y - 1
+  addi t1, t1, -1          # group_id_y - 1
   csrr t2, CSR_TID
   vid.v v2
   vadd.vx v2, v2, t2      # workitem_id_y
@@ -217,7 +231,6 @@ __builtin_riscv_global_id_y:
   mul t3, t1, t3          # (CSR_GID_Y - 1) * local_size_y
   vadd.vx v0, v2, t3      # global_id_y
   ret
-  .size  __builtin_riscv_global_id_y .- __builtin_riscv_global_idx_y
 
 
   .text
@@ -226,7 +239,7 @@ __builtin_riscv_global_id_y:
 __builtin_riscv_global_id_z:
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   csrr t1, CSR_GID_Z      # Get group_id_z
-  sub t1, t1, 1           # group_id_z - 1
+  addi t1, t1, -1         # group_id_z - 1
   csrr t2, CSR_TID
   vid.v v2
   vadd.vx v2, v2, t2      # workitem_id_z
@@ -234,7 +247,6 @@ __builtin_riscv_global_id_z:
   mul t3, t1, t3          # (CSR_GID_Z - 1) * local_size_z
   vadd.vx v0, v2, t3      # global_id_z
   ret
-  .size  __builtin_riscv_global_id_z .- __builtin_riscv_global_idx_z
 
 
   .text
@@ -245,7 +257,6 @@ __builtin_riscv_local_size_x:
   lw t0, KNL_LC_SIZE_X(a0)  # Load local_size_x
   vmv.s.x v0, t0
   ret
-  .size  __builtin_riscv_local_size_x, .-__builtin_riscv_local_size_x
 
 
   .text
@@ -256,7 +267,6 @@ __builtin_riscv_local_size_y:
   lw t0, KNL_LC_SIZE_Y(a0)  # Load local_size_y
   vmv.s.x v0, t0
   ret
-  .size  __builtin_riscv_local_size_y, .-__builtin_riscv_local_size_y
 
 
   .text
@@ -267,7 +277,6 @@ __builtin_riscv_local_size_z:
   lw t0, KNL_LC_SIZE_Z(a0)  # Load local_size_z
   vmv.s.x v0, t0
   ret
-  .size  __builtin_riscv_local_size_z, .-__builtin_riscv_local_size_z
 
 
   .text
@@ -278,7 +287,6 @@ __builtin_riscv_global_size_x:
   lw t0, KNL_GL_SIZE_X(a0)  # Get global_size_x
   vmv.s.x v0, t0
   ret
-  .size  __builtin_riscv_global_size_x, .-__builtin_riscv_global_size_x
 
 
   .text
@@ -289,7 +297,6 @@ __builtin_riscv_global_size_y:
   lw t0, KNL_GL_SIZE_Y(a0)  # Get global_size_y
   vmv.s.x v0, t0
   ret
-  .size  __builtin_riscv_global_size_y, .-__builtin_riscv_global_size_y
 
 
   .text
@@ -300,7 +307,6 @@ __builtin_riscv_global_size_z:
   lw t0, KNL_GL_SIZE_Z(a0)  # Get global_size_z
   vmv.s.x v0, t0
   ret
-  .size  __builtin_riscv_global_size_z, .-__builtin_riscv_global_size_z
 
 
   .text
@@ -311,7 +317,6 @@ __builtin_riscv_global_offset_x:
   lw t0, KNL_GL_OFFSET_X(a0)  # Get global_offset_x
   vmv.s.x v0, t0
   ret
-  .size  __builtin_riscv_global_offset_x, .-__builtin_riscv_global_offset_x
 
 
   .text
@@ -322,7 +327,6 @@ __builtin_riscv_global_offset_y:
   lw t0, KNL_GL_OFFSET_Y(a0)  # Get global_offset_y
   vmv.s.x v0, t0
   ret
-  .size  __builtin_riscv_global_offset_y, .-__builtin_riscv_global_offset_y
 
 
   .text
@@ -333,7 +337,6 @@ __builtin_riscv_global_offset_z:
   lw t0, KNL_GL_OFFSET_Z(a0)  # Get global_offset_z
   vmv.s.x v0, t0
   ret
-  .size  __builtin_riscv_global_offset_z, .-__builtin_riscv_global_offset_z
 
 
   .text
@@ -346,7 +349,6 @@ __builtin_riscv_num_groups_x:
   divu t1, t1, t0           # global_size_x / local_size_x
   vmv.s.x v0, t1
   ret
-  .size  __builtin_riscv_num_groups_x, .-__builtin_riscv_num_groups_x
 
 
   .text
@@ -359,7 +361,6 @@ __builtin_riscv_num_groups_y:
   divu t1, t1, t0           # global_size_y / local_size_y
   vmv.s.x v0, t1
   ret
-  .size  __builtin_riscv_num_groups_y, .-__builtin_riscv_num_groups_y
 
 
   .text
@@ -372,7 +373,6 @@ __builtin_riscv_num_groups_z:
   divu t1, t1, t2           # global_size_z / local_size_z
   vmv.s.x v0, t1
   ret
-  .size  __builtin_riscv_num_groups_z, .-__builtin_riscv_num_groups_z
 
 
   .text
@@ -383,4 +383,3 @@ __builtin_riscv_work_dim:
   lw t0, KNL_WORK_DIM(a0)   # Get work_dim
   vmv.s.x v0, t0
   ret
-  .size  __builtin_riscv_work_dim, .-__builtin_riscv_work_dim

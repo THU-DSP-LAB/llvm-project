@@ -50,5 +50,5 @@ _start:
   # tail    exit
 
   # End of warp execution
-  endprg
+  endprg x0, x0, x0
   .size  _start, .-_start
