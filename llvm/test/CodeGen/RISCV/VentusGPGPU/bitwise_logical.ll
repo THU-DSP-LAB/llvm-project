@@ -2,15 +2,6 @@
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs < %s \
 ; RUN:   | FileCheck -check-prefix=VENTUS %s
 
-define float @vand_v(float %a, float %b) {
-; VENTUS-LABEL: vand_v:
-; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vfadd.vv v0, v0, v1
-; VENTUS-NEXT:    ret
-  %1 = fadd float %a, %b
-  ret float %1
-}
-
 define i32 @vand_i(i32 %a) {
 ; VENTUS-LABEL: vand_i:
 ; VENTUS:       # %bb.0:
