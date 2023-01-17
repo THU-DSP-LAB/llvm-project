@@ -46,13 +46,15 @@ NOTE: `-DPOCL_DEBUG_MESSAGES=ON` is default on, you can set env variable `POCL_D
 
 ```
 # Add ventus-llvm built llvm-config to PATH
-export PATH=<path_to_ventus_llvm_install_bin>:$PATH
+export PATH=<llvm_install_folder>/bin:$PATH
 cd llvm-project
 mkdir build-libclc && cd build-libclc
 cmake ../libclc -DCMAKE_LLAsm_COMPILER_WORKS=ON -DCMAKE_CLC_COMPILER_WORKS=ON -DCMAKE_CLC_COMPILER_FORCED=ON  -DCMAKE_LLAsm_FLAGS="-target riscv32 -mcpu=ventus-gpgpu" -DLIBCLC_TARGETS_TO_BUILD="riscv32--" -DCMAKE_CXX_FLAGS="-I <llvm-project-root>/llvm/include -std=c++17" -G Ninja
 ninja
 # Manually copy kernel builtins to the location where pocl driver can locate
 cp riscv32--.bc <pocl_install_dir>/share/pocl/kernel-riscv32.bc
+# WORKAROUND: Manually copy libworkitem.a
+cp riscv32/lib/libworkitem.a <llvm_install_folder>/lib/
 ```
 
 
