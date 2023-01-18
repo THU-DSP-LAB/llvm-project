@@ -23,7 +23,7 @@ _start:
   # set global pointer register
   .option push
   .option norelax
-  la gp, __global_pointer
+  la gp, __global_pointer$
   .option pop
 
   # allocate warp and per-thread level stack pointers, both

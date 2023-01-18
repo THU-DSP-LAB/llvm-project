@@ -53,8 +53,9 @@ cmake ../libclc -DCMAKE_LLAsm_COMPILER_WORKS=ON -DCMAKE_CLC_COMPILER_WORKS=ON -D
 ninja
 # Manually copy kernel builtins to the location where pocl driver can locate
 cp riscv32--.bc <pocl_install_dir>/share/pocl/kernel-riscv32.bc
-# WORKAROUND: Manually copy libworkitem.a
+# WORKAROUND: Manually copy libworkitem.a and crt0.o
 cp riscv32/lib/libworkitem.a <llvm_install_folder>/lib/
+cp riscv32/lib/CMakeFiles/crt0.dir/crt0.S.o <llvm_install_folder>/lib/crt0.o
 ```
 
 
