@@ -311,11 +311,13 @@ class PseudoFROUND<RegisterClass Ty>
 //===----------------------------------------------------------------------===//
 
 let Predicates = [HasStdExtF] in {
+// FIXME: FLW uses non standard encoding to avoid conflicting with VLWI12 in Ventus GPGPU.
 def FLW : FPLoad_r<0b111, "flw", FPR32, WriteFLD32>;
 
 // Operands for stores are in the order srcreg, base, offset rather than
 // reflecting the order these fields are specified in the instruction
 // encoding.
+// FIXME: FSW uses no standard encoding to avoid conflicting with VSWI12 in Ventus GPGPU.
 def FSW : FPStore_r<0b111, "fsw", FPR32, WriteFST32>;
 } // Predicates = [HasStdExtF]
 
