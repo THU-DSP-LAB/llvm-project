@@ -311,12 +311,12 @@ class PseudoFROUND<RegisterClass Ty>
 //===----------------------------------------------------------------------===//
 
 let Predicates = [HasStdExtF] in {
-def FLW : FPLoad_r<0b010, "flw", FPR32, WriteFLD32>;
+def FLW : FPLoad_r<0b111, "flw", FPR32, WriteFLD32>;
 
 // Operands for stores are in the order srcreg, base, offset rather than
 // reflecting the order these fields are specified in the instruction
 // encoding.
-def FSW : FPStore_r<0b010, "fsw", FPR32, WriteFST32>;
+def FSW : FPStore_r<0b111, "fsw", FPR32, WriteFST32>;
 } // Predicates = [HasStdExtF]
 
 let SchedRW = [WriteFMA32, ReadFMA32, ReadFMA32, ReadFMA32] in {
