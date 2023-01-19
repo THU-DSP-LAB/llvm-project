@@ -98,96 +98,78 @@ Also, you can try to set `POCL_DEBUG=all` and run example under `<pocl-build-dir
 ```
 aries@legion:~/workspace/ventus-pocl/build-ventus$ ./examples/vecadd/vecadd
 ** Final POCL_DEBUG flags: FFFFFFFFFFFFFFFF
-[2023-01-16 07:59:38.108659834]POCL: in fn POclCreateCommandQueue at line 99:
-  |   GENERAL |  Created Command Queue 3 (0x56134aba4a10) on device 0
-[2023-01-16 07:59:38.109002683]POCL: in fn void pocl_llvm_create_context(cl_context) at line 431:
-  |      LLVM |  Created context 2 (0x56134aba48e0)
-[2023-01-16 07:59:38.139981683132353]POCL: in fn POclCreateContext at line 228:
-  |   GENERAL |  Created Context 2 (0x56134aba48e0)
-[2023-01-16 07:59:38.109029362]POCL: in fn POclRetainContext at line 33:
-  | REFCOUNTS |  Retain Context 2 (0x56134aba48e0), Refcount: 2
-[2023-01-16 07:59:38.30173808955]POCL: in fn POclCreateCommandQueue at line 99:
-  |   GENERAL |  Created Command Queue 4 (0x56134aba7230) on device 0
-[2023-01-16 07:59:38.109127629]POCL: in fn POclRetainContext at line 33:
-  | REFCOUNTS |  Retain Context 2 (0x56134aba48e0), Refcount: 3
-[2023-01-16 07:59:38.109146625]POCL: in fn compile_and_link_program at line 720:
-  |      LLVM |  building program with options 
-[2023-01-16 07:59:38.94639713517827]POCL: in fn compile_and_link_program at line 757:
-  |      LLVM |  building program for 1 devs with options 
-[2023-01-16 07:59:38.109153330]POCL: in fn compile_and_link_program at line 761:
+[2023-01-19 01:58:36.582896453]POCL: in fn POclCreateCommandQueue at line 98:
+  |   GENERAL |  Created Command Queue 3 (0x561c8b324d90) on device 0
+[2023-01-19 01:58:36.583753425]POCL: in fn void pocl_llvm_create_context(cl_context) at line 431:
+  |      LLVM |  Created context 2 (0x561c8b324c60)
+[2023-01-19 01:58:36.583777345]POCL: in fn POclCreateContext at line 227:
+  |   GENERAL |  Created Context 2 (0x561c8b324c60)
+[2023-01-19 01:58:36.583811014]POCL: in fn POclRetainContext at line 32:
+  | REFCOUNTS |  Retain Context 2 (0x561c8b324c60), Refcount: 2
+[2023-01-19 01:58:36.583817177]POCL: in fn POclCreateCommandQueue at line 98:
+  |   GENERAL |  Created Command Queue 4 (0x561c8b3275b0) on device 0
+[2023-01-19 01:58:36.584022807]POCL: in fn POclRetainContext at line 32:
+  | REFCOUNTS |  Retain Context 2 (0x561c8b324c60), Refcount: 3
+[2023-01-19 01:58:36.584082504]POCL: in fn compile_and_link_program at line 719:
+  |      LLVM |  building program with options
+[2023-01-19 01:58:36.584105109]POCL: in fn compile_and_link_program at line 756:
+  |      LLVM |  building program for 1 devs with options
+[2023-01-19 01:58:36.584127804]POCL: in fn compile_and_link_program at line 760:
   |      LLVM |     BUILDING for device: ventus
-[2023-01-16 07:59:38.206267587868]POCL: in fn pocl_driver_build_source at line 712:
+[2023-01-19 01:58:36.584144767]POCL: in fn pocl_driver_build_source at line 712:
   |      LLVM |  building from sources for device 0
-[2023-01-16 07:59:38.139981683681094]POCL: in fn int pocl_llvm_build_program(cl_program, unsigned int, cl_uint, const cl_program *, const char **, int) at line 406:
-  |      LLVM |  all build options: -DPOCL_DEVICE_ADDRESS_BITS=32 -D__USE_CLANG_OPENCL_C_H -xcl -Dinline= -I. -cl-kernel-arg-info  -D__ENDIAN_LITTLE__=1 -DCL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE=0 -D__OPENCL_VERSION__=200 -cl-std=CL2.0 -D__OPENCL_C_VERSION__=200 -fno-builtin -triple=riscv32 -target-cpu ventus-gpgpu 
-[2023-01-16 07:59:38.337265138]POCL: in fn POclRetainContext at line 33:
-  | REFCOUNTS |  Retain Context 2 (0x56134aba48e0), Refcount: 4
-[2023-01-16 07:59:38.30402060096]POCL: in fn POclCreateBuffer at line 262:
-  |    MEMORY |  Created Buffer 6 (0x56134aba8fb0), MEM_HOST_PTR: 0x56134abab710, device_ptrs[0]: 0x56134aee15e0, SIZE 512, FLAGS 36 
-[2023-01-16 07:59:38.206495725866]POCL: in fn POclRetainContext at line 33:
-  | REFCOUNTS |  Retain Context 2 (0x56134aba48e0), Refcount: 5
-[2023-01-16 07:59:38.30402070991]POCL: in fn POclCreateBuffer at line 262:
-  |    MEMORY |  Created Buffer 7 (0x56134ac25be0), MEM_HOST_PTR: 0x56134aedc5c0, device_ptrs[0]: 0x56134aee5920, SIZE 512, FLAGS 36 
-[2023-01-16 07:59:38.206495738647]POCL: in fn POclRetainContext at line 33:
-  | REFCOUNTS |  Retain Context 2 (0x56134aba48e0), Refcount: 6
-[2023-01-16 07:59:38.30402084819]POCL: in fn POclCreateBuffer at line 262:
-  |    MEMORY |  Created Buffer 8 (0x56134ababd20), MEM_HOST_PTR: (nil), device_ptrs[0]: 0x56134ac99af0, SIZE 512, FLAGS 1 
-[2023-01-16 07:59:38.337321919]POCL: in fn POclCreateKernel at line 139:
-  |   GENERAL |  Created Kernel vecadd (0x56134abafe80)
-[2023-01-16 07:59:38.94639941695914]POCL: in fn POclSetKernelArg at line 113:
-  |   GENERAL |  Kernel          vecadd || SetArg idx   0 ||   float* || Local 0 || Size      8 || Value 0x7ffea8ab8580 || Pointer 0x56134aba8fb0 || *(uint32*)Value:        0 || *(uint64*)Value:        0 ||
-Hex Value:  B08FBA4A 13560000
-[2023-01-16 07:59:38.337380166]POCL: in fn POclSetKernelArg at line 113:
-  |   GENERAL |  Kernel          vecadd || SetArg idx   1 ||   float* || Local 0 || Size      8 || Value 0x7ffea8ab8588 || Pointer 0x56134ac25be0 || *(uint32*)Value:        0 || *(uint64*)Value:        0 ||
-Hex Value:  E05BC24A 13560000
-[2023-01-16 07:59:38.337387290]POCL: in fn POclSetKernelArg at line 113:
-  |   GENERAL |  Kernel          vecadd || SetArg idx   2 ||   float* || Local 0 || Size      8 || Value 0x7ffea8ab8590 || Pointer 0x56134ababd20 || *(uint32*)Value:        0 || *(uint64*)Value:        0 ||
-Hex Value:  20BDBA4A 13560000
-[2023-01-16 07:59:38.337396648]POCL: in fn pocl_kernel_calc_wg_size at line 173:
+[2023-01-19 01:58:36.585000531]POCL: in fn int pocl_llvm_build_program(cl_program, unsigned int, cl_uint, _cl_program* const*, const char**, int) at line 406:
+  |      LLVM |  all build options: -DPOCL_DEVICE_ADDRESS_BITS=32 -D__USE_CLANG_OPENCL_C_H -xcl -Dinline= -I. -cl-kernel-arg-info  -D__ENDIAN_LITTLE__=1 -DCL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE=0 -D__OPENCL_VERSION__=200 -cl-std=CL2.0 -D__OPENCL_C_VERSION__=200 -fno-builtin -triple=riscv32 -target-cpu ventus-gpgpu
+[2023-01-19 01:58:37.002888436]POCL: in fn POclRetainContext at line 32:
+  | REFCOUNTS |  Retain Context 2 (0x561c8b324c60), Refcount: 4
+[2023-01-19 01:58:37.002944911]POCL: in fn POclCreateBuffer at line 256:
+  |    MEMORY |  Created Buffer 6 (0x561c8b329330), MEM_HOST_PTR: 0x561c8b65c9d0, device_ptrs[0]: (nil), SIZE 512, FLAGS 36
+[2023-01-19 01:58:37.002959038]POCL: in fn POclRetainContext at line 32:
+  | REFCOUNTS |  Retain Context 2 (0x561c8b324c60), Refcount: 5
+[2023-01-19 01:58:37.002964856]POCL: in fn POclCreateBuffer at line 256:
+  |    MEMORY |  Created Buffer 7 (0x561c8b331280), MEM_HOST_PTR: 0x561c8b39bb50, device_ptrs[0]: (nil), SIZE 512, FLAGS 36
+[2023-01-19 01:58:37.002971025]POCL: in fn POclRetainContext at line 32:
+  | REFCOUNTS |  Retain Context 2 (0x561c8b324c60), Refcount: 6
+[2023-01-19 01:58:37.002976107]POCL: in fn POclCreateBuffer at line 256:
+  |    MEMORY |  Created Buffer 8 (0x561c8b32c130), MEM_HOST_PTR: (nil), device_ptrs[0]: (nil), SIZE 512, FLAGS 1
+[2023-01-19 01:58:37.002991572]POCL: in fn POclCreateKernel at line 139:
+  |   GENERAL |  Created Kernel vecadd (0x561c8b32bd30)
+[2023-01-19 01:58:37.003011888]POCL: in fn POclSetKernelArg at line 107:
+  |   GENERAL |  Kernel          vecadd || SetArg idx   0 ||   float* || Local 0 || Size      8 || Value 0x7ffca34f6350 || Pointer 0x561c8b329330 || *(uint32*)Value:        0 || *(uint64*)Value:        0 ||
+Hex Value:  3093328B 1C560000
+[2023-01-19 01:58:37.003033612]POCL: in fn POclSetKernelArg at line 107:
+  |   GENERAL |  Kernel          vecadd || SetArg idx   1 ||   float* || Local 0 || Size      8 || Value 0x7ffca34f6358 || Pointer 0x561c8b331280 || *(uint32*)Value:        0 || *(uint64*)Value:        0 ||
+Hex Value:  8012338B 1C560000
+[2023-01-19 01:58:37.003047371]POCL: in fn POclSetKernelArg at line 107:
+  |   GENERAL |  Kernel          vecadd || SetArg idx   2 ||   float* || Local 0 || Size      8 || Value 0x7ffca34f6360 || Pointer 0x561c8b32c130 || *(uint32*)Value:        0 || *(uint64*)Value:        0 ||
+Hex Value:  30C1328B 1C560000
+[2023-01-19 01:58:37.003077696]POCL: in fn pocl_kernel_calc_wg_size at line 168:
   |   GENERAL |  Preparing kernel vecadd with local size 128 x 1 x 1 group sizes 1 x 1 x 1...
-[2023-01-16 07:59:38.337407683]POCL: in fn POclRetainCommandQueue at line 35:
-  | REFCOUNTS |  Retain Command Queue 4 (0x56134aba7230), Refcount: 2
-[2023-01-16 07:59:38.30402184622]POCL: in fn pocl_create_event at line 528:
-  |    EVENTS |  Created event 1 (0x56134ab4bec0) Command ndrange_kernel
-[2023-01-16 07:59:38.337438693]POCL: in fn pocl_create_command_struct at line 672:
-  |    EVENTS |  Created immediate command struct: CMD 0x56134abaf990 (event 1 / 0x56134ab4bec0, type: ndrange_kernel)
-[2023-01-16 07:59:38.140729235867670]POCL: in fn POclRetainCommandQueue at line 35:
-  | REFCOUNTS |  Retain Command Queue 3 (0x56134aba4a10), Refcount: 2
-[2023-01-16 07:59:38.30402222755]POCL: in fn pocl_create_event at line 528:
-  |    EVENTS |  Created event 2 (0x56134aba6270) Command migrate_mem_objects
-[2023-01-16 07:59:38.337454896]POCL: in fn pocl_create_command_struct at line 649:
-  |    EVENTS |  event pointer provided
-[2023-01-16 07:59:38.337460553]POCL: in fn pocl_create_command_struct at line 672:
-  |    EVENTS |  Created immediate command struct: CMD 0x56134abad5f0 (event 2 / 0x56134aba6270, type: migrate_mem_objects)
-[2023-01-16 07:59:38.337465721]POCL: in fn pocl_command_enqueue at line 1237:
-  |    EVENTS |  Pushed Event 2 to CQ 3.
-[2023-01-16 07:59:38.140729235893092]POCL: in fn pocl_update_event_queued at line 2084:
-  |    EVENTS |  Event queued: 2
-[2023-01-16 07:59:38.140729235922914]POCL: in fn pocl_update_event_submitted at line 2104:
-  |    EVENTS |  Event submitted: 2
-[2023-01-16 07:59:38.2676586394723155918]POCL: in fn pocl_update_event_running_unlocked at line 2123:
-  |    EVENTS |  Event running: 2
-[2023-01-16 07:59:38.140729235937301]POCL: in fn pocl_update_event_finished at line 2217:
-  |    EVENTS |  ventus: Command complete, event 2
-[2023-01-16 07:59:38.140729235941632]POCL: in fn pocl_exec_command at line 498:
-  |    TIMING |       >>>         6.286  us    Event Migrate Buffer(s)     
-[2023-01-16 07:59:38.69057002800]POCL: in fn POclReleaseMemObject at line 50:
-  | REFCOUNTS |  Release Memory Object 6 (0x56134aba8fb0), Refcount: 2
-[2023-01-16 07:59:38.215085903784]POCL: in fn POclReleaseEvent at line 40:
-  | REFCOUNTS |  Release Event 2 (0x56134aba6270), Refcount: 1
-[2023-01-16 07:59:38.140729235963562]POCL: in fn pocl_create_event_sync at line 544:
-  |    EVENTS |  create event sync: waiting 1 , notifier 2
-[2023-01-16 07:59:38.206495976875]POCL: in fn POclReleaseEvent at line 40:
-  | REFCOUNTS |  Release Event 1 (0x56134ab4bec0), Refcount: 3
-[2023-01-16 07:59:38.140729235973060]POCL: in fn POclRetainKernel at line 34:
-  | REFCOUNTS |  Retain Kernel vecadd (0x56134abafe80), Refcount: 2
-[2023-01-16 07:59:38.337557073]POCL: in fn pocl_command_enqueue at line 1191:
+[2023-01-19 01:58:37.003111530]POCL: in fn pocl_driver_alloc_mem_obj at line 420:
+  |    MEMORY |  Basic device ALLOC 0x561c8b65c9d0 / size 512
+[2023-01-19 01:58:37.003123085]POCL: in fn pocl_driver_alloc_mem_obj at line 420:
+  |    MEMORY |  Basic device ALLOC 0x561c8b39bb50 / size 512
+[2023-01-19 01:58:37.003136372]POCL: in fn pocl_driver_alloc_mem_obj at line 420:
+  |    MEMORY |  Basic device ALLOC 0x561c8b65bfb0 / size 512
+[2023-01-19 01:58:37.003148678]POCL: in fn POclRetainCommandQueue at line 33:
+  | REFCOUNTS |  Retain Command Queue 4 (0x561c8b3275b0), Refcount: 2
+[2023-01-19 01:58:37.003159512]POCL: in fn pocl_create_event at line 526:
+  |    EVENTS |  Created event 1 (0x561c8b329500) Command ndrange_kernel
+[2023-01-19 01:58:37.003187245]POCL: in fn pocl_create_command_struct at line 669:
+  |    EVENTS |  Created immediate command struct: CMD 0x561c8b32e440 (event 1 / 0x561c8b329500, type: ndrange_kernel)
+[2023-01-19 01:58:37.003217828]POCL: in fn POclRetainKernel at line 33:
+  | REFCOUNTS |  Retain Kernel vecadd (0x561c8b32bd30), Refcount: 2
+[2023-01-19 01:58:37.003231820]POCL: in fn pocl_command_enqueue at line 1191:
   |    EVENTS |  In-order Q; adding event syncs
-[2023-01-16 07:59:38.337560356]POCL: in fn pocl_command_enqueue at line 1237:
+[2023-01-19 01:58:37.003263335]POCL: in fn pocl_command_enqueue at line 1236:
   |    EVENTS |  Pushed Event 1 to CQ 4.
-[2023-01-16 07:59:38.140729235985422]POCL: in fn pocl_update_event_queued at line 2084:
+[2023-01-19 01:58:37.003286127]POCL: in fn pocl_update_event_queued at line 2084:
   |    EVENTS |  Event queued: 1
-Segmentation fault (core dumped)
+[2023-01-19 01:58:37.003365527]POCL: in fn pocl_check_kernel_disk_cache at line 941:
+  |   GENERAL |  Using a cached WG function: /work/tptuser/.cache/pocl/kcache/KK/IMMMNPJCCGPBGPCPFBDFJAFNGPBHCOEHIPAHC/vecadd/128-1-1-goffs0/vecadd.so
+dlopen("/work/tptuser/.cache/pocl/kcache/KK/IMMMNPJCCGPBGPCPFBDFJAFNGPBHCOEHIPAHC/vecadd/128-1-1-goffs0/vecadd.so") failed with '/work/tptuser/.cache/pocl/kcache/KK/IMMMNPJCCGPBGPCPFBDFJAFNGPBHCOEHIPAHC/vecadd/128-1-1-goffs0/vecadd.so: wrong ELF class: ELFCLASS32'.
+note: missing symbols in the kernel binary might be reported as 'file not found' errors.
+Aborted (core dumped)
 ```
 
 ### Compile a OpenCL C program into Ventus GPGPU assembly
