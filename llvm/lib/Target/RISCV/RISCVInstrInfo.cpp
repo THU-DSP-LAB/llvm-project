@@ -119,11 +119,6 @@ unsigned RISCVInstrInfo::isStoreToStackSlot(const MachineInstr &MI,
   return 0;
 }
 
-static bool forwardCopyWillClobberTuple(unsigned DstReg, unsigned SrcReg,
-                                        unsigned NumRegs) {
-  return DstReg > SrcReg && (DstReg - SrcReg) < NumRegs;
-}
-
 void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MBBI,
                                  const DebugLoc &DL, MCRegister DstReg,
@@ -216,7 +211,6 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
 
   MachineFunction *MF = MBB.getParent();
   MachineFrameInfo &MFI = MF->getFrameInfo();
-  MachineRegisterInfo &MRI = MF->getRegInfo();
 
   unsigned Opcode;
 
@@ -261,7 +255,6 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 
   MachineFunction *MF = MBB.getParent();
   MachineFrameInfo &MFI = MF->getFrameInfo();
-  MachineRegisterInfo &MRI = MF->getRegInfo();
 
   unsigned Opcode;
   if (RISCV::GPRRegClass.hasSubClassEq(RC)) {
@@ -1478,8 +1471,6 @@ std::string RISCVInstrInfo::createMIROperandComment(
 
   std::string Comment;
   raw_string_ostream OS(Comment);
-
-  uint64_t TSFlags = MI.getDesc().TSFlags;
 
   OS.flush();
   return Comment;

@@ -252,7 +252,7 @@ bool RISCVFrameLowering::hasBP(const MachineFunction &MF) const {
 // Determines the size of the frame and maximum call frame size.
 void RISCVFrameLowering::determineFrameLayout(MachineFunction &MF) const {
   MachineFrameInfo &MFI = MF.getFrameInfo();
-  auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
+  // auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
 
   // Get the number of bytes to allocate from the FrameInfo.
   uint64_t FrameSize = MFI.getStackSize();
@@ -763,7 +763,7 @@ MachineBasicBlock::iterator RISCVFrameLowering::eliminateCallFramePseudoInstr(
     MachineFunction &MF, MachineBasicBlock &MBB,
     MachineBasicBlock::iterator MI) const {
 
-  const RISCVMachineFunctionInfo *MFI = MF.getInfo<RISCVMachineFunctionInfo>();
+  // const RISCVMachineFunctionInfo *MFI = MF.getInfo<RISCVMachineFunctionInfo>();
   // Kernel and normal function has different stack pointer for Ventus GPGPU.
   Register SPReg = RISCV::X4; // MFI->isEntryFunction() ? RISCV::X2 : RISCV::X4;
   DebugLoc DL = MI->getDebugLoc();

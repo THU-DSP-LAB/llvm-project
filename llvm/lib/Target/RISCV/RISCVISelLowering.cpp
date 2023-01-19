@@ -678,7 +678,6 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
                                              const CallInst &I,
                                              MachineFunction &MF,
                                              unsigned Intrinsic) const {
-  auto &DL = I.getModule()->getDataLayout();
   switch (Intrinsic) {
   default:
     return false;
@@ -1080,24 +1079,6 @@ static RISCVFPRndMode::RoundingMode matchRoundingOp(unsigned Opc) {
   }
 
   return RISCVFPRndMode::Invalid;
-}
-
-static std::optional<uint64_t> getExactInteger(const APFloat &APF,
-                                               uint32_t BitWidth) {
-  APSInt ValInt(BitWidth, !APF.isNegative());
-  // We use an arbitrary rounding mode here. If a floating-point is an exact
-  // integer (e.g., 1.0), the rounding mode does not affect the output value. If
-  // the rounding mode changes the output value, then it is not an exact
-  // integer.
-  RoundingMode ArbitraryRM = RoundingMode::TowardZero;
-  bool IsExact;
-  // If it is out of signed integer range, it will return an invalid operation.
-  // If it is not an exact integer, IsExact is false.
-  if ((APF.convertToInteger(ValInt, ArbitraryRM, &IsExact) ==
-       APFloatBase::opInvalidOp) ||
-      !IsExact)
-    return std::nullopt;
-  return ValInt.extractBitsAsZExtValue(BitWidth, 0);
 }
 
 // Lower CTLZ_ZERO_UNDEF or CTTZ_ZERO_UNDEF by converting to FP and extracting
@@ -1866,6 +1847,8 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
     return DAG.getNode(Opc, DL, XLenVT, Op.getOperand(1));
   }
   }
+
+  return SDValue();
 }
 
 SDValue RISCVTargetLowering::lowerGET_ROUNDING(SDValue Op,
@@ -1951,9 +1934,9 @@ SDValue RISCVTargetLowering::lowerKernArgParameterPtr(SelectionDAG &DAG,
 
   MVT PtrVT = getPointerTy(DL, RISCVAS::CONSTANT_ADDRESS);
 
-  MachineRegisterInfo &MRI = DAG.getMachineFunction().getRegInfo();
   // Base address of kernel arg is stored in sGPR a0.
   Register Reg = MF.addLiveIn(RISCV::X10, getRegClassFor(XLenVT, false));
+
   SDValue BasePtr = DAG.getCopyFromReg(Chain, SL, Reg, PtrVT);
 
   return DAG.getObjectPtrOffset(SL, BasePtr, TypeSize::Fixed(Offset));
@@ -5647,7 +5630,6 @@ static SDValue unpackFromRegLoc(SelectionDAG &DAG, SDValue Chain,
   MachineFunction &MF = DAG.getMachineFunction();
   MachineRegisterInfo &RegInfo = MF.getRegInfo();
   EVT LocVT = VA.getLocVT();
-  SDValue Val;
   const TargetRegisterClass *RC = TLI.getRegClassFor(LocVT.getSimpleVT(), true);
   Register VReg = RegInfo.createVirtualRegister(RC);
   RegInfo.addLiveIn(VA.getLocReg(), VReg);

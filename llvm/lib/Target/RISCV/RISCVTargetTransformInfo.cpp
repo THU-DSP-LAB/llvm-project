@@ -254,9 +254,6 @@ InstructionCost RISCVTTIImpl::getArithmeticInstrCost(
     return BaseT::getArithmeticInstrCost(Opcode, Ty, CostKind, Op1Info, Op2Info,
                                          Args, CxtI);
 
-  // Legalize the type.
-  std::pair<InstructionCost, MVT> LT = getTypeLegalizationCost(Ty);
-
   // TODO: Handle scalar type.
   return BaseT::getArithmeticInstrCost(Opcode, Ty, CostKind, Op1Info, Op2Info,
                                        Args, CxtI);

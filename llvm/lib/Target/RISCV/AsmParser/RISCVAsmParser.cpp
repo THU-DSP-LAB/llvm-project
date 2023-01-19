@@ -224,8 +224,6 @@ class RISCVAsmParser : public MCTargetAsmParser {
     return false;
   }
 
-  std::unique_ptr<RISCVOperand> defaultMaskRegOp() const;
-
 public:
   enum RISCVMatchResultTy {
     Match_Dummy = FIRST_TARGET_MATCH_RESULT_TY,
@@ -1027,7 +1025,6 @@ unsigned RISCVAsmParser::validateTargetOperandClass(MCParsedAsmOperand &AsmOp,
       RISCVMCRegisterClasses[RISCV::FPR64RegClassID].contains(Reg);
   bool IsRegFPR64C =
       RISCVMCRegisterClasses[RISCV::FPR64CRegClassID].contains(Reg);
-  bool IsRegVR = RISCVMCRegisterClasses[RISCV::VGPRRegClassID].contains(Reg);
 
   // As the parser couldn't differentiate an FPR32 from an FPR64, coerce the
   // register from FPR64 to FPR32 or FPR64C to FPR32C if necessary.
@@ -1767,32 +1764,6 @@ MatchFail:
   while (!VTypeIElements.empty())
     getLexer().UnLex(VTypeIElements.pop_back_val());
   return MatchOperand_NoMatch;
-}
-
-OperandMatchResultTy RISCVAsmParser::parseMaskReg(OperandVector &Operands) {
-  switch (getLexer().getKind()) {
-  default:
-    return MatchOperand_NoMatch;
-  case AsmToken::Identifier:
-    StringRef Name = getLexer().getTok().getIdentifier();
-    if (!Name.consume_back(".t")) {
-      Error(getLoc(), "expected '.t' suffix");
-      return MatchOperand_ParseFail;
-    }
-    MCRegister RegNo;
-    matchRegisterNameHelper(isRV32E(), RegNo, Name);
-
-    if (RegNo == RISCV::NoRegister)
-      return MatchOperand_NoMatch;
-    if (RegNo != RISCV::V0)
-      return MatchOperand_NoMatch;
-    SMLoc S = getLoc();
-    SMLoc E = SMLoc::getFromPointer(S.getPointer() + Name.size());
-    getLexer().Lex();
-    Operands.push_back(RISCVOperand::createReg(RegNo, S, E, isRV64()));
-  }
-
-  return MatchOperand_Success;
 }
 
 OperandMatchResultTy RISCVAsmParser::parseGPRAsFPR(OperandVector &Operands) {
@@ -2585,11 +2556,6 @@ bool RISCVAsmParser::checkPseudoAddTPRel(MCInst &Inst,
   return false;
 }
 
-std::unique_ptr<RISCVOperand> RISCVAsmParser::defaultMaskRegOp() const {
-  return RISCVOperand::createReg(RISCV::NoRegister, llvm::SMLoc(),
-                                 llvm::SMLoc(), isRV64());
-}
-
 bool RISCVAsmParser::validateInstruction(MCInst &Inst,
                                          OperandVector &Operands) {
   const MCInstrDesc &MCID = MII.get(Inst.getOpcode());
@@ -2611,23 +2577,6 @@ bool RISCVAsmParser::validateInstruction(MCInst &Inst,
     if (DestReg == CheckReg)
       return Error(Loc, "The destination vector register group cannot overlap"
                         " the source vector register group.");
-  }
-  if ((Constraints & RISCVII::VMConstraint) && (DestReg == RISCV::V0)) {
-    // vadc, vsbc are special cases. These instructions have no mask register.
-    // The destination register could not be V0.
-    unsigned Opcode = Inst.getOpcode();
-
-    // Regardless masked or unmasked version, the number of operands is the
-    // same. For example, "viota.m v0, v2" is "viota.m v0, v2, NoRegister"
-    // actually. We need to check the last operand to ensure whether it is
-    // masked or not.
-    unsigned CheckReg = Inst.getOperand(Inst.getNumOperands() - 1).getReg();
-    assert((CheckReg == RISCV::V0 || CheckReg == RISCV::NoRegister) &&
-           "Unexpected register for mask operand");
-
-    if (DestReg == CheckReg)
-      return Error(Loc, "The destination vector register group cannot overlap"
-                        " the mask register.");
   }
   return false;
 }

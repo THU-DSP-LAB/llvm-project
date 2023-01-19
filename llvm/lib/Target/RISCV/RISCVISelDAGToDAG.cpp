@@ -101,16 +101,6 @@ static SDNode *selectImm(SelectionDAG *CurDAG, const SDLoc &DL, const MVT VT,
   return selectImmSeq(CurDAG, DL, VT, Seq);
 }
 
-static SDValue createTuple(SelectionDAG &CurDAG, ArrayRef<SDValue> Regs,
-                           unsigned NF, RISCVII::VLMUL LMUL) {
-  assert(0 && "TODO!");
-  return SDValue(nullptr, 0);
-}
-
-static bool isAllUndef(ArrayRef<SDValue> Values) {
-  return llvm::all_of(Values, [](SDValue V) { return V->isUndef(); });
-}
-
 bool RISCVDAGToDAGISel::tryShrinkShlLogicImm(SDNode *Node) {
   MVT VT = Node->getSimpleValueType(0);
   unsigned Opcode = Node->getOpcode();
@@ -871,10 +861,10 @@ bool RISCVDAGToDAGISel::SelectAddrRegReg(SDValue Addr, SDValue &Base,
           Align Alignment = commonAlignment(
               GA->getGlobal()->getPointerAlignment(DL), GA->getOffset());
           if (CVal == 0 || Alignment > CVal) {
-            int64_t CombinedOffset = CVal + GA->getOffset();
-            Base = Base.getOperand(0);
             assert(0 && "TODO");
             /*
+            int64_t CombinedOffset = CVal + GA->getOffset();
+            Base = Base.getOperand(0);
             Offset = CurDAG->getTargetGlobalAddress(
                 GA->getGlobal(), SDLoc(LoOperand), LoOperand.getValueType(),
                 CombinedOffset, GA->getTargetFlags());
