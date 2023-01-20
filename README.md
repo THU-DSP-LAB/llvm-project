@@ -34,6 +34,7 @@ ninja
 # You can use following command to building pocl with system installed llvm.
 cmake -DCMAKE_INSTALL_PREFIX=../install -DENABLE_ICD=ON -DENABLE_TESTS=OFF -DSTATIC_LLVM=OFF -DLLC_HOST_CPU=x86-64 -G Ninja ../
 ```
+> If there are errors about cmake CXX compiler, can add -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ to the cmake build command
 
 Build pocl as libOpenCL.so(icd loader+icd driver) instead of libpocl.so(icd driver), `-DENABLE_ICD=OFF` must be specified to cmake.
 
