@@ -1164,6 +1164,29 @@ def VFMV_S_F : RVInstV2<0b010000, 0b00000, OPFVF, (outs VGPR:$vd_wb),
 } // Predicates = [HasVInstructionsAnyF]
 
 //===----------------------------------------------------------------------===//
+// Ventus GPGPU extended instructions for V formats
+//===----------------------------------------------------------------------===//
+let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
+def VFEXP : RVInstIVI<0b000010, (outs VGPR:$vd),
+                    (ins VGPR:$vs2),"vfexp", "$vd, $vs2"> {
+  let Inst{25} = 0b1;
+  let Inst{19-15} = 0;
+  let Opcode = OPC_CUSTOM_0.Value;
+}
+
+let Constraints = "$vd_wb = $vd" in
+def VFTTA : RVInstIVI<0b000001, (outs VGPR:$vd_wb),
+                    (ins VGPR:$vd, VGPR:$vs2, VGPR:$vs1),
+                    "vftta.vv", "$vd, $vs2, $vs1"> {
+  bits<5> vs1;
+  let Inst{25} = 0b1;
+  let Inst{19-15} = vs1;
+  let Opcode = OPC_CUSTOM_0.Value;
+}
+
+} // hasSideEffects = 0, mayLoad = 0, mayStore = 0
+
+//===----------------------------------------------------------------------===//
 // Ventus vALU divergent execution patterns
 //===----------------------------------------------------------------------===//
 
