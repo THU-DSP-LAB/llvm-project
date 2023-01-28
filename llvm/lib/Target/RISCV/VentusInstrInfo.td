@@ -932,20 +932,20 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 def REGEXT : RVInstI<0b010, OPC_CUSTOM_0, (outs GPR:$rd),
                      (ins GPR:$rs1, simm12:$imm12),
                      "regext", "$rd, $rs1, $imm12">;
-def VFEXP : RVInstI<0b010, OPC_CUSTOM_0, (outs VGPR:$rd),
-                     (ins VGPR:$vs2),"vfexp", "$rd, $vs2"> {
+def VFEXP : RVInstI<0b010, OPC_CUSTOM_0, (outs VGPR:$vd),
+                     (ins VGPR:$vs2),"vfexp", "$vd, $vs2"> {
     bits<5> vs2;
     let rs1 = 0;
-    let Inst{24-20} = vs2;
     let Inst{31-25} = 0b0000101;
+    let Inst{24-20} = vs2;
   }
-let Constraints = "$rd_wb = $rd" in
-def VFTTA : RVInstI<0b000, OPC_CUSTOM_0, (outs VGPR:$rd_wb),
+let Constraints = "$vd_wb = $vd" in
+def VFTTA : RVInstI<0b000, OPC_CUSTOM_0, (outs VGPR:$vd_wb),
                      (ins VGPR:$rd, VGPR:$vs2, VGPR:$rs1),
                      "vftta.vv", "$rd, $vs2, $rs1"> {
     bits<5> vs2;
-    let Inst{24-20} = vs2;
     let Inst{31-25} = 0b0000011;
+    let Inst{24-20} = vs2;
   }
 }
 //===----------------------------------------------------------------------===//
