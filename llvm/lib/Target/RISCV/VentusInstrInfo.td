@@ -927,27 +927,30 @@ def SRAW  : ALUW_rr<0b0100000, 0b101, "sraw">,
 // Ventus GPGPU extended instructions
 //===----------------------------------------------------------------------===//
 
-// imm12 is divided into 4 x 3bits to encode extended register range.
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
+// imm12 is divided into 4 x 3bits to encode extended register range.
 def REGEXT : RVInstI<0b010, OPC_CUSTOM_0, (outs GPR:$rd),
                      (ins GPR:$rs1, simm12:$imm12),
                      "regext", "$rd, $rs1, $imm12">;
+
 def VFEXP : RVInstI<0b010, OPC_CUSTOM_0, (outs VGPR:$vd),
-                     (ins VGPR:$vs2),"vfexp", "$vd, $vs2"> {
-    bits<5> vs2;
-    let rs1 = 0;
-    let Inst{31-25} = 0b0000101;
-    let Inst{24-20} = vs2;
-  }
+                    (ins VGPR:$vs2),"vfexp", "$vd, $vs2"> {
+  bits<5> vs2;
+  let rs1 = 0;
+  let Inst{31-25} = 0b0000101;
+  let Inst{24-20} = vs2;
+}
+
 let Constraints = "$vd_wb = $vd" in
 def VFTTA : RVInstI<0b000, OPC_CUSTOM_0, (outs VGPR:$vd_wb),
-                     (ins VGPR:$rd, VGPR:$vs2, VGPR:$rs1),
-                     "vftta.vv", "$rd, $vs2, $rs1"> {
-    bits<5> vs2;
-    let Inst{31-25} = 0b0000011;
-    let Inst{24-20} = vs2;
-  }
+                    (ins VGPR:$vd, VGPR:$vs2, VGPR:$vs1),
+                    "vftta.vv", "$vd, $vs2, $vs1"> {
+  bits<5> vs2;
+  let Inst{31-25} = 0b0000011;
+  let Inst{24-20} = vs2;
 }
+} // hasSideEffects = 0, mayLoad = 0, mayStore = 0
+
 //===----------------------------------------------------------------------===//
 // Privileged instructions
 //===----------------------------------------------------------------------===//
