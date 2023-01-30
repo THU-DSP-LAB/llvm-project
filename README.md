@@ -7,78 +7,27 @@ For more architecture detail, please refer to
 
 ## Getting Started
 
-### Build the toolchain
+### 1: Programs related repositories
+
+Download all the repositories firstly
+
+* llvm-ventus : git clone https://github.com/THU-DSP-LAB/llvm-project.git
+* pocl : git clone https://github.com/THU-DSP-LAB/pocl.git
+* ocl-icd : git clone https://github.com/OCL-dev/ocl-icd.git
+
+> libclc can be built from llvm-ventus repository
+
+### 2: Build all the programs
 
 Assume you have already installed essential build tools such as cmake, clang, ninja etc.
 
-```
-git clone https://github.com/THU-DSP-LAB/llvm-project.git
-cd llvm-project
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_CCACHE_BUILD=ON -DLLVM_ENABLE_PROJECTS="clang;lld;libclc" -DLLVM_TARGETS_TO_BUILD="AMDGPU;X86;RISCV" -DLLVM_TARGET_ARCH="riscv32" -DBUILD_SHARED_LIBS=ON -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_ENABLE_TERMINFO=ON -DCMAKE_INSTALL_PREFIX=../install -G Ninja ../llvm
-ninja
-ninja install
-```
+Run `./build-ventus.sh` to automatically build all the programs, but we need to run firstly
+* `export POCL_DIR=<path-to-pocl-dir>`, default folder path will be set to be **`<llvm-ventus-parentFolder>`/pocl**
+* `export OCL_ICD_DIR=<path-to-ocl-icd-dir>`, default folder path will be set to be **`<llvm-ventus-parentFolder>`/ocl-icd**
 
-### Build pocl
+You can dive into `build-ventus.sh` file to see the detailed information about build process
 
-```
-# Add ventus-llvm built llvm-config to PATH
-export PATH=<path_to_ventus_llvm_install_bin>:$PATH
-git clone https://github.com/THU-DSP-LAB/pocl.git
-cd pocl
-mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX=../install -DENABLE_HOST_CPU_DEVICES=OFF -DENABLE_VENTUS=ON -DENABLE_ICD=ON -DDEFAULT_ENABLE_ICD=ON -DENABLE_TESTS=OFF -DSTATIC_LLVM=OFF -G Ninja ../
-ninja
-
-# You can use following command to building pocl with system installed llvm.
-cmake -DCMAKE_INSTALL_PREFIX=../install -DENABLE_ICD=ON -DENABLE_TESTS=OFF -DSTATIC_LLVM=OFF -DLLC_HOST_CPU=x86-64 -G Ninja ../
-```
-> If there are errors about cmake CXX compiler, can add -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ to the cmake build command
-
-Build pocl as libOpenCL.so(icd loader+icd driver) instead of libpocl.so(icd driver), `-DENABLE_ICD=OFF` must be specified to cmake.
-
-NOTE: the install folder of ventus-pocl should be merged with the install folder of ventus-llvm in order to correctly locate shared libraries, header files etc.
-
-NOTE: `-DPOCL_DEBUG_MESSAGES=ON` is default on, you can set env variable `POCL_DEBUG` to enable debugging output(see pocl_debug.c for details).
-
-
-### Build libclc(llvm version instead of pocl one) (Work in progress)
-
-```
-# Add ventus-llvm built llvm-config to PATH
-export PATH=<llvm_install_folder>/bin:$PATH
-cd llvm-project
-mkdir build-libclc && cd build-libclc
-cmake ../libclc -DCMAKE_LLAsm_COMPILER_WORKS=ON -DCMAKE_CLC_COMPILER_WORKS=ON -DCMAKE_CLC_COMPILER_FORCED=ON  -DCMAKE_LLAsm_FLAGS="-target riscv32 -mcpu=ventus-gpgpu" -DLIBCLC_TARGETS_TO_BUILD="riscv32--" -DCMAKE_CXX_FLAGS="-I <llvm-project-root>/llvm/include -std=c++17" -G Ninja
-ninja
-# Manually copy kernel builtins to the location where pocl driver can locate
-cp riscv32--.bc <pocl_install_dir>/share/pocl/kernel-riscv32.bc
-# WORKAROUND: Manually copy libworkitem.a and crt0.o
-cp riscv32/lib/libworkitem.a <llvm_install_folder>/lib/
-cp riscv32/lib/CMakeFiles/crt0.dir/crt0.S.o <llvm_install_folder>/lib/crt0.o
-```
-
-
-### Build icd loader
-
-You can use `apt install ocl-icd-libopencl1` to install ocl icd loader `libOpenCL.so`, but we want to build our own icd loader with debug information, so here it is.
-
-```
-git clone https://github.com/OCL-dev/ocl-icd.git
-cd ocl-icd
-./bootstrap
-./configure
-make
-ls .libs # libOpenCL.so is located in .libs
-```
-
-Then copy `libOpenCL.so*` from ocl-icd/.libs to `ventus-llvm/install/lib` folder(where LLVM shared libraries located)
-
-Run `export LD_LIBRARY_PATH=<path_to>/ventus-llvm/install/lib` to tell OpenCL application to use your own built `libOpenCL.so`, also to correctly locate LLVM shared libraries.
-
-
-### Bridge icd loader `libOpenCL.so` and pocl ocl device driver `libpocl.so`(pocl built with ENABLE_ICD=ON)
+### 3: Bridge icd loader
 
 Run `export OCL_ICD_VENDORS=<path_to>/libpocl.so` to tell ocl icd loader where the icd driver is.
 
@@ -173,7 +122,7 @@ note: missing symbols in the kernel binary might be reported as 'file not found'
 Aborted (core dumped)
 ```
 
-### Compile a OpenCL C program into Ventus GPGPU assembly
+### 4: Compile a OpenCL C program into Ventus GPGPU assembly
 
 vector_add.cl:
 
@@ -192,9 +141,10 @@ clang -cl-std=CL2.0 -target riscv32 -mcpu=ventus-gpgpu -O1 -S vector_add.cl -o v
 
 NOTE: OpenCL host side program should be linked with icd loader `-lOpenCL`.
 
-### TODOs
+### 5: TODOs
 
 * Emit `barrier` instruction for all stores to local/global memory except sGPR spill.
 * Stacks for sGPR spilling and per-thread usage is supported by using RISCV::X2 as warp level stack, RISCV::X4 as per-thread level stack. But the 2 stack size calculation are not yet splitted out, so a lot of stack slots are wasted.
 * VentusRegextInsertion pass may generate incorrect register ordering for next instruction, see FIXME in that pass. To avoid breaking def-use chain, we could keep the extended instruction unmodified by removing `Op.setRegIgnoreDUChain()` from the pass, the elf generation pass should ignore the higher bit(>2^5) of the register encoding automatically.
 * Pattern match VV and VX optimization. There is only type information in the DAG pattern matching, we can't specify whether to match a DAG to a vop.vv or vop.vx MIR in a tblgen pattern, so a fix pass should be ran after codegen pass.
+* Opencl kernel api - get_enqueued_local_size, need to support non-uniform workgroup
