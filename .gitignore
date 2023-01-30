@@ -27,7 +27,7 @@
 /*/CMakeUserPresets.json
 
 # Nested build directory
-/build*
+/build*/
 /install*
 
 #==============================================================================#

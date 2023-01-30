@@ -43,6 +43,10 @@ set( LIBCLC_TARGETS_TO_BUILD "all"
 option( ENABLE_RUNTIME_SUBNORMAL "Enable runtime linking of subnormal support."
 OFF )
 
+# This will make built library put in lib directory
+set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/lib${LLVM_LIBDIR_SUFFIX})
+install(DIRECTORY ${LLVM_LIBRARY_OUTPUT_INTDIR} DESTINATION ${CMAKE_INSTALL_PREFIX})
+
 find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_DIR}")
 include(AddLLVM)
 
