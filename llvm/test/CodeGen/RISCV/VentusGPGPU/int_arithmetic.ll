@@ -16,8 +16,7 @@ define i32 @vdivu_x(i32 %a) {
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    lui a0, %hi(global_val)
 ; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
-; VENTUS-NEXT:    vmv.s.x v1, a0
-; VENTUS-NEXT:    vdivu.vv v0, v0, v1
+; VENTUS-NEXT:    vdivu.vx v0, v0, a0
 ; VENTUS-NEXT:    ret
   %val = load i32, ptr @global_val
   %udiv = udiv i32 %a, %val
@@ -38,8 +37,7 @@ define i32 @vdiv_x(i32 %a) {
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    lui a0, %hi(global_val)
 ; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
-; VENTUS-NEXT:    vmv.s.x v1, a0
-; VENTUS-NEXT:    vdiv.vv v0, v0, v1
+; VENTUS-NEXT:    vdiv.vx v0, v0, a0
 ; VENTUS-NEXT:    ret
   %val = load i32, ptr @global_val
   %sdiv = sdiv i32 %a, %val
@@ -82,8 +80,7 @@ define i32 @srem_pow2(i32 %a) nounwind {
 ; VENTUS-NEXT:    vsrl.vi v1, v1, 29
 ; VENTUS-NEXT:    vadd.vv v1, v0, v1
 ; VENTUS-NEXT:    li a0, -8
-; VENTUS-NEXT:    vmv.s.x v2, a0
-; VENTUS-NEXT:    vand.vv v1, v1, v2
+; VENTUS-NEXT:    vand.vx v1, v1, a0
 ; VENTUS-NEXT:    vsub.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = srem i32 %a, 8
@@ -97,8 +94,7 @@ define i32 @srem_pow2_2(i32 %a) nounwind {
 ; VENTUS-NEXT:    vsrl.vi v1, v1, 16
 ; VENTUS-NEXT:    vadd.vv v1, v0, v1
 ; VENTUS-NEXT:    lui a0, 1048560
-; VENTUS-NEXT:    vmv.s.x v2, a0
-; VENTUS-NEXT:    vand.vv v1, v1, v2
+; VENTUS-NEXT:    vand.vx v1, v1, a0
 ; VENTUS-NEXT:    vsub.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = srem i32 %a, 65536
@@ -130,8 +126,7 @@ define i32 @vadd_x(i32 %a) nounwind {
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    lui a0, %hi(global_val)
 ; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
-; VENTUS-NEXT:    vmv.s.x v1, a0
-; VENTUS-NEXT:    vadd.vv v0, v0, v1
+; VENTUS-NEXT:    vadd.vx v0, v0, a0
 ; VENTUS-NEXT:    ret
   %val = load i32, ptr @global_val
   %add = add i32 %a, %val
@@ -161,8 +156,7 @@ define i32 @vsub_x(i32 %a) nounwind {
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    lui a0, %hi(global_val)
 ; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
-; VENTUS-NEXT:    vmv.s.x v1, a0
-; VENTUS-NEXT:    vsub.vv v0, v0, v1
+; VENTUS-NEXT:    vsub.vx v0, v0, a0
 ; VENTUS-NEXT:    ret
   %val = load i32, ptr @global_val
   %sub = sub i32 %a, %val
@@ -196,8 +190,7 @@ define i32 @vmul_x(i32 %a) nounwind {
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    lui a0, %hi(global_val)
 ; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
-; VENTUS-NEXT:    vmv.s.x v1, a0
-; VENTUS-NEXT:    vmul.vv v0, v0, v1
+; VENTUS-NEXT:    vmul.vx v0, v0, a0
 ; VENTUS-NEXT:    ret
   %val = load i32, ptr @global_val
   %mul = mul i32 %a, %val
@@ -222,8 +215,7 @@ define i32 @vmulh_x(i32 %a) nounwind {
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    lui a0, %hi(global_val)
 ; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
-; VENTUS-NEXT:    vmv.s.x v1, a0
-; VENTUS-NEXT:    vmulh.vv v0, v0, v1
+; VENTUS-NEXT:    vmulh.vx v0, v0, a0
 ; VENTUS-NEXT:    ret
   %val = load i32, ptr @global_val
   %1 = sext i32 %a to i64
@@ -252,8 +244,7 @@ define i32 @vmulhu_x(i32 %a) nounwind {
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    lui a0, %hi(global_val)
 ; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
-; VENTUS-NEXT:    vmv.s.x v1, a0
-; VENTUS-NEXT:    vmulhu.vv v0, v0, v1
+; VENTUS-NEXT:    vmulhu.vx v0, v0, a0
 ; VENTUS-NEXT:    ret
   %val = load i32, ptr @global_val
   %1 = zext i32 %a to i64
@@ -281,8 +272,7 @@ define i32 @vmulhsu_x(i32 %a) nounwind {
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    lui a0, %hi(global_val)
 ; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
-; VENTUS-NEXT:    vmv.s.x v1, a0
-; VENTUS-NEXT:    vmulhsu.vv v0, v0, v1
+; VENTUS-NEXT:    vmulhsu.vx v0, v0, a0
 ; VENTUS-NEXT:    ret
   %val = load i32, ptr @global_val
   %1 = sext i32 %a to i64
@@ -331,8 +321,7 @@ define dso_local i32 @nmsub_x(i32 noundef %a, i32 noundef %b) local_unnamed_addr
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui a0, %hi(global_val)
 ; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
-; VENTUS-NEXT:    vmv.s.x v2, a0
-; VENTUS-NEXT:    vmadd.vv v0, v2, v1
+; VENTUS-NEXT:    vmadd.vx v0, a0, v1
 ; VENTUS-NEXT:    ret
 entry:
   %val = load i32, ptr @global_val
@@ -360,8 +349,7 @@ define dso_local i32 @madd_x(i32 noundef %a, i32 noundef %b) local_unnamed_addr 
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui a0, %hi(global_val)
 ; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
-; VENTUS-NEXT:    vmv.s.x v2, a0
-; VENTUS-NEXT:    vmadd.vv v0, v2, v1
+; VENTUS-NEXT:    vmadd.vx v0, a0, v1
 ; VENTUS-NEXT:    ret
 entry:
   %val = load i32, ptr @global_val

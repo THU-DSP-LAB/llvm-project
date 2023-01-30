@@ -20,12 +20,10 @@ define spir_kernel void @foo_ker(ptr addrspace(1) nocapture noundef align 4 %A, 
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
-; VENTUS-NEXT:    vmv.s.x v2, s1
-; VENTUS-NEXT:    vadd.vv v2, v2, v0
+; VENTUS-NEXT:    vadd.vx v2, v0, s1
 ; VENTUS-NEXT:    vmv.x.s a0, v2
 ; VENTUS-NEXT:    vluxei32.v v2, (a0), v1
-; VENTUS-NEXT:    vmv.s.x v3, s0
-; VENTUS-NEXT:    vadd.vv v0, v3, v0
+; VENTUS-NEXT:    vadd.vx v0, v0, s0
 ; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
 ; VENTUS-NEXT:    vadd.vv v0, v0, v2

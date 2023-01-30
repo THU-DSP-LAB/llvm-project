@@ -1,8 +1,4 @@
 {
-  "phabricator.uri" : "https://reviews.llvm.org/",
-  "repository.callsign" : "G",
-  "conduit_uri" : "https://reviews.llvm.org/",
-  "base": "git:HEAD^",
-  "arc.land.onto.default": "main",
-  "arc.land.onto": ["main"]
+  "phabricator.uri" : "http://www.tpt.com",
+  "notification" : "The code review's uri is Terapines' private network uri"
 }

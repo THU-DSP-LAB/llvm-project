@@ -205,6 +205,9 @@ class RVInst<dag outs, dag ins, string opcodestr, string argstr,
 
   bit UsesMaskPolicy = 0;
   let TSFlags{18} = UsesMaskPolicy;
+
+  bit IsVVALUInstr = 0;
+  let TSFlags{19} = IsVVALUInstr;
 }
 
 // Pseudo instructions

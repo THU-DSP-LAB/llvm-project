@@ -95,6 +95,10 @@ enum {
   // compiler has free to select either one.
   UsesMaskPolicyShift = IsRVVWideningReductionShift + 1,
   UsesMaskPolicyMask = 1 << UsesMaskPolicyShift,
+
+  // Check if this instruction meets the format of RVInstVV
+  IsVVALUInstrShift = UsesMaskPolicyShift + 1,
+  IsVVALUInstrMask = 1 << IsVVALUInstrShift,
 };
 
 // Match with the definitions in RISCVInstrFormats.td
@@ -132,6 +136,12 @@ static inline VConstraintType getConstraint(uint64_t TSFlags) {
 static inline bool hasDummyMaskOp(uint64_t TSFlags) {
   return TSFlags & HasDummyMaskOpMask;
 }
+
+/// \returns true if the instruction meets the format of RVInstVV
+static inline bool isVVALUInstr(uint64_t TSFlags) {
+  return TSFlags & IsVVALUInstrMask;
+}
+
 /// \returns true if tail agnostic is enforced for the instruction.
 static inline bool doesForceTailAgnostic(uint64_t TSFlags) {
   return TSFlags & ForceTailAgnosticMask;

@@ -77,6 +77,7 @@ class RVInstVV<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
   let Inst{14-12} = opv.Value;
   let Inst{11-7} = vd;
   let Opcode = OPC_OP_V.Value;
+  let IsVVALUInstr = 1;
 }
 
 // vALU branch

@@ -25,13 +25,11 @@ define dso_local spir_kernel void @func(ptr addrspace(1) nocapture noundef align
 ; VENTUS-NEXT:    call _Z12get_local_idj
 ; VENTUS-NEXT:    vmv.s.x v1, zero
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
-; VENTUS-NEXT:    vmv.s.x v2, s1
-; VENTUS-NEXT:    vadd.vv v0, v2, v0
+; VENTUS-NEXT:    vadd.vx v0, v0, s1
 ; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
 ; VENTUS-NEXT:    vsll.vi v2, v32, 2
-; VENTUS-NEXT:    vmv.s.x v3, s0
-; VENTUS-NEXT:    vadd.vv v2, v3, v2
+; VENTUS-NEXT:    vadd.vx v2, v2, s0
 ; VENTUS-NEXT:    vmv.x.s a0, v2
 ; VENTUS-NEXT:    vluxei32.v v2, (a0), v1
 ; VENTUS-NEXT:    vadd.vv v0, v2, v0

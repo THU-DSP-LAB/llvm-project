@@ -40,16 +40,16 @@ define spir_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    vlw v1, zero(s2)
 ; VENTUS-NEXT:    add s1, s1, a0
 ; VENTUS-NEXT:    lw a1, 0(s1)
-; VENTUS-NEXT:    add a0, s0, a0
+; VENTUS-NEXT:    add a0, a0, s0
 ; VENTUS-NEXT:    lw a2, 0(a0)
 ; VENTUS-NEXT:    vmv.s.x v2, a1
 ; VENTUS-NEXT:    vmv.s.x v3, a2
-; VENTUS-NEXT:    vmadd.vv v2, v1, v3
-; VENTUS-NEXT:    vsuxei32.v v2, (a0), v0
+; VENTUS-NEXT:    vmadd.vv v1, v2, v3
+; VENTUS-NEXT:    vsuxei32.v v1, (a0), v0
 ; VENTUS-NEXT:    j .LBB0_3
 ; VENTUS-NEXT:  .LBB0_2: # %if.else
 ; VENTUS-NEXT:    slli a0, a0, 2
-; VENTUS-NEXT:    add a0, s0, a0
+; VENTUS-NEXT:    add a0, a0, s0
 ; VENTUS-NEXT:    sw zero, 0(a0)
 ; VENTUS-NEXT:  .LBB0_3: # %if.end
 ; VENTUS-NEXT:    lw ra, -36(sp) # 4-byte Folded Reload

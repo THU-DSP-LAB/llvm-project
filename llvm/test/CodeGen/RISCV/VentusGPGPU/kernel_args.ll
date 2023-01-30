@@ -15,7 +15,7 @@ define dso_local spir_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr addrs
 ; VENTUS-NEXT:    lw a1, 0(a0)
 ; VENTUS-NEXT:    lw a2, 4(a0)
 ; VENTUS-NEXT:    lw a0, 8(a0)
-; VENTUS-NEXT:    add a1, a2, a1
+; VENTUS-NEXT:    add a1, a1, a2
 ; VENTUS-NEXT:    sw a1, 0(a0)
 ; VENTUS-NEXT:    ret
   %add = add nsw i32 %b, %a

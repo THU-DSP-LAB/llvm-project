@@ -69,6 +69,9 @@ void initializeRISCVRedundantCopyEliminationPass(PassRegistry &);
 FunctionPass *createVentusRegextInsertionPass();
 void initializeVentusRegextInsertionPass(PassRegistry &);
 
+FunctionPass *createVentusVVInstrConversionPass();
+void initializeVentusVVInstrConversionPass(PassRegistry &);
+
 InstructionSelector *createRISCVInstructionSelector(const RISCVTargetMachine &,
                                                     RISCVSubtarget &,
                                                     RISCVRegisterBankInfo &);
