@@ -161,6 +161,14 @@ if [[ ! "${PROGRAMS_TOBUILD[*]}" =~ "llvm-ventus" ]];then
   export_elements
 fi
 
+# Check llvm-ventus is built or not
+check_if_ventus_built() {
+  if [ ! -d "${VENTUS_INSTALL_PREFIX}" ];then
+    echo "Build llvm-ventus first!"
+    exit 1 
+  fi
+}
+
 # Process build options
 for program in "${PROGRAMS_TOBUILD[@]}"
 do
@@ -168,10 +176,12 @@ do
     build_ventus
     export_elements
   elif [ "${program}" == "pocl" ]; then
+    check_if_ventus_built
     build_pocl
   elif [ "${program}" == "ocl-icd" ];then
     build_icd_loader
   elif [ "${program}" == "libclc" ];then
+    check_if_ventus_built
     build_libclc
   else
     echo "Invalid build options: \"${program}\" , try $0 --help for help"
