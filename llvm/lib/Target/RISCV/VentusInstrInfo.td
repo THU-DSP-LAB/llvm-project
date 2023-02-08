@@ -818,8 +818,7 @@ def OR   : ALU_rr<0b0000000, 0b110, "or", /*Commutable*/1>,
            Sched<[WriteIALU, ReadIALU, ReadIALU]>;
 def AND  : ALU_rr<0b0000000, 0b111, "and", /*Commutable*/1>,
            Sched<[WriteIALU, ReadIALU, ReadIALU]>;
-// Ventus extended inst `endprg`
-def ENDPRG : ALU_rr<0b0001011, 0b100, "endprg", 0>, Sched<[]>;
+
 
 let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in {
 def FENCE : RVInstI<0b000, OPC_MISC_MEM, (outs),
@@ -932,6 +931,34 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 def REGEXT : RVInstI<0b010, OPC_CUSTOM_0, (outs GPR:$rd),
                      (ins GPR:$rs1, simm12:$imm12),
                      "regext", "$rd, $rs1, $imm12">;
+
+// Ventus extended inst `endprg`
+def ENDPRG : RVInstI<0b010, OPC_CUSTOM_0, (outs), (ins),
+                    "endprg", "X0, X0, X0">, Sched<[]> {
+  field bits<5> rs2;
+
+  let rs2 = 0b00000;
+  let rs1 = 0;
+  let rd = 0;
+  let Inst{31-25} = 0;
+  let Inst{24-20} = rs2;
+}
+
+def BARRIER : RVInstI<0b010, OPC_CUSTOM_0, (outs GPR:$rd),
+                     (ins GPR:$rs2, uimm5:$uimm5),
+                     "barrier", "$rd, $rs2, $uimm5"> {
+  field bits<5> rs2;
+  field bits<5> uimm5;
+
+  let rs2 = 0b00000;
+  let rd = 0;
+  let Inst{31-25} = 0b0000001;
+  let Inst{24-20} = rs2;
+  let Inst{19-15} = uimm5;
+
+}
+
+// TODO: add barriersub instruction
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
 
 //===----------------------------------------------------------------------===//
