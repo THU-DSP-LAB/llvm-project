@@ -19463,7 +19463,7 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
 
   // WORKAROUND: Disabled for now.
   /*
-  // Ventus GPGPU workitem
+
   case RISCV::BI__builtin_riscv_workitem_id_x:
     return emitRangedBuiltin(*this, Intrinsic::riscv_workitem_id_x, 0, 1024);
   case RISCV::BI__builtin_riscv_workitem_id_y:
@@ -19488,6 +19488,21 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
   case RISCV::BI__builtin_riscv_grid_size_z:
     return EmitAMDGPUGridSize(*this, 2);
   */
+
+  // Ventus GPGPU workitem
+  case RISCV::BI__builtin_riscv_ventus_barrier:
+    ID = Intrinsic::riscv_ventus_barrier;
+    break;
+  case RISCV::BI__builtin_riscv_ventus_m_barrier:
+    ID = Intrinsic::riscv_ventus_barrier;
+    break;
+  case RISCV::BI__builtin_riscv_ventus_group_barrier:
+    ID = Intrinsic::riscv_ventus_group_barrier;
+    break;
+  case RISCV::BI__builtin_riscv_ventus_m_group_barrier:
+    ID = Intrinsic::riscv_ventus_group_barrier;
+    break;
+
   case RISCV::BI__builtin_riscv_orc_b_32:
   case RISCV::BI__builtin_riscv_orc_b_64:
   case RISCV::BI__builtin_riscv_clz_32:
