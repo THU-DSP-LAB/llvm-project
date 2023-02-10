@@ -3,13 +3,13 @@
 ; RUN:   | FileCheck -check-prefix=VENTUS %s
 
 ; Function Attrs: convergent norecurse nounwind
-define dso_local void @barrier() local_unnamed_addr #0 {
+define dso_local void @barrier() local_unnamed_addr {
 ; VENTUS-LABEL: barrier:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    barrier X0, X0, 3
 ; VENTUS-NEXT:    barrier X0, X0, 27
 ; VENTUS-NEXT:    barriersub X0, X0, 27
-; VENTUS-NEXT:    barrier X0, X0, 3
+; VENTUS-NEXT:    barriersub X0, X0, 3
 ; VENTUS-NEXT:    ret
 entry:
   tail call void @llvm.riscv.ventus.barrier(i32 noundef 3)

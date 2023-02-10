@@ -116,7 +116,7 @@ void RISCVAsmPrinter::emitInstruction(const MachineInstr *MI) {
   }
 
   if (MI->getOpcode() == RISCV::PseudoBarrier ||
-      MI->getOpcode() == RISCV::PseudoGroupBarrier) {
+      MI->getOpcode() == RISCV::PseudoSubGroupBarrier) {
     unsigned BarrierOpcode = MI->getOpcode() == RISCV::PseudoBarrier
                                  ? RISCV::BARRIER
                                  : RISCV::SUBGROUP_BARRIER;

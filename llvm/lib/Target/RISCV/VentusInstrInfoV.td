@@ -1354,9 +1354,10 @@ def : DivergentBccPat<SETUGE, VBGEU>;
 
 // Ventus barrier instructions pattern
 def : Pat<(int_riscv_ventus_barrier timm:$uimm5), (BARRIER $uimm5)>;
-def : Pat<(int_riscv_ventus_group_barrier timm:$uimm5), (BARRIER $uimm5)>;
+def : Pat<(int_riscv_ventus_group_barrier timm:$uimm5),
+                            (SUBGROUP_BARRIER $uimm5)>;
 
-def PseudoGroupBarrier
+def PseudoSubGroupBarrier
   : Pseudo<(outs), (ins i32imm:$uimm1, i32imm:$uimm2),
            [(int_riscv_ventus_m_group_barrier timm:$uimm1, timm:$uimm2)]>;
 def PseudoBarrier
