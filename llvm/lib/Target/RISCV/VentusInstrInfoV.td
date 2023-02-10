@@ -1352,6 +1352,17 @@ def : DivergentBccPat<SETGE, VBGE>;
 def : DivergentBccPat<SETULT, VBLTU>;
 def : DivergentBccPat<SETUGE, VBGEU>;
 
+// Ventus barrier instructions pattern
+def : Pat<(int_riscv_ventus_barrier timm:$uimm5), (BARRIER $uimm5)>;
+def : Pat<(int_riscv_ventus_group_barrier timm:$uimm5), (BARRIER $uimm5)>;
+
+def PseudoGroupBarrier
+  : Pseudo<(outs), (ins i32imm:$uimm1, i32imm:$uimm2),
+           [(int_riscv_ventus_m_group_barrier timm:$uimm1, timm:$uimm2)]>;
+def PseudoBarrier
+  : Pseudo<(outs), (ins i32imm:$uimm1, i32imm:$uimm2),
+           [(int_riscv_ventus_m_barrier timm:$uimm1, timm:$uimm2)]>;
+
 // TODO: Fix it!
 /*
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0,

@@ -18,9 +18,9 @@
 //===----------------------------------------------------------------------===//
 // Ventus OpenCL builtins.
 //===----------------------------------------------------------------------===//
-TARGET_BUILTIN(__builtin_riscv_ventus_m_barrier, "vIi", "n","32bit")
-TARGET_BUILTIN(__builtin_riscv_ventus_barrier, "vIi", "n","32bit")
-TARGET_BUILTIN(__builtin_riscv_ventus_m_group_barrier, "vIi", "n", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_m_barrier, "vIiIi", "n","32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_barrier, "vIi", "nc","32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_m_group_barrier, "vIiIi", "n", "32bit")
 TARGET_BUILTIN(__builtin_riscv_ventus_group_barrier, "vIi", "n", "32bit")
 // WORKAROUND: Disabled for now.
 /*

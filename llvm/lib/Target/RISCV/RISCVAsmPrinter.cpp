@@ -84,7 +84,7 @@ public:
 private:
   void emitAttributes();
 };
-}
+} // namespace
 
 #define GEN_COMPRESS_INSTR
 #include "RISCVGenCompressInstEmitter.inc"
@@ -112,6 +112,19 @@ void RISCVAsmPrinter::emitInstruction(const MachineInstr *MI) {
 
   if (MI->getOpcode() == RISCV::HWASAN_CHECK_MEMACCESS_SHORTGRANULES) {
     LowerHWASAN_CHECK_MEMACCESS(*MI);
+    return;
+  }
+
+  if (MI->getOpcode() == RISCV::PseudoBarrier ||
+      MI->getOpcode() == RISCV::PseudoGroupBarrier) {
+    unsigned BarrierOpcode = MI->getOpcode() == RISCV::PseudoBarrier
+                                 ? RISCV::BARRIER
+                                 : RISCV::SUBGROUP_BARRIER;
+    uint32_t MemFlag = MI->getOperand(0).getImm();
+    uint32_t MemScope = MI->getOperand(1).getImm();
+    EmitToStreamer(
+        *OutStreamer,
+        MCInstBuilder(BarrierOpcode).addImm((MemScope << 3) + MemFlag));
     return;
   }
 
@@ -190,7 +203,7 @@ bool RISCVAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   // Set the current MCSubtargetInfo to a copy which has the correct
   // feature bits for the current MachineFunction
   MCSubtargetInfo &NewSTI =
-    OutStreamer->getContext().getSubtargetCopy(*TM.getMCSubtargetInfo());
+      OutStreamer->getContext().getSubtargetCopy(*TM.getMCSubtargetInfo());
   NewSTI.setFeatureBits(MF.getSubtarget().getFeatureBits());
   MCSTI = &NewSTI;
   STI = &MF.getSubtarget<RISCVSubtarget>();
