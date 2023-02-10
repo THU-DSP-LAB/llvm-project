@@ -19493,14 +19493,14 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
   case RISCV::BI__builtin_riscv_ventus_barrier:
     ID = Intrinsic::riscv_ventus_barrier;
     break;
-  case RISCV::BI__builtin_riscv_ventus_m_barrier:
-    ID = Intrinsic::riscv_ventus_barrier;
+  case RISCV::BI__builtin_riscv_ventus_barrier_with_scope:
+    ID = Intrinsic::riscv_ventus_barrier_with_scope;
     break;
-  case RISCV::BI__builtin_riscv_ventus_group_barrier:
-    ID = Intrinsic::riscv_ventus_group_barrier;
+  case RISCV::BI__builtin_riscv_ventus_barriersub_with_scope:
+    ID = Intrinsic::riscv_ventus_barriersub_with_scope;
     break;
-  case RISCV::BI__builtin_riscv_ventus_m_group_barrier:
-    ID = Intrinsic::riscv_ventus_group_barrier;
+  case RISCV::BI__builtin_riscv_ventus_barriersub:
+    ID = Intrinsic::riscv_ventus_barriersub;
     break;
 
   case RISCV::BI__builtin_riscv_orc_b_32:

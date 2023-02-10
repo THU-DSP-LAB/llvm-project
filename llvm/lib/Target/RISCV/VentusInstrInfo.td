@@ -966,7 +966,9 @@ let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in {
 
 def BARRIER : BarrierBase<0b010, "barrier">;
 // FIXME: The encoding need to be changed
-def SUBGROUP_BARRIER : BarrierBase<0b011, "barriersub">;
+def SUBGROUP_BARRIER : BarrierBase<0b011, "barriersub"> {
+  let Inst{19-18} = 0b00;
+}
 
 } // hasSideEffects = 1, mayLoad = 0, mayStore = 0
 //===----------------------------------------------------------------------===//

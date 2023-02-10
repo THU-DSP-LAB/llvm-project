@@ -117,11 +117,12 @@ void RISCVAsmPrinter::emitInstruction(const MachineInstr *MI) {
 
   if (MI->getOpcode() == RISCV::PseudoBarrier ||
       MI->getOpcode() == RISCV::PseudoSubGroupBarrier) {
-    unsigned BarrierOpcode = MI->getOpcode() == RISCV::PseudoBarrier
-                                 ? RISCV::BARRIER
-                                 : RISCV::SUBGROUP_BARRIER;
+    bool isBarrier = MI->getOpcode() == RISCV::PseudoBarrier;
+    unsigned BarrierOpcode =
+        isBarrier ? RISCV::BARRIER : RISCV::SUBGROUP_BARRIER;
     uint32_t MemFlag = MI->getOperand(0).getImm();
-    uint32_t MemScope = MI->getOperand(1).getImm();
+    // when use barriersub, MemScope is default to be 0
+    uint32_t MemScope = isBarrier ? MI->getOperand(1).getImm() : 0;
     EmitToStreamer(
         *OutStreamer,
         MCInstBuilder(BarrierOpcode).addImm((MemScope << 3) + MemFlag));
