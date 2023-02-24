@@ -931,9 +931,11 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 def REGEXT : RVInstI<0b010, OPC_CUSTOM_0, (outs GPR:$rd),
                      (ins GPR:$rs1, simm12:$imm12),
                      "regext", "$rd, $rs1, $imm12">;
-
+def REGEXTI : RVInstI<0b011, OPC_CUSTOM_0, (outs GPR:$rd),
+                     (ins GPR:$rs1, simm12:$imm12),
+                     "regextI", "$rd, $rs1, $imm12">;
 // Ventus extended inst `endprg`
-def ENDPRG : RVInstI<0b010, OPC_CUSTOM_0, (outs), (ins),
+def ENDPRG : RVInstI<0b100, OPC_CUSTOM_0, (outs), (ins),
                     "endprg", "X0, X0, X0">, Sched<[]> {
   field bits<5> rs2;
 
@@ -948,7 +950,7 @@ def ENDPRG : RVInstI<0b010, OPC_CUSTOM_0, (outs), (ins),
 
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
 
-class BarrierBase<bits<3> func3, string opcodestr> :
+class BarrierBase<bits<7> func7, bits<3> func3, string opcodestr> :
               RVInstI<func3, OPC_CUSTOM_0, (outs), (ins uimm5:$uimm5),
               opcodestr, "X0, X0, $uimm5">{
   bits<5> rs2;
@@ -956,7 +958,7 @@ class BarrierBase<bits<3> func3, string opcodestr> :
 
   let rs2 = 0b00000;
   let rd = 0b00000;
-  let Inst{31-25} = 0b0000001;
+  let Inst{31-25} = func7;
   let Inst{24-20} = rs2;
   let Inst{19-18} = uimm5{4-3};
   let Inst{17-15} = uimm5{2-0};
@@ -964,9 +966,8 @@ class BarrierBase<bits<3> func3, string opcodestr> :
 
 let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in {
 
-def BARRIER : BarrierBase<0b010, "barrier">;
-// FIXME: The encoding need to be changed
-def SUBGROUP_BARRIER : BarrierBase<0b011, "barriersub"> {
+def BARRIER : BarrierBase<0b0000010, 0b100, "barrier">;
+def SUBGROUP_BARRIER : BarrierBase<0b0000011, 0b100, "barriersub"> {
   let Inst{19-18} = 0b00;
 }
 

@@ -95,7 +95,7 @@ class RVInstVB<bits<3> funct3, dag outs, dag ins,
   let Inst{14-12} = funct3;
   let Inst{11-8} = imm12{3-0};
   let Inst{7} = imm12{10};
-  let Opcode = OPC_CUSTOM_4.Value;
+  let Opcode = OPC_CUSTOM_2.Value;
 }
 
 class RVInstVX<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,

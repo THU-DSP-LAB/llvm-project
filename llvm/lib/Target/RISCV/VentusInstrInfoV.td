@@ -59,10 +59,19 @@ class DivergentNonPriLdPat<PatFrag LoadOp, RVInst Inst>
                 (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2)))),
                 (Inst GPR:$rs1, VGPR:$vs2)>;
 
+class DivergentNonPriLdImmPat<PatFrag LoadOp, RVInst Inst>
+ : Pat<(XLenVT (DivergentNonPrivateLoadFrag<LoadOp>
+                (AddrRegReg (XLenVT VGPR:$vs1), simm12:$imm12))),
+                (Inst VGPR:$vs1, simm12:$imm12)>;
+
 class DivergentNonPriStPat<PatFrag StoreOp, RVInst Inst>
   : Pat<(DivergentNonPrivateStoreFrag<StoreOp>
          (XLenVT VGPR:$vs3), (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2))),
          (Inst VGPR:$vs3, GPR:$rs1, VGPR:$vs2)>;
+class DivergentNonPriStImmPat<PatFrag StoreOp, RVInst Inst>
+  : Pat<(DivergentNonPrivateStoreFrag<StoreOp>
+         (XLenVT VGPR:$vs3), (AddrRegReg (XLenVT VGPR:$vs1), simm12:$imm12)),
+         (Inst VGPR:$vs3, GPR:$vs1, simm12:$imm12)>;
 
 // RVV instruction pattern class for float/interger ternary operations
 // Dst is used to identify vx and vf
@@ -707,14 +716,38 @@ class Branch_i<bits<3> funct3, string opcodestr>
   let vs2 = 0;
 }
 
-class VENTUS_VLWI12<bits<3> funct3, string opcodestr> :
-              RVInstI<funct3, OPC_LOAD_FP, (outs VGPR:$rd),
-              (ins VGPRMem:$rs1, simm12:$imm12),
-              opcodestr # ".v" , "$rd, ${imm12}(${rs1})">, Sched<[]>;
-class VENTUS_VSWI12<bits<3> funct3, string opcodestr> :
+// Customized load/store instructions
+class VENTUS_VL<bits<3> funct3, string opcodestr>:
+            RVInstSetVLi<0b0, (outs VGPR:$vd), (ins GPRMem:$rs1, simm11:$imm11),
+                      opcodestr # ".v", "$vd, ${imm11}(${rs1})"> {
+      let Inst{14-12} = funct3;
+      let Opcode = OPC_CUSTOM_1.Value;
+}
+class VENTUS_VS<bits<3> funct3, string opcodestr>:
+            RVInstSetVLi<0b1, (outs VGPR:$vd), (ins GPRMem:$rs1, simm11:$imm11),
+                      opcodestr # ".v", "$vd, ${imm11}(${rs1})"> {
+      let Inst{14-12} = funct3;
+      let Opcode = OPC_CUSTOM_1.Value;
+}
+
+class VENTUS_VLI12<bits<3> funct3, string opcodestr> :
+              RVInstI<funct3, OPC_LOAD_FP, (outs VGPR:$vd),
+              (ins VGPRMem:$vs1, simm12:$imm12),
+              opcodestr # ".v" , "$vd, ${imm12}(${vs1})">, Sched<[]> {
+      bits<5> vs1;
+      bits<5> vd;
+      let Inst{19-15} = vs1;
+      let Inst{11-7} = vd;
+}
+class VENTUS_VSI12<bits<3> funct3, string opcodestr> :
               RVInstS<funct3, OPC_STORE_FP, (outs),
-              (ins VGPR:$rs1, VGPRMem:$rs2, simm12:$imm12),
-              opcodestr # ".v", "$rs1, ${imm12}(${rs2})">, Sched<[]>;
+              (ins VGPR:$vs2, VGPRMem:$vs1, simm12:$imm12),
+              opcodestr # ".v", "$vs2, ${imm12}(${vs1})">, Sched<[]> {
+      bits<5> vs1;
+      bits<5> vs2;
+      let Inst{24-20} = vs2;
+      let Inst{19-15} = vs1;
+}
 
 //===----------------------------------------------------------------------===//
 // Instructions
@@ -726,7 +759,7 @@ def VBLT  : BranchCC_vvi<0b100, "vblt">;
 def VBGE  : BranchCC_vvi<0b101, "vbge">;
 def VBLTU : BranchCC_vvi<0b110, "vbltu">;
 def VBGEU : BranchCC_vvi<0b111, "vbgeu">;
-def JOIN  : Branch_i<0b011, "vjoin">;
+def JOIN  : Branch_i<0b011, "join">;
 
 def VLUXEI8  : VectorLoad<LSWidth8,  "vluxei8.v">;
 def VLUXEI16 : VectorLoad<LSWidth16, "vluxei16.v">;
@@ -742,17 +775,25 @@ def VSUXEI32 : VectorStore<LSWidth32, "vsuxei32.v">;
 
 // FIXME: simm11 is encoded into register name in assembly code.
 let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in {
-def VLW : RVInstSetVLi<1, (outs VGPR:$vd), (ins GPRMem:$rs1, simm11:$imm11),
-                       "vlw", "$vd, ${imm11}(${rs1})">;
-// FIXME: update funct3
-def VLWI12 : VENTUS_VLWI12<0b010, "vlw12">;
+def VLW : VENTUS_VL<0b010, "vlw">;
+def VLH : VENTUS_VL<0b001, "vlh">;
+def VLB : VENTUS_VL<0b000, "vlb">;
+def VLHU : VENTUS_VL<0b101, "vlhu">;
+def VLBU : VENTUS_VL<0b100, "vlbu">;
+def VLWI12 : VENTUS_VLI12<0b110, "vlw12">;
+def VLHI12 : VENTUS_VLI12<0b111, "vlh12">;
+def VLBI12 : VENTUS_VLI12<0b000, "vlb12">;
+def VLHUI12 : VENTUS_VLI12<0b101, "vlhu12">;
+def VLBUI12 : VENTUS_VLI12<0b100, "vlbu12">;
 }
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in {
 def VSW : RVInstSetVLi<0, (outs), (ins VGPR:$vd, GPRMem:$rs1, simm11:$imm11),
                        "vsw", "$vd, ${imm11}(${rs1})">;
 // FIXME: update funct3
-def VSWI12 : VENTUS_VSWI12<0b010, "vsw12">;
+def VSWI12 : VENTUS_VSI12<0b110, "vsw12">;
+def VSHI12 : VENTUS_VSI12<0b111, "vsh12">;
+def VSBI12 : VENTUS_VSI12<0b000, "vsb12">;
 }
 
 let Predicates = [HasVInstructions] in {
@@ -1171,16 +1212,18 @@ def VFEXP : RVInstIVI<0b000010, (outs VGPR:$vd),
                     (ins VGPR:$vs2),"vfexp", "$vd, $vs2"> {
   let Inst{25} = 0b1;
   let Inst{19-15} = 0;
+  let Inst{14-12} = 0b110;
   let Opcode = OPC_CUSTOM_0.Value;
 }
 
 let Constraints = "$vd_wb = $vd" in
-def VFTTA : RVInstIVI<0b000001, (outs VGPR:$vd_wb),
+def VFTTA : RVInstIVI<0b000011, (outs VGPR:$vd_wb),
                     (ins VGPR:$vd, VGPR:$vs2, VGPR:$vs1),
                     "vftta.vv", "$vd, $vs2, $vs1"> {
   bits<5> vs1;
   let Inst{25} = 0b1;
   let Inst{19-15} = vs1;
+  let Inst{14-12} = 0b100;
   let Opcode = OPC_CUSTOM_0.Value;
 }
 
@@ -1301,12 +1344,13 @@ def : DivergentNonPriLdPat<load, VLUXEI32>;
 def : DivergentNonPriStPat<truncstorei8, VSUXEI8>;
 def : DivergentNonPriStPat<truncstorei16, VSUXEI16>;
 def : DivergentNonPriStPat<store, VSUXEI32>;
+// TODO: add store/load test file for testing pattern match
+def : DivergentNonPriLdImmPat<load, VLWI12>;
+def : DivergentNonPriStImmPat<store, VSWI12>;
 
 // Private memory per-thread load/store
 def : DivergentPriLdPat<load, VLW>;
 def : DivergentPriStPat<store, VSW>;
-def : DivergentPriLdPat<load, VLWI12>;
-def : DivergentPriStPat<store, VSWI12>;
 
 def DivergentSelectCCFrag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
                                        node:$truev, node:$falsev),
