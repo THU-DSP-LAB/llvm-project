@@ -609,6 +609,27 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     ReplaceNode(Node, MULHU);
     return;
   }
+// TODO: fix or remove these codes
+//   case ISD::INTRINSIC_VOID: {
+//     unsigned IntrinsicOpcode = Node->getConstantOperandVal(1);
+//     switch (IntrinsicOpcode) {
+//       case Intrinsic::riscv_ventus_barrier: {
+//         // SDNode *BARRIER = CurDAG->getMachineNode(RISCV::BARRIER, DL, VT, Node->getOperand(1), Node->getOperand(2));
+//         // ReplaceNode(Node, BARRIER);
+//         // return;
+//       }
+//       case Intrinsic::riscv_ventus_barrier_with_scope: {
+
+//       }
+//       case Intrinsic::riscv_ventus_barriersub: {
+
+//       }
+//       case Intrinsic::riscv_ventus_barriersub_with_scope: {
+
+//       }
+//     }
+//     break;
+//   }
   }
   // Select the default instruction.
   SelectCode(Node);
@@ -876,8 +897,8 @@ bool RISCVDAGToDAGISel::SelectAddrRegReg(SDValue Addr, SDValue &Base,
 
       if (auto *FIN = dyn_cast<FrameIndexSDNode>(Base))
         Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), VT);
-      assert(0 && "TODO");
-      // Offset = CurDAG->getTargetConstant(CVal, DL, VT);
+    //   assert(0 && "TODO");
+      Offset = CurDAG->getTargetConstant(CVal, DL, VT);
       return true;
     }
   }

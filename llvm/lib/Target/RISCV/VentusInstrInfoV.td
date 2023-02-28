@@ -1346,10 +1346,22 @@ def : DivergentNonPriStPat<truncstorei16, VSUXEI16>;
 def : DivergentNonPriStPat<store, VSUXEI32>;
 // TODO: add store/load test file for testing pattern match
 def : DivergentNonPriLdImmPat<load, VLWI12>;
+def : DivergentNonPriLdImmPat<sextloadi16, VLHI12>;
+def : DivergentNonPriLdImmPat<extloadi16, VLHI12>;
+def : DivergentNonPriLdImmPat<sextloadi8, VLBI12>;
+def : DivergentNonPriLdImmPat<extloadi8, VLBI12>;
+def : DivergentNonPriLdImmPat<zextloadi8, VLBUI12>;
+def : DivergentNonPriLdImmPat<zextloadi16, VLHUI12>;
 def : DivergentNonPriStImmPat<store, VSWI12>;
+def : DivergentNonPriStImmPat<truncstorei16, VSHI12>;
+def : DivergentNonPriStImmPat<truncstorei8, VSBI12>;
 
 // Private memory per-thread load/store
 def : DivergentPriLdPat<load, VLW>;
+def : DivergentPriLdPat<sextloadi16, VLH>;
+def : DivergentPriLdPat<extloadi16, VLH>;
+def : DivergentPriLdPat<extloadi16, VLH>;
+def : DivergentPriLdPat<extloadi8, VLB>;
 def : DivergentPriStPat<store, VSW>;
 
 def DivergentSelectCCFrag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
