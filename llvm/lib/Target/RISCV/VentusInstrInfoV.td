@@ -724,7 +724,7 @@ class VENTUS_VL<bits<3> funct3, string opcodestr>:
       let Opcode = OPC_CUSTOM_1.Value;
 }
 class VENTUS_VS<bits<3> funct3, string opcodestr>:
-            RVInstSetVLi<0b1, (outs VGPR:$vd), (ins GPRMem:$rs1, simm11:$imm11),
+            RVInstSetVLi<0b1, (outs), (ins VGPR:$vd, GPRMem:$rs1, simm11:$imm11),
                       opcodestr # ".v", "$vd, ${imm11}(${rs1})"> {
       let Inst{14-12} = funct3;
       let Opcode = OPC_CUSTOM_1.Value;
@@ -788,8 +788,9 @@ def VLBUI12 : VENTUS_VLI12<0b100, "vlbu12">;
 }
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in {
-def VSW : RVInstSetVLi<0, (outs), (ins VGPR:$vd, GPRMem:$rs1, simm11:$imm11),
-                       "vsw", "$vd, ${imm11}(${rs1})">;
+def VSW : VENTUS_VS<0b010, "vsw">;
+def VSH : VENTUS_VS<0b001, "vsh">;
+def VSB : VENTUS_VS<0b000, "vsb">;
 // FIXME: update funct3
 def VSWI12 : VENTUS_VSI12<0b110, "vsw12">;
 def VSHI12 : VENTUS_VSI12<0b111, "vsh12">;
@@ -1334,16 +1335,6 @@ defm : PatVXFTer<[ReverseDivergentBinFrag<sub>, DivergentBinFrag<mul>],
 def : Pat<(any_fsqrt (f32 VGPR:$rs1)), (VFSQRT_V (f32 VGPR:$rs1))>;
 
 // Non-private memory load/store
-def : DivergentNonPriLdPat<sextloadi8, VLUXEI8>;
-def : DivergentNonPriLdPat<extloadi8, VLUXEI8>;
-def : DivergentNonPriLdPat<sextloadi16, VLUXEI16>;
-def : DivergentNonPriLdPat<extloadi16, VLUXEI16>;
-def : DivergentNonPriLdPat<load, VLUXEI32>;
-//def : DivergentNonPriLdPat<zextloadi8, VLUXEI8U>;
-//def : DivergentNonPriLdPat<zextloadi16, VLUXEI16U>;
-def : DivergentNonPriStPat<truncstorei8, VSUXEI8>;
-def : DivergentNonPriStPat<truncstorei16, VSUXEI16>;
-def : DivergentNonPriStPat<store, VSUXEI32>;
 // TODO: add store/load test file for testing pattern match
 def : DivergentNonPriLdImmPat<load, VLWI12>;
 def : DivergentNonPriLdImmPat<sextloadi16, VLHI12>;
@@ -1355,14 +1346,28 @@ def : DivergentNonPriLdImmPat<zextloadi16, VLHUI12>;
 def : DivergentNonPriStImmPat<store, VSWI12>;
 def : DivergentNonPriStImmPat<truncstorei16, VSHI12>;
 def : DivergentNonPriStImmPat<truncstorei8, VSBI12>;
+def : DivergentNonPriLdPat<sextloadi8, VLUXEI8>;
+def : DivergentNonPriLdPat<extloadi8, VLUXEI8>;
+def : DivergentNonPriLdPat<sextloadi16, VLUXEI16>;
+def : DivergentNonPriLdPat<extloadi16, VLUXEI16>;
+def : DivergentNonPriLdPat<load, VLUXEI32>;
+//def : DivergentNonPriLdPat<zextloadi8, VLUXEI8U>;
+//def : DivergentNonPriLdPat<zextloadi16, VLUXEI16U>;
+def : DivergentNonPriStPat<truncstorei8, VSUXEI8>;
+def : DivergentNonPriStPat<truncstorei16, VSUXEI16>;
+def : DivergentNonPriStPat<store, VSUXEI32>;
 
 // Private memory per-thread load/store
 def : DivergentPriLdPat<load, VLW>;
+def : DivergentPriLdPat<zextloadi16, VLHU>;
 def : DivergentPriLdPat<sextloadi16, VLH>;
 def : DivergentPriLdPat<extloadi16, VLH>;
-def : DivergentPriLdPat<extloadi16, VLH>;
+def : DivergentPriLdPat<zextloadi8, VLBU>;
 def : DivergentPriLdPat<extloadi8, VLB>;
+def : DivergentPriLdPat<sextloadi8, VLB>;
 def : DivergentPriStPat<store, VSW>;
+def : DivergentPriStPat<truncstorei16, VSH>;
+def : DivergentPriStPat<truncstorei8, VSB>;
 
 def DivergentSelectCCFrag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
                                        node:$truev, node:$falsev),

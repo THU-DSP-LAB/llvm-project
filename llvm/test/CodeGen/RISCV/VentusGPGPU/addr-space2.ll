@@ -34,18 +34,18 @@ define spir_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    vmv.s.x v1, a0
 ; VENTUS-NEXT:    vbltu v0, v1, .LBB0_2
 ; VENTUS-NEXT:  # %bb.1: # %if.then
-; VENTUS-NEXT:    vmv.s.x v0, zero
 ; VENTUS-NEXT:    slli a0, a0, 2
 ; VENTUS-NEXT:    add s2, s2, a0
-; VENTUS-NEXT:    vlw v1, zero(s2)
+; VENTUS-NEXT:    vlw.v v0, zero(s2)
 ; VENTUS-NEXT:    add s1, s1, a0
 ; VENTUS-NEXT:    lw a1, 0(s1)
 ; VENTUS-NEXT:    add a0, a0, s0
 ; VENTUS-NEXT:    lw a2, 0(a0)
-; VENTUS-NEXT:    vmv.s.x v2, a1
-; VENTUS-NEXT:    vmv.s.x v3, a2
-; VENTUS-NEXT:    vmadd.vv v1, v2, v3
-; VENTUS-NEXT:    vsuxei32.v v1, (a0), v0
+; VENTUS-NEXT:    vmv.s.x v1, a1
+; VENTUS-NEXT:    vmv.s.x v2, a2
+; VENTUS-NEXT:    vmadd.vv v0, v1, v2
+; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vsw12.v v0, zero(v1)
 ; VENTUS-NEXT:    j .LBB0_3
 ; VENTUS-NEXT:  .LBB0_2: # %if.else
 ; VENTUS-NEXT:    slli a0, a0, 2
@@ -100,3 +100,140 @@ declare dso_local i32 @_Z12get_local_idj(i32 noundef)
 
 ; Function Attrs: mustprogress nocallback nofree nosync nounwind willreturn memory(argmem: readwrite)
 declare void @llvm.lifetime.end.p5(i64 immarg, ptr addrspace(5) nocapture)
+
+@global_int = local_unnamed_addr addrspace(1) global i32 12, align 4
+@global_short = local_unnamed_addr addrspace(1) global i16 12, align 2
+@global_char = local_unnamed_addr addrspace(1) global i8 12, align 1
+@cons = local_unnamed_addr addrspace(4) constant i32 5, align 4
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(read, argmem: readwrite, inaccessiblemem: none)
+define dso_local void @local_memmory(ptr addrspace(3) nocapture noundef %a) local_unnamed_addr{
+; VENTUS-LABEL: local_memmory:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vlw12.v v1, zero(v0)
+; VENTUS-NEXT:    lui a0, %hi(global_int)
+; VENTUS-NEXT:    lw a0, %lo(global_int)(a0)
+; VENTUS-NEXT:    vadd.vx v1, v1, a0
+; VENTUS-NEXT:    vsw12.v v1, zero(v0)
+; VENTUS-NEXT:    ret
+entry:
+  %0 = load i32, ptr addrspace(3) %a, align 4
+  %1 = load i32, ptr addrspace(1) @global_int, align 4
+  %add = add nsw i32 %1, %0
+  store i32 %add, ptr addrspace(3) %a, align 4
+  ret void
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: readwrite)
+define dso_local void @local_memmory_lhimm(ptr addrspace(3) nocapture noundef %a) local_unnamed_addr{
+; VENTUS-LABEL: local_memmory_lhimm:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vlh12.v v1, 10(v0)
+; VENTUS-NEXT:    vadd.vi v1, v1, 1
+; VENTUS-NEXT:    vsh12.v v1, 10(v0)
+; VENTUS-NEXT:    ret
+entry:
+  %add.ptr = getelementptr inbounds i16, ptr addrspace(3) %a, i32 5
+  %0 = load i16, ptr addrspace(3) %add.ptr, align 2
+  %add = add i16 %0, 1
+  store i16 %add, ptr addrspace(3) %add.ptr, align 2
+  ret void
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: readwrite)
+define dso_local void @local_memmory_lbimm(ptr addrspace(3) nocapture noundef %a) local_unnamed_addr {
+; VENTUS-LABEL: local_memmory_lbimm:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vlb12.v v1, 5(v0)
+; VENTUS-NEXT:    vadd.vi v1, v1, 1
+; VENTUS-NEXT:    vsb12.v v1, 5(v0)
+; VENTUS-NEXT:    ret
+entry:
+  %add.ptr = getelementptr inbounds i8, ptr addrspace(3) %a, i32 5
+  %0 = load i8, ptr addrspace(3) %add.ptr, align 1
+  %add = add i8 %0, 1
+  store i8 %add, ptr addrspace(3) %add.ptr, align 1
+  ret void
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(read, argmem: readwrite, inaccessiblemem: none)
+define dso_local void @private_memmory(ptr addrspace(5) nocapture noundef %a) local_unnamed_addr {
+; VENTUS-LABEL: private_memmory:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    vlw.v v0, zero(a0)
+; VENTUS-NEXT:    lui a1, %hi(global_int)
+; VENTUS-NEXT:    lw a1, %lo(global_int)(a1)
+; VENTUS-NEXT:    vadd.vx v0, v0, a1
+; VENTUS-NEXT:    vsw.v v0, zero(a0)
+; VENTUS-NEXT:    ret
+entry:
+  %0 = load i32, ptr addrspace(5) %a, align 4
+  %1 = load i32, ptr addrspace(1) @global_int, align 4
+  %add = add nsw i32 %1, %0
+  store i32 %add, ptr addrspace(5) %a, align 4
+  ret void
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(read, argmem: readwrite, inaccessiblemem: none)
+define dso_local void @private_memmory_with_offset(ptr addrspace(5) nocapture noundef %a) local_unnamed_addr{
+; VENTUS-LABEL: private_memmory_with_offset:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    vlw.v v0, 4(a0)
+; VENTUS-NEXT:    lui a1, %hi(global_int)
+; VENTUS-NEXT:    lw a1, %lo(global_int)(a1)
+; VENTUS-NEXT:    vadd.vx v0, v0, a1
+; VENTUS-NEXT:    vsw.v v0, 4(a0)
+; VENTUS-NEXT:    ret
+entry:
+  %incdec.ptr = getelementptr inbounds i32, ptr addrspace(5) %a, i32 1
+  %0 = load i32, ptr addrspace(5) %incdec.ptr, align 4
+  %1 = load i32, ptr addrspace(1) @global_int, align 4
+  %add = add nsw i32 %1, %0
+  store i32 %add, ptr addrspace(5) %incdec.ptr, align 4
+  ret void
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(read, argmem: readwrite, inaccessiblemem: none)
+define dso_local void @private_memmory_lh(ptr addrspace(5) nocapture noundef %a) local_unnamed_addr {
+; VENTUS-LABEL: private_memmory_lh:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    lui a1, %hi(global_short)
+; VENTUS-NEXT:    lh a1, %lo(global_short)(a1)
+; VENTUS-NEXT:    vlh.v v0, zero(a0)
+; VENTUS-NEXT:    vadd.vx v0, v0, a1
+; VENTUS-NEXT:    vsh.v v0, zero(a0)
+; VENTUS-NEXT:    ret
+entry:
+  %0 = load i16, ptr addrspace(5) %a, align 2
+  %1 = load i16, ptr addrspace(1) @global_short, align 2
+  %add = add i16 %1, %0
+  store i16 %add, ptr addrspace(5) %a, align 2
+  ret void
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define dso_local zeroext i16 @private_memmory_lhu(ptr addrspace(5) nocapture noundef readonly %a) local_unnamed_addr {
+; VENTUS-LABEL: private_memmory_lhu:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    vlhu.v v0, zero(a0)
+; VENTUS-NEXT:    ret
+entry:
+  %0 = load i16, ptr addrspace(5) %a, align 2
+  ret i16 %0
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read)
+define dso_local zeroext i8 @private_memmory_lbu(ptr addrspace(5) nocapture noundef readonly %a) local_unnamed_addr {
+; VENTUS-LABEL: private_memmory_lbu:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    vlbu.v v0, zero(a0)
+; VENTUS-NEXT:    ret
+entry:
+  %0 = load i8, ptr addrspace(5) %a, align 1
+  ret i8 %0
+}

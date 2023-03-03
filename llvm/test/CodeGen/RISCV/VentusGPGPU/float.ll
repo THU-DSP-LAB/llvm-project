@@ -125,15 +125,13 @@ define dso_local float @feq(float noundef %a, float noundef %b) local_unnamed_ad
 ; VENTUS-NEXT:    vbne v0, v2, .LBB10_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB10_3
+; VENTUS-NEXT:    join .LBB10_3
 ; VENTUS-NEXT:  .LBB10_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB10_3
+; VENTUS-NEXT:    join .LBB10_3
 ; VENTUS-NEXT:  .LBB10_3: # %entry
-; VENTUS-NEXT:    vmv.s.x v1, zero
-; VENTUS-NEXT:    vmv.x.s a0, v0
-; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
+; VENTUS-NEXT:    vlw12.v v0, zero(v0)
 ; VENTUS-NEXT:    ret
 entry:
   %cmp = fcmp oeq float %a, %b
@@ -152,15 +150,13 @@ define dso_local float @fneq(float noundef %a, float noundef %b) local_unnamed_a
 ; VENTUS-NEXT:    vbne v0, v2, .LBB11_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB11_3
+; VENTUS-NEXT:    join .LBB11_3
 ; VENTUS-NEXT:  .LBB11_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB11_3
+; VENTUS-NEXT:    join .LBB11_3
 ; VENTUS-NEXT:  .LBB11_3: # %entry
-; VENTUS-NEXT:    vmv.s.x v1, zero
-; VENTUS-NEXT:    vmv.x.s a0, v0
-; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
+; VENTUS-NEXT:    vlw12.v v0, zero(v0)
 ; VENTUS-NEXT:    ret
 entry:
   %cmp = fcmp une float %a, %b
@@ -179,15 +175,13 @@ define dso_local float @flt(float noundef %a, float noundef %b) local_unnamed_ad
 ; VENTUS-NEXT:    vbne v0, v2, .LBB12_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB12_3
+; VENTUS-NEXT:    join .LBB12_3
 ; VENTUS-NEXT:  .LBB12_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB12_3
+; VENTUS-NEXT:    join .LBB12_3
 ; VENTUS-NEXT:  .LBB12_3: # %entry
-; VENTUS-NEXT:    vmv.s.x v1, zero
-; VENTUS-NEXT:    vmv.x.s a0, v0
-; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
+; VENTUS-NEXT:    vlw12.v v0, zero(v0)
 ; VENTUS-NEXT:    ret
 entry:
   %cmp = fcmp olt float %a, %b
@@ -206,15 +200,13 @@ define dso_local float @fle(float noundef %a, float noundef %b) local_unnamed_ad
 ; VENTUS-NEXT:    vbne v0, v2, .LBB13_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB13_3
+; VENTUS-NEXT:    join .LBB13_3
 ; VENTUS-NEXT:  .LBB13_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB13_3
+; VENTUS-NEXT:    join .LBB13_3
 ; VENTUS-NEXT:  .LBB13_3: # %entry
-; VENTUS-NEXT:    vmv.s.x v1, zero
-; VENTUS-NEXT:    vmv.x.s a0, v0
-; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
+; VENTUS-NEXT:    vlw12.v v0, zero(v0)
 ; VENTUS-NEXT:    ret
 entry:
   %cmp = fcmp ole float %a, %b
@@ -235,15 +227,13 @@ define dso_local float @fgt(float noundef %a)  {
 ; VENTUS-NEXT:    vbne v0, v1, .LBB14_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB14_3
+; VENTUS-NEXT:    join .LBB14_3
 ; VENTUS-NEXT:  .LBB14_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB14_3
+; VENTUS-NEXT:    join .LBB14_3
 ; VENTUS-NEXT:  .LBB14_3: # %entry
-; VENTUS-NEXT:    vmv.s.x v1, zero
-; VENTUS-NEXT:    vmv.x.s a0, v0
-; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
+; VENTUS-NEXT:    vlw12.v v0, zero(v0)
 ; VENTUS-NEXT:    ret
 entry:
   %b = alloca float, align 4, addrspace(5)
@@ -268,15 +258,13 @@ define dso_local float @fge(float noundef %a)  {
 ; VENTUS-NEXT:    vbne v0, v1, .LBB15_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB15_3
+; VENTUS-NEXT:    join .LBB15_3
 ; VENTUS-NEXT:  .LBB15_2: # %entry
 ; VENTUS-NEXT:    addi a0, a0, 4
 ; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vjoin .LBB15_3
+; VENTUS-NEXT:    join .LBB15_3
 ; VENTUS-NEXT:  .LBB15_3: # %entry
-; VENTUS-NEXT:    vmv.s.x v1, zero
-; VENTUS-NEXT:    vmv.x.s a0, v0
-; VENTUS-NEXT:    vluxei32.v v0, (a0), v1
+; VENTUS-NEXT:    vlw12.v v0, zero(v0)
 ; VENTUS-NEXT:    ret
 entry:
   %b = alloca float, align 4, addrspace(5)
