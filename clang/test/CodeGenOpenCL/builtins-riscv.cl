@@ -5,11 +5,13 @@
 // VENTUS-LABEL: @test_barrier(
 // VENTUS-NEXT:  entry:
 // VENTUS-NEXT:    tail call void @llvm.riscv.ventus.barrier(i32 3)
+// VENTUS-NEXT:    tail call void @llvm.riscv.ventus.barrier(i32 3)
 // VENTUS-NEXT:    ret void
 //
 void test_barrier()
 {
-  __builtin_riscv_ventus_barrier(3);
+  barrier(3);
+  work_group_barrier(3);
 }
 
 // VENTUS-LABEL: @test_memory_scope_barrier(
@@ -19,25 +21,5 @@ void test_barrier()
 //
 void test_memory_scope_barrier()
 {
-  __builtin_riscv_ventus_barrier_with_scope(3,3);
-}
-
-// VENTUS-LABEL: @test_barriersub(
-// VENTUS-NEXT:  entry:
-// VENTUS-NEXT:    tail call void @llvm.riscv.ventus.barriersub(i32 3)
-// VENTUS-NEXT:    ret void
-//
-void test_barriersub()
-{
-  __builtin_riscv_ventus_barriersub(3);
-}
-
-// VENTUS-LABEL: @test_memory_scope_barriersub(
-// VENTUS-NEXT:  entry:
-// VENTUS-NEXT:    tail call void @llvm.riscv.ventus.barriersub.with.scope(i32 3, i32 3)
-// VENTUS-NEXT:    ret void
-//
-void test_memory_scope_barriersub()
-{
-  __builtin_riscv_ventus_barriersub_with_scope(3,3);
+  work_group_barrier(3,3);
 }

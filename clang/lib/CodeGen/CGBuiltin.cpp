@@ -19490,18 +19490,27 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
   */
 
   // Ventus GPGPU workitem
-  case RISCV::BI__builtin_riscv_ventus_barrier:
+  case RISCV::BIbarrier:
     ID = Intrinsic::riscv_ventus_barrier;
     break;
-  case RISCV::BI__builtin_riscv_ventus_barrier_with_scope:
-    ID = Intrinsic::riscv_ventus_barrier_with_scope;
-    break;
-  case RISCV::BI__builtin_riscv_ventus_barriersub_with_scope:
-    ID = Intrinsic::riscv_ventus_barriersub_with_scope;
-    break;
-  case RISCV::BI__builtin_riscv_ventus_barriersub:
-    ID = Intrinsic::riscv_ventus_barriersub;
-    break;
+  case RISCV::BIwork_group_barrier: {
+      unsigned NumArgs = E->getNumArgs();
+      switch (NumArgs) {
+        case 1:
+          ID = Intrinsic::riscv_ventus_barrier;
+          break;
+        case 2:
+          ID = Intrinsic::riscv_ventus_barrier_with_scope;
+          break;
+        default:
+          llvm_unreachable("unexpected arr numbers");
+      }
+      break;
+  }
+
+  // case RISCV::BIwork_group_barrier_scope:
+  //   ID = Intrinsic::riscv_ventus_barrier_with_scope;
+  //   break;
 
   case RISCV::BI__builtin_riscv_orc_b_32:
   case RISCV::BI__builtin_riscv_orc_b_64:

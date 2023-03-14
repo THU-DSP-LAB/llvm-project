@@ -29,6 +29,13 @@
 #define GET_SUBTARGETINFO_HEADER
 #include "RISCVGenSubtargetInfo.inc"
 
+// FIXME: invalid yet
+#if defined(__opencl_c_subgroups)
+#define SubGroupFlag true
+#else
+#define SubGroupFlag false
+#endif
+
 namespace llvm {
 class StringRef;
 
@@ -138,9 +145,7 @@ public:
     return &FrameLowering;
   }
   const RISCVInstrInfo *getInstrInfo() const override { return &InstrInfo; }
-  const RISCVRegisterInfo *getRegisterInfo() const override {
-    return &RegInfo;
-  }
+  const RISCVRegisterInfo *getRegisterInfo() const override { return &RegInfo; }
   const RISCVTargetLowering *getTargetLowering() const override {
     return &TLInfo;
   }
@@ -204,6 +209,7 @@ public:
   bool enableDefaultUnroll() const { return EnableDefaultUnroll; }
   bool enableSaveRestore() const { return EnableSaveRestore; }
   bool hasShortForwardBranchOpt() const { return HasShortForwardBranchOpt; }
+  bool hasSubgroupFlag() const { return SubGroupFlag; };
   bool enableUnalignedScalarMem() const { return EnableUnalignedScalarMem; }
   bool hasLUIADDIFusion() const { return HasLUIADDIFusion; }
   bool hasForcedAtomics() const { return HasForcedAtomics; }
@@ -263,14 +269,14 @@ protected:
   std::unique_ptr<RegisterBankInfo> RegBankInfo;
 
   // Return the known range for the bit length of RVV data registers as set
-  // at the command line. A value of 0 means nothing is known about that particular
-  // limit beyond what's implied by the architecture.
-  // NOTE: Please use getRealMinVLen and getRealMaxVLen instead!
+  // at the command line. A value of 0 means nothing is known about that
+  // particular limit beyond what's implied by the architecture. NOTE: Please
+  // use getRealMinVLen and getRealMaxVLen instead!
   unsigned getMaxRVVVectorSizeInBits() const;
   unsigned getMinRVVVectorSizeInBits() const;
 
-  // Return the known range for the bit length of RVV data registers as indicated
-  // by -march and -mattr.
+  // Return the known range for the bit length of RVV data registers as
+  // indicated by -march and -mattr.
   unsigned getArchMinVLen() const { return ZvlLen; }
   unsigned getArchMaxVLen() const { return 65536; }
 
@@ -294,6 +300,6 @@ public:
   void getPostRAMutations(std::vector<std::unique_ptr<ScheduleDAGMutation>>
                               &Mutations) const override;
 };
-} // End llvm namespace
+} // namespace llvm
 
 #endif

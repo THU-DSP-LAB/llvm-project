@@ -130,6 +130,7 @@ public:
     Opts["__cl_clang_variadic_functions"] = true;
     Opts["__opencl_c_images"] = true;
     Opts["__opencl_c_3d_image_writes"] = true;
+    Opts["cl_khr_3d_image_writes"] = true;
   }
 
   LangAS getOpenCLTypeAddrSpace(OpenCLTypeKind TK) const override {
