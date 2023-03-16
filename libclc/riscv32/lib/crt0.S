@@ -29,7 +29,7 @@ _start:
   # allocate warp and per-thread level stack pointers, both
   # stacks grows upwards
   csrr sp, CSR_LDS      # sp points to baseaddr of local memory of each SM
-  addi tp, zero, 0      # tp points to the lower bound of private memory(1K) of each thread
+  csrr tp, CSR_PDS      # tp points to baseaddr for lower bound of private memory(1K) of each thread
 
   # clear BSS segment
   la      a0, _edata
