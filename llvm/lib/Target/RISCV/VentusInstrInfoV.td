@@ -28,8 +28,8 @@ multiclass PatVXIBin<SDPatternOperator Op, list<RVInst> Insts> {
             (XLenVT (Insts[1] VGPR:$rs1, GPR:$rs2))>;
 
   if !eq(!size(Insts), 3) then
-    def : Pat<(XLenVT (Op (XLenVT VGPR:$rs1), uimm5:$imm)),
-              (XLenVT (Insts[2] VGPR:$rs1, uimm5:$imm))>;
+    def : Pat<(XLenVT (Op (XLenVT VGPR:$rs1), simm5:$imm)),
+              (XLenVT (Insts[2] VGPR:$rs1, simm5:$imm))>;
 }
 // RVV VV, VF, FV instruction pattern class for floating point binary operations
 multiclass PatVFRBin<SDPatternOperator Op, list<RVInst> Insts> {
@@ -150,42 +150,6 @@ class VTypeIOp<int VTypeINum> : Operand<XLenVT> {
 
 def VTypeIOp10 : VTypeIOp<10>;
 def VTypeIOp11 : VTypeIOp<11>;
-
-def simm5 : Operand<XLenVT>, ImmLeaf<XLenVT, [{return isInt<5>(Imm);}]> {
-  let ParserMatchClass = SImmAsmOperand<5>;
-  let EncoderMethod = "getImmOpValue";
-  let DecoderMethod = "decodeSImmOperand<5>";
-  let OperandType = "OPERAND_SIMM5";
-  let OperandNamespace = "RISCVOp";
-  let MCOperandPredicate = [{
-    int64_t Imm;
-    if (MCOp.evaluateAsConstantImm(Imm))
-      return isInt<5>(Imm);
-    return MCOp.isBareSymbolRef();
-  }];
-}
-
-def SImm5Plus1AsmOperand : AsmOperandClass {
-  let Name = "SImm5Plus1";
-  let RenderMethod = "addImmOperands";
-  let DiagnosticType = "InvalidSImm5Plus1";
-}
-
-def simm5_plus1 : Operand<XLenVT>, ImmLeaf<XLenVT,
-  [{return (isInt<5>(Imm) && Imm != -16) || Imm == 16;}]> {
-  let ParserMatchClass = SImm5Plus1AsmOperand;
-  let OperandType = "OPERAND_SIMM5_PLUS1";
-  let OperandNamespace = "RISCVOp";
-  let MCOperandPredicate = [{
-    int64_t Imm;
-    if (MCOp.evaluateAsConstantImm(Imm))
-      return (isInt<5>(Imm) && Imm != -16) || Imm == 16;
-    return MCOp.isBareSymbolRef();
-  }];
-}
-
-def simm5_plus1_nonzero : ImmLeaf<XLenVT,
-  [{return Imm != 0 && ((isInt<5>(Imm) && Imm != -16) || Imm == 16);}]>;
 
 //===----------------------------------------------------------------------===//
 // Scheduling definitions.

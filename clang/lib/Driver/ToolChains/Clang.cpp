@@ -3439,7 +3439,8 @@ static void RenderOpenCLOptions(const ArgList &Args, ArgStringList &CmdArgs,
        (Args.hasArg(options::OPT_cl_std_EQ) && types::isSrcFile(InputType))) &&
       !Args.hasArg(options::OPT_cl_no_stdinc)) {
     CmdArgs.push_back("-finclude-default-header");
-    CmdArgs.push_back("-fdeclare-opencl-builtins");
+    // WORKAROUND: still don't know whether this option has other impacts
+    // CmdArgs.push_back("-fdeclare-opencl-builtins");
   }
 }
 
