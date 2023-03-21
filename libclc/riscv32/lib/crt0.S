@@ -28,6 +28,7 @@ _start:
 
   # allocate warp and per-thread level stack pointers, both
   # stacks grows upwards
+  vsetvli x0,x0,e32,m1,ta,ma
   csrr sp, CSR_LDS      # sp points to baseaddr of local memory of each SM
   csrr tp, CSR_PDS      # tp points to baseaddr for lower bound of private memory(1K) of each thread
 
@@ -42,8 +43,10 @@ _start:
 
 2:
   csrr t0, CSR_KNL	      # get addr of kernel metadata
-  lw t1, KNL_ENTRY(t0)    # get kernel program address
-  lw a0, KNL_ARG_BASE(t0) # get kernel arg buffer base address
+  la t1, test             # all the tested function is named to be test
+  # lw t1, KNL_ENTRY(t0)    # get kernel program address
+  # lw a0, KNL_ARG_BASE(t0) # get kernel arg buffer base address
+  # WORKAROUND: when buffer is ready, restore lines above
   jalr t1                 # call kernel program
 
   # call exit routine

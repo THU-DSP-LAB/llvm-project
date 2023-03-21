@@ -971,7 +971,7 @@ def REGEXTI : RVInstI<0b011, OPC_CUSTOM_0, (outs GPR:$rd),
                      "regextI", "$rd, $rs1, $imm12">;
 // Ventus extended inst `endprg`
 def ENDPRG : RVInstI<0b100, OPC_CUSTOM_0, (outs), (ins),
-                    "endprg", "X0, X0, X0">, Sched<[]> {
+                    "endprg", "zero, zero, zero">, Sched<[]> {
   field bits<5> rs2;
 
   let rs2 = 0b00000;
@@ -987,7 +987,7 @@ def ENDPRG : RVInstI<0b100, OPC_CUSTOM_0, (outs), (ins),
 
 class BarrierBase<bits<7> func7, bits<3> func3, string opcodestr> :
               RVInstI<func3, OPC_CUSTOM_0, (outs), (ins uimm5:$uimm5),
-              opcodestr, "X0, X0, $uimm5">{
+              opcodestr, "zero, zero, $uimm5">{
   bits<5> rs2;
   field bits<5> uimm5;
 
