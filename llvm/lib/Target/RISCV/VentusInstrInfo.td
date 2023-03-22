@@ -972,7 +972,7 @@ def REGEXTI : RVInstI<0b011, OPC_CUSTOM_0, (outs GPR:$rd),
 // Ventus extended inst `endprg`
 def ENDPRG : RVInstI<0b100, OPC_CUSTOM_0, (outs), (ins),
                     "endprg", "zero, zero, zero">, Sched<[]> {
-  field bits<5> rs2;
+  bits<5> rs2;
 
   let rs2 = 0b00000;
   let rs1 = 0;
@@ -985,11 +985,11 @@ def ENDPRG : RVInstI<0b100, OPC_CUSTOM_0, (outs), (ins),
 
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
 
-class BarrierBase<bits<7> func7, bits<3> func3, string opcodestr> :
-              RVInstI<func3, OPC_CUSTOM_0, (outs), (ins uimm5:$uimm5),
-              opcodestr, "zero, zero, $uimm5">{
+class BarrierBase<bits<7> func7, string opcodestr> :
+    RVInstI<0b100, OPC_CUSTOM_0, (outs), (ins uimm5:$uimm5),
+    opcodestr, "X0, X0, $uimm5"> {
   bits<5> rs2;
-  field bits<5> uimm5;
+  bits<5> uimm5;
 
   let rs2 = 0b00000;
   let rd = 0b00000;
@@ -1001,8 +1001,8 @@ class BarrierBase<bits<7> func7, bits<3> func3, string opcodestr> :
 
 let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in {
 
-def BARRIER : BarrierBase<0b0000010, 0b100, "barrier">;
-def SUBGROUP_BARRIER : BarrierBase<0b0000011, 0b100, "barriersub"> {
+def BARRIER : BarrierBase<0b0000010, "barrier">;
+def SUBGROUP_BARRIER : BarrierBase<0b0000011, "barriersub"> {
   let Inst{19-18} = 0b00;
 }
 

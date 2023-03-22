@@ -24,7 +24,8 @@
 using namespace llvm;
 
 #define RISCV_EXPAND_PSEUDO_NAME "RISCV pseudo instruction expansion pass"
-#define RISCV_PRERA_EXPAND_PSEUDO_NAME "RISCV Pre-RA pseudo instruction expansion pass"
+#define RISCV_PRERA_EXPAND_PSEUDO_NAME                                         \
+  "RISCV Pre-RA pseudo instruction expansion pass"
 
 namespace {
 
@@ -47,6 +48,8 @@ private:
                 MachineBasicBlock::iterator &NextMBBI);
   bool expandCCOp(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
                   MachineBasicBlock::iterator &NextMBBI);
+  bool expandBarrier(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
+                     MachineBasicBlock::iterator &NextMBBI);
 };
 
 char RISCVExpandPseudo::ID = 0;
@@ -82,9 +85,27 @@ bool RISCVExpandPseudo::expandMI(MachineBasicBlock &MBB,
   switch (MBBI->getOpcode()) {
   case RISCV::PseudoCCMOVGPR:
     return expandCCOp(MBB, MBBI, NextMBBI);
+  case RISCV::PseudoBarrier:
+  case RISCV::PseudoSubGroupBarrier:
+    return expandBarrier(MBB, MBBI, NextMBBI);
   }
-
   return false;
+}
+
+bool RISCVExpandPseudo::expandBarrier(MachineBasicBlock &MBB,
+                                      MachineBasicBlock::iterator MBBI,
+                                      MachineBasicBlock::iterator &NextMBBI) {
+    bool isBarrier = MBBI->getOpcode() == RISCV::PseudoBarrier;
+    unsigned BarrierOpcode =
+        isBarrier ? RISCV::BARRIER : RISCV::SUBGROUP_BARRIER;
+    uint32_t MemFlag = MBBI->getOperand(0).getImm();
+    // when use barriersub, MemScope is default to be 0
+    uint32_t MemScope = isBarrier ? MBBI->getOperand(1).getImm() : 0;
+    BuildMI(MBB, MBBI, MBBI->getDebugLoc(), TII->get(BarrierOpcode))
+        .addReg(RISCV::X0)
+        .addReg(RISCV::X0)
+        .addImm((MemScope << 3) + MemFlag);
+  return true;
 }
 
 bool RISCVExpandPseudo::expandCCOp(MachineBasicBlock &MBB,
@@ -302,6 +323,8 @@ INITIALIZE_PASS(RISCVPreRAExpandPseudo, "riscv-prera-expand-pseudo",
 namespace llvm {
 
 FunctionPass *createRISCVExpandPseudoPass() { return new RISCVExpandPseudo(); }
-FunctionPass *createRISCVPreRAExpandPseudoPass() { return new RISCVPreRAExpandPseudo(); }
+FunctionPass *createRISCVPreRAExpandPseudoPass() {
+  return new RISCVPreRAExpandPseudo();
+}
 
 } // end of namespace llvm
