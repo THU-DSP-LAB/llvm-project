@@ -40,50 +40,31 @@ pipeline {
         }
         stages {
           stage('Build dependency') {
-              when {
-                anyOf {
-                  triggeredBy 'TimerTrigger'
-                  triggeredBy cause: 'UserIdCause'
-                }
-              }
-              steps {
-                build_dependency()
-              }
+            steps {
+              build_dependency()
             }
+          }
           stage('Build ventus') {
-              when {
-                anyOf {
-                  triggeredBy 'TimerTrigger'
-                  triggeredBy cause: 'UserIdCause'
-                }
-              }
-              steps {
-                // build ventus,this need to be modified later
-                  sh "bash /work-test/ventus-git/build-ventus.sh --build llvm-ventus"
-                  echo "$WORKSPACE"
-              }
+            steps {
+              // build ventus,this need to be modified later
+                echo "$WORKSPACE"
             }
+          }
           stage('Build spike') {
-              when {
-                anyOf {
-                  triggeredBy 'TimerTrigger'
-                  triggeredBy cause: 'UserIdCause'
-                }
-              }
-              steps {
-                  echo "Build spike from THU"
+            steps {
+                echo "Build spike from THU"
+            }
+          }
+          stage('Running test') {
+            when {
+              anyOf {
+                triggeredBy 'TimerTrigger'
+                triggeredBy cause: 'UserIdCause'
               }
             }
-          stage('Running test') {
-              when {
-                anyOf {
-                  triggeredBy 'TimerTrigger'
-                  triggeredBy cause: 'UserIdCause'
-                }
-              }
-              steps {
-                  echo "Running spike tests!"
-              }
+            steps {
+                echo "Running spike tests!"
+            }
           }
         }
       }
@@ -111,6 +92,10 @@ pipeline {
       archiveArtifacts artifacts: 'reports/*.json', fingerprint: true, allowEmptyArchive: true
       junit testResults: 'reports/*.xml', allowEmptyResults: true
     }
+  }
+  // Nightly test runs on every night at 23:00
+  triggers {
+      cron('0 23 * * *')
   }
 }
 
