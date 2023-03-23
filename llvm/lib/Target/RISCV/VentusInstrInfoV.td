@@ -695,7 +695,7 @@ class VENTUS_VS<bits<3> funct3, string opcodestr>:
 }
 
 class VENTUS_VLI12<bits<3> funct3, string opcodestr> :
-              RVInstI<funct3, OPC_LOAD_FP, (outs VGPR:$vd),
+              RVInstI<funct3, OPC_CUSTOM_3, (outs VGPR:$vd),
               (ins VGPRMem:$vs1, simm12:$imm12),
               opcodestr # ".v" , "$vd, ${imm12}(${vs1})">, Sched<[]> {
       bits<5> vs1;
@@ -704,7 +704,7 @@ class VENTUS_VLI12<bits<3> funct3, string opcodestr> :
       let Inst{11-7} = vd;
 }
 class VENTUS_VSI12<bits<3> funct3, string opcodestr> :
-              RVInstS<funct3, OPC_STORE_FP, (outs),
+              RVInstS<funct3, OPC_CUSTOM_3, (outs),
               (ins VGPR:$vs2, VGPRMem:$vs1, simm12:$imm12),
               opcodestr # ".v", "$vs2, ${imm12}(${vs1})">, Sched<[]> {
       bits<5> vs1;
@@ -748,8 +748,8 @@ def VLH : VENTUS_VL<0b001, "vlh">;
 def VLB : VENTUS_VL<0b000, "vlb">;
 def VLHU : VENTUS_VL<0b101, "vlhu">;
 def VLBU : VENTUS_VL<0b100, "vlbu">;
-def VLWI12 : VENTUS_VLI12<0b110, "vlw12">;
-def VLHI12 : VENTUS_VLI12<0b111, "vlh12">;
+def VLWI12 : VENTUS_VLI12<0b010, "vlw12">;
+def VLHI12 : VENTUS_VLI12<0b001, "vlh12">;
 def VLBI12 : VENTUS_VLI12<0b000, "vlb12">;
 def VLHUI12 : VENTUS_VLI12<0b101, "vlhu12">;
 def VLBUI12 : VENTUS_VLI12<0b100, "vlbu12">;
@@ -761,8 +761,8 @@ def VSH : VENTUS_VS<0b001, "vsh">;
 def VSB : VENTUS_VS<0b000, "vsb">;
 // FIXME: update funct3
 def VSWI12 : VENTUS_VSI12<0b110, "vsw12">;
-def VSHI12 : VENTUS_VSI12<0b111, "vsh12">;
-def VSBI12 : VENTUS_VSI12<0b000, "vsb12">;
+def VSHI12 : VENTUS_VSI12<0b011, "vsh12">;
+def VSBI12 : VENTUS_VSI12<0b111, "vsb12">;
 }
 
 let Predicates = [HasVInstructions] in {
