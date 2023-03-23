@@ -4,7 +4,7 @@ DIR=$(cd "$(dirname "${0}")" &> /dev/null && (pwd -W 2> /dev/null || pwd))
 VENTUS_BUILD_DIR=${DIR}/build
 LIBCLC_BUILD_DIR=${DIR}/build-libclc
 VENTUS_INSTALL_PREFIX=${DIR}/install
-PROGRAMS_TOBUILD=(llvm-ventus pocl ocl-icd libclc)
+PROGRAMS_TOBUILD=(llvm-ventus libclc ocl-icd pocl)
 
 # Helper function
 help() {
@@ -165,7 +165,7 @@ fi
 check_if_ventus_built() {
   if [ ! -d "${VENTUS_INSTALL_PREFIX}" ];then
     echo "Build llvm-ventus first!"
-    exit 1 
+    exit 1
   fi
 }
 
