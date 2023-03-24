@@ -35,24 +35,22 @@ pipeline {
         axes {
           axis {
               name 'AGENT'
-              values 'linux-x64', 'win64' // TODO: 'freebsd-x86', 'macos-x86', 'macos-arm'
+              values 'linux-x64'// TODO: 'win64', 'freebsd-x86', 'macos-x86', 'macos-arm'
+              // for now, we only enable linux building process
           }
         }
         stages {
-          stage('Build dependency') {
+          stage('Initial&build') {
             steps {
-              build_dependency()
-            }
-          }
-          stage('Build ventus') {
-            steps {
-              // build ventus,this need to be modified later
-                echo "$WORKSPACE"
-            }
-          }
-          stage('Build spike') {
-            steps {
-                echo "Build spike from THU"
+              check_ventus_other_dependency(
+                ["zcc-test-suit", "ocl-icd"]
+                ["${GIT_BRANCH}", "master"],
+                ["git@git.tpt.com:/git/zcc-test-suit.git", "https://github.com/OCL-dev/ocl-icd.git"])
+              check_ventus_THU_dependency([
+                ["llvm-project", "ventus-gpgpu-isa-simulator", "pocl"]
+                ["main", "main", "main"])
+              build_ventus_llvm("${AGENT}")
+              build_ventus_spike("${AGENT}")
             }
           }
           stage('Running test') {
@@ -99,13 +97,54 @@ pipeline {
   }
 }
 
-def build_dependency() {
-    echo "Pulling all the needed repositories"
+
+
+// check all the repositories from THU
+check_ventus_THU_dependency(deps, branches){
+  for (int i = 0; i < deps.size(); i++) {
+    sh "mkdir ${deps[i]} || true"
+    dir(path: "${deps[i]}") {
+      echo "Pulling ${deps[i]}"
+      git(url: "ssh://git@github.com:THU-DSP-LAB/${deps[i]}.gitt",
+          branch: "${branches[i]}",
+          credentialsId: "git-ssh-pk")
+    }
+  }
 }
 
-def build_ventus_test_suite(agent) {
+// Check other dependency such as zcc-test-suit, ocl-icd
+// same as ventus-spike
+def check_ventus_other_dependency(deps, branches, sources) {
+  for (int i = 0; i < deps.size(); i++) {
+    sh "mkdir ${deps[i]} || true"
+    dir(path: "${deps[i]}") {
+      echo "Pulling ${deps[i]}"
+      git(url: sources[i],
+          branch: "${branches[i]}",
+          credentialsId: "git-ssh-pk")
+    }
+  }
+}
+
+def build_ventus_llvm(agent) {
   //we only build ventus for linux
   if("$agent" =~ "linux-x64") {
-    echo "This is ventus!"
+    sh "cd $$WORKSPACE/llvm-project"
+    sh "bash build-ventus.sh"
+  }
+}
+
+def build_ventus_spike(agent) {
+  //we only build ventus for linux
+  if("$agent" =~ "linux-x64") {
+    sh "cd $WORKSPACE/ventus-gpgpu-isa-simulator"
+    sh "mkdir build || true"
+    sh "cd build"
+    sh "export RISCV=\"$WORKSPACE/llvm-project/install\";"
+    sh '''
+        ../configure --prefix=$RISCV
+        make
+        make install
+      '''
   }
 }
