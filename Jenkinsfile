@@ -6,7 +6,7 @@
 //
 
 pipeline {
-    agent any
+    agent { label "linux-x64" }
     environment {
         GIT_USER_EMAIL = sh(
       script: 'git --no-pager show -s --format="%ae"',
