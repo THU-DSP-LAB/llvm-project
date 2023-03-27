@@ -675,7 +675,7 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
     isBarrier = 1, isBranch = 1, isTerminator = 1 in
 class Branch_i<bits<3> funct3, string opcodestr>
     : RVInstVB<funct3, (outs), (ins simm13_lsb0:$imm12),
-               opcodestr, "$imm12">, Sched<[]> {
+               opcodestr, "v0 v0 $imm12">, Sched<[]> {
   let vs1 = 0;
   let vs2 = 0;
 }
@@ -1155,6 +1155,8 @@ def VMV_S_X : RVInstV2<0b010000, 0b00000, OPMVX, (outs VGPR:$vd_wb),
 
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
 
+def : InstAlias<"vmv.v.x $vd, $rs1",
+                (VMV_S_X VGPR:$vd, GPR:$rs1)>;
 
 let Predicates = [HasVInstructionsAnyF] in {
 
