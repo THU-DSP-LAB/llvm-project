@@ -99,6 +99,11 @@ enum {
   // Check if this instruction meets the format of RVInstVV
   IsVVALUInstrShift = UsesMaskPolicyShift + 1,
   IsVVALUInstrMask = 1 << IsVVALUInstrShift,
+
+  // Check if this instruction is a vector memory access instruction
+  // with an immediate address operand of 12 bits
+  IsVecImm12MemInstrShift = IsVVALUInstrShift + 1,
+  IsVecImm12MemInstrMask = 1 << IsVecImm12MemInstrShift
 };
 
 // Match with the definitions in RISCVInstrFormats.td
@@ -140,6 +145,12 @@ static inline bool hasDummyMaskOp(uint64_t TSFlags) {
 /// \returns true if the instruction meets the format of RVInstVV
 static inline bool isVVALUInstr(uint64_t TSFlags) {
   return TSFlags & IsVVALUInstrMask;
+}
+
+/// \returns true if this instruction is a vector memory access instruction
+/// with an immediate address operand of 12 bits
+static inline bool IsVecImm12MemInstr(uint64_t TSFlags) {
+  return TSFlags & IsVecImm12MemInstrMask;
 }
 
 /// \returns true if tail agnostic is enforced for the instruction.
