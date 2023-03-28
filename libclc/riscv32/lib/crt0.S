@@ -28,7 +28,6 @@ _start:
 
   # allocate warp and per-thread level stack pointers, both
   # stacks grows upwards
-  vsetvli x0,x0,e32,m1,ta,ma
   csrr sp, CSR_LDS      # sp points to baseaddr of local memory of each SM
   csrr tp, CSR_PDS      # tp points to baseaddr for lower bound of private memory(1K) of each thread
 
@@ -43,10 +42,8 @@ _start:
 
 2:
   csrr t0, CSR_KNL	      # get addr of kernel metadata
-  la t1, test             # all the tested function is named to be test
-  # lw t1, KNL_ENTRY(t0)    # get kernel program address
-  # lw a0, KNL_ARG_BASE(t0) # get kernel arg buffer base address
-  # WORKAROUND: when buffer is ready, restore lines above
+  lw t1, KNL_ENTRY(t0)    # get kernel program address
+  lw a0, KNL_ARG_BASE(t0) # get kernel arg buffer base address
   jalr t1                 # call kernel program
 
   # call exit routine
@@ -55,3 +52,19 @@ _start:
   # End of warp execution
   endprg x0, x0, x0
   .size  _start, .-_start
+
+
+  .section ".tohost","aw",@progbits
+  .align 6
+  .globl tohost
+  tohost: .dword 0
+  .align 6
+  .globl fromhost
+  fromhost: .dword 0
+
+  .global spike_end
+  .type spike_end,function
+spike_end:
+  li t1,1
+  la t0,tohost
+  sw t1,0(t0)
