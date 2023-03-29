@@ -98,11 +98,10 @@ build_ventus() {
 
 # Build pocl from THU
 build_pocl() {
-  if [ ! -d "${POCL_BUILD_DIR}" ]; then
-    mkdir ${POCL_BUILD_DIR}
-  fi
-  cd ${POCL_BUILD_DIR}
-  cmake -G Ninja -B ${POCL_BUILD_DIR} ${POCL_DIR} \
+  rm -rf ${POCL_BUILD_DIR} || true
+  mkdir ${POCL_BUILD_DIR}
+  cd ${POCL_DIR}
+  cmake -G Ninja -B ${POCL_BUILD_DIR} . \
     -DENABLE_HOST_CPU_DEVICES=OFF \
     -DENABLE_VENTUS=ON \
     -DENABLE_ICD=ON \
@@ -112,8 +111,8 @@ build_pocl() {
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_CXX_COMPILER=clang++ \
     -DCMAKE_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX}
-  ninja
-  ninja install
+  ninja -C ${POCL_BUILD_DIR}
+  ninja -C ${POCL_BUILD_DIR} install
 }
 
 # Build libclc for pocl
@@ -164,7 +163,16 @@ fi
 # Check llvm-ventus is built or not
 check_if_ventus_built() {
   if [ ! -d "${VENTUS_INSTALL_PREFIX}" ];then
-    echo "Build llvm-ventus first!"
+    echo "Please build llvm-ventus first!"
+    exit 1
+  fi
+}
+
+# Check ocl-icd loader is built or not
+# since pocl need ocl-icd and llvm built first
+check_if_ocl_icd_built() {
+  if [ ! -f "${VENTUS_INSTALL_PREFIX}/lib/libOpenCL.so" ];then
+    echo "Please build ocl-icd first!"
     exit 1
   fi
 }
@@ -177,6 +185,7 @@ do
     export_elements
   elif [ "${program}" == "pocl" ]; then
     check_if_ventus_built
+    check_if_ocl_icd_built
     build_pocl
   elif [ "${program}" == "ocl-icd" ];then
     build_icd_loader
