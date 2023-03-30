@@ -34,7 +34,7 @@ _start:
   csrrs t4,mstatus,t4
   li t4,0
   csrr sp, CSR_LDS      # sp points to baseaddr of local memory of each SM
-  csrr tp, CSR_PDS      # tp points to baseaddr for lower bound of private memory(1K) of each thread
+  addi tp, x0, 0        # tp points to baseaddr for lower bound of private memory(1K) of each thread
 
   # clear BSS segment
   la      a0, _edata
