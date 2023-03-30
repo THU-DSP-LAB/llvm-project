@@ -36,6 +36,8 @@ Run `export OCL_ICD_VENDORS=<path_to>/libpocl.so` to tell ocl icd loader where t
 Finally, run `export POCL_DEVICES="ventus"` to tell pocl driver which device is available(should we set ventus as default device?).
 
 You will see Ventus GPGPU device is found if your setup is correct.
+
+NOTE: OpenCL host side program should be linked with icd loader `-lOpenCL`.
 ```
 $ <pocl-install-dir>/bin/poclcc -l
 
@@ -124,9 +126,13 @@ note: missing symbols in the kernel binary might be reported as 'file not found'
 Aborted (core dumped)
 ```
 
-### 4: Compile a OpenCL C program into Ventus GPGPU assembly
+### 4: Compiler using example
 
-vector_add.cl:
+we can now use our built compiler to generate an ELF file, and using [spike](https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator) to complete the isa simulation.
+
+> Cause the address space requirement in spike, we use a customized linker script for our compiler
+
+Take `vector_add.cl` below as an example :
 
 ```
 __kernel void vectorAdd(__global float* A, __global float* B) {
@@ -135,13 +141,56 @@ __kernel void vectorAdd(__global float* A, __global float* B) {
 }
 ```
 
-Compiler OpenCL C into Ventus assembly:
+#### 4.1: Generate ELF file
+
+> Remember to build libclc too because we need the libclc library
+
+Use command line under the root directory of `llvm-ventus`
 
 ```
-clang -cl-std=CL2.0 -target riscv32 -mcpu=ventus-gpgpu -O1 -S vector_add.cl -o vector_add.s
+./install/bin/clang -cl-std=CL2.0 -target riscv32 -mcpu=ventus-gpgpu demo.cl  ./install/lib/crt0.o -L./install/lib -lworkitem -I./libclc/generic/include -nodefaultlibs ./libclc/riscv32/lib/workitem/get_global_id.cl -O1 -cl-std=CL2.0 -Wl,-T,utils/ldscripts/ventus/elf32lriscv.ld -o vecadd.riscv
+```
+Because the whole libclc library for `RISCV` is under tested, we don't use whole library, we just show a simple example now, after running the command line above,
+
+### 4.2: Dump file
+
+```
+./install/bin/llvm-objdump -d --mattr=+v vecadd.riscv >& vecadd.txt
 ```
 
-NOTE: OpenCL host side program should be linked with icd loader `-lOpenCL`.
+you will see output like below, `0x80000000` is the space address required by spike for `_start` function, this is the reason why we use a customized linker script
+
+```
+vecadd.riscv:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+80000000 <_start>:
+80000000: 97 21 00 00  	auipc	gp, 2
+80000004: 93 81 01 80  	addi	gp, gp, -2048
+80000008: 93 0e 00 02  	li	t4, 32
+8000000c: d7 fe 0e 0d  	vsetvli	t4, t4, e32, m1, ta, ma
+80000010: b7 2e 00 00  	lui	t4, 2
+80000014: f3 ae 0e 30  	csrrs	t4, mstatus, t4
+80000018: 93 0e 00 00  	li	t4, 0
+8000001c: 73 21 60 80  	csrr	sp, 2054
+80000020: 73 22 70 80  	csrr	tp, 2055
+
+80000024 <.Lpcrel_hi1>:
+80000024: 17 15 00 00  	auipc	a0, 1
+80000028: 13 05 85 fe  	addi	a0, a0, -24
+
+....
+....
+....
+```
+
+#### 4.3: Running in spike
+
+We need to run the isa simulator to verify our compiler
+
+Use [spike](https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator) from THU and follow the `README.md`
+
 
 ### 5: TODOs
 
