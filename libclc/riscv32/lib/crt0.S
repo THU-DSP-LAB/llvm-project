@@ -30,6 +30,8 @@ _start:
   # stacks grows upwards
   li t4,32
   vsetvli t4,t4,e32,m1,ta,ma
+  li t4,0x2000
+  csrrs t4,mstatus,t4
   li t4,0
   csrr sp, CSR_LDS      # sp points to baseaddr of local memory of each SM
   csrr tp, CSR_PDS      # tp points to baseaddr for lower bound of private memory(1K) of each thread
