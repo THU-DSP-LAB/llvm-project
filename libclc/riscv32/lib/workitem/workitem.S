@@ -46,25 +46,25 @@
   .type  _local_id_x, @object
   .section .sdata,"aw",@progbits
   .globl _local_id_x
-  .p2align 2	
+  .p2align 2
 _local_id_x:
   .word 0
 
   .type  _local_id_y, @object
   .section .sdata,"aw",@progbits
   .globl _local_id_y
-  .p2align 2	
+  .p2align 2
 _local_id_y:
   .word 0
 
   .type  _local_id_z, @object
   .section .sdata,"aw",@progbits
   .globl _local_id_z
-  .p2align 2	
+  .p2align 2
 _local_id_z:
   .word 0
   // End workaround for pocl driver
-	
+
   .text
   .global __builtin_riscv_workitem_linear_id
   .type __builtin_riscv_workitem_linear_id, @function
@@ -207,7 +207,6 @@ __builtin_riscv_workitem_id_z:
 __builtin_riscv_global_id_x:
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   csrr t1, CSR_GID_X      # Get group_id_x
-  addi t1, t1, -1         # group_id_x - 1
   csrr t2, CSR_TID
   vid.v v2
   vadd.vx v2, v2, t2      # workitem_id_x
@@ -223,7 +222,6 @@ __builtin_riscv_global_id_x:
 __builtin_riscv_global_id_y:
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   csrr t1, CSR_GID_Y      # Get group_id_y
-  addi t1, t1, -1          # group_id_y - 1
   csrr t2, CSR_TID
   vid.v v2
   vadd.vx v2, v2, t2      # workitem_id_y
@@ -239,7 +237,6 @@ __builtin_riscv_global_id_y:
 __builtin_riscv_global_id_z:
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   csrr t1, CSR_GID_Z      # Get group_id_z
-  addi t1, t1, -1         # group_id_z - 1
   csrr t2, CSR_TID
   vid.v v2
   vadd.vx v2, v2, t2      # workitem_id_z
