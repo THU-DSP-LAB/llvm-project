@@ -121,6 +121,7 @@ build_libclc() {
     mkdir ${LIBCLC_BUILD_DIR}
   fi
   cd ${LIBCLC_BUILD_DIR}
+  (ninja clean ||  true) >& /tmp/ninja-clean.log
   cmake -G Ninja -B ${LIBCLC_BUILD_DIR} ${DIR}/libclc \
     -DCMAKE_LLAsm_COMPILER_WORKS=ON \
     -DCMAKE_CLC_COMPILER_WORKS=ON \

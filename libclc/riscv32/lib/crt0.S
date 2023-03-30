@@ -54,6 +54,7 @@ _start:
 
   # End of warp execution
   endprg x0, x0, x0
+  j spike_end
   .size  _start, .-_start
 
 
