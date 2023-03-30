@@ -150,9 +150,9 @@ Use command line under the root directory of `llvm-ventus`
 ```
 ./install/bin/clang -cl-std=CL2.0 -target riscv32 -mcpu=ventus-gpgpu demo.cl  ./install/lib/crt0.o -L./install/lib -lworkitem -I./libclc/generic/include -nodefaultlibs ./libclc/riscv32/lib/workitem/get_global_id.cl -O1 -cl-std=CL2.0 -Wl,-T,utils/ldscripts/ventus/elf32lriscv.ld -o vecadd.riscv
 ```
-Because the whole libclc library for `RISCV` is under tested, we don't use whole library, we just show a simple example now, after running the command line above,
+Because the whole libclc library for `RISCV` is under tested, we don't use whole library, we just show a simple example now, after running the command line above, we will get `vecadd.riscv`.
 
-### 4.2: Dump file
+#### 4.2: Dump file
 
 ```
 ./install/bin/llvm-objdump -d --mattr=+v vecadd.riscv >& vecadd.txt
