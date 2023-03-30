@@ -211,7 +211,7 @@ __builtin_riscv_global_id_x:
   vid.v v2
   vadd.vx v2, v2, t2      # workitem_id_x
   lw t3, KNL_LC_SIZE_X(a0) # Get local_size_x
-  mul t3, t1, t3          # (CSR_GID_X - 1) * local_size_x
+  mul t3, t1, t3          # CSR_GID_X * local_size_x
   vadd.vx v0, v2, t3      # global_id_x
   ret
 
@@ -226,7 +226,7 @@ __builtin_riscv_global_id_y:
   vid.v v2
   vadd.vx v2, v2, t2      # workitem_id_y
   lw t3, KNL_LC_SIZE_Y(a0) # Get local_size_y
-  mul t3, t1, t3          # (CSR_GID_Y - 1) * local_size_y
+  mul t3, t1, t3          # CSR_GID_Y * local_size_y
   vadd.vx v0, v2, t3      # global_id_y
   ret
 
@@ -241,7 +241,7 @@ __builtin_riscv_global_id_z:
   vid.v v2
   vadd.vx v2, v2, t2      # workitem_id_z
   lw t3, KNL_LC_SIZE_Z(a0) # Get local_size_z
-  mul t3, t1, t3          # (CSR_GID_Z - 1) * local_size_z
+  mul t3, t1, t3          # CSR_GID_Z * local_size_z
   vadd.vx v0, v2, t3      # global_id_z
   ret
 
