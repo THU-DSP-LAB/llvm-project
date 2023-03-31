@@ -63,6 +63,13 @@ SECTIONS
     /* .gnu.warning sections are handled specially by elf.em.  */
     *(.gnu.warning)
   }
+  . = ALIGN(0x1000);
+  .tohost : {
+    *(.tohost)
+  }
+  . = ALIGN(0x1000);
+  _end = .;
+  _edata = .;
   .fini           :
   {
     KEEP (*(SORT_NONE(.fini)))
