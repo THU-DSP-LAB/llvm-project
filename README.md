@@ -19,7 +19,9 @@ Download all the repositories firstly
 
 ### 2: Build all the programs
 
-Assume you have already installed essential build tools such as cmake, clang, ninja etc.
+> You can refer to [official website](https://llvm.org/docs/GettingStarted.html) for llvm building guidance, if you see package missing information, just install the missing packages.
+
+Assume you have already installed essential build tools such as cmake, clang, ninja, ccache etc.
 
 Run `./build-ventus.sh` to automatically build all the programs, but we need to run firstly
 * `export POCL_DIR=<path-to-pocl-dir>`, default folder path will be set to be **`<llvm-ventus-parentFolder>`/pocl**
