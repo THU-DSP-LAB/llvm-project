@@ -11341,9 +11341,27 @@ void VentusRISCVABIInfo::computeInfo(CGFunctionInfo &FI) const {
   }
 }
 
+// OpenCL do not support varargs when try to define customized functions
+// but here we need to add support for C language IR code generation
 Address VentusRISCVABIInfo::EmitVAArg(CodeGenFunction &CGF, Address VAListAddr,
                                    QualType Ty) const {
-  llvm_unreachable("TODO: Support varargs in ventus!");
+  CharUnits SlotSize = CharUnits::fromQuantity(XLen / 8);
+
+  // Empty records are ignored for parameter passing purposes.
+  if (isEmptyRecord(getContext(), Ty, true)) {
+    Address Addr = Address(CGF.Builder.CreateLoad(VAListAddr),
+                           getVAListElementType(CGF), SlotSize);
+    Addr = CGF.Builder.CreateElementBitCast(Addr, CGF.ConvertTypeForMem(Ty));
+    return Addr;
+  }
+
+  auto TInfo = getContext().getTypeInfoInChars(Ty);
+
+  // Arguments bigger than 2*Xlen bytes are passed indirectly.
+  bool IsIndirect = TInfo.Width > 2 * SlotSize;
+
+  return emitVoidPtrVAArg(CGF, VAListAddr, Ty, IsIndirect, TInfo,
+                          SlotSize, /*AllowHigherAlign=*/true);
 }
 
 ABIArgInfo VentusRISCVABIInfo::classifyReturnType(QualType RetTy) const {

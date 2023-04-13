@@ -53,8 +53,7 @@ public:
     HasRISCVVTypes = true;
     MCountName = "_mcount";
     HasFloat16 = true;
-    UseAddrSpaceMapMangling = true;
-    AddrSpaceMap = &VentusAddrSpaceMap;
+
   }
 
   bool setCPU(const std::string &Name) override {
@@ -63,6 +62,8 @@ public:
     CPU = Name;
     return true;
   }
+
+  void adjust(DiagnosticsEngine &Diags, LangOptions &Opts) override;
 
   StringRef getABI() const override { return ABI; }
   void getTargetDefines(const LangOptions &Opts,
@@ -191,7 +192,6 @@ public:
     //HasFloat16 = true;
     //resetDataLayout("e-m:e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256"
     //       "-v256:256-v512:512-v1024:1024-n32:64-S128-A5-G1");
-    resetDataLayout("e-m:e-p:32:32-i64:64-n32-S128-A5-G1");
   }
 
   bool setABI(const std::string &Name) override {
@@ -215,7 +215,6 @@ public:
       : RISCVTargetInfo(Triple, Opts) {
     LongWidth = LongAlign = PointerWidth = PointerAlign = 64;
     IntMaxType = Int64Type = SignedLong;
-    resetDataLayout("e-m:e-p:64:64-i64:64-i128:128-n32:64-S128-A5-G1");
   }
 
   bool setABI(const std::string &Name) override {

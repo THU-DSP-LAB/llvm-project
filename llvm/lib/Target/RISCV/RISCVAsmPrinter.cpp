@@ -115,7 +115,8 @@ void RISCVAsmPrinter::emitInstruction(const MachineInstr *MI) {
     return;
   }
   if (RISCVII::IsVecImm12MemInstr(MI->getDesc().TSFlags)) {
-    if (MI->getOperand(2).getReg() == RISCV::X0) {
+
+    if (MI->getOperand(2).isReg() && MI->getOperand(2).getReg() == RISCV::X0) {
       OutStreamer->emitInstruction(MCInstBuilder(MI->getOpcode())
                                        .addReg(MI->getOperand(0).getReg())
                                        .addReg(MI->getOperand(1).getReg())
