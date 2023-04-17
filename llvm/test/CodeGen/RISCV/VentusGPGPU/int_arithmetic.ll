@@ -57,7 +57,7 @@ define i32 @urem_constant_lhs(i32 %a) nounwind {
 ; VENTUS-LABEL: urem_constant_lhs:
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    li a0, 10
-; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vmv.v.x v1, a0
 ; VENTUS-NEXT:    vremu.vv v0, v1, v0
 ; VENTUS-NEXT:    ret
   %1 = urem i32 10, %a
@@ -76,11 +76,12 @@ define i32 @srem(i32 %a, i32 %b) nounwind {
 define i32 @srem_pow2(i32 %a) nounwind {
 ; VENTUS-LABEL: srem_pow2:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vsra.vi v1, v0, 31
-; VENTUS-NEXT:    vsrl.vi v1, v1, 29
+; VENTUS-NEXT:    li a0, 31
+; VENTUS-NEXT:    vsra.vx v1, v0, a0
+; VENTUS-NEXT:    li a0, 29
+; VENTUS-NEXT:    vsrl.vx v1, v1, a0
 ; VENTUS-NEXT:    vadd.vv v1, v0, v1
-; VENTUS-NEXT:    li a0, -8
-; VENTUS-NEXT:    vand.vx v1, v1, a0
+; VENTUS-NEXT:    vand.vi v1, v1, -8
 ; VENTUS-NEXT:    vsub.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
   %1 = srem i32 %a, 8
@@ -90,8 +91,10 @@ define i32 @srem_pow2(i32 %a) nounwind {
 define i32 @srem_pow2_2(i32 %a) nounwind {
 ; VENTUS-LABEL: srem_pow2_2:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vsra.vi v1, v0, 31
-; VENTUS-NEXT:    vsrl.vi v1, v1, 16
+; VENTUS-NEXT:    li a0, 31
+; VENTUS-NEXT:    vsra.vx v1, v0, a0
+; VENTUS-NEXT:    li a0, 16
+; VENTUS-NEXT:    vsrl.vx v1, v1, a0
 ; VENTUS-NEXT:    vadd.vv v1, v0, v1
 ; VENTUS-NEXT:    lui a0, 1048560
 ; VENTUS-NEXT:    vand.vx v1, v1, a0
@@ -105,7 +108,7 @@ define i32 @srem_constant_lhs(i32 %a) nounwind {
 ; VENTUS-LABEL: srem_constant_lhs:
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    li a0, -10
-; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vmv.v.x v1, a0
 ; VENTUS-NEXT:    vrem.vv v0, v1, v0
 ; VENTUS-NEXT:    ret
   %1 = srem i32 -10, %a
@@ -168,7 +171,7 @@ define i32 @vrsub_x(i32 %a) nounwind {
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    lui a0, %hi(global_val)
 ; VENTUS-NEXT:    lw a0, %lo(global_val)(a0)
-; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vmv.v.x v1, a0
 ; VENTUS-NEXT:    vsub.vv v0, v1, v0
 ; VENTUS-NEXT:    ret
   %val = load i32, ptr @global_val
@@ -296,7 +299,7 @@ define i32 @vrsub_bigimm(i32 %a) nounwind {
 ; VENTUS-LABEL: vrsub_bigimm:
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    lui a0, 16
-; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vmv.v.x v1, a0
 ; VENTUS-NEXT:    vsub.vv v0, v1, v0
 ; VENTUS-NEXT:    ret
   %1 = sub i32 65536, %a

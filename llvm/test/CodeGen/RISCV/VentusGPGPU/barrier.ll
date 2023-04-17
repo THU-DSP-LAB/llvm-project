@@ -6,8 +6,9 @@
 define dso_local void @barrier() local_unnamed_addr {
 ; VENTUS-LABEL: barrier:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    barrier X0, X0, 3
-; VENTUS-NEXT:    barrier X0, X0, 27
+; VENTUS-NEXT:    barrier x0, x0, 3
+; VENTUS-NEXT:    barrier x0, x0, 27
+; VENTUS-EMPTY:
 ; VENTUS-NEXT:    ret
 entry:
   tail call void @llvm.riscv.ventus.barrier(i32 noundef 3)

@@ -675,20 +675,20 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
     isBarrier = 1, isBranch = 1, isTerminator = 1 in
 class Branch_i<bits<3> funct3, string opcodestr>
     : RVInstVB<funct3, (outs), (ins simm13_lsb0:$imm12),
-               opcodestr, "v0 v0 $imm12">, Sched<[]> {
+               opcodestr, "v0, v0, $imm12">, Sched<[]> {
   let vs1 = 0;
   let vs2 = 0;
 }
 
 // Customized load/store instructions
 class VENTUS_VL<bits<3> funct3, string opcodestr>:
-            RVInstSetVVLi<0b0, (outs VGPR:$vd), (ins GPRMem:$rs1, simm11:$imm11),
+          RVInstSetVLVLi<0b0, (outs VGPR:$vd), (ins GPRMem:$rs1, simm11:$imm11),
                       opcodestr # ".v", "$vd, ${imm11}(${rs1})"> {
       let Inst{14-12} = funct3;
       let Opcode = OPC_CUSTOM_1.Value;
 }
 class VENTUS_VS<bits<3> funct3, string opcodestr>:
-            RVInstSetVVLi<0b1, (outs), (ins VGPR:$vd, GPRMem:$rs1, simm11:$imm11),
+          RVInstSetVSVLi<0b1, (outs), (ins VGPR:$vd, GPRMem:$rs1, simm11:$imm11),
                       opcodestr # ".v", "$vd, ${imm11}(${rs1})"> {
       let Inst{14-12} = funct3;
       let Opcode = OPC_CUSTOM_1.Value;
