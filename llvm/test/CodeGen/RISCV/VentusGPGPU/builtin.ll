@@ -16,15 +16,15 @@ define spir_kernel void @foo_ker(ptr addrspace(1) nocapture noundef align 4 %A, 
 ; VENTUS-NEXT:    .cfi_offset s1, 0
 ; VENTUS-NEXT:    lw s0, 0(a0)
 ; VENTUS-NEXT:    lw s1, 4(a0)
-; VENTUS-NEXT:    vmv.s.x v0, zero
+; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
 ; VENTUS-NEXT:    vadd.vx v1, v0, s1
-; VENTUS-NEXT:    vlw12.v v1, zero(v1)
+; VENTUS-NEXT:    vlw12.v v1, 0(v1)
 ; VENTUS-NEXT:    vadd.vx v0, v0, s0
-; VENTUS-NEXT:    vlw12.v v2, zero(v0)
+; VENTUS-NEXT:    vlw12.v v2, 0(v0)
 ; VENTUS-NEXT:    vadd.vv v1, v2, v1
-; VENTUS-NEXT:    vsw12.v v1, zero(v0)
+; VENTUS-NEXT:    vsw12.v v1, 0(v0)
 ; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    lw s0, -12(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    lw s1, -16(sp) # 4-byte Folded Reload
@@ -56,15 +56,15 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    .cfi_offset v33.l, 0
 ; VENTUS-NEXT:    vadd.vx v32, v1, zero
 ; VENTUS-NEXT:    vadd.vx v33, v0, zero
-; VENTUS-NEXT:    vmv.s.x v0, zero
+; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
 ; VENTUS-NEXT:    vadd.vv v1, v32, v0
-; VENTUS-NEXT:    vlw12.v v1, zero(v1)
+; VENTUS-NEXT:    vlw12.v v1, 0(v1)
 ; VENTUS-NEXT:    vadd.vv v0, v33, v0
-; VENTUS-NEXT:    vlw12.v v2, zero(v0)
+; VENTUS-NEXT:    vlw12.v v2, 0(v0)
 ; VENTUS-NEXT:    vadd.vv v1, v2, v1
-; VENTUS-NEXT:    vsw12.v v1, zero(v0)
+; VENTUS-NEXT:    vsw12.v v1, 0(v0)
 ; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    vlw.v v32, -12(tp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    vlw.v v33, -16(tp) # 4-byte Folded Reload

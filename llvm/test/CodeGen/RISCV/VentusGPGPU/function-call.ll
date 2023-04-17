@@ -33,11 +33,11 @@ define dso_local spir_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr addrs
 ; VENTUS-NEXT:    lw s0, 8(a0)
 ; VENTUS-NEXT:    lw a1, 4(a0)
 ; VENTUS-NEXT:    lw a0, 0(a0)
-; VENTUS-NEXT:    vmv.s.x v0, a0
-; VENTUS-NEXT:    vmv.s.x v1, a1
+; VENTUS-NEXT:    vmv.v.x v0, a0
+; VENTUS-NEXT:    vmv.v.x v1, a1
 ; VENTUS-NEXT:    call bar
-; VENTUS-NEXT:    vmv.s.x v1, s0
-; VENTUS-NEXT:    vsw12.v v0, zero(v1)
+; VENTUS-NEXT:    vmv.v.x v1, s0
+; VENTUS-NEXT:    vsw12.v v0, 0(v1)
 ; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    lw s0, -16(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -16

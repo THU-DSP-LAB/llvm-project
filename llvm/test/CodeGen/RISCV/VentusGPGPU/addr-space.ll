@@ -18,19 +18,19 @@ define dso_local spir_kernel void @func(ptr addrspace(1) nocapture noundef align
 ; VENTUS-NEXT:    .cfi_offset v32.l, 0
 ; VENTUS-NEXT:    lw s0, 0(a0)
 ; VENTUS-NEXT:    lw s1, 4(a0)
-; VENTUS-NEXT:    vmv.s.x v0, zero
+; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vadd.vx v32, v0, zero
-; VENTUS-NEXT:    vmv.s.x v0, zero
+; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z12get_local_idj
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
 ; VENTUS-NEXT:    vadd.vx v0, v0, s1
-; VENTUS-NEXT:    vlw12.v v0, zero(v0)
+; VENTUS-NEXT:    vlw12.v v0, 0(v0)
 ; VENTUS-NEXT:    vsll.vi v1, v32, 2
 ; VENTUS-NEXT:    vadd.vx v1, v1, s0
-; VENTUS-NEXT:    vlw12.v v2, zero(v1)
+; VENTUS-NEXT:    vlw12.v v2, 0(v1)
 ; VENTUS-NEXT:    vadd.vv v0, v2, v0
-; VENTUS-NEXT:    vsw12.v v0, zero(v1)
+; VENTUS-NEXT:    vsw12.v v0, 0(v1)
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    lw s0, -8(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    lw s1, -12(sp) # 4-byte Folded Reload

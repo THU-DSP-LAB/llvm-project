@@ -22,16 +22,16 @@ define spir_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    lui a0, %hi(foo.b)
 ; VENTUS-NEXT:    addi s1, a0, %lo(foo.b)
 ; VENTUS-NEXT:    addi s2, tp, -32
-; VENTUS-NEXT:    vmv.s.x v0, s2
-; VENTUS-NEXT:    vmv.s.x v1, s1
-; VENTUS-NEXT:    vmv.s.x v2, s0
+; VENTUS-NEXT:    vmv.v.x v0, s2
+; VENTUS-NEXT:    vmv.v.x v1, s1
+; VENTUS-NEXT:    vmv.v.x v2, s0
 ; VENTUS-NEXT:    call bar
-; VENTUS-NEXT:    vmv.s.x v0, zero
+; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z12get_local_idj
 ; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    li a1, 4
-; VENTUS-NEXT:    vmv.s.x v0, a1
-; VENTUS-NEXT:    vmv.s.x v1, a0
+; VENTUS-NEXT:    vmv.v.x v0, a1
+; VENTUS-NEXT:    vmv.v.x v1, a0
 ; VENTUS-NEXT:    vbltu v0, v1, .LBB0_2
 ; VENTUS-NEXT:  # %bb.1: # %if.then
 ; VENTUS-NEXT:    slli a0, a0, 2
@@ -39,17 +39,17 @@ define spir_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    vlw.v v0, zero(s2)
 ; VENTUS-NEXT:    add s1, s1, a0
 ; VENTUS-NEXT:    lw a1, 0(s1)
-; VENTUS-NEXT:    add a0, a0, s0
+; VENTUS-NEXT:    add a0, s0, a0
 ; VENTUS-NEXT:    lw a2, 0(a0)
-; VENTUS-NEXT:    vmv.s.x v1, a1
-; VENTUS-NEXT:    vmv.s.x v2, a2
+; VENTUS-NEXT:    vmv.v.x v1, a1
+; VENTUS-NEXT:    vmv.v.x v2, a2
 ; VENTUS-NEXT:    vmadd.vv v0, v1, v2
-; VENTUS-NEXT:    vmv.s.x v1, a0
-; VENTUS-NEXT:    vsw12.v v0, zero(v1)
+; VENTUS-NEXT:    vmv.v.x v1, a0
+; VENTUS-NEXT:    vsw12.v v0, 0(v1)
 ; VENTUS-NEXT:    j .LBB0_3
 ; VENTUS-NEXT:  .LBB0_2: # %if.else
 ; VENTUS-NEXT:    slli a0, a0, 2
-; VENTUS-NEXT:    add a0, a0, s0
+; VENTUS-NEXT:    add a0, s0, a0
 ; VENTUS-NEXT:    sw zero, 0(a0)
 ; VENTUS-NEXT:  .LBB0_3: # %if.end
 ; VENTUS-NEXT:    lw ra, -36(sp) # 4-byte Folded Reload
@@ -110,11 +110,11 @@ declare void @llvm.lifetime.end.p5(i64 immarg, ptr addrspace(5) nocapture)
 define dso_local void @local_memmory(ptr addrspace(3) nocapture noundef %a) local_unnamed_addr{
 ; VENTUS-LABEL: local_memmory:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vlw12.v v1, zero(v0)
+; VENTUS-NEXT:    vlw12.v v1, 0(v0)
 ; VENTUS-NEXT:    lui a0, %hi(global_int)
 ; VENTUS-NEXT:    lw a0, %lo(global_int)(a0)
 ; VENTUS-NEXT:    vadd.vx v1, v1, a0
-; VENTUS-NEXT:    vsw12.v v1, zero(v0)
+; VENTUS-NEXT:    vsw12.v v1, 0(v0)
 ; VENTUS-NEXT:    ret
 entry:
   %0 = load i32, ptr addrspace(3) %a, align 4

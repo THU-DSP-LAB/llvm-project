@@ -64,8 +64,8 @@ class RVInstSetVLi<dag outs, dag ins, string opcodestr, string argstr>
   let Defs = [VTYPE, VL];
 }
 
-// vsetvli inst format is used for VLW/VST instruction encoding.
-class RVInstSetVVLi<bit isLoad, dag outs, dag ins, string opcodestr, string argstr>
+// vsetvli inst format is used for VLW/VLH/VLB
+class RVInstSetVLVLi<bit isLoad, dag outs, dag ins, string opcodestr, string argstr>
     : RVInstSetVLi<outs, ins, opcodestr, argstr> {
   bits<5> vd;
   bits<11> imm11;
@@ -73,6 +73,18 @@ class RVInstSetVVLi<bit isLoad, dag outs, dag ins, string opcodestr, string args
   let Inst{31} = isLoad;
   let Inst{30-20} = imm11;
   let Inst{11-7} = vd;
+}
+
+// vsetvli inst format is used for VSW/VSH/VSB instruction encoding.
+class RVInstSetVSVLi<bit isLoad, dag outs, dag ins, string opcodestr, string argstr>
+    : RVInstSetVLi<outs, ins, opcodestr, argstr> {
+  bits<5> vd;
+  bits<11> imm11;
+
+  let Inst{31} = isLoad;
+  let Inst{30-25} = imm11{10-5};
+  let Inst{24-20} = vd;
+  let Inst{11-7} = imm11{4-0};
 }
 
 class RVInstVV<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,

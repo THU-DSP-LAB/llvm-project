@@ -95,16 +95,16 @@ bool RISCVExpandPseudo::expandMI(MachineBasicBlock &MBB,
 bool RISCVExpandPseudo::expandBarrier(MachineBasicBlock &MBB,
                                       MachineBasicBlock::iterator MBBI,
                                       MachineBasicBlock::iterator &NextMBBI) {
-    bool isBarrier = MBBI->getOpcode() == RISCV::PseudoBarrier;
-    unsigned BarrierOpcode =
-        isBarrier ? RISCV::BARRIER : RISCV::SUBGROUP_BARRIER;
-    uint32_t MemFlag = MBBI->getOperand(0).getImm();
-    // when use barriersub, MemScope is default to be 0
-    uint32_t MemScope = isBarrier ? MBBI->getOperand(1).getImm() : 0;
-    BuildMI(MBB, MBBI, MBBI->getDebugLoc(), TII->get(BarrierOpcode))
-        .addReg(RISCV::X0)
-        .addReg(RISCV::X0)
-        .addImm((MemScope << 3) + MemFlag);
+  assert(MBBI->getOpcode() == RISCV::PseudoBarrier ||
+         MBBI->getOpcode() == RISCV::PseudoSubGroupBarrier &&
+             "Unexpected opcode");
+  bool isBarrier = MBBI->getOpcode() == RISCV::PseudoBarrier;
+  unsigned BarrierOpcode = isBarrier ? RISCV::BARRIER : RISCV::SUBGROUP_BARRIER;
+  uint32_t MemFlag = MBBI->getOperand(0).getImm();
+  // when use barriersub, MemScope is default to be 0
+  uint32_t MemScope = isBarrier ? MBBI->getOperand(1).getImm() : 0;
+  BuildMI(MBB, MBBI, MBBI->getDebugLoc(), TII->get(BarrierOpcode))
+      .addImm((MemScope << 3) + MemFlag);
   return true;
 }
 
