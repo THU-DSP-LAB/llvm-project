@@ -615,8 +615,8 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
     return Offset;
   }
 
-  assert(StackID == TargetStackID::Default &&
-         "SGPRSpill stack should not reach here!");
+  // assert(StackID == TargetStackID::Default &&
+  //        "SGPRSpill stack should not reach here!");
 
   if (RI->hasStackRealignment(MF) && !MFI.isFixedObjectIndex(FI)) {
     assert(0 && "TODO: Add stack realignment support for Ventus?");
@@ -649,8 +649,8 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
   }
 
   if (FrameReg == getFPReg(STI)) {
-    assert(0 && "TODO: Add fp support for Ventus?");
-    Offset += StackOffset::getFixed(RVFI->getVarArgsSaveSize());
+    // assert(0 && "TODO: Add fp support for Ventus?");
+    Offset -= StackOffset::getFixed(RVFI->getVarArgsSaveSize());
     if (FI >= 0)
       Offset -= StackOffset::getFixed(RVFI->getLibCallStackSize());
     // When using FP to access scalable vector objects, we need to minus
@@ -685,7 +685,7 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
   // |--------------------------| -- <-- SP
   //
   if (MFI.isFixedObjectIndex(FI)) {
-    assert(0 && "TODO!");
+    // assert(0 && "TODO!");
     assert(!RI->hasStackRealignment(MF) &&
             "Can't index across variable sized realign");
     Offset -= StackOffset::get(MFI.getStackSize() +
