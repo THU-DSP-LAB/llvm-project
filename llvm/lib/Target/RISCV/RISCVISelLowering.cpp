@@ -5371,6 +5371,12 @@ static const MCPhysReg ArgVGPRs[] = {
   RISCV::V30, RISCV::V31
 };
 
+// Registers used for variadic functions
+static const MCPhysReg VarArgVGPRs[] = {
+  RISCV::V0,  RISCV::V1,  RISCV::V2,  RISCV::V3,
+  RISCV::V4,  RISCV::V5,  RISCV::V6,  RISCV::V7
+};
+
 // Pass a 2*XLEN argument that has been split into two XLEN values through
 // registers or the stack as necessary.
 static bool CC_RISCVAssign2XLen(unsigned XLen, CCState &State, CCValAssign VA1,
@@ -5794,17 +5800,19 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
   }
 
   if (IsVarArg) {
-    assert(0 && "TODO: VarArg lowering is not finished!");
-    ArrayRef<MCPhysReg> ArgRegs = makeArrayRef(ArgVGPRs);
+    // When it come to vardic arguments, the vardic function also need to follow
+    // no-kernel function calling convention, we need to use VGPRs to pass
+    // arguments, here we use v0-v7 registers.
+    ArrayRef<MCPhysReg> ArgRegs = makeArrayRef(VarArgVGPRs);
     unsigned Idx = CCInfo.getFirstUnallocated(ArgRegs);
-    const TargetRegisterClass *RC = &RISCV::GPRRegClass;
+    const TargetRegisterClass *RC = &RISCV::VGPRRegClass;
     MachineFrameInfo &MFI = MF.getFrameInfo();
     MachineRegisterInfo &RegInfo = MF.getRegInfo();
     RISCVMachineFunctionInfo *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
 
     // Offset of the first variable argument from stack pointer, and size of
     // the vararg save area. For now, the varargs save area is either zero or
-    // large enough to hold a0-a7.
+    // large enough to hold v0-v7.
     int VaArgOffset, VarArgsSaveSize;
 
     // If all registers are allocated, then all varargs must be passed on the
@@ -5813,8 +5821,9 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
       VaArgOffset = CCInfo.getNextStackOffset();
       VarArgsSaveSize = 0;
     } else {
+      // The offsets for left unused registers
       VarArgsSaveSize = XLenInBytes * (ArgRegs.size() - Idx);
-      VaArgOffset = -VarArgsSaveSize;
+      VaArgOffset = VarArgsSaveSize;
     }
 
     // Record the frame index of the first variable argument
@@ -5833,7 +5842,9 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
     // Copy the integer registers that may have been used for passing varargs
     // to the vararg save area.
     for (unsigned I = Idx; I < ArgRegs.size();
-         ++I, VaArgOffset += XLenInBytes) {
+         ++I, VaArgOffset -= XLenInBytes) {
+      // Since the stack is growing downsides, we need to adjust the way for
+      // offset calculation
       const Register Reg = RegInfo.createVirtualRegister(RC);
       RegInfo.addLiveIn(ArgRegs[I], Reg);
       SDValue ArgValue = DAG.getCopyFromReg(Chain, DL, Reg, XLenVT);
