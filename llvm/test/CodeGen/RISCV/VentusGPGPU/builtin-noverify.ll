@@ -5,7 +5,6 @@
 define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrspace(1) nocapture noundef readonly %B) {
 ; VENTUS-LABEL: foo_fun:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 16
 ; VENTUS-NEXT:    addi tp, tp, 16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
 ; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
@@ -36,7 +35,6 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    vlw.v v1, -12(tp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vlw.v v2, -16(tp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi sp, sp, -16
 ; VENTUS-NEXT:    addi tp, tp, -16
 ; VENTUS-NEXT:    ret
 entry:

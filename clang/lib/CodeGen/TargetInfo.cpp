@@ -11307,9 +11307,9 @@ private:
   static const int VLen = 1024;
 
   // Ventus GPGPU only support OpenCL C where non-kernel function passes
-  // arguments in V2-V7, return value is passed back in V2.
-  static const int NumArgVGPRs = 6;
-  static const int NumRetVGPRs = 1;
+  // arguments in V0-V31, return value is passed back in V0-v15.
+  static const int NumArgVGPRs = 32;
+  static const int NumRetVGPRs = 16;
 
 public:
   VentusRISCVABIInfo(CodeGen::CodeGenTypes &CGT, unsigned XLen)

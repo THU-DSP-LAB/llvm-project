@@ -5422,40 +5422,81 @@ static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
                       ISD::ArgFlagsTy ArgFlags, CCState &State, bool IsFixed,
                       bool IsRet, Type *OrigTy, const RISCVTargetLowering &TLI,
                       std::optional<unsigned> FirstMaskArgument) {
-  assert(IsFixed && "TODO: Add varidic argument lowering!");
-
   unsigned XLen = DL.getLargestLegalIntTypeSizeInBits();
+  assert(XLen == 32 || XLen == 64);
+
+  // If this is a variadic argument, the RISC-V calling convention requires
+  // that it is assigned an 'even' or 'aligned' register if it has 8-byte
+  // alignment (RV32) or 16-byte alignment (RV64). An aligned register should
+  // be used regardless of whether the original argument was split during
+  // legalisation or not. The argument will not be passed by registers if the
+  // original type is larger than 2*XLEN, so the register alignment rule does
+  // not apply.
+  unsigned TwoXLenInBytes = (2 * XLen) / 8;
+  if (!IsFixed && ArgFlags.getNonZeroOrigAlign() == TwoXLenInBytes &&
+      DL.getTypeAllocSize(OrigTy) == TwoXLenInBytes) {
+    unsigned RegIdx = State.getFirstUnallocated(ArgVGPRs);
+    // Skip 'odd' register if necessary.
+    if (RegIdx != std::size(ArgVGPRs) && RegIdx % 2 == 1)
+      State.AllocateReg(ArgVGPRs);
+  }
+
+  SmallVectorImpl<CCValAssign> &PendingLocs = State.getPendingLocs();
+  SmallVectorImpl<ISD::ArgFlagsTy> &PendingArgFlags =
+      State.getPendingArgFlags();
+
+  assert(PendingLocs.size() == PendingArgFlags.size() &&
+         "PendingLocs and PendingArgFlags out of sync");
 
   // Allocate to a register if possible, or else a stack slot.
   Register Reg;
   unsigned StoreSizeBytes = XLen / 8;
   Align StackAlign = Align(XLen / 8);
 
-  // All arguments are passed in vector registers or via stack for non-kernel
-  // function.
   Reg = State.AllocateReg(ArgVGPRs);
   if (!Reg) {
-    // For return values, the vector must be passed fully via registers or
-    // via the stack.
-    // FIXME: The Ventus ABI only use V2 for return values, but we're
-    // not using it yet.
     if (IsRet)
       return true;
-
-    // Pass argument on stack.
     LocVT = ValVT;
     StoreSizeBytes = ValVT.getStoreSize();
-    // Align vectors to their element sizes, being careful for vXi1
-    // vectors.
+    // No VGPR registers can be used, then we use stack to pass argument
     StackAlign = MaybeAlign(ValVT.getScalarSizeInBits() / 8).valueOrOne();
-    unsigned StackOffset = State.AllocateStack(StoreSizeBytes, StackAlign);
-
-    State.AllocateStack(StoreSizeBytes, StackAlign);
-    State.addLoc(CCValAssign::getMem(ValNo, ValVT, StackOffset, LocVT, LocInfo));
-  } else {
-    State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
   }
 
+  // Allocate stack for arguments which can not use register
+  unsigned StackOffset =
+      Reg ? 0 : State.AllocateStack(StoreSizeBytes, StackAlign);
+
+  // If we reach this point and PendingLocs is non-empty, we must be at the
+  // end of a split argument that must be passed indirectly.
+  if (!PendingLocs.empty()) {
+    assert(ArgFlags.isSplitEnd() && "Expected ArgFlags.isSplitEnd()");
+    assert(PendingLocs.size() > 2 && "Unexpected PendingLocs.size()");
+
+    for (auto &It : PendingLocs) {
+      if (Reg)
+        It.convertToReg(Reg);
+      else
+        It.convertToMem(StackOffset);
+      State.addLoc(It);
+    }
+    PendingLocs.clear();
+    PendingArgFlags.clear();
+    return false;
+  }
+
+  if (Reg) {
+    State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
+    return false;
+  }
+
+  // When a floating-point value is passed on the stack, no bit-conversion is
+  // needed.
+  if (ValVT.isFloatingPoint()) {
+    LocVT = ValVT;
+    LocInfo = CCValAssign::Full;
+  }
+  State.addLoc(CCValAssign::getMem(ValNo, ValVT, StackOffset, LocVT, LocInfo));
   return false;
 }
 
@@ -5734,7 +5775,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
   std::vector<SDValue> OutChains;
 
   // Assign locations to all of the incoming arguments.
-  SmallVector<CCValAssign, 16> ArgLocs;
+  SmallVector<CCValAssign, 32> ArgLocs;
   CCState CCInfo(CallConv, IsVarArg, MF, ArgLocs, *DAG.getContext());
 
   if (IsKernel)
