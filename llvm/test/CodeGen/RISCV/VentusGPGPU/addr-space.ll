@@ -6,7 +6,6 @@ define dso_local spir_kernel void @func(ptr addrspace(1) nocapture noundef align
 ; VENTUS-LABEL: func:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 16
-; VENTUS-NEXT:    addi tp, tp, 16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
 ; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    sw s0, -8(sp) # 4-byte Folded Spill
@@ -36,7 +35,6 @@ define dso_local spir_kernel void @func(ptr addrspace(1) nocapture noundef align
 ; VENTUS-NEXT:    lw s1, -12(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    vlw.v v32, -16(tp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -16
-; VENTUS-NEXT:    addi tp, tp, -16
 ; VENTUS-NEXT:    ret
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)

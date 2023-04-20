@@ -360,9 +360,14 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
 
   // If the stack pointer has been marked as reserved, then produce an error if
   // the frame requires stack allocation
-  if (STI.isRegisterReservedByUser(SPReg) || STI.isRegisterReservedByUser(TPReg))
+  if (STI.isRegisterReservedByUser(SPReg))
     MF.getFunction().getContext().diagnose(DiagnosticInfoUnsupported{
         MF.getFunction(), "Stack pointer required, but has been reserved."});
+
+  if (STI.isRegisterReservedByUser(TPReg))
+    MF.getFunction().getContext().diagnose(DiagnosticInfoUnsupported{
+        MF.getFunction(), "Thread pointer required, but has been reserved."});
+
 
   uint64_t FirstSPAdjustAmount = getFirstSPAdjustAmount(MF);
   // Split the SP adjustment to reduce the offsets of callee saved spill.
@@ -372,10 +377,12 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   // Allocate space on the local-mem stack and private-mem stack if necessary.
-  RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(StackSize),
+  if(MF.getFunction().getCallingConv() == CallingConv::SPIR_KERNEL)
+    RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(StackSize),
                 MachineInstr::FrameSetup, getStackAlign());
-  RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg, StackOffset::getFixed(StackSize),
-                MachineInstr::FrameSetup, getStackAlign());
+  else
+    RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg, StackOffset::getFixed(StackSize),
+                  MachineInstr::FrameSetup, getStackAlign());
 
   // Emit ".cfi_def_cfa_offset RealStackSize"
   unsigned CFIIndex = MF.addFrameInst(
@@ -568,10 +575,12 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
     StackSize = FirstSPAdjustAmount;
 
   // Deallocate stack
-  RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(-StackSize),
-                MachineInstr::FrameDestroy, getStackAlign());
-  RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg, StackOffset::getFixed(-StackSize),
-                MachineInstr::FrameDestroy, getStackAlign());
+  if(MF.getFunction().getCallingConv() == CallingConv::SPIR_KERNEL)
+    RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(-StackSize),
+                  MachineInstr::FrameDestroy, getStackAlign());
+  else
+    RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg, StackOffset::getFixed(-StackSize),
+                  MachineInstr::FrameDestroy, getStackAlign());
 
   // Emit epilogue for shadow call stack.
   emitSCSEpilogue(MF, MBB, MBBI, DL);

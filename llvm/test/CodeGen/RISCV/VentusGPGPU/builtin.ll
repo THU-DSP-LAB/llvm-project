@@ -6,7 +6,6 @@ define spir_kernel void @foo_ker(ptr addrspace(1) nocapture noundef align 4 %A, 
 ; VENTUS-LABEL: foo_ker:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 16
-; VENTUS-NEXT:    addi tp, tp, 16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
 ; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    sw s0, -12(sp) # 4-byte Folded Spill
@@ -29,7 +28,6 @@ define spir_kernel void @foo_ker(ptr addrspace(1) nocapture noundef align 4 %A, 
 ; VENTUS-NEXT:    lw s0, -12(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    lw s1, -16(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -16
-; VENTUS-NEXT:    addi tp, tp, -16
 ; VENTUS-NEXT:    ret
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
@@ -45,7 +43,6 @@ entry:
 define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrspace(1) nocapture noundef readonly %B) {
 ; VENTUS-LABEL: foo_fun:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 16
 ; VENTUS-NEXT:    addi tp, tp, 16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
 ; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
@@ -68,7 +65,6 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    vlw.v v32, -12(tp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    vlw.v v33, -16(tp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi sp, sp, -16
 ; VENTUS-NEXT:    addi tp, tp, -16
 ; VENTUS-NEXT:    ret
 entry:

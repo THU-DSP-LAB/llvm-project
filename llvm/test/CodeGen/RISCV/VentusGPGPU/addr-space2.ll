@@ -8,7 +8,6 @@ define spir_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 48
-; VENTUS-NEXT:    addi tp, tp, 48
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 48
 ; VENTUS-NEXT:    sw ra, -36(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    sw s0, -40(sp) # 4-byte Folded Spill
@@ -57,7 +56,6 @@ define spir_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    lw s1, -44(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    lw s2, -48(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -48
-; VENTUS-NEXT:    addi tp, tp, -48
 ; VENTUS-NEXT:    ret
 entry:
   %a = alloca [5 x i32], align 4, addrspace(5)
