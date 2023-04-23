@@ -1176,6 +1176,11 @@ def VFMV_S_F : RVInstV2<0b010000, 0b00000, OPFVF, (outs VGPR:$vd_wb),
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
 
 } // Predicates = [HasVInstructionsAnyF]
+// RVInstVV<funct6, opv, (outs VGPR:$vd),
+//                 (ins VGPR:$vs2, VGPR:$vs1),
+//                 opcodestr, "$vd, $vs2, $vs1">
+// def VFEXP1 : RVInstVV<0b010000, OPFVF, (outs GPRF32:$vd),
+                      //  (ins GPRF32:$vs2, GPRF32:$vs1), "fadd.s", "$vd, $vs1, $vs2">;
 
 //===----------------------------------------------------------------------===//
 // Ventus GPGPU extended instructions for V formats
@@ -1313,6 +1318,7 @@ def : PatFXConvert<DivergentUnaryFrag<any_sint_to_fp>,
 def : PatFXConvert<DivergentUnaryFrag<any_uint_to_fp>,
                         [f32, XLenVT], VFCVT_F_XU_V>;
 defm : PatVFRBin<DivergentBinFrag<fadd>,  [VFADD_VV, VFADD_VF]>;
+// def : Pat<(fadd GPRF32:$rs1, GPRF32:$rs2), (FADD_S $rs1, $rs2)>;
 defm : PatVFRBin<DivergentBinFrag<fsub>,  [VFSUB_VV, VFSUB_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fmul>,  [VFMUL_VV, VFMUL_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fdiv>,  [VFDIV_VV, VFDIV_VF, VFRDIV_VF]>;
