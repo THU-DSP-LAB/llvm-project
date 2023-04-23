@@ -1975,7 +1975,7 @@ def : Pat<(UniformWBinFrag<add> GPR:$rs1, (AddiPair:$rs2)),
 
 include "VentusInstrInfoM.td"
 include "VentusInstrInfoA.td"
-include "RISCVInstrInfoF.td"
+include "VentusInstrInfoF.td"
 include "RISCVInstrInfoD.td"
 include "VentusInstrInfoC.td"
 include "RISCVInstrInfoZb.td"
