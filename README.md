@@ -202,3 +202,9 @@ Use [spike](https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator) from THU 
 * ~~Pattern match VV and VX optimization. There is only type information in the DAG pattern matching, we can't specify whether to match a DAG to a vop.vv or vop.vx MIR in a tblgen pattern, so a fix pass should be ran after codegen pass~~.
 * Opencl kernel api - get_enqueued_local_size, need to support non-uniform workgroup
 * `mem_fence` builtin support
+
+### 6: Github actions
+
+We add a customized action for VENTUS including `Building ventus` and `Building ISA simulator`, later we will add `Test workflow` to make all the process automatable,
+the workflow file is `.github/workflows/ventus-build.yml`
+
