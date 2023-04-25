@@ -1,0 +1,65 @@
+name: Build VENTUS
+env:
+  POCL: pocl
+  OCL_ICD: ocl-icd
+  ISA_SIMULATOR: ventus-gpgpu-isa-simulator
+  LLVM_VERSION: 15
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *' # Runs at 2am everyday
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout LLVM
+      uses: actions/checkout@v3
+
+    - name: Use Node.js 16.x
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16.x
+        registry-url: 'https://registry.npmjs.org'
+
+
+    - name: Install Ninja
+      uses: llvm/actions/install-ninja@main
+
+    - name: Install Other needed packages # maybe install llvm release is a better choice
+      run: |
+        sudo apt-get install -y \
+        ccache \
+        clang-15 \
+        llvm-$LLVM_VERSION \
+        libclang-cpp$LLVM_VERSION-dev libclang-cpp$LLVM_VERSION \
+        llvm-$LLVM_VERSION-dev
+
+    - name: Clone needed packages
+      run: |
+        git clone https://github.com/THU-DSP-LAB/pocl.git  ${{github.workspace}}/../$POCL
+        git clone https://github.com/OCL-dev/ocl-icd.git ${{github.workspace}}/../$OCL_ICD
+        git clone https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator.git ${{github.workspace}}/../$ISA_SIMULATOR
+        echo $?
+
+    - name: Start building ISA simulator
+      run: |
+        sudo apt-get install -y device-tree-compiler
+        cd ${{github.workspace}}/../$ISA_SIMULATOR
+        mkdir build
+        cd build
+        ../configure --prefix=${{github.workspace}}/../$ISA_SIMULATOR/install --enable-commitlog
+        make && make install
+        export PATH={{github.workspace}}/../$ISA_SIMULATOR/install/bin:$PATH
+        cd ${{github.workspace}}
+
+    - name: Start building VENTUS
+      shell: bash
+      run: |
+        ./build-ventus.sh
+
+    - name: Start ISA simulation test
+      run: |
+        # Later need to add test files and test script for testing
+        echo "Test files and scripts will be added later"
