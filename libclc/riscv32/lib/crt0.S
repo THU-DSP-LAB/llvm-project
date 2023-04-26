@@ -16,6 +16,14 @@
 
 #include "ventus.h"
 
+.section .data
+.global BUFFER_ADDR
+BUFFER_ADDR:
+    .word 0
+.global BUFFER_SIZE
+BUFFER_SIZE:
+    .word 0
+
   .text
   .global _start
   .type   _start, @function
@@ -34,7 +42,9 @@ _start:
   csrrs t4,mstatus,t4
   li t4,0
   csrr sp, CSR_LDS      # sp points to baseaddr of local memory of each SM
-  addi tp, x0, 0        # tp points to baseaddr for lower bound of private memory(1K) of each thread
+  # TODO: after we complete the stack adjustment for tp
+  # change below code into addi tp, x0, 0
+  csrr tp, CSR_PDS        # tp points to baseaddr for lower bound of private memory(1K) of each thread
 
   # clear BSS segment
   la      a0, _edata
@@ -49,6 +59,12 @@ _start:
   csrr t0, CSR_KNL	      # get addr of kernel metadata
   lw t1, KNL_ENTRY(t0)    # get kernel program address
   lw a0, KNL_ARG_BASE(t0) # get kernel arg buffer base address
+  lw t2, KNL_PRINT_ADDR(t0) # get kernel print buffer address
+  lw t3, KNL_PRINT_SIZE(t0) # get kernel print buffer size
+  la t4, BUFFER_ADDR
+  la t5, BUFFER_SIZE
+  sw t2, 0(t4)
+  sw t3, 0(t5)
   jalr t1                 # call kernel program
 
   # call exit routine

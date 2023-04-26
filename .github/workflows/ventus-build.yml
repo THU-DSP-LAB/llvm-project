@@ -4,6 +4,7 @@ env:
   OCL_ICD: ocl-icd
   ISA_SIMULATOR: ventus-gpgpu-isa-simulator
   LLVM_VERSION: 15
+  BUILD_TYPE: Release
 on:
   push:
     branches: [ main ]
@@ -49,9 +50,9 @@ jobs:
         cd ${{github.workspace}}/../$ISA_SIMULATOR
         mkdir build
         cd build
-        ../configure --prefix=${{github.workspace}}/../$ISA_SIMULATOR/install --enable-commitlog
+        ../configure --prefix=${{github.workspace}}/install --enable-commitlog
         make && make install
-        export PATH={{github.workspace}}/../$ISA_SIMULATOR/install/bin:$PATH
+        rm -rf ${{github.workspace}}/../$ISA_SIMULATOR
         cd ${{github.workspace}}
 
     - name: Start building VENTUS

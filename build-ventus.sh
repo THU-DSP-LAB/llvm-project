@@ -64,6 +64,11 @@ if [ ! -d "${POCL_DIR}" ]; then
 fi
 POCL_BUILD_DIR=${POCL_DIR}/build
 
+# Get build type from env, otherwise use default value 'Debug'
+if [ ! -z "${BUILD_TYPE}" ]; then
+  BUILD_TYPE=Debug
+fi
+
 # Need to get the icd_loader folder from enviroment variables
 if [ -z "${OCL_ICD_DIR}" ]; then
   OCL_ICD_DIR=${DIR}/../ocl-icd
@@ -85,7 +90,7 @@ build_ventus() {
     -DLLVM_CCACHE_BUILD=ON \
     -DLLVM_OPTIMIZED_TABLEGEN=ON \
     -DLLVM_PARALLEL_LINK_JOBS=12 \
-    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
     -DLLVM_ENABLE_PROJECTS="clang;lld;libclc" \
     -DLLVM_TARGETS_TO_BUILD="AMDGPU;X86;RISCV" \
     -DLLVM_TARGET_ARCH=riscv32 \
@@ -121,7 +126,6 @@ build_libclc() {
     mkdir ${LIBCLC_BUILD_DIR}
   fi
   cd ${LIBCLC_BUILD_DIR}
-  (ninja clean ||  true) >& /tmp/ninja-clean.log
   cmake -G Ninja -B ${LIBCLC_BUILD_DIR} ${DIR}/libclc \
     -DCMAKE_LLAsm_COMPILER_WORKS=ON \
     -DCMAKE_CLC_COMPILER_WORKS=ON \
