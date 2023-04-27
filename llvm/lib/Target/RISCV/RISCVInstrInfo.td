@@ -141,6 +141,8 @@ def GPRMem : MemOperand<GPR>;
 
 def SPMem : MemOperand<SP>;
 
+def TPMem : MemOperand<TP>;
+
 def GPRCMem : MemOperand<GPRC>;
 
 class SImmAsmOperand<int width, string suffix = "">

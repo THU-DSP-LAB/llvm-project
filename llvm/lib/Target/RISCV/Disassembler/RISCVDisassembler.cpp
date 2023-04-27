@@ -74,9 +74,9 @@ static DecodeStatus DecodeGPRRegisterClass(MCInst &Inst, uint64_t RegNo,
 }
 
 static DecodeStatus DecodeGPRF32RegisterClass(MCInst &Inst, uint64_t RegNo,
-                                           uint64_t Address,
-                                           const MCDisassembler *Decoder) {
-    return DecodeGPRRegisterClass(Inst, RegNo, Address, Decoder);
+                                              uint64_t Address,
+                                              const MCDisassembler *Decoder) {
+  return DecodeGPRRegisterClass(Inst, RegNo, Address, Decoder);
 }
 
 static DecodeStatus DecodeFPR16RegisterClass(MCInst &Inst, uint64_t RegNo,
@@ -144,6 +144,23 @@ static DecodeStatus DecodeGPRNoX0RegisterClass(MCInst &Inst, uint64_t RegNo,
   return DecodeGPRRegisterClass(Inst, RegNo, Address, Decoder);
 }
 
+static DecodeStatus DecodeGPRNoX4RegisterClass(MCInst &Inst, uint64_t RegNo,
+                                               uint64_t Address,
+                                               const MCDisassembler *Decoder) {
+  if (RegNo == 4)
+    return MCDisassembler::Fail;
+
+  return DecodeGPRRegisterClass(Inst, RegNo, Address, Decoder);
+}
+
+static DecodeStatus DecodeTPRegisterClass(MCInst &Inst, uint64_t RegNo,
+                                          uint64_t Address,
+                                          const MCDisassembler *Decoder) {
+  if (RegNo != 4)
+    return MCDisassembler::Fail;
+  return MCDisassembler::Success;
+}
+
 static DecodeStatus
 DecodeGPRNoX0X2RegisterClass(MCInst &Inst, uint64_t RegNo, uint64_t Address,
                              const MCDisassembler *Decoder) {
@@ -177,8 +194,8 @@ static DecodeStatus DecodeGPRPF64RegisterClass(MCInst &Inst, uint64_t RegNo,
 }
 
 static DecodeStatus DecodeVGPRRegisterClass(MCInst &Inst, uint64_t RegNo,
-                                          uint64_t Address,
-                                          const MCDisassembler *Decoder) {
+                                            uint64_t Address,
+                                            const MCDisassembler *Decoder) {
   if (RegNo >= 256)
     return MCDisassembler::Fail;
 

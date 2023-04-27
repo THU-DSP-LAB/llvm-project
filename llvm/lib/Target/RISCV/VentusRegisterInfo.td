@@ -270,6 +270,11 @@ def GPRNoX0 : RVRegisterClass<"RISCV", [XLenVT], 32, (sub GPR, X0)> {
   let IsSGPR = 1;
 }
 
+def GPRNoX4 : RVRegisterClass<"RISCV", [XLenVT], 32, (sub GPR, X4)> {
+  let RegInfos = XLenRI;
+  let IsSGPR = 1;
+}
+
 def GPRNoX0X2 : RVRegisterClass<"RISCV", [XLenVT], 32, (sub GPR, X0, X2, X4)> {
   let RegInfos = XLenRI;
   let IsSGPR = 1;

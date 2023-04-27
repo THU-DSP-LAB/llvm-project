@@ -51,13 +51,13 @@ class DivergentPriLdPat<PatFrag LoadOp, RVInst Inst>
 
 class DivergentPriStPat<PatFrag StoreOp, RVInst Inst>
   : Pat<(DivergentPrivateStoreFrag<StoreOp>
-         (XLenVT VGPR:$vs3), (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2))),
-         (Inst VGPR:$vs3, GPR:$rs1, VGPR:$vs2)>;
+         (XLenVT VGPR:$vs3), (AddrRegReg TP:$rs1, (XLenVT VGPR:$vs2))),
+         (Inst VGPR:$vs3, TP:$rs1, VGPR:$vs2)>;
 
 class DivergentNonPriLdPat<PatFrag LoadOp, RVInst Inst>
  : Pat<(XLenVT (DivergentNonPrivateLoadFrag<LoadOp>
-                (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2)))),
-                (Inst GPR:$rs1, VGPR:$vs2)>;
+                (AddrRegReg TP:$rs1, (XLenVT VGPR:$vs2)))),
+                (Inst TP:$rs1, VGPR:$vs2)>;
 
 class DivergentNonPriLdImmPat<PatFrag LoadOp, RVInst Inst>
  : Pat<(XLenVT (DivergentNonPrivateLoadFrag<LoadOp>
@@ -682,13 +682,13 @@ class Branch_i<bits<3> funct3, string opcodestr>
 
 // Customized load/store instructions
 class VENTUS_VL<bits<3> funct3, string opcodestr>:
-          RVInstSetVLVLi<0b0, (outs VGPR:$vd), (ins GPRMem:$rs1, simm11:$imm11),
+          RVInstSetVLVLi<0b0, (outs VGPR:$vd), (ins TPMem:$rs1, simm11:$imm11),
                       opcodestr # ".v", "$vd, ${imm11}(${rs1})"> {
       let Inst{14-12} = funct3;
       let Opcode = OPC_CUSTOM_1.Value;
 }
 class VENTUS_VS<bits<3> funct3, string opcodestr>:
-          RVInstSetVSVLi<0b1, (outs), (ins VGPR:$vd, GPRMem:$rs1, simm11:$imm11),
+          RVInstSetVSVLi<0b1, (outs), (ins VGPR:$vd, TPMem:$rs1, simm11:$imm11),
                       opcodestr # ".v", "$vd, ${imm11}(${rs1})"> {
       let Inst{14-12} = funct3;
       let Opcode = OPC_CUSTOM_1.Value;
