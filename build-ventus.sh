@@ -22,6 +22,7 @@ Options:
     Chosen programs to build : llvm-ventus, pocl, ocl-icd, libclc
     Option format : "llvm-ventus;pocl", string are seperated by semicolon
     Default : "llvm-ventus;pocl;ocl-icd;libclc"
+    'BUILD_TYPE' is default 'Debug' which can be changed by enviroment variable
 
   --help | -h
     Print this help message and exit.
@@ -65,7 +66,7 @@ fi
 POCL_BUILD_DIR=${POCL_DIR}/build
 
 # Get build type from env, otherwise use default value 'Debug'
-if [ ! -z "${BUILD_TYPE}" ]; then
+if [ -z "${BUILD_TYPE}" ]; then
   BUILD_TYPE=Debug
 fi
 
