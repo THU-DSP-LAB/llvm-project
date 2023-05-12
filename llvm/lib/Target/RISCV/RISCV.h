@@ -72,6 +72,9 @@ void initializeVentusRegextInsertionPass(PassRegistry &);
 FunctionPass *createVentusVVInstrConversionPass();
 void initializeVentusVVInstrConversionPass(PassRegistry &);
 
+FunctionPass *createVentusInsertJoinToVBranchPass();
+void initializeVentusInsertJoinToVBranchPass(PassRegistry &);
+
 InstructionSelector *createRISCVInstructionSelector(const RISCVTargetMachine &,
                                                     RISCVSubtarget &,
                                                     RISCVRegisterBankInfo &);

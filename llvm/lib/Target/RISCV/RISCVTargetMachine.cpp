@@ -286,6 +286,7 @@ void RISCVPassConfig::addPreEmitPass2() {
   // Insert regext instruction for instruction whose register id is greater
   // than 31.
   addPass(createVentusRegextInsertionPass());
+  addPass(createVentusInsertJoinToVBranchPass());
 }
 
 void RISCVPassConfig::addMachineSSAOptimization() {
@@ -302,11 +303,13 @@ void RISCVPassConfig::addPreRegAlloc() {
   if (TM->getOptLevel() != CodeGenOpt::None)
     addPass(createRISCVMergeBaseOffsetOptPass());
   addPass(createVentusVVInstrConversionPass());
+
 }
 
 void RISCVPassConfig::addPostRegAlloc() {
   if (TM->getOptLevel() != CodeGenOpt::None && EnableRedundantCopyElimination)
     addPass(createRISCVRedundantCopyEliminationPass());
+
 }
 
 yaml::MachineFunctionInfo *
