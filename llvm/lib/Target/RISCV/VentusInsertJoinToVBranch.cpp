@@ -215,8 +215,7 @@ bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
   // After this check, all return blocks are expected to be legal
   IsChanged |= canJoinRetMBB(MF);
   MDT->getBase().recalculate(*MachineFunc);
-  // assert(getReturnBlockNum(MF) == 1 && "Join return MBB process not
-  // completed");
+  assert(getReturnBlockNum(MF) == 1 && "Join return MBB process not completed");
   for (auto &MBB : make_early_inc_range(MF)) {
     MachineDomTreeNode *Node = MDT->getNode(&MBB);
     if (Node && Node->getIDom()) {
