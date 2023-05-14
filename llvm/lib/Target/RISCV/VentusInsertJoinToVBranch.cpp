@@ -82,7 +82,7 @@ public:
   bool legalizeRetMBB(MachineBasicBlock &MBB);
 
   bool hasCommonBranchPredecessor(MachineBasicBlock &MBB1,
-                                    MachineBasicBlock &MBB2);
+                                  MachineBasicBlock &MBB2);
 
   bool canJoinMBB(MachineBasicBlock &MBB1, MachineBasicBlock &MBB2);
 
@@ -167,15 +167,18 @@ unsigned VentusInsertJoinToVBranch::getReturnBlockCount(MachineFunction &MF) {
 
 bool VentusInsertJoinToVBranch::insertJoinMBB(MachineBasicBlock &MBB1,
                                               MachineBasicBlock &MBB2) {
-  MachineBasicBlock *PseudoJoinMBB = MachineFunc->CreateMachineBasicBlock();
-  BuildMI(*PseudoJoinMBB, PseudoJoinMBB->end(), DebugLoc(),
-          TII->get(RISCV::PseudoRET));
-  MachineFunc->push_back(PseudoJoinMBB);
-  legalizeRetMBB(MBB1);
-  legalizeRetMBB(MBB2);
-  MBB1.addSuccessor(PseudoJoinMBB);
-  MBB2.addSuccessor(PseudoJoinMBB);
-  return true;
+  if (MBB1.isReturnBlock() && MBB2.isReturnBlock()) {
+    MachineBasicBlock *PseudoJoinMBB = MachineFunc->CreateMachineBasicBlock();
+    BuildMI(*PseudoJoinMBB, PseudoJoinMBB->end(), DebugLoc(),
+            TII->get(RISCV::PseudoRET));
+    MachineFunc->push_back(PseudoJoinMBB);
+    legalizeRetMBB(MBB1);
+    legalizeRetMBB(MBB2);
+    MBB1.addSuccessor(PseudoJoinMBB);
+    MBB2.addSuccessor(PseudoJoinMBB);
+    return true;
+  }
+  return false;
 }
 
 /// Check if two return blocks can join or not
@@ -239,7 +242,8 @@ bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
 
           } else {
             // Avoid duplicate JOIN add
-            if (!(Predecessor->instr_back().getOpcode() == RISCV::JOIN))
+            if (Predecessor->empty() ||
+                !(Predecessor->instr_back().getOpcode() == RISCV::JOIN))
               BuildMI(*Predecessor, Predecessor->end(), DebugLoc(),
                       TII->get(RISCV::JOIN))
                   .addMBB(&MBB);
@@ -289,15 +293,16 @@ bool VentusInsertJoinToVBranch::legalizeRetMBB(MachineBasicBlock &MBB) {
   // Get last instruction in this basic block
   if (MBB.empty())
     return false;
-  MachineInstr *LastInst = &(*MBB.instr_rbegin());
-  unsigned LastInstOpcode = LastInst->getOpcode();
+  MachineInstr &LastInst = MBB.back();
+  unsigned LastInstOpcode = LastInst.getOpcode();
   assert(LastInstOpcode == RISCV::PseudoRET ||
          LastInstOpcode == RISCV::PseudoTAIL && "Unexpected opcode");
   if (LastInstOpcode == RISCV::PseudoRET)
     // Get the return instruction's implicit operands
-    LastInst->eraseFromParent();
+    LastInst.eraseFromParent();
   else
-    LastInst->setDesc(TII->get(RISCV::PseudoCALL));
+    LastInst.setDesc(TII->get(RISCV::PseudoCALL));
+
   return true;
 }
 
@@ -321,7 +326,7 @@ bool VentusInsertJoinToVBranch::hasCommonBranchPredecessor(
 
 SmallVector<MachineBasicBlock *>
 VentusInsertJoinToVBranch::findAllBranchPredecessor(MachineBasicBlock &MBB) {
-  SmallVector<MachineBasicBlock *, 8> BranchParents;
+  SmallVector<MachineBasicBlock *, 6> BranchParents;
 
   for (auto Pred : MBB.predecessors()) {
     unsigned PredNum = std::distance(Pred->succ_begin(), Pred->succ_end());
