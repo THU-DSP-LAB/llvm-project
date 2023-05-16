@@ -43,7 +43,7 @@ jobs:
         git clone https://github.com/THU-DSP-LAB/pocl.git  ${{github.workspace}}/../$POCL
         git clone https://github.com/OCL-dev/ocl-icd.git ${{github.workspace}}/../$OCL_ICD
         git clone https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator.git ${{github.workspace}}/../$ISA_SIMULATOR
-        git clone -b dev_spike git@github.com:yangzexia/ventus-driver.git ${{github.workspace}}/../$VENTUS_DRIVER
+        git clone -b dev_spike https://github.com/yangzexia/ventus-driver.git ${{github.workspace}}/../$VENTUS_DRIVER
         export DRIVER_DIR=${{github.workspace}}/../$VENTUS_DRIVER
         export DRIVER_BUILD_DIR=${DRIVER_DIR}/build
         export VENTUS_INSTALL_PREFIX=${{github.workspace}}/install
