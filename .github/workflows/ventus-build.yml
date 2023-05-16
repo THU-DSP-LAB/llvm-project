@@ -32,8 +32,9 @@ jobs:
     - name: Install Other needed packages # maybe install llvm release is a better choice
       run: |
         sudo apt-get install -y \
+        device-tree-compiler \
         ccache \
-        clang-15 \
+        clang-$LLVM_VERSION \
         llvm-$LLVM_VERSION \
         libclang-cpp$LLVM_VERSION-dev libclang-cpp$LLVM_VERSION \
         llvm-$LLVM_VERSION-dev
