@@ -141,6 +141,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   if (Subtarget.hasVInstructions()) {
     // TODO: add more data type mapping
     addRegisterClass(MVT::i32, &RISCV::VGPRRegClass);
+
     addRegisterClass(MVT::f32, &RISCV::VGPRRegClass);
   }
 
@@ -329,6 +330,24 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   }
 
   if (Subtarget.hasStdExtF()) {
+
+    setOperationAction(FPLegalNodeTypes, MVT::f32, Legal);
+    setOperationAction(ISD::FCEIL, MVT::f32, Custom);
+    setOperationAction(ISD::FFLOOR, MVT::f32, Custom);
+    setOperationAction(ISD::FTRUNC, MVT::f32, Custom);
+    setOperationAction(ISD::FRINT, MVT::f32, Custom);
+    setOperationAction(ISD::FROUND, MVT::f32, Custom);
+    setOperationAction(ISD::FROUNDEVEN, MVT::f32, Custom);
+    setCondCodeAction(FPCCToExpand, MVT::f32, Expand);
+    setOperationAction(ISD::SELECT_CC, MVT::f32, Expand);
+    setOperationAction(ISD::SELECT, MVT::f32, Custom);
+    setOperationAction(ISD::BR_CC, MVT::f32, Expand);
+    setOperationAction(FPOpToExpand, MVT::f32, Expand);
+    setLoadExtAction(ISD::EXTLOAD, MVT::f32, MVT::f16, Expand);
+    setTruncStoreAction(MVT::f32, MVT::f16, Expand);
+  }
+
+  if (Subtarget.hasStdExtZfinx()) {
     setOperationAction(FPLegalNodeTypes, MVT::f32, Legal);
     setOperationAction(ISD::FCEIL, MVT::f32, Custom);
     setOperationAction(ISD::FFLOOR, MVT::f32, Custom);
@@ -387,7 +406,17 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::FLT_ROUNDS_, XLenVT, Custom);
     setOperationAction(ISD::SET_ROUNDING, MVT::Other, Custom);
   }
+  if (Subtarget.hasStdExtZfinx()) {
+    setOperationAction({ISD::FP_TO_UINT_SAT, ISD::FP_TO_SINT_SAT}, XLenVT,
+                       Custom);
 
+    setOperationAction({ISD::STRICT_FP_TO_UINT, ISD::STRICT_FP_TO_SINT,
+                        ISD::STRICT_UINT_TO_FP, ISD::STRICT_SINT_TO_FP},
+                       XLenVT, Legal);
+
+    setOperationAction(ISD::FLT_ROUNDS_, XLenVT, Custom);
+    setOperationAction(ISD::SET_ROUNDING, MVT::Other, Custom);
+  }
   setOperationAction({ISD::GlobalAddress, ISD::BlockAddress, ISD::ConstantPool,
                       ISD::JumpTable},
                      XLenVT, Custom);
@@ -613,6 +642,8 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
       setOperationAction(ISD::BITCAST, MVT::f16, Custom);
     if (Subtarget.hasStdExtF())
       setOperationAction(ISD::BITCAST, MVT::f32, Custom);
+    if (Subtarget.hasStdExtZfinx())
+      setOperationAction(ISD::BITCAST, MVT::f32, Custom);
     if (Subtarget.hasStdExtD())
       setOperationAction(ISD::BITCAST, MVT::f64, Custom);
   }
@@ -644,7 +675,8 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
 
   if (Subtarget.hasStdExtF())
     setTargetDAGCombine({ISD::FADD, ISD::FMAXNUM, ISD::FMINNUM});
-
+  if (Subtarget.hasStdExtZfinx())
+    setTargetDAGCombine({ISD::FADD, ISD::FMAXNUM, ISD::FMINNUM});
   if (Subtarget.hasStdExtZbb())
     setTargetDAGCombine({ISD::UMAX, ISD::UMIN, ISD::SMAX, ISD::SMIN});
 
@@ -658,7 +690,9 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   if (Subtarget.hasStdExtF())
     setTargetDAGCombine({ISD::ZERO_EXTEND, ISD::FP_TO_SINT, ISD::FP_TO_UINT,
                          ISD::FP_TO_SINT_SAT, ISD::FP_TO_UINT_SAT});
-
+  if (Subtarget.hasStdExtZfinx())
+    setTargetDAGCombine({ISD::ZERO_EXTEND, ISD::FP_TO_SINT, ISD::FP_TO_UINT,
+                         ISD::FP_TO_SINT_SAT, ISD::FP_TO_UINT_SAT});
   setLibcallName(RTLIB::FPEXT_F16_F32, "__extendhfsf2");
   setLibcallName(RTLIB::FPROUND_F32_F16, "__truncsfhf2");
 }
@@ -1174,6 +1208,8 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
     return lowerGlobalTLSAddress(Op, DAG);
   case ISD::Constant:
     return lowerConstant(Op, DAG, Subtarget);
+  case ISD::SELECT_CC:
+    return lowerSELECT_CC(Op, DAG);
   case ISD::SELECT:
     return lowerSELECT(Op, DAG);
   case ISD::BRCOND:
@@ -1198,8 +1234,6 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
     return lowerBITREVERSE(Op, DAG);
   case ISD::FPOWI:
     return lowerFPOWI(Op, DAG);
-  case ISD::SELECT_CC:
-    return lowerSELECT_CC(Op, DAG);
   case ISD::SETCC:
     return lowerSETCC(Op, DAG);
   case ISD::CTLZ_ZERO_UNDEF:
@@ -1211,6 +1245,8 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
     return lowerSET_ROUNDING(Op, DAG);
   case ISD::EH_DWARF_CFA:
     return lowerEH_DWARF_CFA(Op, DAG);
+  // case ISD::  case ISD::FMA:
+  //   return lowerToScalableOp(Op, DAG, RISCVISD::VFMADD_VL);
   }
 }
 
@@ -4780,6 +4816,7 @@ static bool isSelectPseudo(MachineInstr &MI) {
     return false;
   case RISCV::Select_GPR_Using_CC_GPR:
   case RISCV::Select_VGPR_Using_CC_VGPR:
+  case RISCV::Select_GPRF32_Using_CC_VGPR:
   case RISCV::Select_FPR16_Using_CC_GPR:
   case RISCV::Select_FPR32_Using_CC_GPR:
   case RISCV::Select_FPR64_Using_CC_GPR:
@@ -5295,6 +5332,7 @@ RISCVTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
   case RISCV::Select_FPR32_Using_CC_GPR:
   case RISCV::Select_FPR64_Using_CC_GPR:
     return emitSelectPseudo(MI, BB, Subtarget);
+  case RISCV::Select_GPRF32_Using_CC_VGPR:
   case RISCV::Select_VGPR_Using_CC_VGPR:
     return emitVSelectPseudo(MI, BB, Subtarget);
   case RISCV::BuildPairF64Pseudo:

@@ -33,3 +33,13 @@ entry:
   store float %div, ptr addrspace(1) %result, align 4
   ret void
 }
+
+define dso_local spir_kernel void @fmadd(float noundef %a, float noundef %b, float noundef %c, ptr addrspace(1) nocapture noundef writeonly align 4 %result)  {
+entry:
+	; VENTUS: fmadd.s a{{[1-9]}}, a3, a2, a1
+  %div = call float @llvm.fma.f32(float  %a, float  %b, float  %c)
+  store float %div, ptr addrspace(1) %result, align 4
+  ret void
+}
+
+declare float @llvm.fma.f32(float  %a, float  %b, float  %c)

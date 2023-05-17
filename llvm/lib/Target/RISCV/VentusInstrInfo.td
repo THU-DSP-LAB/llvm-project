@@ -1567,6 +1567,12 @@ multiclass SelectCC_GPR_rrirr<RegisterClass valty> {
                              [(set valty:$dst,
                                (UniformSelectCCFrag:$cc GPR:$lhs, GPR:$rhs, cond,
                                                         valty:$truev, valty:$falsev))]>;
+  def _Using_CC_FGPR32 : Pseudo<(outs valty:$dst),
+                             (ins GPRF32:$lhs, GPRF32:$rhs, ixlenimm:$cc,
+                              valty:$truev, valty:$falsev),
+                             [(set valty:$dst,
+                               (UniformSelectCCFrag:$cc GPRF32:$lhs, GPRF32:$rhs, cond,
+                                                        valty:$truev, valty:$falsev))]>;
   // Explicitly select 0 in the condition to X0. The register coalescer doesn't
   // always do it.
   def : Pat<(UniformSelectCCFrag:$cc GPR:$lhs, 0, cond, valty:$truev,
@@ -1577,7 +1583,7 @@ multiclass SelectCC_GPR_rrirr<RegisterClass valty> {
 
 let Predicates = [NoShortForwardBranchOpt] in
 defm Select_GPR : SelectCC_GPR_rrirr<GPR>;
-
+defm Select_GPRF32 : SelectCC_GPR_rrirr<GPRF32>;
 /// Branches and jumps
 
 // Match `riscv_brcc` and lower to the appropriate RISC-V branch instruction.

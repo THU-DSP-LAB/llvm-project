@@ -1354,6 +1354,14 @@ def DivergentSelectCCFrag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
                                                     node:$falsev),
                                     [{ return N->isDivergent(); }],
                                     IntCCtoRISCVCC>;
+def NonDivergentSelectCCFrag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
+                                       node:$truev, node:$falsev),
+                                    (riscv_selectcc node:$lhs, node:$rhs,
+                                                    node:$cc, node:$truev,
+                                                    node:$falsev),
+                                    [{ return !N->isDivergent(); }],
+                                    IntCCtoRISCVCC>;
+
 
 let Predicates = [HasShortForwardBranchOpt],
     Constraints = "$dst = $falsev", isCommutable = 1, Size = 8 in {
@@ -1377,6 +1385,22 @@ def Select_VGPR_Using_CC_VGPR : Pseudo<(outs VGPR:$dst),
                               (DivergentSelectCCFrag:$cc
                                (XLenVT VGPR:$lhs), (XLenVT VGPR:$rhs), cond,
                                (XLenVT VGPR:$truev), (XLenVT VGPR:$falsev)))]>;
+let usesCustomInserter = 1 in
+def Select_GPRF32_Using_CC_VGPR : Pseudo<(outs GPRF32:$dst),
+                            (ins VGPR:$lhs, VGPR:$rhs, ixlenimm:$cc,
+                             GPRF32:$truev, GPRF32:$falsev),
+                            [(set f32:$dst,
+                              (DivergentSelectCCFrag:$cc
+                               (XLenVT VGPR:$lhs), (XLenVT VGPR:$rhs), cond,
+                               (f32 GPRF32:$truev), (f32 GPRF32:$falsev)))]>;
+
+def Select_GPRF32_Using_CC_GPRF32 : Pseudo<(outs GPRF32:$dst),
+                            (ins GPRF32:$lhs, GPRF32:$rhs, ixlenimm:$cc,
+                             GPRF32:$truev, GPRF32:$falsev),
+                            [(set f32:$dst,
+                              (NonDivergentSelectCCFrag:$cc
+                               (f32 GPRF32:$lhs), (f32 GPRF32:$rhs), cond,
+                               (f32 GPRF32:$truev), (f32 GPRF32:$falsev)))]>;
 
 // Match `riscv_brcc` and lower to the appropriate RISC-V branch instruction.
 class DivergentBccPat<CondCode Cond, RVInstVB Inst>
