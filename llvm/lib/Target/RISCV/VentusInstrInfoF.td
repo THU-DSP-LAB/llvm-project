@@ -176,12 +176,28 @@ class FPFMA_rrr_frm<RISCVOpcode opcode, bits<2> funct2, string opcodestr,
     : RVInstR4Frm<funct2, opcode, (outs rty:$rd),
                   (ins rty:$rs1, rty:$rs2, rty:$rs3, frmarg:$frm),
                   opcodestr, "$rd, $rs1, $rs2, $rs3, $frm">;
+// No frmarg
+let hasSideEffects = 0, mayLoad = 0, mayStore = 0, mayRaiseFPException = 1,
+    UseNamedOperandTable = 1, hasPostISelHook = 1, isCommutable = 1 in
+class FPFMA_rrr<RISCVOpcode opcode, bits<2> funct2, string opcodestr,
+                    DAGOperand rty>
+    : RVInstR4<funct2, 0b111, opcode, (outs rty:$rd),
+                  (ins rty:$rs1, rty:$rs2, rty:$rs3),
+                  opcodestr, "$rd, $rs1, $rs2, $rs3">;
+
 
 multiclass FPFMA_rrr_frm_m<RISCVOpcode opcode, bits<2> funct2,
                            string opcodestr, list<ExtInfo_r> Exts> {
   foreach Ext = Exts in
     let Predicates = Ext.Predicates, DecoderNamespace = Ext.Space in
     def Ext.Suffix : FPFMA_rrr_frm<opcode, funct2, opcodestr, Ext.Reg>;
+}
+
+multiclass FPFMA_rrr_m<RISCVOpcode opcode, bits<2> funct2,
+                           string opcodestr, list<ExtInfo_r> Exts> {
+  foreach Ext = Exts in
+    let Predicates = Ext.Predicates, DecoderNamespace = Ext.Space in
+    def Ext.Suffix : FPFMA_rrr<opcode, funct2, opcodestr, Ext.Reg>;
 }
 
 class FPFMADynFrmAlias<FPFMA_rrr_frm Inst, string OpcodeStr,
@@ -312,7 +328,6 @@ class PseudoFROUND<RegisterClass Ty>
 
 let Predicates = [HasStdExtZfinx] in {
 def FLW : FPLoad_r<0b010, "flw", GPRF32, WriteFLD32>;
-
 // Operands for stores are in the order srcreg, base, offset rather than
 // reflecting the order these fields are specified in the instruction
 // encoding.
@@ -324,6 +339,10 @@ defm FMADD_S  : FPFMA_rrr_frm_m<OPC_MADD,  0b00, "fmadd.s",  FINX>;
 defm FMSUB_S  : FPFMA_rrr_frm_m<OPC_MSUB,  0b00, "fmsub.s",  FINX>;
 defm FNMSUB_S : FPFMA_rrr_frm_m<OPC_NMSUB, 0b00, "fnmsub.s", FINX>;
 defm FNMADD_S : FPFMA_rrr_frm_m<OPC_NMADD, 0b00, "fnmadd.s", FINX>;
+defm FMADD  : FPFMA_rrr_m<OPC_MADD,  0b00, "fmadd.s",  FINX>;
+defm FMSUB  : FPFMA_rrr_m<OPC_MSUB,  0b00, "fmsub.s",  FINX>;
+defm FNMSUB : FPFMA_rrr_m<OPC_NMSUB, 0b00, "fnmsub.s", FINX>;
+defm FNMADD : FPFMA_rrr_m<OPC_NMADD, 0b00, "fnmadd.s", FINX>;
 }
 
 defm : FPFMADynFrmAlias_m<FMADD_S,  "fmadd.s",  FINX>;
@@ -529,22 +548,34 @@ def : Pat<(fcopysign GPRF32:$rs1, (fneg GPRF32:$rs2)), (FSGNJN_S $rs1, $rs2)>;
 def : Pat<(any_fma GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3),
           (FMADD_S $rs1, $rs2, $rs3, 0b111)>;
 
+// def : Pat<(any_fma GPRF32:$rs1, GPRF32:$rs1, GPRF32:$rs3),
+//           (FMADD $rs1, $rs1, $rs3)>;
+
 // fmsub: rs1 * rs2 - rs3
 def : Pat<(any_fma GPRF32:$rs1, GPRF32:$rs2, (fneg GPRF32:$rs3)),
           (FMSUB_S GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3, 0b111)>;
 
+def : Pat<(any_fma GPRF32:$rs1, GPRF32:$rs2, (fneg GPRF32:$rs3)),
+          (FMSUB GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3)>;
+
 // fnmsub: -rs1 * rs2 + rs3
 def : Pat<(any_fma (fneg GPRF32:$rs1), GPRF32:$rs2, GPRF32:$rs3),
           (FNMSUB_S GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3, 0b111)>;
+def : Pat<(any_fma (fneg GPRF32:$rs1), GPRF32:$rs2, GPRF32:$rs3),
+          (FNMSUB GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3)>;
 
 // fnmadd: -rs1 * rs2 - rs3
 def : Pat<(any_fma (fneg GPRF32:$rs1), GPRF32:$rs2, (fneg GPRF32:$rs3)),
           (FNMADD_S GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3, 0b111)>;
+def : Pat<(any_fma (fneg GPRF32:$rs1), GPRF32:$rs2, (fneg GPRF32:$rs3)),
+          (FNMADD GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3)>;
 
 // fnmadd: -(rs1 * rs2 + rs3) (the nsz flag on the FMA)
 def : Pat<(fneg (any_fma_nsz GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3)),
           (FNMADD_S GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3, 0b111)>;
 
+def : Pat<(fneg (any_fma_nsz GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3)),
+          (FNMADD GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3)>;
 // The ratified 20191213 ISA spec defines fmin and fmax in a way that matches
 // LLVM's fminnum and fmaxnum
 // <https://github.com/riscv/riscv-isa-manual/commit/cd20cee7efd9bac7c5aa127ec3b451749d2b3cce>.

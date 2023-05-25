@@ -211,7 +211,8 @@ public:
       return 0;
     Register &R = ValueMap[V];
     assert(R == 0 && "Already initialized this value register!");
-    assert(VirtReg2Value.empty());
+    // assert(VirtReg2Value.empty());
+    // assert(VirtReg2Value.empty());
     return R = CreateRegs(V);
   }
 

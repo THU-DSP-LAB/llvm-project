@@ -549,8 +549,7 @@ bool RISCVInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
   }
 
   // Handle a single conditional branch.
-  if (NumTerminators == 1 && !isDivergentBranch(*I) &&
-      I->getDesc().isConditionalBranch()) {
+  if (NumTerminators == 1 && I->getDesc().isConditionalBranch()) {
     parseCondBranch(*I, TBB, Cond);
     return false;
   }

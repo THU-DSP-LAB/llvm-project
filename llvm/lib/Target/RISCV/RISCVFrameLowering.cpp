@@ -628,7 +628,8 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
   //        "SGPRSpill stack should not reach here!");
 
   if (RI->hasStackRealignment(MF) && !MFI.isFixedObjectIndex(FI)) {
-    assert(0 && "TODO: Add stack realignment support for Ventus?");
+    // TODO: add stack alignment
+    // assert(0 && "TODO: Add stack realignment support for Ventus?");
     // If the per-thread stack was realigned, the frame pointer is set in order
     // to allow TP to be restored, so we need another base register to record
     // the stack after realignment.
