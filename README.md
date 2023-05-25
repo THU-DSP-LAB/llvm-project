@@ -14,14 +14,21 @@ Download all the repositories firstly
 * llvm-ventus : git clone https://github.com/THU-DSP-LAB/llvm-project.git
 * pocl : git clone https://github.com/THU-DSP-LAB/pocl.git
 * ocl-icd : git clone https://github.com/OCL-dev/ocl-icd.git
+* isa-simulator : git clone https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator.git
+* spike driver : git clone -b dev_spike https://github.com/yangzexia/ventus-driver.git
 
-> libclc can be built from llvm-ventus repository
+> ATTENTION: Remember to check branch for every repository, cause the project are under development, if you get any build errors, feel free to give a issue or just contact authors
 
 ### 2: Build all the programs
 
-> You can refer to [official website](https://llvm.org/docs/GettingStarted.html) for llvm building guidance, if you see package missing information, just install the missing packages.
+Our program is based on LLVM, so the need packages to build ventus are almost the same as what are needed to build LLVM, you can refer to [official website](https://llvm.org/docs/GettingStarted.html) for detailed llvm building guidance, we just list most important needed packages here.
 
-Assume you have already installed essential build tools such as cmake, clang, ninja, ccache etc.
+* ccache
+* cmake
+* ninja
+* clang(optional)
+
+> If you see any packages missing information, just install them
 
 Run `./build-ventus.sh` to automatically build all the programs, but we need to run firstly
 * `export POCL_DIR=<path-to-pocl-dir>`, default folder path will be set to be **`<llvm-ventus-parentFolder>`/pocl**
@@ -51,82 +58,7 @@ LIST OF DEVICES:
 ```
 
 Also, you can try to set `POCL_DEBUG=all` and run example under `<pocl-build-dir>` to see the full OpenCL software stack execution pipeline. For example(Work in progress).
-```
-aries@legion:~/workspace/ventus-pocl/build-ventus$ ./examples/vecadd/vecadd
-** Final POCL_DEBUG flags: FFFFFFFFFFFFFFFF
-[2023-01-19 01:58:36.582896453]POCL: in fn POclCreateCommandQueue at line 98:
-  |   GENERAL |  Created Command Queue 3 (0x561c8b324d90) on device 0
-[2023-01-19 01:58:36.583753425]POCL: in fn void pocl_llvm_create_context(cl_context) at line 431:
-  |      LLVM |  Created context 2 (0x561c8b324c60)
-[2023-01-19 01:58:36.583777345]POCL: in fn POclCreateContext at line 227:
-  |   GENERAL |  Created Context 2 (0x561c8b324c60)
-[2023-01-19 01:58:36.583811014]POCL: in fn POclRetainContext at line 32:
-  | REFCOUNTS |  Retain Context 2 (0x561c8b324c60), Refcount: 2
-[2023-01-19 01:58:36.583817177]POCL: in fn POclCreateCommandQueue at line 98:
-  |   GENERAL |  Created Command Queue 4 (0x561c8b3275b0) on device 0
-[2023-01-19 01:58:36.584022807]POCL: in fn POclRetainContext at line 32:
-  | REFCOUNTS |  Retain Context 2 (0x561c8b324c60), Refcount: 3
-[2023-01-19 01:58:36.584082504]POCL: in fn compile_and_link_program at line 719:
-  |      LLVM |  building program with options
-[2023-01-19 01:58:36.584105109]POCL: in fn compile_and_link_program at line 756:
-  |      LLVM |  building program for 1 devs with options
-[2023-01-19 01:58:36.584127804]POCL: in fn compile_and_link_program at line 760:
-  |      LLVM |     BUILDING for device: ventus
-[2023-01-19 01:58:36.584144767]POCL: in fn pocl_driver_build_source at line 712:
-  |      LLVM |  building from sources for device 0
-[2023-01-19 01:58:36.585000531]POCL: in fn int pocl_llvm_build_program(cl_program, unsigned int, cl_uint, _cl_program* const*, const char**, int) at line 406:
-  |      LLVM |  all build options: -DPOCL_DEVICE_ADDRESS_BITS=32 -D__USE_CLANG_OPENCL_C_H -xcl -Dinline= -I. -cl-kernel-arg-info  -D__ENDIAN_LITTLE__=1 -DCL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE=0 -D__OPENCL_VERSION__=200 -cl-std=CL2.0 -D__OPENCL_C_VERSION__=200 -fno-builtin -triple=riscv32 -target-cpu ventus-gpgpu
-[2023-01-19 01:58:37.002888436]POCL: in fn POclRetainContext at line 32:
-  | REFCOUNTS |  Retain Context 2 (0x561c8b324c60), Refcount: 4
-[2023-01-19 01:58:37.002944911]POCL: in fn POclCreateBuffer at line 256:
-  |    MEMORY |  Created Buffer 6 (0x561c8b329330), MEM_HOST_PTR: 0x561c8b65c9d0, device_ptrs[0]: (nil), SIZE 512, FLAGS 36
-[2023-01-19 01:58:37.002959038]POCL: in fn POclRetainContext at line 32:
-  | REFCOUNTS |  Retain Context 2 (0x561c8b324c60), Refcount: 5
-[2023-01-19 01:58:37.002964856]POCL: in fn POclCreateBuffer at line 256:
-  |    MEMORY |  Created Buffer 7 (0x561c8b331280), MEM_HOST_PTR: 0x561c8b39bb50, device_ptrs[0]: (nil), SIZE 512, FLAGS 36
-[2023-01-19 01:58:37.002971025]POCL: in fn POclRetainContext at line 32:
-  | REFCOUNTS |  Retain Context 2 (0x561c8b324c60), Refcount: 6
-[2023-01-19 01:58:37.002976107]POCL: in fn POclCreateBuffer at line 256:
-  |    MEMORY |  Created Buffer 8 (0x561c8b32c130), MEM_HOST_PTR: (nil), device_ptrs[0]: (nil), SIZE 512, FLAGS 1
-[2023-01-19 01:58:37.002991572]POCL: in fn POclCreateKernel at line 139:
-  |   GENERAL |  Created Kernel vecadd (0x561c8b32bd30)
-[2023-01-19 01:58:37.003011888]POCL: in fn POclSetKernelArg at line 107:
-  |   GENERAL |  Kernel          vecadd || SetArg idx   0 ||   float* || Local 0 || Size      8 || Value 0x7ffca34f6350 || Pointer 0x561c8b329330 || *(uint32*)Value:        0 || *(uint64*)Value:        0 ||
-Hex Value:  3093328B 1C560000
-[2023-01-19 01:58:37.003033612]POCL: in fn POclSetKernelArg at line 107:
-  |   GENERAL |  Kernel          vecadd || SetArg idx   1 ||   float* || Local 0 || Size      8 || Value 0x7ffca34f6358 || Pointer 0x561c8b331280 || *(uint32*)Value:        0 || *(uint64*)Value:        0 ||
-Hex Value:  8012338B 1C560000
-[2023-01-19 01:58:37.003047371]POCL: in fn POclSetKernelArg at line 107:
-  |   GENERAL |  Kernel          vecadd || SetArg idx   2 ||   float* || Local 0 || Size      8 || Value 0x7ffca34f6360 || Pointer 0x561c8b32c130 || *(uint32*)Value:        0 || *(uint64*)Value:        0 ||
-Hex Value:  30C1328B 1C560000
-[2023-01-19 01:58:37.003077696]POCL: in fn pocl_kernel_calc_wg_size at line 168:
-  |   GENERAL |  Preparing kernel vecadd with local size 128 x 1 x 1 group sizes 1 x 1 x 1...
-[2023-01-19 01:58:37.003111530]POCL: in fn pocl_driver_alloc_mem_obj at line 420:
-  |    MEMORY |  Basic device ALLOC 0x561c8b65c9d0 / size 512
-[2023-01-19 01:58:37.003123085]POCL: in fn pocl_driver_alloc_mem_obj at line 420:
-  |    MEMORY |  Basic device ALLOC 0x561c8b39bb50 / size 512
-[2023-01-19 01:58:37.003136372]POCL: in fn pocl_driver_alloc_mem_obj at line 420:
-  |    MEMORY |  Basic device ALLOC 0x561c8b65bfb0 / size 512
-[2023-01-19 01:58:37.003148678]POCL: in fn POclRetainCommandQueue at line 33:
-  | REFCOUNTS |  Retain Command Queue 4 (0x561c8b3275b0), Refcount: 2
-[2023-01-19 01:58:37.003159512]POCL: in fn pocl_create_event at line 526:
-  |    EVENTS |  Created event 1 (0x561c8b329500) Command ndrange_kernel
-[2023-01-19 01:58:37.003187245]POCL: in fn pocl_create_command_struct at line 669:
-  |    EVENTS |  Created immediate command struct: CMD 0x561c8b32e440 (event 1 / 0x561c8b329500, type: ndrange_kernel)
-[2023-01-19 01:58:37.003217828]POCL: in fn POclRetainKernel at line 33:
-  | REFCOUNTS |  Retain Kernel vecadd (0x561c8b32bd30), Refcount: 2
-[2023-01-19 01:58:37.003231820]POCL: in fn pocl_command_enqueue at line 1191:
-  |    EVENTS |  In-order Q; adding event syncs
-[2023-01-19 01:58:37.003263335]POCL: in fn pocl_command_enqueue at line 1236:
-  |    EVENTS |  Pushed Event 1 to CQ 4.
-[2023-01-19 01:58:37.003286127]POCL: in fn pocl_update_event_queued at line 2084:
-  |    EVENTS |  Event queued: 1
-[2023-01-19 01:58:37.003365527]POCL: in fn pocl_check_kernel_disk_cache at line 941:
-  |   GENERAL |  Using a cached WG function: /work/tptuser/.cache/pocl/kcache/KK/IMMMNPJCCGPBGPCPFBDFJAFNGPBHCOEHIPAHC/vecadd/128-1-1-goffs0/vecadd.so
-dlopen("/work/tptuser/.cache/pocl/kcache/KK/IMMMNPJCCGPBGPCPFBDFJAFNGPBHCOEHIPAHC/vecadd/128-1-1-goffs0/vecadd.so") failed with '/work/tptuser/.cache/pocl/kcache/KK/IMMMNPJCCGPBGPCPFBDFJAFNGPBHCOEHIPAHC/vecadd/128-1-1-goffs0/vecadd.so: wrong ELF class: ELFCLASS32'.
-note: missing symbols in the kernel binary might be reported as 'file not found' errors.
-Aborted (core dumped)
-```
+
 
 ### 4: Compiler using example
 
@@ -193,7 +125,9 @@ We need to run the isa simulator to verify our compiler
 
 Use [spike](https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator) from THU and follow the `README.md`
 
+#### 4.4: Driver using example
 
+Accordingly, after all the building process, you can change directory to `<llvm-ventus-parentFolder>/pocl/build/examples/vecadd` directory, then export variables as what [Bridge icd loader](#3-bridge-icd-loader) does, finally just execute the file `vecadd`
 ### 5: TODOs
 
 * Emit `barrier` instruction for all stores to local/global memory except sGPR spill.
