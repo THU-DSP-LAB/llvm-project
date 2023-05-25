@@ -30,6 +30,18 @@ Options:
 END
 }
 
+# Check the to be built program exits in file system or not
+check_if_program_exits() {
+  if [ ! -d "$1" ]; then
+    echo "WARNING:*************************************************************"
+    echo
+    echo "$2 folder not found, please set or check!"
+    echo "Default folder is set to be $(realpath $1)"
+    echo
+    echo "WARNING:*************************************************************"
+  fi
+}
+
 # Parse command line options
 while [ $# -gt 0 ]; do
   case $1 in
@@ -58,11 +70,7 @@ done
 if [ -z "${POCL_DIR}" ]; then
   POCL_DIR=${DIR}/../pocl
 fi
-if [ ! -d "${POCL_DIR}" ]; then
-  echo "pocl folder not found, please set or check!"
-  echo "Default folder is set to be $(realpath ${POCL_DIR})"
-  exit 1
-fi
+check_if_program_exits $POCL_DIR "pocl"
 POCL_BUILD_DIR=${POCL_DIR}/build
 
 # Get build type from env, otherwise use default value 'Debug'
@@ -74,13 +82,7 @@ fi
 if [ -z "${DRIVER_DIR}" ]; then
   DRIVER_DIR=${DIR}/../ventus-driver
 fi
-
-if [ ! -d "${DRIVER_DIR}" ]; then
-  echo "ventus-driver folder not found, please set or check!"
-  echo "Default folder is set to be $(realpath ${DRIVER_DIR})"
-  exit 1
-fi
-
+check_if_program_exits ${DRIVER_DIR} "ventus-driver"
 DRIVER_BUILD_DIR=${DRIVER_DIR}/build
 
 # Need to get the ventud-driver folder from enviroment variables
@@ -88,11 +90,7 @@ if [ -z "${SPIKE_DIR}" ]; then
   SPIKE_DIR=${DIR}/../ventus-gpgpu-isa-simulator
 fi
 
-if [ ! -d "${SPIKE_DIR}" ]; then
-  echo "spike folder not found, please set or check!"
-  echo "Default folder is set to be $(realpath ${SPIKE_DIR})"
-  exit 1
-fi
+check_if_program_exits ${SPIKE_DIR} "spike"
 
 SPIKE_BUILD_DIR=${SPIKE_DIR}/build
 
@@ -101,11 +99,7 @@ if [ -z "${OCL_ICD_DIR}" ]; then
   OCL_ICD_DIR=${DIR}/../ocl-icd
 fi
 
-if [ ! -d "${OCL_ICD_DIR}" ]; then
-  echo "ocl icd folder not found, please set or check"
-  echo "Default folder is set to be $(realpath ${OCL_ICD_DIR})"
-  exit 1
-fi
+check_if_program_exits ${OCL_ICD_DIR} "ocl icd"
 OCL_ICD_BUILD_DIR=${OCL_ICD_DIR}/build
 
 # Build llvm-ventus
