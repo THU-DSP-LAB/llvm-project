@@ -46,13 +46,13 @@ multiclass PatVFRBin<SDPatternOperator Op, list<RVInst> Insts> {
 
 class DivergentPriLdPat<PatFrag LoadOp, RVInst Inst>
  : Pat<(XLenVT (DivergentPrivateLoadFrag<LoadOp>
-                (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2)))),
-                (Inst GPR:$rs1, VGPR:$vs2)>;
+                (AddrRegImm GPR:$rs1, (simm11:$imm11)))),
+                (Inst GPR:$rs1, simm11:$imm11)>;
 
 class DivergentPriStPat<PatFrag StoreOp, RVInst Inst>
   : Pat<(DivergentPrivateStoreFrag<StoreOp>
-         (XLenVT VGPR:$vs3), (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2))),
-         (Inst VGPR:$vs3, GPR:$rs1, VGPR:$vs2)>;
+         (XLenVT VGPR:$vs3), (AddrRegImm GPR:$rs1, (simm11:$imm11))),
+         (Inst VGPR:$vs3, GPR:$rs1, simm11:$imm11)>;
 
 class DivergentNonPriLdPat<PatFrag LoadOp, RVInst Inst>
  : Pat<(XLenVT (DivergentNonPrivateLoadFrag<LoadOp>
@@ -71,7 +71,7 @@ class DivergentNonPriStPat<PatFrag StoreOp, RVInst Inst>
 class DivergentNonPriStImmPat<PatFrag StoreOp, RVInst Inst>
   : Pat<(DivergentNonPrivateStoreFrag<StoreOp>
          (XLenVT VGPR:$vs3), (AddrRegImm (XLenVT VGPR:$vs1), simm12:$imm12)),
-         (Inst VGPR:$vs3, GPR:$vs1, simm12:$imm12)>;
+         (Inst VGPR:$vs3, VGPR:$vs1, simm12:$imm12)>;
 
 // RVV instruction pattern class for float/interger ternary operations
 // Dst is used to identify vx and vf
