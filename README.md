@@ -9,13 +9,13 @@ For more architecture detail, please refer to
 
 ### 1: Programs related repositories
 
-Download all the repositories firstly
+Download all the repositories firstly and place them in the same path.
 
 * llvm-ventus : git clone https://github.com/THU-DSP-LAB/llvm-project.git
 * pocl : git clone https://github.com/THU-DSP-LAB/pocl.git
 * ocl-icd : git clone https://github.com/OCL-dev/ocl-icd.git
-* isa-simulator : git clone https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator.git
-* spike driver : git clone -b dev_spike https://github.com/yangzexia/ventus-driver.git
+* isa-simulator(spike) : git clone https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator.git
+* driver : git clone https://github.com/yangzexia/ventus-driver.git
 
 > ATTENTION: Remember to check branch for every repository, cause the project are under development, if you get any build errors, feel free to give a issue or just contact authors
 
@@ -29,6 +29,12 @@ Our program is based on LLVM, so the need packages to build ventus are almost th
 * clang(optional)
 
 > If you see any packages missing information, just install them
+
+The following packages are needed for other repositories:
+
+* device-tree-compiler
+* bsdmainutils
+
 
 Run `./build-ventus.sh` to automatically build all the programs, but we need to run firstly
 * `export POCL_DIR=<path-to-pocl-dir>`, default folder path will be set to be **`<llvm-ventus-parentFolder>`/pocl**
