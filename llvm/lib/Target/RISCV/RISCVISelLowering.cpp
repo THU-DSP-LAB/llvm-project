@@ -641,8 +641,8 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
       // setOperationAction(ISD::TRUNCATE, VT, Custom);
 
       // Custom-lower insert/extract operations to simplify patterns.
-      setOperationAction({ISD::INSERT_VECTOR_ELT, ISD::EXTRACT_VECTOR_ELT}, VT,
-                         Custom);
+      // setOperationAction({ISD::INSERT_VECTOR_ELT, ISD::EXTRACT_VECTOR_ELT}, VT,
+      //                    Custom);
 
       // Custom-lower reduction operations to set up the corresponding custom
       // nodes' operands.
@@ -873,7 +873,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
       }
 
       // setOperationAction(ISD::VECTOR_SHUFFLE, VT, Custom);
-      setOperationAction(ISD::INSERT_VECTOR_ELT, VT, Custom);
+      // setOperationAction(ISD::INSERT_VECTOR_ELT, VT, Custom);
 
       setOperationAction(
           {ISD::MLOAD, ISD::MSTORE, ISD::MGATHER, ISD::MSCATTER}, VT, Custom);
@@ -3568,9 +3568,6 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
                                             SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
   default:
-    errs() << ">>>\n";
-    Op->dump();
-    errs() << "<<<\n";
     report_fatal_error("unimplemented operand");
   case ISD::GlobalAddress:
     return lowerGlobalAddress(Op, DAG);
@@ -7537,11 +7534,6 @@ void RISCVTargetLowering::ReplaceNodeResults(SDNode *N,
   SDLoc DL(N);
   switch (N->getOpcode()) {
   default:
-    errs() << ">>>>****\n";
-    N->dump();
-    errs() << ">>>>>****\n";
-    DAG.dump();
-    errs() << "<<<<****\n";
     llvm_unreachable("Don't know how to custom type legalize this operation!");
   case ISD::STRICT_FP_TO_SINT:
   case ISD::STRICT_FP_TO_UINT:
@@ -11291,9 +11283,6 @@ RISCVTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
                                                  MachineBasicBlock *BB) const {
   switch (MI.getOpcode()) {
   default:
-    errs() << ">>>>>****\n";
-    MI.dump();
-    errs() << "<<<<<****\n";
     llvm_unreachable("Unexpected instr type to insert");
   case RISCV::ReadCycleWide:
     assert(!Subtarget.is64Bit() &&
@@ -13708,21 +13697,21 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
     const SDNode *N, FunctionLoweringInfo *FLI,
     LegacyDivergenceAnalysis *KDA) const {
   switch (N->getOpcode()) {
-  case ISD::CopyFromReg: {
-    const RegisterSDNode *R = cast<RegisterSDNode>(N->getOperand(1));
-    const MachineRegisterInfo &MRI = FLI->MF->getRegInfo();
-    const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
-    Register Reg = R->getReg();
+  // case ISD::CopyFromReg: {
+  //   const RegisterSDNode *R = cast<RegisterSDNode>(N->getOperand(1));
+  //   const MachineRegisterInfo &MRI = FLI->MF->getRegInfo();
+  //   const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
+  //   Register Reg = R->getReg();
 
-    // FIXME: Why does this need to consider isLiveIn?
-    if (Reg.isPhysical() || MRI.isLiveIn(Reg))
-      return !TRI->isSGPRReg(MRI, Reg);
+  //   // FIXME: Why does this need to consider isLiveIn?
+  //   if (Reg.isPhysical() || MRI.isLiveIn(Reg))
+  //     return !TRI->isSGPRReg(MRI, Reg);
 
-    if (const Value *V = FLI->getValueFromVirtualReg(R->getReg()))
-      return KDA->isDivergent(V);
+  //   if (const Value *V = FLI->getValueFromVirtualReg(R->getReg()))
+  //     return KDA->isDivergent(V);
 
-    return !TRI->isSGPRReg(MRI, Reg);
-  }
+  //   return !TRI->isSGPRReg(MRI, Reg);
+  // }
   case ISD::LOAD: {
     const LoadSDNode *L = cast<LoadSDNode>(N);
     return L->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS;
