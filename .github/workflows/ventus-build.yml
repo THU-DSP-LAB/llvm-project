@@ -3,7 +3,6 @@ env:
   POCL: pocl
   OCL_ICD: ocl-icd
   ISA_SIMULATOR: ventus-gpgpu-isa-simulator
-  LLVM_VERSION: 15
   BUILD_TYPE: Release
   VENTUS_DRIVER: ventus-driver
 on:
@@ -33,18 +32,15 @@ jobs:
       run: |
         sudo apt-get install -y \
         device-tree-compiler \
-        ccache \
-        clang-$LLVM_VERSION \
-        llvm-$LLVM_VERSION \
-        libclang-cpp$LLVM_VERSION-dev libclang-cpp$LLVM_VERSION \
-        llvm-$LLVM_VERSION-dev
+        bsdmainutils \
+        ccache
 
     - name: Clone needed packages
       run: |
         git clone https://github.com/THU-DSP-LAB/pocl.git  ${{github.workspace}}/../$POCL
         git clone https://github.com/OCL-dev/ocl-icd.git ${{github.workspace}}/../$OCL_ICD
         git clone https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator.git ${{github.workspace}}/../$ISA_SIMULATOR
-        git clone -b dev_spike https://github.com/yangzexia/ventus-driver.git ${{github.workspace}}/../$VENTUS_DRIVER
+        git clone https://github.com/yangzexia/ventus-driver.git ${{github.workspace}}/../$VENTUS_DRIVER
         export DRIVER_DIR=${{github.workspace}}/../$VENTUS_DRIVER
         export DRIVER_BUILD_DIR=${DRIVER_DIR}/build
         export VENTUS_INSTALL_PREFIX=${{github.workspace}}/install
