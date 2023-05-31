@@ -1,6 +1,6 @@
 # This is the Ventus GPGPU port of LLVM Compiler Infrastructure
 
-Ventus GPGPU is based on RISCV RV32IMACZfinxZve32f ISA with fully redefined concept of V-extension.
+Ventus GPGPU is based on RISCV RV32IMAZfinxZve32f ISA with fully redefined concept of V-extension.
 
 For more architecture detail, please refer to
 [Ventus GPGPU Arch](https://github.com/THU-DSP-LAB/ventus-gpgpu/blob/master/docs/Ventus-GPGPU-doc.md)
