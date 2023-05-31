@@ -36,6 +36,7 @@
 //    has single successor, we add a join instruction to the predecessor end,
 //    other wise, we need to insert a join block between predecessor and MBB
 //
+// WRANING: Do not use -O(1|2|3) optimization option
 //===----------------------------------------------------------------------===//
 
 #include "RISCV.h"
@@ -60,6 +61,7 @@ class VentusInsertJoinToVBranch : public MachineFunctionPass {
 
 public:
   const RISCVInstrInfo *TII;
+  const RISCVFrameLowering *RFL;
   static char ID;
   MachineFunction *MachineFunc;
   SmallVector<MachineBasicBlock *, 8> ReturnBlocks;
@@ -199,6 +201,8 @@ bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
 
   bool IsChanged = false;
   TII = static_cast<const RISCVInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  RFL = static_cast<const RISCVFrameLowering *>(
+      MF.getSubtarget().getFrameLowering());
   MachineFunc = &MF;
   collectBranchMBBInfo(MF);
   MDT->getBase().recalculate(*MachineFunc);
@@ -243,10 +247,14 @@ bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
           } else {
             // Avoid duplicate JOIN add
             if (Predecessor->empty() ||
-                !(Predecessor->instr_back().getOpcode() == RISCV::JOIN))
+                !(Predecessor->instr_back().getOpcode() == RISCV::JOIN)) {
+              if (!Predecessor->empty() &&
+                  Predecessor->instr_back().getOpcode() == RISCV::PseudoBR)
+                Predecessor->instr_back().eraseFromParent();
               BuildMI(*Predecessor, Predecessor->end(), DebugLoc(),
                       TII->get(RISCV::JOIN))
                   .addMBB(&MBB);
+            }
           }
         }
       }
@@ -284,13 +292,13 @@ bool VentusInsertJoinToVBranch::analyzeRetMBB(MachineFunction &MF) {
       break;
     RetNum = RetNum1;
   }
-
   return IsChanged;
 }
 
 /// Legalize return block, right now, we only consider tail call && ret
 bool VentusInsertJoinToVBranch::legalizeRetMBB(MachineBasicBlock &MBB) {
   // Get last instruction in this basic block
+  assert((MBB.isReturnBlock() || MBB.empty()) && "Not legal block");
   if (MBB.empty())
     return false;
   MachineInstr &LastInst = MBB.back();
@@ -348,9 +356,8 @@ bool VentusInsertJoinToVBranch::hasNoUnjoinedBranch(
   SmallVector<MachineBasicBlock *, 4> DominatorMBBs;
   // Build path between dominator DominatorMBB and TargetMBB
   // FIXME: Maybe can simplify below codes
-  while (TargetMBBNode && TargetMBBNode->getBlock() != DominatorMBB &&
-         TargetMBBNode->getIDom()->getBlock() != DominatorMBB) {
-    DominatorMBBs.push_back(TargetMBBNode->getBlock());
+  while (TargetMBBNode->getIDom()->getBlock() != DominatorMBB) {
+    DominatorMBBs.push_back(TargetMBBNode->getIDom()->getBlock());
     TargetMBBNode = TargetMBBNode->getIDom();
   }
   // Traverse this path, if found unjoined branch, return true

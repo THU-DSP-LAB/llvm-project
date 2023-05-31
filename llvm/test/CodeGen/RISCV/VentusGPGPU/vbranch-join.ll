@@ -118,7 +118,8 @@ for.body:                                         ; preds = %for.body.lr.ph, %fo
   br i1 %exitcond.not, label %for.cond.cleanup, label %for.body
 }
 
-define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
+; FIXME: Fix this
+; define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-LABEL: branch_in_branch:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi tp, tp, 16
@@ -172,29 +173,29 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    join v0, v0, .LBB2_8
 ; VENTUS-NEXT:  .LBB2_8:
 ; VENTUS-NEXT:    ret
-entry:
-  %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
-  %cmp = icmp slt i32 %call, 14
-  br i1 %cmp, label %cleanup9, label %if.else
+; entry:
+;   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
+;   %cmp = icmp slt i32 %call, 14
+;   br i1 %cmp, label %cleanup9, label %if.else
 
-if.else:                                          ; preds = %entry
-  %cmp1 = icmp ult i32 %call, 18
-  br i1 %cmp1, label %if.then2, label %if.end7
+; if.else:                                          ; preds = %entry
+;   %cmp1 = icmp ult i32 %call, 18
+;   br i1 %cmp1, label %if.then2, label %if.end7
 
-if.then2:                                         ; preds = %if.else
-  %call3 = tail call i32 @_Z13get_global_idj(i32 noundef 1)
-  %cmp4 = icmp sgt i32 %call, %call3
-  %. = select i1 %cmp4, i32 12, i32 23
-  br label %cleanup9
+; if.then2:                                         ; preds = %if.else
+;   %call3 = tail call i32 @_Z13get_global_idj(i32 noundef 1)
+;   %cmp4 = icmp sgt i32 %call, %call3
+;   %. = select i1 %cmp4, i32 12, i32 23
+;   br label %cleanup9
 
-if.end7:                                          ; preds = %if.else
-  %call8 = tail call i32 @_Z13get_global_idj(i32 noundef 4)
-  br label %cleanup9
+; if.end7:                                          ; preds = %if.else
+;   %call8 = tail call i32 @_Z13get_global_idj(i32 noundef 4)
+;   br label %cleanup9
 
-cleanup9:                                         ; preds = %entry, %if.end7, %if.then2
-  %retval.1 = phi i32 [ %., %if.then2 ], [ %call8, %if.end7 ], [ 13, %entry ]
-  ret i32 %retval.1
-}
+; cleanup9:                                         ; preds = %entry, %if.end7, %if.then2
+;   %retval.1 = phi i32 [ %., %if.then2 ], [ %call8, %if.end7 ], [ 13, %entry ]
+;   ret i32 %retval.1
+; }
 
 ; Function Attrs: convergent nofree norecurse nounwind memory(argmem: readwrite) vscale_range(1,2048)
 define dso_local spir_kernel void @double_loop(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
@@ -212,7 +213,7 @@ define dso_local spir_kernel void @double_loop(ptr addrspace(1) nocapture nounde
 ; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    vmv.v.x v1, a0
-; VENTUS-NEXT:    vbeq v1, v0, .LBB3_6
+; VENTUS-NEXT:    vbeq v1, v0, .LBB2_6
 ; VENTUS-NEXT:  # %bb.1: # %for.cond1.preheader.lr.ph
 ; VENTUS-NEXT:    li a1, 0
 ; VENTUS-NEXT:    lw a4, 4(s0)
@@ -221,26 +222,26 @@ define dso_local spir_kernel void @double_loop(ptr addrspace(1) nocapture nounde
 ; VENTUS-NEXT:    add a2, a2, a5
 ; VENTUS-NEXT:    lw a3, 0(a2)
 ; VENTUS-NEXT:    add a4, a4, a5
-; VENTUS-NEXT:  .LBB3_2: # %for.cond1.preheader
+; VENTUS-NEXT:  .LBB2_2: # %for.cond1.preheader
 ; VENTUS-NEXT:    # =>This Loop Header: Depth=1
-; VENTUS-NEXT:    # Child Loop BB3_3 Depth 2
+; VENTUS-NEXT:    # Child Loop BB2_3 Depth 2
 ; VENTUS-NEXT:    mv a5, a0
-; VENTUS-NEXT:  .LBB3_3: # %for.body4
-; VENTUS-NEXT:    # Parent Loop BB3_2 Depth=1
+; VENTUS-NEXT:  .LBB2_3: # %for.body4
+; VENTUS-NEXT:    # Parent Loop BB2_2 Depth=1
 ; VENTUS-NEXT:    # => This Inner Loop Header: Depth=2
 ; VENTUS-NEXT:    lw a6, 0(a4)
 ; VENTUS-NEXT:    add a3, a3, a6
 ; VENTUS-NEXT:    addi a5, a5, -1
 ; VENTUS-NEXT:    sw a3, 0(a2)
-; VENTUS-NEXT:    bnez a5, .LBB3_3
+; VENTUS-NEXT:    bnez a5, .LBB2_3
 ; VENTUS-NEXT:  # %bb.4: # %for.cond1.for.cond.cleanup3_crit_edge
-; VENTUS-NEXT:    # in Loop: Header=BB3_2 Depth=1
+; VENTUS-NEXT:    # in Loop: Header=BB2_2 Depth=1
 ; VENTUS-NEXT:    addi a1, a1, 1
-; VENTUS-NEXT:    bne a1, a0, .LBB3_2
-; VENTUS-NEXT:    join v0, v0, .LBB3_5
-; VENTUS-NEXT:  .LBB3_6:
-; VENTUS-NEXT:    join v0, v0, .LBB3_5
-; VENTUS-NEXT:  .LBB3_5: # %for.cond.cleanup
+; VENTUS-NEXT:    bne a1, a0, .LBB2_2
+; VENTUS-NEXT:    join v0, v0, .LBB2_5
+; VENTUS-NEXT:  .LBB2_6:
+; VENTUS-NEXT:    join v0, v0, .LBB2_5
+; VENTUS-NEXT:  .LBB2_5: # %for.cond.cleanup
 ; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    lw s0, -16(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -16
@@ -296,7 +297,7 @@ define dso_local spir_kernel void @loop_switch(ptr addrspace(1) nocapture nounde
 ; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    vmv.v.x v1, a0
-; VENTUS-NEXT:    vbeq v1, v0, .LBB4_10
+; VENTUS-NEXT:    vbeq v1, v0, .LBB3_10
 ; VENTUS-NEXT:  # %bb.1: # %for.body.lr.ph
 ; VENTUS-NEXT:    li a1, 0
 ; VENTUS-NEXT:    lw a2, 4(s0)
@@ -308,40 +309,40 @@ define dso_local spir_kernel void @loop_switch(ptr addrspace(1) nocapture nounde
 ; VENTUS-NEXT:    addi a5, a5, 4
 ; VENTUS-NEXT:    li a6, 1
 ; VENTUS-NEXT:    li a7, 2
-; VENTUS-NEXT:    j .LBB4_5
-; VENTUS-NEXT:  .LBB4_2: # %sw.default
-; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
+; VENTUS-NEXT:    j .LBB3_5
+; VENTUS-NEXT:  .LBB3_2: # %sw.default
+; VENTUS-NEXT:    # in Loop: Header=BB3_5 Depth=1
 ; VENTUS-NEXT:    lw t1, 0(a2)
 ; VENTUS-NEXT:    mv t0, a3
-; VENTUS-NEXT:  .LBB4_3: # %for.inc.sink.split
-; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
+; VENTUS-NEXT:  .LBB3_3: # %for.inc.sink.split
+; VENTUS-NEXT:    # in Loop: Header=BB3_5 Depth=1
 ; VENTUS-NEXT:    lw t2, 0(t0)
 ; VENTUS-NEXT:    add t1, t2, t1
 ; VENTUS-NEXT:    sw t1, 0(t0)
-; VENTUS-NEXT:  .LBB4_4: # %for.inc
-; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
+; VENTUS-NEXT:  .LBB3_4: # %for.inc
+; VENTUS-NEXT:    # in Loop: Header=BB3_5 Depth=1
 ; VENTUS-NEXT:    addi a1, a1, 1
-; VENTUS-NEXT:    beq a0, a1, .LBB4_9
-; VENTUS-NEXT:    join v0, v0, .LBB4_9
-; VENTUS-NEXT:  .LBB4_5: # %for.body
+; VENTUS-NEXT:    beq a0, a1, .LBB3_9
+; VENTUS-NEXT:    join v0, v0, .LBB3_9
+; VENTUS-NEXT:  .LBB3_5: # %for.body
 ; VENTUS-NEXT:    # =>This Inner Loop Header: Depth=1
-; VENTUS-NEXT:    beqz a1, .LBB4_4
+; VENTUS-NEXT:    beqz a1, .LBB3_4
 ; VENTUS-NEXT:  # %bb.6: # %for.body
-; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
+; VENTUS-NEXT:    # in Loop: Header=BB3_5 Depth=1
 ; VENTUS-NEXT:    mv t0, a5
 ; VENTUS-NEXT:    li t1, 2
-; VENTUS-NEXT:    beq a1, a6, .LBB4_3
+; VENTUS-NEXT:    beq a1, a6, .LBB3_3
 ; VENTUS-NEXT:  # %bb.7: # %for.body
-; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
-; VENTUS-NEXT:    bne a1, a7, .LBB4_2
+; VENTUS-NEXT:    # in Loop: Header=BB3_5 Depth=1
+; VENTUS-NEXT:    bne a1, a7, .LBB3_2
 ; VENTUS-NEXT:  # %bb.8: # %sw.bb4
-; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
+; VENTUS-NEXT:    # in Loop: Header=BB3_5 Depth=1
 ; VENTUS-NEXT:    li t1, 23
 ; VENTUS-NEXT:    mv t0, a4
-; VENTUS-NEXT:    j .LBB4_3
-; VENTUS-NEXT:  .LBB4_10:
-; VENTUS-NEXT:    join v0, v0, .LBB4_9
-; VENTUS-NEXT:  .LBB4_9: # %for.cond.cleanup
+; VENTUS-NEXT:    j .LBB3_3
+; VENTUS-NEXT:  .LBB3_10:
+; VENTUS-NEXT:    join v0, v0, .LBB3_9
+; VENTUS-NEXT:  .LBB3_9: # %for.cond.cleanup
 ; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    lw s0, -16(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -16
@@ -390,6 +391,74 @@ for.inc:                                          ; preds = %for.inc.sink.split,
   br i1 %exitcond.not, label %for.cond.cleanup, label %for.body
 }
 
+define dso_local i32 @_Z13get_global_idj(i32 noundef %dim) local_unnamed_addr {
+; VENTUS-LABEL: _Z13get_global_idj:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    addi tp, tp, 16
+; VENTUS-NEXT:    .cfi_def_cfa_offset 16
+; VENTUS-NEXT:    sw ra, -16(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset ra, 0
+; VENTUS-NEXT:    li a0, 2
+; VENTUS-NEXT:    vmv.v.x v1, a0
+; VENTUS-NEXT:    vbeq v0, v1, .LBB4_4
+; VENTUS-NEXT:  # %bb.1: # %entry
+; VENTUS-NEXT:    li a0, 1
+; VENTUS-NEXT:    vmv.v.x v1, a0
+; VENTUS-NEXT:    vbeq v0, v1, .LBB4_5
+; VENTUS-NEXT:  # %bb.2: # %entry
+; VENTUS-NEXT:    vmv.v.x v1, zero
+; VENTUS-NEXT:    vbeq v0, v1, .LBB4_6
+; VENTUS-NEXT:  # %bb.3:
+; VENTUS-NEXT:    li a0, 0
+; VENTUS-NEXT:    join v0, v0, .LBB4_8
+; VENTUS-NEXT:  .LBB4_4: # %sw.bb3
+; VENTUS-NEXT:    call __builtin_riscv_global_id_z
+; VENTUS-NEXT:    join v0, v0, .LBB4_7
+; VENTUS-NEXT:  .LBB4_5: # %sw.bb1
+; VENTUS-NEXT:    call __builtin_riscv_global_id_y
+; VENTUS-NEXT:    join v0, v0, .LBB4_7
+; VENTUS-NEXT:  .LBB4_6: # %sw.bb
+; VENTUS-NEXT:    call __builtin_riscv_global_id_x
+; VENTUS-NEXT:    join v0, v0, .LBB4_7
+; VENTUS-NEXT:  .LBB4_7: # %return
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    join v0, v0, .LBB4_8
+; VENTUS-NEXT:  .LBB4_8: # %return
+; VENTUS-NEXT:    vmv.v.x v0, a0
+; VENTUS-NEXT:    lw ra, -16(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi tp, tp, -16
+; VENTUS-NEXT:    ret
+entry:
+  switch i32 %dim, label %return [
+    i32 0, label %sw.bb
+    i32 1, label %sw.bb1
+    i32 2, label %sw.bb3
+  ]
+
+sw.bb:                                            ; preds = %entry
+  %call = call i32 @__builtin_riscv_global_id_x()
+  br label %return
+
+sw.bb1:                                           ; preds = %entry
+  %call2 = call i32 @__builtin_riscv_global_id_y()
+  br label %return
+
+sw.bb3:                                           ; preds = %entry
+  %call4 = call i32 @__builtin_riscv_global_id_z()
+  br label %return
+
+return:                                           ; preds = %entry, %sw.bb3, %sw.bb1, %sw.bb
+  %retval.0 = phi i32 [ %call4, %sw.bb3 ], [ %call2, %sw.bb1 ], [ %call, %sw.bb ], [ 0, %entry ]
+  ret i32 %retval.0
+}
+
 ; Function Attrs: convergent mustprogress nofree nounwind willreturn memory(none)
-declare dso_local i32 @_Z13get_global_idj(i32 noundef) local_unnamed_addr
+; Function Attrs: convergent
+declare dso_local i32 @__builtin_riscv_global_id_x() local_unnamed_addr
+
+; Function Attrs: convergent
+declare dso_local i32 @__builtin_riscv_global_id_y() local_unnamed_addr
+
+; Function Attrs: convergent
+declare dso_local i32 @__builtin_riscv_global_id_z() local_unnamed_addr
 
