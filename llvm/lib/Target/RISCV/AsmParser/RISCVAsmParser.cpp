@@ -2706,7 +2706,6 @@ bool RISCVAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     int64_t Imm = Inst.getOperand(2).getImm();
     unsigned Opc = Inst.getOpcode() == RISCV::PseudoVMSGE_VI ? RISCV::VMSGT_VI
                                                        : RISCV::VMSLE_VI;
-    Inst.dump();
     emitToStreamer(Out, MCInstBuilder(Opc)
                             .addOperand(Inst.getOperand(0))
                             .addOperand(Inst.getOperand(1))

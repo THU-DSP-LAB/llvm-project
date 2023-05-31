@@ -45,10 +45,35 @@ jobs:
         export DRIVER_BUILD_DIR=${DRIVER_DIR}/build
         export VENTUS_INSTALL_PREFIX=${{github.workspace}}/install
 
-    - name: Start building VENTUS
+    - name: Start building llvm-ventus
       shell: bash
       run: |
-        ./build-ventus.sh
+        ./build-ventus.sh --build llvm-ventus
+
+    - name: Start building ocl-icd
+      shell: bash
+      run: |
+        ./build-ventus.sh --build ${OCL_ICD}
+
+    - name: Start building libclc
+      shell: bash
+      run: |
+        ./build-ventus.sh --build libclc
+
+    - name: Start building spike
+      shell: bash
+      run: |
+        ./build-ventus.sh --build spike
+
+    - name: Start building driver
+      shell: bash
+      run: |
+        ./build-ventus.sh --build driver
+
+    - name: Start building pocl
+      shell: bash
+      run: |
+        ./build-ventus.sh --build ${POCL}
 
     - name: Start ISA simulation test
       run: |
