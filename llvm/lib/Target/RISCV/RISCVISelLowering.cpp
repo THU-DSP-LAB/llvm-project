@@ -471,7 +471,6 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   setBooleanContents(ZeroOrOneBooleanContent);
 
   if (Subtarget.hasVInstructions()) {
-    errs() << "---*****---\n";
     setBooleanVectorContents(ZeroOrOneBooleanContent);
 
     setOperationAction(ISD::VSCALE, XLenVT, Custom);
@@ -13697,21 +13696,21 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
     const SDNode *N, FunctionLoweringInfo *FLI,
     LegacyDivergenceAnalysis *KDA) const {
   switch (N->getOpcode()) {
-  // case ISD::CopyFromReg: {
-  //   const RegisterSDNode *R = cast<RegisterSDNode>(N->getOperand(1));
-  //   const MachineRegisterInfo &MRI = FLI->MF->getRegInfo();
-  //   const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
-  //   Register Reg = R->getReg();
+  case ISD::CopyFromReg: {
+    const RegisterSDNode *R = cast<RegisterSDNode>(N->getOperand(1));
+    const MachineRegisterInfo &MRI = FLI->MF->getRegInfo();
+    const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
+    Register Reg = R->getReg();
 
-  //   // FIXME: Why does this need to consider isLiveIn?
-  //   if (Reg.isPhysical() || MRI.isLiveIn(Reg))
-  //     return !TRI->isSGPRReg(MRI, Reg);
+    // FIXME: Why does this need to consider isLiveIn?
+    if (Reg.isPhysical() || MRI.isLiveIn(Reg))
+      return !TRI->isSGPRReg(MRI, Reg);
+    // FIXME: Why need to comment below two lines, not the same as AMDGPU
+    // if (const Value *V = FLI->getValueFromVirtualReg(R->getReg()))
+    //   return KDA->isDivergent(V);
 
-  //   if (const Value *V = FLI->getValueFromVirtualReg(R->getReg()))
-  //     return KDA->isDivergent(V);
-
-  //   return !TRI->isSGPRReg(MRI, Reg);
-  // }
+    return !TRI->isSGPRReg(MRI, Reg);
+  }
   case ISD::LOAD: {
     const LoadSDNode *L = cast<LoadSDNode>(N);
     return L->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS;
