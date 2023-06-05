@@ -1,7 +1,7 @@
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs -O1 < %s \
 ; RUN:   | FileCheck -check-prefix=VENTUS %s
 
-define dso_local spir_kernel void @_kernel(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B){
+define dso_local ventus_kernel void @_kernel(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B){
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
   %arrayidx = getelementptr inbounds float, ptr addrspace(1) %B, i32 %call

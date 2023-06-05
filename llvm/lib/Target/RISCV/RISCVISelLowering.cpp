@@ -5804,7 +5804,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
 
   MachineFunction &MF = DAG.getMachineFunction();
 
-  bool IsKernel = CallConv == CallingConv::SPIR_KERNEL;
+  bool IsKernel = CallConv == CallingConv::VENTUS_KERNEL;
 
   EVT PtrVT = getPointerTy(DAG.getDataLayout());
   MVT XLenVT = Subtarget.getXLenVT();
@@ -7362,11 +7362,14 @@ bool RISCVTargetLowering::isIntDivCheap(EVT VT, AttributeList Attr) const {
 bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
     const SDNode *N, FunctionLoweringInfo *FLI,
     LegacyDivergenceAnalysis *KDA) const {
+    N->isKnownSentinel();
+  const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
+  const MachineRegisterInfo &MRI = FLI->MF->getRegInfo();
+  // N->op_end();
+  // for(auto tt : N->op_end())
   switch (N->getOpcode()) {
   case ISD::CopyFromReg: {
     const RegisterSDNode *R = cast<RegisterSDNode>(N->getOperand(1));
-    const MachineRegisterInfo &MRI = FLI->MF->getRegInfo();
-    const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
     Register Reg = R->getReg();
 
     // FIXME: Why does this need to consider isLiveIn?
@@ -7378,6 +7381,15 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
 
     return !TRI->isSGPRReg(MRI, Reg);
   }
+  // case ISD::ADD:{
+  //   SDValue dd = N->getOperand(0);
+  //   if(dd->getOpcode() == ISD::CopyFromReg) {
+  //     dd->dump();
+  //     const RegisterSDNode *R = cast<RegisterSDNode>(dd->getOperand(1));
+  //     return TRI->isSGPRReg(MRI, R->getReg());
+  //   }
+  //   return false;
+  // }
   case ISD::LOAD: {
     const LoadSDNode *L = cast<LoadSDNode>(N);
     return L->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS;

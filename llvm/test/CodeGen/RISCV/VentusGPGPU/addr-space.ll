@@ -2,7 +2,7 @@
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs < %s \
 ; RUN:   | FileCheck -check-prefix=VENTUS %s
 
-define dso_local spir_kernel void @func(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(3) nocapture noundef readonly align 4 %B) {
+define dso_local ventus_kernel void @func(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(3) nocapture noundef readonly align 4 %B) {
 ; VENTUS-LABEL: func:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 16

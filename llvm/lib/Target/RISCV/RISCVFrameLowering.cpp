@@ -377,7 +377,7 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   // Allocate space on the local-mem stack and private-mem stack if necessary.
-  if(MF.getFunction().getCallingConv() == CallingConv::SPIR_KERNEL)
+  if(MF.getFunction().getCallingConv() == CallingConv::VENTUS_KERNEL)
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(StackSize),
                 MachineInstr::FrameSetup, getStackAlign());
   else
@@ -575,7 +575,7 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
     StackSize = FirstSPAdjustAmount;
 
   // Deallocate stack
-  if(MF.getFunction().getCallingConv() == CallingConv::SPIR_KERNEL)
+  if(MF.getFunction().getCallingConv() == CallingConv::VENTUS_KERNEL)
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(-StackSize),
                   MachineInstr::FrameDestroy, getStackAlign());
   else

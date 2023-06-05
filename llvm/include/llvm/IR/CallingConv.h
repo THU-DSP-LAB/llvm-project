@@ -241,6 +241,9 @@ namespace CallingConv {
     /// Preserve X2-X15, X19-X29, SP, Z0-Z31, P0-P15.
     AArch64_SME_ABI_Support_Routines_PreserveMost_From_X2 = 103,
 
+    /// Used for VENTUS code object kernels.
+    VENTUS_KERNEL = 104,
+
     /// The highest possible ID. Must be some 2^k - 1.
     MaxID = 1023
   };

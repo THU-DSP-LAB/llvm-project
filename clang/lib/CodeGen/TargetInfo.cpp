@@ -11333,7 +11333,7 @@ void VentusRISCVABIInfo::computeInfo(CGFunctionInfo &FI) const {
   unsigned NumRegsLeft = NumArgVGPRs;
   for (auto &Arg : FI.arguments()) {
     // FIXME: Is SPIR_KERNEL CC handled by upper layer?
-    if (CC == llvm::CallingConv::SPIR_KERNEL) {
+    if (CC == llvm::CallingConv::VENTUS_KERNEL) {
       Arg.info = classifyKernelArgumentType(Arg.type);
     } else {
       Arg.info = classifyArgumentType(Arg.type, NumRegsLeft);
@@ -11373,13 +11373,41 @@ ABIArgInfo VentusRISCVABIInfo::classifyReturnType(QualType RetTy) const {
   return classifyArgumentType(RetTy, ArgVGPRsLeft);
 }
 
+/// Almost the same as AMDGPU, because AMDGPU use buffer to deal with 
 ABIArgInfo VentusRISCVABIInfo::classifyKernelArgumentType(QualType Ty) const {
-  llvm_unreachable("TODO: Should we handle kernel arg here?");
+  Ty = useFirstFieldIfTransparentUnion(Ty);
+
+  // TODO: Can we omit empty structs?
+
+  if (const Type *SeltTy = isSingleElementStruct(Ty, getContext()))
+    Ty = QualType(SeltTy, 0);
+
+  llvm::Type *OrigLTy = CGT.ConvertType(Ty);
+  llvm::Type *LTy = OrigLTy;
+
+  // FIXME: Should also use this for OpenCL, but it requires addressing the
+  // problem of kernels being called.
+  //
+  // FIXME: This doesn't apply the optimization of coercing pointers in structs
+  // to global address space when using byref. This would require implementing a
+  // new kind of coercion of the in-memory type when for indirect arguments.
+  if (!getContext().getLangOpts().OpenCL && LTy == OrigLTy &&
+      isAggregateTypeForABI(Ty)) {
+    return ABIArgInfo::getIndirectAliased(
+        getContext().getTypeAlignInChars(Ty),
+        getContext().getTargetAddressSpace(LangAS::opencl_constant),
+        false /*Realign*/, nullptr /*Padding*/);
+  }
+
+  // If we set CanBeFlattened to true, CodeGen will expand the struct to its
+  // individual elements, which confuses the Clover OpenCL backend; therefore we
+  // have to set it to false here. Other args of getDirect() are just defaults.
+  return ABIArgInfo::getDirect(LTy, 0, nullptr, false);
 }
 
 ABIArgInfo VentusRISCVABIInfo::classifyArgumentType(QualType Ty,
                                                     unsigned &NumRegsLeft) const {
-  assert(NumRegsLeft <= NumArgVGPRs && "register estimate underflow");
+  assert(NumRegsLeft <= NumArgVGPRs && "Arg VGPR trcking underflow");
 
   Ty = useFirstFieldIfTransparentUnion(Ty);
 
@@ -11458,7 +11486,11 @@ public:
 
     Fn->addFnAttr("interrupt", Kind);
   }
+  unsigned getOpenCLKernelCallingConv() const override;
 };
+  unsigned RISCVTargetCodeGenInfo::getOpenCLKernelCallingConv() const {
+    return llvm::CallingConv::VENTUS_KERNEL;
+  }
 } // namespace
 
 //===----------------------------------------------------------------------===//

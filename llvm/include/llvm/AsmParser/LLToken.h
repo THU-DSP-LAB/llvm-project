@@ -173,7 +173,7 @@ enum Kind {
   kw_amdgpu_kernel,
   kw_amdgpu_gfx,
   kw_tailcc,
-
+  kw_ventus_kernel,
   // Attributes:
   kw_attributes,
   kw_sync,

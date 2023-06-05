@@ -9,7 +9,7 @@
 
 
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: write) vscale_range(1,2048)
-define dso_local spir_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr addrspace(1) nocapture noundef writeonly align 4 %c) {
+define dso_local ventus_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr addrspace(1) nocapture noundef writeonly align 4 %c) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    lw a1, 0(a0)

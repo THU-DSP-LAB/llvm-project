@@ -4,7 +4,7 @@
 
 @foo.b = internal addrspace(3) global [5 x i32] undef, align 4
 
-define spir_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
+define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 48

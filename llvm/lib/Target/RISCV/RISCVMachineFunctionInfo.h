@@ -68,7 +68,7 @@ private:
 
 public:
   RISCVMachineFunctionInfo(const MachineFunction &MF) : IsEntryFunction(
-      MF.getFunction().getCallingConv() == CallingConv::SPIR_KERNEL) {}
+      MF.getFunction().getCallingConv() == CallingConv::VENTUS_KERNEL) {}
 
   MachineFunctionInfo *
   clone(BumpPtrAllocator &Allocator, MachineFunction &DestMF,

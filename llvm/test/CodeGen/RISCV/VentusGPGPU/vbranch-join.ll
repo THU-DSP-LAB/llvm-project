@@ -55,7 +55,7 @@ cleanup:                                          ; preds = %if.else, %entry, %i
   ret i32 %retval.0
 }
 
-define dso_local spir_kernel void @loop_branch(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
+define dso_local ventus_kernel void @loop_branch(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
 ; VENTUS-LABEL: loop_branch:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 16
@@ -118,8 +118,7 @@ for.body:                                         ; preds = %for.body.lr.ph, %fo
   br i1 %exitcond.not, label %for.cond.cleanup, label %for.body
 }
 
-; FIXME: Fix this
-; define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
+; FIXME: Fix this 2 noundef %dim) local_unnamed_addr {
 ; VENTUS-LABEL: branch_in_branch:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi tp, tp, 16
@@ -198,7 +197,7 @@ for.body:                                         ; preds = %for.body.lr.ph, %fo
 ; }
 
 ; Function Attrs: convergent nofree norecurse nounwind memory(argmem: readwrite) vscale_range(1,2048)
-define dso_local spir_kernel void @double_loop(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
+define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
 ; VENTUS-LABEL: double_loop:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 16
@@ -282,7 +281,7 @@ for.body4:                                        ; preds = %for.cond1.preheader
 }
 
 ; Function Attrs: convergent nofree norecurse nounwind memory(argmem: readwrite) vscale_range(1,2048)
-define dso_local spir_kernel void @loop_switch(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
+define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
 ; VENTUS-LABEL: loop_switch:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 16
