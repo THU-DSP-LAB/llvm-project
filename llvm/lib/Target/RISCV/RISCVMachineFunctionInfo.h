@@ -67,8 +67,11 @@ private:
   SmallVector<Register, 8> SExt32Registers;
 
 public:
-  RISCVMachineFunctionInfo(const MachineFunction &MF) : IsEntryFunction(
-      MF.getFunction().getCallingConv() == CallingConv::VENTUS_KERNEL) {}
+  RISCVMachineFunctionInfo(const MachineFunction &MF) {
+        CallingConv::ID CC = MF.getFunction().getCallingConv();
+        IsEntryFunction = CC == CallingConv::SPIR_KERNEL ||
+                          CC == CallingConv::VENTUS_KERNEL;
+      }
 
   MachineFunctionInfo *
   clone(BumpPtrAllocator &Allocator, MachineFunction &DestMF,

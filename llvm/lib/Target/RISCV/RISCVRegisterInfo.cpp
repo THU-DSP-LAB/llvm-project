@@ -304,7 +304,12 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
 Register RISCVRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = getFrameLowering(MF);
-  return TFI->hasFP(MF) ? RISCV::X8 : RISCV::X4;
+  const RISCVMachineFunctionInfo *FuncInfo =
+                                      MF.getInfo<RISCVMachineFunctionInfo>();
+  if(FuncInfo->isEntryFunction())
+    return TFI->hasFP(MF) ? RISCV::X8 : RISCV::X2;
+  // Non-kernel function, we only use Tp
+  return RISCV::X4;
 }
 
 const uint32_t *

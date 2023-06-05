@@ -5715,6 +5715,7 @@ static SDValue unpackFromRegLoc(SelectionDAG &DAG, SDValue Chain,
   MachineFunction &MF = DAG.getMachineFunction();
   MachineRegisterInfo &RegInfo = MF.getRegInfo();
   EVT LocVT = VA.getLocVT();
+  // Setting isDivergent = true is essential to use VGPR
   const TargetRegisterClass *RC = TLI.getRegClassFor(LocVT.getSimpleVT(), true);
   Register VReg = RegInfo.createVirtualRegister(RC);
   RegInfo.addLiveIn(VA.getLocReg(), VReg);
@@ -5804,7 +5805,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
 
   MachineFunction &MF = DAG.getMachineFunction();
 
-  bool IsKernel = CallConv == CallingConv::VENTUS_KERNEL;
+  bool IsKernel = MF.getInfo<RISCVMachineFunctionInfo>()->isEntryFunction();
 
   EVT PtrVT = getPointerTy(DAG.getDataLayout());
   MVT XLenVT = Subtarget.getXLenVT();
@@ -7444,6 +7445,7 @@ RISCVTargetLowering::getRegClassFor(MVT VT, bool isDivergent) const {
   const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
   if (!TRI->isSGPRClass(RC) && !isDivergent)
     return &RISCV::GPRRegClass;
+  // FIXME: cause we set defalut register class for XlenVT is GPR class
   else if (TRI->isSGPRClass(RC) && isDivergent)
     return &RISCV::VGPRRegClass;
 

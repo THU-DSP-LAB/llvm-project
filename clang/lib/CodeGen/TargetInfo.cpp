@@ -11322,6 +11322,9 @@ public:
   ABIArgInfo classifyReturnType(QualType RetTy) const;
   ABIArgInfo classifyKernelArgumentType(QualType Ty) const;
   ABIArgInfo classifyArgumentType(QualType Ty, unsigned &NumRegsLeft) const;
+
+  /// Estimate number of registers the type will use when passed in registers.
+  unsigned numRegsForType(QualType Ty) const;
 };
 
 void VentusRISCVABIInfo::computeInfo(CGFunctionInfo &FI) const {
@@ -11373,7 +11376,8 @@ ABIArgInfo VentusRISCVABIInfo::classifyReturnType(QualType RetTy) const {
   return classifyArgumentType(RetTy, ArgVGPRsLeft);
 }
 
-/// Almost the same as AMDGPU, because AMDGPU use buffer to deal with 
+/// Almost the same as AMDGPU, because AMDGPU use buffer to deal with kernel
+/// arguments too
 ABIArgInfo VentusRISCVABIInfo::classifyKernelArgumentType(QualType Ty) const {
   Ty = useFirstFieldIfTransparentUnion(Ty);
 
@@ -11403,6 +11407,38 @@ ABIArgInfo VentusRISCVABIInfo::classifyKernelArgumentType(QualType Ty) const {
   // individual elements, which confuses the Clover OpenCL backend; therefore we
   // have to set it to false here. Other args of getDirect() are just defaults.
   return ABIArgInfo::getDirect(LTy, 0, nullptr, false);
+}
+
+unsigned VentusRISCVABIInfo::numRegsForType(QualType Ty) const {
+    unsigned NumRegs = 0;
+
+  if (const VectorType *VT = Ty->getAs<VectorType>()) {
+    // Compute from the number of elements. The reported size is based on the
+    // in-memory size, which includes the padding 4th element for 3-vectors.
+    QualType EltTy = VT->getElementType();
+    unsigned EltSize = getContext().getTypeSize(EltTy);
+
+    // 16-bit element vectors should be passed as packed.
+    if (EltSize == 16)
+      return (VT->getNumElements() + 1) / 2;
+
+    unsigned EltNumRegs = (EltSize + 31) / 32;
+    return EltNumRegs * VT->getNumElements();
+  }
+
+  if (const RecordType *RT = Ty->getAs<RecordType>()) {
+    const RecordDecl *RD = RT->getDecl();
+    assert(!RD->hasFlexibleArrayMember());
+
+    for (const FieldDecl *Field : RD->fields()) {
+      QualType FieldTy = Field->getType();
+      NumRegs += numRegsForType(FieldTy);
+    }
+
+    return NumRegs;
+  }
+
+  return (getContext().getTypeSize(Ty) + 31) / 32;
 }
 
 ABIArgInfo VentusRISCVABIInfo::classifyArgumentType(QualType Ty,
@@ -11437,22 +11473,23 @@ ABIArgInfo VentusRISCVABIInfo::classifyArgumentType(QualType Ty,
     // 1024 bits
     uint64_t Size = getContext().getTypeSize(Ty);
     assert(Size < VLen && "TODO: Support huge aggregate type");
-    if (NumRegsLeft >= 1) {
-      NumRegsLeft -= 1;
-      return ABIArgInfo::getDirect();
+    if (NumRegsLeft > 0) {
+      unsigned NumRegs = numRegsForType(Ty);
+      if (NumRegsLeft >= NumRegs) {
+        NumRegsLeft -= NumRegs;
+        return ABIArgInfo::getDirect();
+      }
     }
   }
 
   // Otherwise just do the default thing.
-  if (NumRegsLeft) {
-    ABIArgInfo ArgInfo = DefaultABIInfo::classifyArgumentType(Ty);
-    if (!ArgInfo.isIndirect()) {
-      NumRegsLeft -= 1;
-    }
-    return ArgInfo;
-  } else {
-    return getNaturalAlignIndirect(Ty, false);
+  ABIArgInfo ArgInfo = DefaultABIInfo::classifyArgumentType(Ty);
+  if (!ArgInfo.isIndirect()) {
+    unsigned NumRegs = numRegsForType(Ty);
+    NumRegsLeft -= std::min(NumRegs, NumRegsLeft);
   }
+
+  return ArgInfo;
 }
 
 }

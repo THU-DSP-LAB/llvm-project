@@ -230,6 +230,17 @@ bool RISCVFrameLowering::hasFP(const MachineFunction &MF) const {
   const TargetRegisterInfo *RegInfo = MF.getSubtarget().getRegisterInfo();
 
   const MachineFrameInfo &MFI = MF.getFrameInfo();
+  // For entry functions we can use an immediate offset in most cases, so the
+  // presence of calls doesn't imply we need a distinct frame pointer.
+  if (MFI.hasCalls() &&
+      !MF.getInfo<RISCVMachineFunctionInfo>()->isEntryFunction()) {
+    // All offsets are unsigned, so need to be addressed in the same direction
+    // as stack growth.
+
+    // FIXME: This function is pretty broken, since it can be called before the
+    // frame layout is determined or CSR spills are inserted.
+    return MFI.getStackSize() != 0;
+  }
   return MF.getTarget().Options.DisableFramePointerElim(MF) ||
          RegInfo->hasStackRealignment(MF) || MFI.hasVarSizedObjects() ||
          MFI.isFrameAddressTaken();
@@ -575,6 +586,9 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
     StackSize = FirstSPAdjustAmount;
 
   // Deallocate stack
+
+  // FIXME: Allocate space for two stacks, this is depend on the actual use of
+  // these two stacks, not based on calling convention
   if(MF.getFunction().getCallingConv() == CallingConv::VENTUS_KERNEL)
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(-StackSize),
                   MachineInstr::FrameDestroy, getStackAlign());
@@ -616,6 +630,8 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
   }
 
   if (FI >= MinCSFI && FI <= MaxCSFI) {
+    // sp represents SGPR spill, tp represents VGPR spill
+    // FIXME: we need to define TargetStackID::VGPRSpill?
     FrameReg = StackID == TargetStackID::SGPRSpill ? RISCV::X2 : RISCV::X4;
     if (FirstSPAdjustAmount)
       Offset -= StackOffset::getFixed(FirstSPAdjustAmount);
