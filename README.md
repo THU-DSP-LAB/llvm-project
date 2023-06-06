@@ -2,6 +2,8 @@
 
 Ventus GPGPU is based on RISCV RV32IMAZfinxZve32f ISA with fully redefined concept of V-extension.
 
+**Copyright (C) 2020-2023 Terapines Technology (Wuhan) Co., Ltd**
+
 For more architecture detail, please refer to
 [Ventus GPGPU Arch](https://github.com/THU-DSP-LAB/ventus-gpgpu/blob/master/docs/Ventus-GPGPU-doc.md)
 
