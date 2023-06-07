@@ -211,9 +211,12 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
 
   MachineFunction *MF = MBB.getParent();
   MachineFrameInfo &MFI = MF->getFrameInfo();
+  const auto &STI = MF->getSubtarget<RISCVSubtarget>();
+  auto RII = STI.getRegisterInfo();
+  unsigned SpillSize = TRI->getSpillSize(*RC);
+  assert(SpillSize == 4 && "Only support 32 bit spill size in ventus for now");
 
   unsigned Opcode;
-
   if (RISCV::GPRRegClass.hasSubClassEq(RC)) {
     Opcode = TRI->getRegSizeInBits(RISCV::GPRRegClass) == 32 ?
              RISCV::SW : RISCV::SD;
@@ -224,17 +227,23 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   } else if (RISCV::FPR64RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FSD;
   } else if (RISCV::VGPRRegClass.hasSubClassEq(RC)) {
+    // FIXME: 16 bits support by RISCV::VSH?
     Opcode = RISCV::VSW;
   } else
     llvm_unreachable("Can't store this register to stack slot");
 
   // VGPR spills to per-thread stack, SGPR spills to local mem stack
   if (Opcode != RISCV::VSW) {
-    MFI.setStackID(FI, TargetStackID::SGPRSpill);
+    MFI.setStackID(FI, RISCVStackID::SGPRSpill);
+  } else {
+    MFI.setStackID(FI, RISCVStackID::VGPRSpill);
+    assert(!RII->isSGPRReg(MF->getRegInfo(), SrcReg) && "Expecting VPGR");
   }
-
+  unsigned int AddressSpace = Opcode == RISCV::VSW ? RISCVAS::PRIVATE_ADDRESS
+                                                    : RISCVAS::GLOBAL_ADDRESS;
+  // FIXME: maybe MachinePointerInfo(AddressSpace) lose some information
   MachineMemOperand *MMO = MF->getMachineMemOperand(
-      MachinePointerInfo::getFixedStack(*MF, FI), MachineMemOperand::MOStore,
+      MachinePointerInfo(AddressSpace), MachineMemOperand::MOStore,
       MFI.getObjectSize(FI), MFI.getObjectAlign(FI));
 
   BuildMI(MBB, I, DL, get(Opcode))
@@ -255,9 +264,16 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 
   MachineFunction *MF = MBB.getParent();
   MachineFrameInfo &MFI = MF->getFrameInfo();
-
+  const auto &STI = MF->getSubtarget<RISCVSubtarget>();
+  auto RII = STI.getRegisterInfo();
+  MFI.setStackID(FI, RISCVStackID::SGPRSpill);
   unsigned Opcode;
-  if (RISCV::GPRRegClass.hasSubClassEq(RC)) {
+  if(RISCV::VGPRRegClass.hasSubClassEq(RC)) {
+    assert(!RII->isSGPRReg(MF->getRegInfo(), DstReg) && "Expecting VGPR");
+    Opcode = RISCV::VLW;
+    MFI.setStackID(FI, RISCVStackID::VGPRSpill);
+  }
+  else if (RISCV::GPRRegClass.hasSubClassEq(RC)) {
     Opcode = TRI->getRegSizeInBits(RISCV::GPRRegClass) == 32 ?
              RISCV::LW : RISCV::LD;
   } else if (RISCV::FPR16RegClass.hasSubClassEq(RC)) {
@@ -266,13 +282,12 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
     Opcode = RISCV::FLW;
   } else if (RISCV::FPR64RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FLD;
-  } else if (RISCV::VGPRRegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::VLW;
   } else
     llvm_unreachable("Can't load this register from stack slot");
-
+  unsigned int AddressSpace = Opcode == RISCV::VLW ? RISCVAS::PRIVATE_ADDRESS
+                                                    : RISCVAS::GLOBAL_ADDRESS;
   MachineMemOperand *MMO = MF->getMachineMemOperand(
-      MachinePointerInfo::getFixedStack(*MF, FI), MachineMemOperand::MOLoad,
+      MachinePointerInfo(AddressSpace), MachineMemOperand::MOLoad,
       MFI.getObjectSize(FI), MFI.getObjectAlign(FI));
 
   BuildMI(MBB, I, DL, get(Opcode), DstReg)

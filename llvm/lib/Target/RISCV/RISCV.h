@@ -103,4 +103,18 @@ namespace RISCVAS {
   };
 }
 
+/// Because there are two stacks in ventus, we need to add a VGPRSpill according
+/// to TargetStackID, and we also need to modify register spill action by
+/// dividing two stacks, SGPRSpill && VGPRSpill
+namespace RISCVStackID {
+enum Value {
+  Default = 0,
+  SGPRSpill = 1,
+  ScalableVector = 2,
+  WasmLocal = 3,
+  VGPRSpill = 4,
+  NoAlloc = 255
+};
+}
+
 #endif
