@@ -8,11 +8,12 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 48
+; VENTUS-NEXT:    addi tp, tp, 20
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 48
-; VENTUS-NEXT:    sw ra, -36(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw s0, -40(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw s1, -44(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw s2, -48(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, -36(sp)
+; VENTUS-NEXT:    sw s0, -40(sp)
+; VENTUS-NEXT:    sw s1, -44(sp)
+; VENTUS-NEXT:    sw s2, -48(sp)
 ; VENTUS-NEXT:    .cfi_offset ra, 12
 ; VENTUS-NEXT:    .cfi_offset s0, 8
 ; VENTUS-NEXT:    .cfi_offset s1, 4
@@ -20,7 +21,7 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    lw s0, 0(a0)
 ; VENTUS-NEXT:    lui a0, %hi(foo.b)
 ; VENTUS-NEXT:    addi s1, a0, %lo(foo.b)
-; VENTUS-NEXT:    addi s2, tp, -32
+; VENTUS-NEXT:    addi s2, sp, -32
 ; VENTUS-NEXT:    vmv.v.x v0, s2
 ; VENTUS-NEXT:    vmv.v.x v1, s1
 ; VENTUS-NEXT:    vmv.v.x v2, s0
@@ -35,7 +36,7 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:  # %bb.1: # %if.then
 ; VENTUS-NEXT:    slli a0, a0, 2
 ; VENTUS-NEXT:    add s2, s2, a0
-; VENTUS-NEXT:    vlw.v v0, zero(s2)
+; VENTUS-NEXT:    vlw.v v0, 0(s2)
 ; VENTUS-NEXT:    add s1, s1, a0
 ; VENTUS-NEXT:    lw a1, 0(s1)
 ; VENTUS-NEXT:    add a0, s0, a0
@@ -45,17 +46,19 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    vmadd.vv v0, v1, v2
 ; VENTUS-NEXT:    vmv.v.x v1, a0
 ; VENTUS-NEXT:    vsw12.v v0, 0(v1)
-; VENTUS-NEXT:    j .LBB0_3
+; VENTUS-NEXT:    join v0, v0, .LBB0_3
 ; VENTUS-NEXT:  .LBB0_2: # %if.else
 ; VENTUS-NEXT:    slli a0, a0, 2
 ; VENTUS-NEXT:    add a0, s0, a0
 ; VENTUS-NEXT:    sw zero, 0(a0)
+; VENTUS-NEXT:    join v0, v0, .LBB0_3
 ; VENTUS-NEXT:  .LBB0_3: # %if.end
-; VENTUS-NEXT:    lw ra, -36(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s0, -40(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s1, -44(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s2, -48(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, -36(sp)
+; VENTUS-NEXT:    lw s0, -40(sp)
+; VENTUS-NEXT:    lw s1, -44(sp)
+; VENTUS-NEXT:    lw s2, -48(sp)
 ; VENTUS-NEXT:    addi sp, sp, -48
+; VENTUS-NEXT:    addi tp, tp, -20
 ; VENTUS-NEXT:    ret
 entry:
   %a = alloca [5 x i32], align 4, addrspace(5)
@@ -159,11 +162,11 @@ define dso_local void @private_memmory(ptr addrspace(5) nocapture noundef %a) lo
 ; VENTUS-LABEL: private_memmory:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vmv.x.s a0, v0
-; VENTUS-NEXT:    vlw.v v0, zero(a0)
+; VENTUS-NEXT:    vlw.v v0, 0(a0)
 ; VENTUS-NEXT:    lui a1, %hi(global_int)
 ; VENTUS-NEXT:    lw a1, %lo(global_int)(a1)
 ; VENTUS-NEXT:    vadd.vx v0, v0, a1
-; VENTUS-NEXT:    vsw.v v0, zero(a0)
+; VENTUS-NEXT:    vsw.v v0, 0(a0)
 ; VENTUS-NEXT:    ret
 entry:
   %0 = load i32, ptr addrspace(5) %a, align 4
@@ -200,9 +203,9 @@ define dso_local void @private_memmory_lh(ptr addrspace(5) nocapture noundef %a)
 ; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    lui a1, %hi(global_short)
 ; VENTUS-NEXT:    lh a1, %lo(global_short)(a1)
-; VENTUS-NEXT:    vlh.v v0, zero(a0)
+; VENTUS-NEXT:    vlh.v v0, 0(a0)
 ; VENTUS-NEXT:    vadd.vx v0, v0, a1
-; VENTUS-NEXT:    vsh.v v0, zero(a0)
+; VENTUS-NEXT:    vsh.v v0, 0(a0)
 ; VENTUS-NEXT:    ret
 entry:
   %0 = load i16, ptr addrspace(5) %a, align 2
@@ -217,7 +220,7 @@ define dso_local zeroext i16 @private_memmory_lhu(ptr addrspace(5) nocapture nou
 ; VENTUS-LABEL: private_memmory_lhu:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vmv.x.s a0, v0
-; VENTUS-NEXT:    vlhu.v v0, zero(a0)
+; VENTUS-NEXT:    vlhu.v v0, 0(a0)
 ; VENTUS-NEXT:    ret
 entry:
   %0 = load i16, ptr addrspace(5) %a, align 2
@@ -229,7 +232,7 @@ define dso_local zeroext i8 @private_memmory_lbu(ptr addrspace(5) nocapture noun
 ; VENTUS-LABEL: private_memmory_lbu:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vmv.x.s a0, v0
-; VENTUS-NEXT:    vlbu.v v0, zero(a0)
+; VENTUS-NEXT:    vlbu.v v0, 0(a0)
 ; VENTUS-NEXT:    ret
 entry:
   %0 = load i8, ptr addrspace(5) %a, align 1

@@ -12,19 +12,20 @@ target triple = "riscv32"
 define dso_local i32 @printf(ptr noundef %fmt, ...) {
 ; VENTUS-LABEL: printf:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi tp, tp, 48
-; VENTUS-NEXT:    .cfi_def_cfa_offset 48
+; VENTUS-NEXT:    addi sp, sp, 32
+; VENTUS-NEXT:    addi tp, tp, 28
+; VENTUS-NEXT:    .cfi_def_cfa_offset 28
 ; VENTUS-NEXT:    li a0, 0
-; VENTUS-NEXT:    vsw.v v7, -44(tp)
-; VENTUS-NEXT:    vsw.v v6, -40(tp)
-; VENTUS-NEXT:    vsw.v v5, -36(tp)
-; VENTUS-NEXT:    vsw.v v4, -32(tp)
-; VENTUS-NEXT:    vsw.v v3, -28(tp)
-; VENTUS-NEXT:    vsw.v v2, -24(tp)
-; VENTUS-NEXT:    vsw.v v1, -20(tp)
-; VENTUS-NEXT:    addi a1, tp, -16
-; VENTUS-NEXT:    sw a1, -16(tp)
-; VENTUS-NEXT:    vmv.x.s a1, v1
+; VENTUS-NEXT:    vsw.v v7, -28(tp)
+; VENTUS-NEXT:    vsw.v v6, -24(tp)
+; VENTUS-NEXT:    vsw.v v5, -20(tp)
+; VENTUS-NEXT:    vsw.v v4, -16(tp)
+; VENTUS-NEXT:    vsw.v v3, -12(tp)
+; VENTUS-NEXT:    vsw.v v2, -8(tp)
+; VENTUS-NEXT:    vsw.v v1, -4(tp)
+; VENTUS-NEXT:    addi a1, tp, -28
+; VENTUS-NEXT:    sw a1, -4(tp)
+; VENTUS-NEXT:    lw a1, -32(tp)
 ; VENTUS-NEXT:    lui a2, %hi(MAX_FORMAT_STR_SIZE)
 ; VENTUS-NEXT:    lui a3, %hi(PRINT_BUFFER_ADDR)
 ; VENTUS-NEXT:    lw a4, %lo(MAX_FORMAT_STR_SIZE)(a2)
@@ -44,7 +45,8 @@ define dso_local i32 @printf(ptr noundef %fmt, ...) {
 ; VENTUS-NEXT:    blt a0, a4, .LBB0_1
 ; VENTUS-NEXT:  .LBB0_2: # %for.end
 ; VENTUS-NEXT:    vmv.v.x v0, a1
-; VENTUS-NEXT:    addi tp, tp, -48
+; VENTUS-NEXT:    addi sp, sp, -32
+; VENTUS-NEXT:    addi tp, tp, -28
 ; VENTUS-NEXT:    ret
 entry:
   %fmt.addr = alloca ptr, align 4

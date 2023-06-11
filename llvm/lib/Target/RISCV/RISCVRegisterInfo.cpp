@@ -308,8 +308,8 @@ Register RISCVRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
                                       MF.getInfo<RISCVMachineFunctionInfo>();
   if(FuncInfo->isEntryFunction())
     return TFI->hasFP(MF) ? RISCV::X8 : RISCV::X2;
-  // Non-kernel function, we only use Tp
-  return RISCV::X4;
+  // Non-kernel function, we also use X8 for frame pointer
+  return TFI->hasFP(MF) ? RISCV::X8 : RISCV::X4;
 }
 
 const uint32_t *

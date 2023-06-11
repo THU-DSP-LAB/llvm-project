@@ -6,10 +6,12 @@
 define dso_local i32 @branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-LABEL: branch:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi tp, tp, 16
-; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, -16(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    addi sp, sp, 16
+; VENTUS-NEXT:    .cfi_def_cfa_offset 0
+; VENTUS-NEXT:    sw ra, -16(sp)
 ; VENTUS-NEXT:    .cfi_offset ra, 0
+; VENTUS-NEXT:    mv s0, tp
+; VENTUS-NEXT:    .cfi_def_cfa s0, 0
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    li a1, 14
@@ -25,14 +27,14 @@ define dso_local i32 @branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    join v0, v0, .LBB0_2
 ; VENTUS-NEXT:  .LBB0_2: # %cleanup
 ; VENTUS-NEXT:    vmv.v.x v0, a1
-; VENTUS-NEXT:    lw ra, -16(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi tp, tp, -16
+; VENTUS-NEXT:    lw ra, -16(sp)
+; VENTUS-NEXT:    addi sp, sp, -16
 ; VENTUS-NEXT:    join v0, v0, .LBB0_4
 ; VENTUS-NEXT:  .LBB0_3: # %if.end3
 ; VENTUS-NEXT:    li a0, 4
 ; VENTUS-NEXT:    vmv.v.x v0, a0
-; VENTUS-NEXT:    lw ra, -16(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi tp, tp, -16
+; VENTUS-NEXT:    lw ra, -16(sp)
+; VENTUS-NEXT:    addi sp, sp, -16
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    join v0, v0, .LBB0_4
 ; VENTUS-NEXT:  .LBB0_4:
@@ -60,11 +62,11 @@ define dso_local ventus_kernel void @loop_branch(ptr addrspace(1) nocapture noun
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw s0, -16(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, -12(sp)
+; VENTUS-NEXT:    sw s1, -16(sp)
 ; VENTUS-NEXT:    .cfi_offset ra, 4
-; VENTUS-NEXT:    .cfi_offset s0, 0
-; VENTUS-NEXT:    mv s0, a0
+; VENTUS-NEXT:    .cfi_offset s1, 0
+; VENTUS-NEXT:    mv s1, a0
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vmv.x.s a0, v0
@@ -72,8 +74,8 @@ define dso_local ventus_kernel void @loop_branch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    vmv.v.x v1, a0
 ; VENTUS-NEXT:    vbeq v1, v0, .LBB1_4
 ; VENTUS-NEXT:  # %bb.1: # %for.body.lr.ph
-; VENTUS-NEXT:    lw a3, 4(s0)
-; VENTUS-NEXT:    lw a1, 0(s0)
+; VENTUS-NEXT:    lw a3, 4(s1)
+; VENTUS-NEXT:    lw a1, 0(s1)
 ; VENTUS-NEXT:    slli a4, a0, 2
 ; VENTUS-NEXT:    add a1, a1, a4
 ; VENTUS-NEXT:    lw a2, 0(a1)
@@ -89,8 +91,8 @@ define dso_local ventus_kernel void @loop_branch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:  .LBB1_4:
 ; VENTUS-NEXT:    join v0, v0, .LBB1_3
 ; VENTUS-NEXT:  .LBB1_3: # %for.cond.cleanup
-; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s0, -16(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, -12(sp)
+; VENTUS-NEXT:    lw s1, -16(sp)
 ; VENTUS-NEXT:    addi sp, sp, -16
 ; VENTUS-NEXT:    ret
 entry:
@@ -202,11 +204,11 @@ define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noun
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw s0, -16(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, -12(sp)
+; VENTUS-NEXT:    sw s1, -16(sp)
 ; VENTUS-NEXT:    .cfi_offset ra, 4
-; VENTUS-NEXT:    .cfi_offset s0, 0
-; VENTUS-NEXT:    mv s0, a0
+; VENTUS-NEXT:    .cfi_offset s1, 0
+; VENTUS-NEXT:    mv s1, a0
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vmv.x.s a0, v0
@@ -215,8 +217,8 @@ define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    vbeq v1, v0, .LBB2_6
 ; VENTUS-NEXT:  # %bb.1: # %for.cond1.preheader.lr.ph
 ; VENTUS-NEXT:    li a1, 0
-; VENTUS-NEXT:    lw a4, 4(s0)
-; VENTUS-NEXT:    lw a2, 0(s0)
+; VENTUS-NEXT:    lw a4, 4(s1)
+; VENTUS-NEXT:    lw a2, 0(s1)
 ; VENTUS-NEXT:    slli a5, a0, 2
 ; VENTUS-NEXT:    add a2, a2, a5
 ; VENTUS-NEXT:    lw a3, 0(a2)
@@ -241,8 +243,8 @@ define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:  .LBB2_6:
 ; VENTUS-NEXT:    join v0, v0, .LBB2_5
 ; VENTUS-NEXT:  .LBB2_5: # %for.cond.cleanup
-; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s0, -16(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, -12(sp)
+; VENTUS-NEXT:    lw s1, -16(sp)
 ; VENTUS-NEXT:    addi sp, sp, -16
 ; VENTUS-NEXT:    ret
 entry:
@@ -286,11 +288,11 @@ define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noun
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw s0, -16(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, -12(sp)
+; VENTUS-NEXT:    sw s1, -16(sp)
 ; VENTUS-NEXT:    .cfi_offset ra, 4
-; VENTUS-NEXT:    .cfi_offset s0, 0
-; VENTUS-NEXT:    mv s0, a0
+; VENTUS-NEXT:    .cfi_offset s1, 0
+; VENTUS-NEXT:    mv s1, a0
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vmv.x.s a0, v0
@@ -299,8 +301,8 @@ define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    vbeq v1, v0, .LBB3_10
 ; VENTUS-NEXT:  # %bb.1: # %for.body.lr.ph
 ; VENTUS-NEXT:    li a1, 0
-; VENTUS-NEXT:    lw a2, 4(s0)
-; VENTUS-NEXT:    lw a5, 0(s0)
+; VENTUS-NEXT:    lw a2, 4(s1)
+; VENTUS-NEXT:    lw a5, 0(s1)
 ; VENTUS-NEXT:    slli a3, a0, 2
 ; VENTUS-NEXT:    add a2, a2, a3
 ; VENTUS-NEXT:    add a3, a5, a3
@@ -342,8 +344,8 @@ define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:  .LBB3_10:
 ; VENTUS-NEXT:    join v0, v0, .LBB3_9
 ; VENTUS-NEXT:  .LBB3_9: # %for.cond.cleanup
-; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s0, -16(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, -12(sp)
+; VENTUS-NEXT:    lw s1, -16(sp)
 ; VENTUS-NEXT:    addi sp, sp, -16
 ; VENTUS-NEXT:    ret
 entry:
@@ -393,10 +395,12 @@ for.inc:                                          ; preds = %for.inc.sink.split,
 define dso_local i32 @_Z13get_global_idj(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-LABEL: _Z13get_global_idj:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi tp, tp, 16
-; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, -16(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    addi sp, sp, 16
+; VENTUS-NEXT:    .cfi_def_cfa_offset 0
+; VENTUS-NEXT:    sw ra, -16(sp)
 ; VENTUS-NEXT:    .cfi_offset ra, 0
+; VENTUS-NEXT:    mv s0, tp
+; VENTUS-NEXT:    .cfi_def_cfa s0, 0
 ; VENTUS-NEXT:    li a0, 2
 ; VENTUS-NEXT:    vmv.v.x v1, a0
 ; VENTUS-NEXT:    vbeq v0, v1, .LBB4_4
@@ -424,8 +428,8 @@ define dso_local i32 @_Z13get_global_idj(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    join v0, v0, .LBB4_8
 ; VENTUS-NEXT:  .LBB4_8: # %return
 ; VENTUS-NEXT:    vmv.v.x v0, a0
-; VENTUS-NEXT:    lw ra, -16(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi tp, tp, -16
+; VENTUS-NEXT:    lw ra, -16(sp)
+; VENTUS-NEXT:    addi sp, sp, -16
 ; VENTUS-NEXT:    ret
 entry:
   switch i32 %dim, label %return [

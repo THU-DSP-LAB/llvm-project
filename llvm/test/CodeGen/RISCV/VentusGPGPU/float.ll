@@ -144,10 +144,10 @@ define dso_local float @fneq(float noundef %a, float noundef %b) local_unnamed_a
 ; VENTUS-LABEL: fneq:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vmv.v.x v2, zero
-; VENTUS-NEXT:    vmfne.vv v0, v0, v1
+; VENTUS-NEXT:    vmfeq.vv v0, v0, v1
 ; VENTUS-NEXT:    lui a0, %hi(.LCPI11_0)
 ; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI11_0)
-; VENTUS-NEXT:    vbne v0, v2, .LBB11_2
+; VENTUS-NEXT:    vbeq v0, v2, .LBB11_2
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    vmv.v.x v0, a0
 ; VENTUS-NEXT:    join v0, v0, .LBB11_3
@@ -221,7 +221,8 @@ define dso_local float @fgt(float noundef %a)  {
 ; VENTUS-NEXT:    lui a0, %hi(.LCPI14_0)
 ; VENTUS-NEXT:    lw a0, %lo(.LCPI14_0)(a0)
 ; VENTUS-NEXT:    vmv.v.x v1, zero
-; VENTUS-NEXT:    vmfgt.vf v0, v0, a0
+; VENTUS-NEXT:    vmv.v.x v2, a0
+; VENTUS-NEXT:    vmflt.vv v0, v2, v0
 ; VENTUS-NEXT:    lui a0, %hi(.LCPI14_1)
 ; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI14_1)
 ; VENTUS-NEXT:    vbne v0, v1, .LBB14_2
@@ -252,7 +253,8 @@ define dso_local float @fge(float noundef %a)  {
 ; VENTUS-NEXT:    lui a0, %hi(.LCPI15_0)
 ; VENTUS-NEXT:    lw a0, %lo(.LCPI15_0)(a0)
 ; VENTUS-NEXT:    vmv.v.x v1, zero
-; VENTUS-NEXT:    vmfge.vf v0, v0, a0
+; VENTUS-NEXT:    vmv.v.x v2, a0
+; VENTUS-NEXT:    vmfle.vv v0, v2, v0
 ; VENTUS-NEXT:    lui a0, %hi(.LCPI15_1)
 ; VENTUS-NEXT:    addi a0, a0, %lo(.LCPI15_1)
 ; VENTUS-NEXT:    vbne v0, v1, .LBB15_2
@@ -476,7 +478,10 @@ define float @fsgnjn_v(float %a, float %b) nounwind {
 ; VENTUS-LABEL: fsgnjn_v:
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    vfadd.vv v1, v0, v1
-; VENTUS-NEXT:    vfsgnjn.vv v0, v0, v1
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    vmv.x.s a1, v1
+; VENTUS-NEXT:    fsgnjn.s a0, a0, a1
+; VENTUS-NEXT:    vmv.v.x v0, a0
 ; VENTUS-NEXT:    ret
   %1 = fadd float %a, %b
   %2 = fneg float %1
@@ -487,7 +492,9 @@ define float @fsgnjn_v(float %a, float %b) nounwind {
 define float @fsgnjn_v_1(float %a) nounwind {
 ; VENTUS-LABEL: fsgnjn_v_1:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vfsgnjn.vv v0, v0, v0
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    fneg.s a0, a0
+; VENTUS-NEXT:    vmv.v.x v0, a0
 ; VENTUS-NEXT:    ret
   %1 = fneg float %a
   ret float %1
@@ -496,7 +503,9 @@ define float @fsgnjn_v_1(float %a) nounwind {
 define float @fsgnjnx_v(float %a) nounwind {
 ; VENTUS-LABEL: fsgnjnx_v:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vfsgnjx.vv v0, v0, v0
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    fabs.s a0, a0
+; VENTUS-NEXT:    vmv.v.x v0, a0
 ; VENTUS-NEXT:    ret
   %1 = call float @llvm.fabs.f32(float %a)
   ret float %1

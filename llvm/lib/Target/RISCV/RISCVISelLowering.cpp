@@ -5740,6 +5740,8 @@ static SDValue unpackFromMemLoc(SelectionDAG &DAG, SDValue Chain,
   }
   int FI = MFI.CreateFixedObject(ValVT.getStoreSize(), VA.getLocMemOffset(),
                                  /*IsImmutable=*/true);
+  // This is essential for calculating stack size for VGPRSpill
+  MFI.setStackID(FI, RISCVStackID::VGPRSpill);
   SDValue FIN = DAG.getFrameIndex(FI, PtrVT);
   SDValue Val;
 
@@ -5753,9 +5755,11 @@ static SDValue unpackFromMemLoc(SelectionDAG &DAG, SDValue Chain,
     ExtType = ISD::NON_EXTLOAD;
     break;
   }
-  Val = DAG.getExtLoad(
-      ExtType, DL, LocVT, Chain, FIN,
-      MachinePointerInfo::getFixedStack(DAG.getMachineFunction(), FI), ValVT);
+  MachinePointerInfo PtrInfo =
+                MachinePointerInfo::getFixedStack(DAG.getMachineFunction(), FI);
+  assert(PtrInfo.getAddrSpace() ==  RISCVAS::PRIVATE_ADDRESS &&
+          "Expecting non-kernel function arguments unpack from private memory");
+  Val = DAG.getExtLoad(ExtType, DL, LocVT, Chain, FIN, PtrInfo, ValVT);
   return Val;
 }
 
@@ -5908,7 +5912,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
 
     // Record the frame index of the first variable argument
     // which is a value necessary to VASTART.
-    int FI = MFI.CreateFixedObject(XLenInBytes, VaArgOffset, true);
+    int FI = MFI.CreateFixedObject(XLenInBytes, 0, true);
     RVFI->setVarArgsFrameIndex(FI);
 
     // If saving an odd number of registers then create an extra stack slot to
@@ -5929,6 +5933,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
       RegInfo.addLiveIn(ArgRegs[I], Reg);
       SDValue ArgValue = DAG.getCopyFromReg(Chain, DL, Reg, XLenVT);
       FI = MFI.CreateFixedObject(XLenInBytes, VaArgOffset, true);
+      MFI.setStackID(FI, RISCVStackID::VGPRSpill);
       SDValue PtrOff = DAG.getFrameIndex(FI, getPointerTy(DAG.getDataLayout()));
       SDValue Store = DAG.getStore(Chain, DL, ArgValue, PtrOff,
                                    MachinePointerInfo::getFixedStack(MF, FI));

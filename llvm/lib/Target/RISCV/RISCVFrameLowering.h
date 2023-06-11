@@ -63,6 +63,12 @@ public:
   bool canUseAsPrologue(const MachineBasicBlock &MBB) const override;
   bool canUseAsEpilogue(const MachineBasicBlock &MBB) const override;
 
+  /// Get TP stack size for each stack
+  uint64_t getTPStackSize(MachineFunction &MF) const;
+
+  /// Before insert prolog/epilog information, set stack ID for each frame index
+  void deterMineStackID(MachineFunction &MF) const;
+
   bool enableShrinkWrapping(const MachineFunction &MF) const override;
 
   bool isSupportedStackID(TargetStackID::Value ID) const override;

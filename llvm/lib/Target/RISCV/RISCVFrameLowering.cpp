@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "RISCVFrameLowering.h"
+#include "MCTargetDesc/RISCVMCTargetDesc.h"
+#include "RISCV.h"
 #include "RISCVMachineFunctionInfo.h"
 #include "RISCVSubtarget.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -295,8 +297,10 @@ getNonLibcallCSI(const MachineFunction &MF,
 
   for (auto &CS : CSI) {
     int FI = CS.getFrameIdx();
-    if (FI >= 0 && (MFI.getStackID(FI) == TargetStackID::Default ||
-                    MFI.getStackID(FI) == TargetStackID::SGPRSpill))
+    // TODO: For now, we don't define VGPR callee saved registers, when we later
+    // add VGPR callee saved register, remember to modify here
+    if (FI >= 0 && (MFI.getStackID(FI) == RISCVStackID::Default ||
+                    MFI.getStackID(FI) == RISCVStackID::SGPRSpill))
       NonLibcallCSI.push_back(CS);
   }
 
@@ -306,10 +310,11 @@ getNonLibcallCSI(const MachineFunction &MF,
 void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
                                       MachineBasicBlock &MBB) const {
   MachineFrameInfo &MFI = MF.getFrameInfo();
-  auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
+  auto *RMFI = MF.getInfo<RISCVMachineFunctionInfo>();
   const RISCVRegisterInfo *RI = STI.getRegisterInfo();
   const RISCVInstrInfo *TII = STI.getInstrInfo();
   MachineBasicBlock::iterator MBBI = MBB.begin();
+  bool IsEntryFunction = RMFI->isEntryFunction();
 
   Register FPReg = getFPReg(STI);
   Register SPReg = getSPReg(STI);
@@ -336,6 +341,9 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   // Determine the correct frame layout
   determineFrameLayout(MF);
 
+  // Determine stack ID for each frame index
+  deterMineStackID(MF);
+
   // If libcalls are used to spill and restore callee-saved registers, the frame
   // has two sections; the opaque section managed by the libcalls, and the
   // section managed by MachineFrameInfo which can also hold callee saved
@@ -358,12 +366,15 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
     // Calculate the size of the frame managed by the libcall. The libcalls are
     // implemented such that the stack will always be 16 byte aligned.
     unsigned LibCallFrameSize = alignTo((STI.getXLen() / 8) * LibCallRegs, 16);
-    RVFI->setLibCallStackSize(LibCallFrameSize);
+    RMFI->setLibCallStackSize(LibCallFrameSize);
   }
 
-  // FIXME: Need to get 2 stack size for TP and SP!
+  // FIXME: SP stack size calculation need to be later changed
+  // FIXME: TP stack size calculation is also not
   uint64_t StackSize = MFI.getStackSize();
-  uint64_t RealStackSize = StackSize + RVFI->getLibCallStackSize();
+  uint64_t TPStackSize = getTPStackSize(MF);
+  uint64_t RealStackSize = IsEntryFunction ? StackSize :
+                                      TPStackSize + RMFI->getLibCallStackSize();
 
   // Early exit if there is no need to allocate on the stack
   if (RealStackSize == 0 && !MFI.adjustsStack())
@@ -388,11 +399,12 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   // Allocate space on the local-mem stack and private-mem stack if necessary.
-  if(MF.getFunction().getCallingConv() == CallingConv::VENTUS_KERNEL)
+  if(StackSize)
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(StackSize),
                 MachineInstr::FrameSetup, getStackAlign());
-  else
-    RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg, StackOffset::getFixed(StackSize),
+  if(TPStackSize)
+    RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
+                  StackOffset::getFixed(TPStackSize),
                   MachineInstr::FrameSetup, getStackAlign());
 
   // Emit ".cfi_def_cfa_offset RealStackSize"
@@ -423,7 +435,7 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
       Offset = FrameIdx * (int64_t) STI.getXLen() / 8;
     else
       Offset = MFI.getObjectOffset(Entry.getFrameIdx()) -
-               RVFI->getLibCallStackSize();
+               RMFI->getLibCallStackSize();
     Register Reg = Entry.getReg();
     unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::createOffset(
         nullptr, RI->getDwarfRegNum(Reg, true), Offset));
@@ -438,15 +450,15 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
       MF.getFunction().getContext().diagnose(DiagnosticInfoUnsupported{
           MF.getFunction(), "Frame pointer required, but has been reserved."});
     // The frame pointer does need to be reserved from register allocation.
-    assert(MF.getRegInfo().isReserved(FPReg) && "FP not reserved");
+    // assert(MF.getRegInfo().isReserved(FPReg) && "FP not reserved");
 
-    RI->adjustReg(MBB, MBBI, DL, FPReg, SPReg,
-                  StackOffset::getFixed(RealStackSize - RVFI->getVarArgsSaveSize()),
-                  MachineInstr::FrameSetup, getStackAlign());
+    RI->adjustReg(MBB, MBBI, DL, FPReg, IsEntryFunction ? SPReg : TPReg,
+            -StackOffset::getFixed(RealStackSize - RMFI->getVarArgsSaveSize()),
+            MachineInstr::FrameSetup, getStackAlign());
 
     // Emit ".cfi_def_cfa $fp, RVFI->getVarArgsSaveSize()"
     unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::cfiDefCfa(
-        nullptr, RI->getDwarfRegNum(FPReg, true), RVFI->getVarArgsSaveSize()));
+        nullptr, RI->getDwarfRegNum(FPReg, true), RMFI->getVarArgsSaveSize()));
     BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
         .addCFIIndex(CFIIndex)
         .setMIFlag(MachineInstr::FrameSetup);
@@ -550,6 +562,7 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
 
   // FIXME: Need to get 2 stack size for TP and SP!
   uint64_t StackSize = MFI.getStackSize();
+  uint64_t TPStackSize = getTPStackSize(MF);
   uint64_t RealStackSize = StackSize + RVFI->getLibCallStackSize();
   uint64_t FPOffset = RealStackSize - RVFI->getVarArgsSaveSize();
 
@@ -589,11 +602,12 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
 
   // FIXME: Allocate space for two stacks, this is depend on the actual use of
   // these two stacks, not based on calling convention
-  if(MF.getFunction().getCallingConv() == CallingConv::VENTUS_KERNEL)
+  if(StackSize)
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(-StackSize),
                   MachineInstr::FrameDestroy, getStackAlign());
-  else
-    RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg, StackOffset::getFixed(-StackSize),
+  if(TPStackSize)
+    RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
+                  StackOffset::getFixed(-TPStackSize),
                   MachineInstr::FrameDestroy, getStackAlign());
 
   // Emit epilogue for shadow call stack.
@@ -615,8 +629,9 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
   int MaxCSFI = -1;
   auto StackID = MFI.getStackID(FI);
 
-  assert((StackID == TargetStackID::Default ||
-          StackID == TargetStackID::SGPRSpill) &&
+  assert((StackID == RISCVStackID::Default ||
+          StackID == RISCVStackID::SGPRSpill ||
+          StackID == RISCVStackID::VGPRSpill) &&
          "Unexpected stack ID for the frame object.");
   StackOffset Offset =
       StackOffset::getFixed(MFI.getObjectOffset(FI) - getOffsetOfLocalArea() +
@@ -855,6 +870,27 @@ RISCVFrameLowering::getFirstSPAdjustAmount(const MachineFunction &MF) const {
   return 0;
 }
 
+uint64_t RISCVFrameLowering::getTPStackSize(MachineFunction &MF) const {
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  uint64_t TPStackSize = 0;
+
+  for(int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
+    if(static_cast<unsigned>(MFI.getStackID(I)) == RISCVStackID::VGPRSpill)
+      TPStackSize += MFI.getObjectSize(I);
+  }
+  return TPStackSize;
+}
+
+void RISCVFrameLowering::deterMineStackID(MachineFunction &MF) const {
+  llvm::MachineFrameInfo &MFI = MF.getFrameInfo();
+  for(int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
+    MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF,I);
+    if((MFI.getStackID(I) != RISCVStackID::SGPRSpill) &&
+          PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
+      MFI.setStackID(I, RISCVStackID::VGPRSpill);
+  }
+}
+
 bool RISCVFrameLowering::spillCalleeSavedRegisters(
     MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
     ArrayRef<CalleeSavedInfo> CSI, const TargetRegisterInfo *TRI) const {
@@ -884,9 +920,14 @@ bool RISCVFrameLowering::spillCalleeSavedRegisters(
   for (auto &CS : NonLibcallCSI) {
     // Insert the spill to the stack frame.
     Register Reg = CS.getReg();
+
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
-    TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
+    if(Reg.id() < RISCV::V0 || Reg.id() > RISCV::V255 ) {
+      TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
                             RC, TRI);
+      MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::SGPRSpill);
+    }
+
   }
 
   return true;
@@ -914,7 +955,8 @@ bool RISCVFrameLowering::restoreCalleeSavedRegisters(
   for (auto &CS : NonLibcallCSI) {
     Register Reg = CS.getReg();
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
-    TII.loadRegFromStackSlot(MBB, MI, Reg, CS.getFrameIdx(), RC, TRI);
+    if(Reg.id() < RISCV::V0 || Reg.id() > RISCV::V255 )
+        TII.loadRegFromStackSlot(MBB, MI, Reg, CS.getFrameIdx(), RC, TRI);
     assert(MI != MBB.begin() && "loadRegFromStackSlot didn't insert any code!");
   }
 
@@ -992,14 +1034,16 @@ bool RISCVFrameLowering::canUseAsEpilogue(const MachineBasicBlock &MBB) const {
 }
 
 bool RISCVFrameLowering::isSupportedStackID(TargetStackID::Value ID) const {
-  switch (ID) {
-  case TargetStackID::Default:
-  case TargetStackID::SGPRSpill:
+  RISCVStackID::Value StackID = (RISCVStackID::Value)ID;
+  switch (StackID) {
+  case RISCVStackID::Default:
+  case RISCVStackID::SGPRSpill:
+  case RISCVStackID::VGPRSpill:
     return true;
-  case TargetStackID::ScalableVector:
-  case TargetStackID::NoAlloc:
-  case TargetStackID::WasmLocal:
+  case RISCVStackID::ScalableVector:
+  case RISCVStackID::NoAlloc:
+  case RISCVStackID::WasmLocal:
     return false;
   }
-  llvm_unreachable("Invalid TargetStackID::Value");
+  llvm_unreachable("Invalid RISCVStackID::Value");
 }

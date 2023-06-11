@@ -50,6 +50,7 @@ public:
   bool SelectFrameAddrRegImm(SDValue Addr, SDValue &Base, SDValue &Offset);
   bool SelectAddrRegImm(SDValue Addr, SDValue &Base, SDValue &Offset);
   bool SelectAddrRegReg(SDValue Addr, SDValue &Base, SDValue &Offset);
+  bool SelectPriAddrRegImm(SDValue Addr, SDValue &Base, SDValue &Offset);
 
   bool tryShrinkShlLogicImm(SDNode *Node);
 
