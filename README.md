@@ -2,7 +2,9 @@
 
 Ventus GPGPU is based on RISCV RV32IMAZfinxZve32f ISA with fully redefined concept of V-extension.
 
-**Copyright (C) 2020-2023 Terapines Technology (Wuhan) Co., Ltd**
+The Ventus GPGPU OpenCL compiler based on LLVM is developed by [Terapines Technology (Wuhan) Co., Ltd](https://www.terapines.com/)
+
+承影GPGPU OpenCL编译器由Terapines([兆松科技](https://www.terapines.com/))负责开发
 
 For more architecture detail, please refer to
 [Ventus GPGPU Arch](https://github.com/THU-DSP-LAB/ventus-gpgpu/blob/master/docs/Ventus-GPGPU-doc.md)
@@ -19,7 +21,7 @@ Download all the repositories firstly and place them in the same path.
 * isa-simulator(spike) : git clone https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator.git
 * driver : git clone https://github.com/yangzexia/ventus-driver.git
 
-> ATTENTION: Remember to check branch for every repository, cause the project are under development, if you get any build errors, feel free to give a issue or just contact authors
+> ATTENTION: Remember to check branch for every repository, cause the project are under development, if you get any build errors, feel free to give an issue or just contact authors
 
 ### 2: Build all the programs
 
