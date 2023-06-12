@@ -25,6 +25,12 @@ class UniformUnaryFrag<SDPatternOperator Op> : PatFrag<
   (Op $src0),
   [{ return !N->isDivergent(); }]>;
 
+class UniformLoadFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0),
+  (Op $src0),
+  [{ return !N->isDivergent() &&
+      cast<LoadSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS; }]>;
+
 class DivergentUnaryFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0),
   (Op $src0),
@@ -67,6 +73,14 @@ class DivergentPrivateStoreFrag<SDPatternOperator Op> : PatFrag<
   [{
     return N->isDivergent() &&
       cast<StoreSDNode>(N)->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS;
+  }]>;
+
+class UniformStoreFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{
+    return !N->isDivergent() &&
+      cast<StoreSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS;
   }]>;
 
 class DivergentNonPrivateStoreFrag<SDPatternOperator Op> : PatFrag<
@@ -257,7 +271,7 @@ def GPRMemZeroOffset : MemOperand<GPR> {
 }
 
 def GPRMem : MemOperand<GPR>;
-
+// def GPRNoX4Mem : MemOperand<GPRNoX4>;
 def VGPRMem : MemOperand<VGPR>;
 
 def TPMem : MemOperand<TP>;
@@ -572,6 +586,7 @@ def AddrRegImm : ComplexPattern<iPTR, 2, "SelectAddrRegImm">;
 // For vALU load/store base(sGPR)+offset(vGPR) matching
 def AddrRegReg : ComplexPattern<iPTR, 2, "SelectAddrRegReg">;
 
+def PriAddrRegImm : ComplexPattern<iPTR, 2, "SelectPriAddrRegImm">;
 // Return the negation of an immediate value.
 def NegImm : SDNodeXForm<imm, [{
   return CurDAG->getTargetConstant(-N->getSExtValue(), SDLoc(N),
@@ -1734,7 +1749,7 @@ def PseudoZEXT_W : Pseudo<(outs GPR:$rd), (ins GPR:$rs), [], "zext.w", "$rd, $rs
 
 /// Loads
 multiclass UniformLdPat<PatFrag LoadOp, RVInst Inst, ValueType vt = XLenVT> {
-  def : Pat<(vt (UniformUnaryFrag<LoadOp> (AddrRegImm GPR:$rs1, simm12:$imm12))),
+  def : Pat<(vt (UniformLoadFrag<LoadOp> (AddrRegImm GPRNoX4:$rs1, simm12:$imm12))),
             (Inst GPR:$rs1, simm12:$imm12)>;
 }
 
@@ -1749,7 +1764,7 @@ defm : UniformLdPat<zextloadi16, LHU>;
 /// Stores
 multiclass UniformStPat<PatFrag StoreOp, RVInst Inst, RegisterClass StTy,
                         ValueType vt> {
-  def : Pat<(UniformBinFrag<StoreOp> (vt StTy:$rs2), (AddrRegImm GPR:$rs1, simm12:$imm12)),
+  def : Pat<(UniformStoreFrag<StoreOp> (vt StTy:$rs2), (AddrRegImm GPRNoX4:$rs1, simm12:$imm12)),
             (Inst StTy:$rs2, GPR:$rs1, simm12:$imm12)>;
 }
 
