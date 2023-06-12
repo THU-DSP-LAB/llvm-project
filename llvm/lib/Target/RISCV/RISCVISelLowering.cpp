@@ -7398,11 +7398,13 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
   // }
   case ISD::LOAD: {
     const LoadSDNode *L = cast<LoadSDNode>(N);
-    return L->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS;
+    return L->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
+           L->getAddressSpace() ==  RISCVAS::LOCAL_ADDRESS;
   }
   case ISD::STORE: {
     const StoreSDNode *Store= cast<StoreSDNode>(N);
-    return Store->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS;
+    return Store->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
+           Store->getAddressSpace() ==  RISCVAS::LOCAL_ADDRESS;
   }
   case ISD::CALLSEQ_END:
     return true;

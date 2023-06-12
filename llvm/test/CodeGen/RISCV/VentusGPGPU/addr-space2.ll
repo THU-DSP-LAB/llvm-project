@@ -7,9 +7,9 @@
 define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 48
+; VENTUS-NEXT:    addi sp, sp, 16
 ; VENTUS-NEXT:    addi tp, tp, 20
-; VENTUS-NEXT:    .cfi_def_cfa_offset 48
+; VENTUS-NEXT:    .cfi_def_cfa_offset 16
 ; VENTUS-NEXT:    sw ra, -36(sp)
 ; VENTUS-NEXT:    sw s0, -40(sp)
 ; VENTUS-NEXT:    sw s1, -44(sp)
@@ -38,11 +38,11 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    add s2, s2, a0
 ; VENTUS-NEXT:    vlw.v v0, 0(s2)
 ; VENTUS-NEXT:    add s1, s1, a0
-; VENTUS-NEXT:    lw a1, 0(s1)
+; VENTUS-NEXT:    vmv.v.x v1, s1
+; VENTUS-NEXT:    vlw12.v v1, 0(v1)
 ; VENTUS-NEXT:    add a0, s0, a0
-; VENTUS-NEXT:    lw a2, 0(a0)
-; VENTUS-NEXT:    vmv.v.x v1, a1
-; VENTUS-NEXT:    vmv.v.x v2, a2
+; VENTUS-NEXT:    lw a1, 0(a0)
+; VENTUS-NEXT:    vmv.v.x v2, a1
 ; VENTUS-NEXT:    vmadd.vv v0, v1, v2
 ; VENTUS-NEXT:    vmv.v.x v1, a0
 ; VENTUS-NEXT:    vsw12.v v0, 0(v1)
@@ -57,7 +57,7 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    lw s0, -40(sp)
 ; VENTUS-NEXT:    lw s1, -44(sp)
 ; VENTUS-NEXT:    lw s2, -48(sp)
-; VENTUS-NEXT:    addi sp, sp, -48
+; VENTUS-NEXT:    addi sp, sp, -16
 ; VENTUS-NEXT:    addi tp, tp, -20
 ; VENTUS-NEXT:    ret
 entry:
@@ -237,4 +237,20 @@ define dso_local zeroext i8 @private_memmory_lbu(ptr addrspace(5) nocapture noun
 entry:
   %0 = load i8, ptr addrspace(5) %a, align 1
   ret i8 %0
+}
+
+define dso_local ventus_kernel void @local_memmory1(ptr addrspace(3) nocapture noundef align 4 %b) {
+; VENTUS-LABEL: local_memmory1:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    lw a0, 0(a0)
+; VENTUS-NEXT:    vmv.v.x v0, a0
+; VENTUS-NEXT:    vlw12.v v1, 0(v0)
+; VENTUS-NEXT:    vadd.vi v1, v1, 1
+; VENTUS-NEXT:    vsw12.v v1, 0(v0)
+; VENTUS-NEXT:    ret
+entry:
+  %0 = load i32, ptr addrspace(3) %b, align 4
+  %add = add nsw i32 %0, 1
+  store i32 %add, ptr addrspace(3) %b, align 4
+  ret void
 }
