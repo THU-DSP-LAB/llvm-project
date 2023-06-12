@@ -221,6 +221,7 @@ void RISCVRegisterInfo::adjustReg(MachineBasicBlock &MBB,
   if (Val > -4096 && Val <= (2 * MaxPosAdjStep)) {
     int64_t FirstAdj = Val < 0 ? -2048 : MaxPosAdjStep;
     Val -= FirstAdj;
+    // Keep the intermediate aligned after each ADDI no matter for SP or TP
     BuildMI(MBB, II, DL, TII->get(RISCV::ADDI), DestReg)
         .addReg(SrcReg, getKillRegState(KillSrcReg))
         .addImm(FirstAdj)

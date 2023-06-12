@@ -13,6 +13,7 @@
 #ifndef LLVM_LIB_TARGET_RISCV_RISCVFRAMELOWERING_H
 #define LLVM_LIB_TARGET_RISCV_RISCVFRAMELOWERING_H
 
+#include "RISCV.h"
 #include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/Support/TypeSize.h"
 
@@ -63,8 +64,8 @@ public:
   bool canUseAsPrologue(const MachineBasicBlock &MBB) const override;
   bool canUseAsEpilogue(const MachineBasicBlock &MBB) const override;
 
-  /// Get TP stack size for each stack
-  uint64_t getTPStackSize(MachineFunction &MF) const;
+  /// Get stack size for different stack ID
+  uint64_t getStackSize(MachineFunction &MF, RISCVStackID::Value ID) const;
 
   /// Before insert prolog/epilog information, set stack ID for each frame index
   void deterMineStackID(MachineFunction &MF) const;

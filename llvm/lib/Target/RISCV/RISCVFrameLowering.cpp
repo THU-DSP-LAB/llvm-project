@@ -371,13 +371,14 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
 
   // FIXME: SP stack size calculation need to be later changed
   // FIXME: TP stack size calculation is also not
-  uint64_t StackSize = MFI.getStackSize();
-  uint64_t TPStackSize = getTPStackSize(MF);
-  uint64_t RealStackSize = IsEntryFunction ? StackSize :
-                                      TPStackSize + RMFI->getLibCallStackSize();
+  uint64_t SPStackSize = getStackSize(MF, RISCVStackID::SGPRSpill);
+  uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
+  uint64_t RealStackSize = IsEntryFunction ?
+                                    SPStackSize + RMFI->getLibCallStackSize() :
+                                    TPStackSize + RMFI->getLibCallStackSize();
 
   // Early exit if there is no need to allocate on the stack
-  if (RealStackSize == 0 && !MFI.adjustsStack())
+  if (MFI.getStackSize() == 0 && !MFI.adjustsStack())
     return;
 
   // If the stack pointer has been marked as reserved, then produce an error if
@@ -394,13 +395,13 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   uint64_t FirstSPAdjustAmount = getFirstSPAdjustAmount(MF);
   // Split the SP adjustment to reduce the offsets of callee saved spill.
   if (FirstSPAdjustAmount) {
-    StackSize = FirstSPAdjustAmount;
+    SPStackSize = FirstSPAdjustAmount;
     RealStackSize = FirstSPAdjustAmount;
   }
 
   // Allocate space on the local-mem stack and private-mem stack if necessary.
-  if(StackSize)
-    RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(StackSize),
+  if(SPStackSize)
+    RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(SPStackSize),
                 MachineInstr::FrameSetup, getStackAlign());
   if(TPStackSize)
     RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
@@ -528,11 +529,11 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
                                       MachineBasicBlock &MBB) const {
   const RISCVRegisterInfo *RI = STI.getRegisterInfo();
   MachineFrameInfo &MFI = MF.getFrameInfo();
-  auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
+  auto *RMFI = MF.getInfo<RISCVMachineFunctionInfo>();
   Register FPReg = getFPReg(STI);
   Register SPReg = getSPReg(STI);
   Register TPReg = getTPReg(STI);
-
+  bool IsEntryFunction = RMFI->isEntryFunction();
   // Get the insert location for the epilogue. If there were no terminators in
   // the block, get the last instruction.
   MachineBasicBlock::iterator MBBI = MBB.end();
@@ -561,10 +562,11 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
     LastFrameDestroy = std::prev(MBBI, CSI.size());
 
   // FIXME: Need to get 2 stack size for TP and SP!
-  uint64_t StackSize = MFI.getStackSize();
-  uint64_t TPStackSize = getTPStackSize(MF);
-  uint64_t RealStackSize = StackSize + RVFI->getLibCallStackSize();
-  uint64_t FPOffset = RealStackSize - RVFI->getVarArgsSaveSize();
+  uint64_t SPStackSize = getStackSize(MF, RISCVStackID::SGPRSpill);
+  uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
+  uint64_t RealStackSize = IsEntryFunction ? SPStackSize :
+                                      TPStackSize + RMFI->getLibCallStackSize();
+  uint64_t FPOffset = RealStackSize - RMFI->getVarArgsSaveSize();
 
   // Restore the stack pointer using the value of the frame pointer. Only
   // necessary if the stack pointer was modified, meaning the stack size is
@@ -596,14 +598,15 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
   }
 
   if (FirstSPAdjustAmount)
-    StackSize = FirstSPAdjustAmount;
+    SPStackSize = FirstSPAdjustAmount;
 
   // Deallocate stack
 
   // FIXME: Allocate space for two stacks, this is depend on the actual use of
   // these two stacks, not based on calling convention
-  if(StackSize)
-    RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(-StackSize),
+  if(SPStackSize)
+    RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
+                  StackOffset::getFixed(-SPStackSize),
                   MachineInstr::FrameDestroy, getStackAlign());
   if(TPStackSize)
     RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
@@ -870,15 +873,16 @@ RISCVFrameLowering::getFirstSPAdjustAmount(const MachineFunction &MF) const {
   return 0;
 }
 
-uint64_t RISCVFrameLowering::getTPStackSize(MachineFunction &MF) const {
+uint64_t RISCVFrameLowering::getStackSize(MachineFunction &MF,
+                                                RISCVStackID::Value ID) const {
   MachineFrameInfo &MFI = MF.getFrameInfo();
-  uint64_t TPStackSize = 0;
+  uint64_t StackSize = 0;
 
   for(int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
-    if(static_cast<unsigned>(MFI.getStackID(I)) == RISCVStackID::VGPRSpill)
-      TPStackSize += MFI.getObjectSize(I);
+    if(static_cast<unsigned>(MFI.getStackID(I)) == ID)
+      StackSize += MFI.getObjectSize(I);
   }
-  return TPStackSize;
+  return StackSize;
 }
 
 void RISCVFrameLowering::deterMineStackID(MachineFunction &MF) const {
