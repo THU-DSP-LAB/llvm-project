@@ -247,7 +247,8 @@ void RISCVRegisterInfo::adjustReg(MachineBasicBlock &MBB,
       .setMIFlag(Flag);
 }
 
-
+/// This function is to eliminate frame index for MachineInstruction in
+/// StoreRegToSlot/LoadRegFromSlot function
 bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                             int SPAdj, unsigned FIOperandNum,
                                             RegScavenger *RS) const {

@@ -82,6 +82,10 @@ unsigned RISCVInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
   case RISCV::LD:
   case RISCV::FLD:
   case RISCV::VLW:
+  case RISCV::VLH:
+  case RISCV::VLB:
+  case RISCV::VLHU:
+  case RISCV::VLBU:
     break;
   }
 
@@ -107,6 +111,7 @@ unsigned RISCVInstrInfo::isStoreToStackSlot(const MachineInstr &MI,
   case RISCV::SD:
   case RISCV::FSD:
   case RISCV::VSW:
+  case RISCV::VSH:
     break;
   }
 
@@ -212,7 +217,7 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   MachineFunction *MF = MBB.getParent();
   MachineFrameInfo &MFI = MF->getFrameInfo();
   const auto &STI = MF->getSubtarget<RISCVSubtarget>();
-  auto RII = STI.getRegisterInfo();
+  const auto &RII = STI.getRegisterInfo();
   unsigned SpillSize = TRI->getSpillSize(*RC);
   assert(SpillSize == 4 && "Only support 32 bit spill size in ventus for now");
 
@@ -245,7 +250,7 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   MachineMemOperand *MMO = MF->getMachineMemOperand(
       MachinePointerInfo(AddressSpace), MachineMemOperand::MOStore,
       MFI.getObjectSize(FI), MFI.getObjectAlign(FI));
-
+  STI.getFrameLowering()->deterMineStackID(*MF);
   BuildMI(MBB, I, DL, get(Opcode))
       .addReg(SrcReg, getKillRegState(IsKill))
       .addFrameIndex(FI)
@@ -265,7 +270,7 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   MachineFunction *MF = MBB.getParent();
   MachineFrameInfo &MFI = MF->getFrameInfo();
   const auto &STI = MF->getSubtarget<RISCVSubtarget>();
-  auto RII = STI.getRegisterInfo();
+  const auto &RII = STI.getRegisterInfo();
   MFI.setStackID(FI, RISCVStackID::SGPRSpill);
   unsigned Opcode;
   if(RISCV::VGPRRegClass.hasSubClassEq(RC)) {
