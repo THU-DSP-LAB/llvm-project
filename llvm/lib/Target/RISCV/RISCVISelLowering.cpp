@@ -5409,6 +5409,11 @@ static const MCPhysReg ArgVGPRs[] = {
   RISCV::V30, RISCV::V31
 };
 
+// Right now, we use a0-a7 to pass non-kernel private address based register
+static const MCPhysReg ArgGPRs[] = {RISCV::X10, RISCV::X11, RISCV::X12,
+                                    RISCV::X13, RISCV::X14, RISCV::X15,
+                                    RISCV::X16, RISCV::X17};
+
 // Registers used for variadic functions
 static const MCPhysReg VarArgVGPRs[] = {
   RISCV::V0,  RISCV::V1,  RISCV::V2,  RISCV::V3,
@@ -5454,6 +5459,83 @@ static bool CC_RISCVAssign2XLen(unsigned XLen, CCState &State, CCValAssign VA1,
   return false;
 }
 
+static bool CC_Ventus_PriMem(const DataLayout &DL, RISCVABI::ABI ABI,
+                             unsigned ValNo, MVT ValVT, MVT LocVT,
+                             CCValAssign::LocInfo LocInfo,
+                             ISD::ArgFlagsTy ArgFlags, CCState &State,
+                             bool IsFixed, bool IsRet, Type *OrigTy,
+                             const RISCVTargetLowering &TLI,
+                             std::optional<unsigned> FirstMaskArgument) {
+  unsigned XLen = DL.getLargestLegalIntTypeSizeInBits();
+  unsigned TwoXLenInBytes = (2 * XLen) / 8;
+  if (!IsFixed && ArgFlags.getNonZeroOrigAlign() == TwoXLenInBytes &&
+      DL.getTypeAllocSize(OrigTy) == TwoXLenInBytes) {
+    unsigned RegIdx = State.getFirstUnallocated(ArgGPRs);
+    // Skip 'odd' register if necessary.
+    if (RegIdx != std::size(ArgGPRs) && RegIdx % 2 == 1)
+      State.AllocateReg(ArgGPRs);
+  }
+
+  SmallVectorImpl<CCValAssign> &PendingLocs = State.getPendingLocs();
+  SmallVectorImpl<ISD::ArgFlagsTy> &PendingArgFlags =
+      State.getPendingArgFlags();
+
+  assert(PendingLocs.size() == PendingArgFlags.size() &&
+         "PendingLocs and PendingArgFlags out of sync");
+
+  // Allocate to a register if possible, or else a stack slot.
+  Register Reg;
+  unsigned StoreSizeBytes = XLen / 8;
+  Align StackAlign = Align(XLen / 8);
+
+  Reg = State.AllocateReg(ArgGPRs);
+  if (!Reg) {
+    if (IsRet)
+      return true;
+    LocVT = ValVT;
+    StoreSizeBytes = ValVT.getStoreSize();
+    // No VGPR registers can be used, then we use stack to pass argument
+    StackAlign = MaybeAlign(ValVT.getScalarSizeInBits() / 8).valueOrOne();
+  }
+
+  // Allocate stack for arguments which can not use register
+  unsigned StackOffset =
+      Reg ? 0 : State.AllocateStack(StoreSizeBytes, StackAlign);
+
+  // If we reach this point and PendingLocs is non-empty, we must be at the
+  // end of a split argument that must be passed indirectly.
+  if (!PendingLocs.empty()) {
+    assert(ArgFlags.isSplitEnd() && "Expected ArgFlags.isSplitEnd()");
+    assert(PendingLocs.size() > 2 && "Unexpected PendingLocs.size()");
+
+    for (auto &It : PendingLocs) {
+      if (Reg)
+        It.convertToReg(Reg);
+      else
+        It.convertToMem(StackOffset);
+      State.addLoc(It);
+    }
+    PendingLocs.clear();
+    PendingArgFlags.clear();
+    return false;
+  }
+
+  if (Reg) {
+    State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
+    return false;
+  }
+
+  // When a floating-point value is passed on the stack, no bit-conversion is
+  // needed.
+  if (ValVT.isFloatingPoint()) {
+    LocVT = ValVT;
+    LocInfo = CCValAssign::Full;
+  }
+  State.addLoc(CCValAssign::getMem(ValNo, ValVT, StackOffset, LocVT, LocInfo));
+  return false;
+  return false;
+}
+
 // Implements the Ventus RISC-V calling convention. Returns true upon failure.
 static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
                       MVT ValVT, MVT LocVT, CCValAssign::LocInfo LocInfo,
@@ -5462,6 +5544,14 @@ static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
                       std::optional<unsigned> FirstMaskArgument) {
   unsigned XLen = DL.getLargestLegalIntTypeSizeInBits();
   assert(XLen == 32 || XLen == 64);
+
+  // Dealing with calling convention for non-kernel function arguments which
+  // points to private memory address space
+  if (ArgFlags.isPointer() &&
+      ArgFlags.getPointerAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
+    return CC_Ventus_PriMem(DL, ABI, ValNo, ValVT, LocVT, LocInfo, ArgFlags,
+                            State, IsFixed, IsRet, OrigTy, TLI,
+                            FirstMaskArgument);
 
   // If this is a variadic argument, the RISC-V calling convention requires
   // that it is assigned an 'even' or 'aligned' register if it has 8-byte

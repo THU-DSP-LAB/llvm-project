@@ -11307,8 +11307,9 @@ private:
   static const int VLen = 1024;
 
   // Ventus GPGPU only support OpenCL C where non-kernel function passes
-  // arguments in V0-V31, return value is passed back in V0-v15.
-  static const int NumArgVGPRs = 32;
+  // non-private address space arguments in V0-V31, private address space in
+  // a0-a7, return value is passed back in V0-v15.
+  static const int NumArgGPRs = 40; // 32 VGPRS + 8 GPR
   static const int NumRetVGPRs = 16;
 
 public:
@@ -11333,7 +11334,7 @@ void VentusRISCVABIInfo::computeInfo(CGFunctionInfo &FI) const {
   if (!getCXXABI().classifyReturnType(FI))
     FI.getReturnInfo() = classifyReturnType(FI.getReturnType());
 
-  unsigned NumRegsLeft = NumArgVGPRs;
+  unsigned NumRegsLeft = NumArgGPRs;
   for (auto &Arg : FI.arguments()) {
     // FIXME: Is SPIR_KERNEL CC handled by upper layer?
     if (CC == llvm::CallingConv::VENTUS_KERNEL) {
@@ -11442,8 +11443,8 @@ unsigned VentusRISCVABIInfo::numRegsForType(QualType Ty) const {
 }
 
 ABIArgInfo VentusRISCVABIInfo::classifyArgumentType(QualType Ty,
-                                                    unsigned &NumRegsLeft) const {
-  assert(NumRegsLeft <= NumArgVGPRs && "Arg VGPR trcking underflow");
+                                                  unsigned &NumRegsLeft) const {
+  assert(NumRegsLeft <= NumArgGPRs && "Arg VGPR trcking underflow");
 
   Ty = useFirstFieldIfTransparentUnion(Ty);
 
