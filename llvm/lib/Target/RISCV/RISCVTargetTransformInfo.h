@@ -51,6 +51,17 @@ public:
   InstructionCost getStoreImmCost(Type *VecTy, TTI::OperandValueInfo OpInfo,
                                   TTI::TargetCostKind CostKind);
 
+  bool hasBranchDivergence() { return ST->hasVInstructions(); }
+
+  bool useGPUDivergenceAnalysis() { return ST->hasVInstructions(); }
+
+  /// \returns true if the result of the value could potentially be
+  /// different across workitems in a wavefront.
+  bool isSourceOfDivergence(const Value *V) const;
+
+/// FIXME: Copy from AMDGPU, maybe needed in Ventus
+//   bool isAlwaysUniform(const Value *V) const;
+
   InstructionCost getIntImmCost(const APInt &Imm, Type *Ty,
                                 TTI::TargetCostKind CostKind);
   InstructionCost getIntImmCostInst(unsigned Opcode, unsigned Idx,
