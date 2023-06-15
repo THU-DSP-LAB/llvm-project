@@ -114,7 +114,12 @@ EmitCopyFromReg(SDNode *Node, unsigned ResNo, bool IsClone, bool IsCloned,
           User->getOperand(2).getResNo() == ResNo) {
         Register DestReg = cast<RegisterSDNode>(User->getOperand(1))->getReg();
         if (DestReg.isVirtual()) {
-          VRBase = DestReg;
+          // Keep the same register type(VGPR) for divergent CopyFromReg.
+          if (Node->isDivergent()) {
+            VRBase = SrcReg;
+          } else {
+            VRBase = DestReg;
+          }
           Match = false;
         } else if (DestReg != SrcReg)
           Match = false;
@@ -157,7 +162,11 @@ EmitCopyFromReg(SDNode *Node, unsigned ResNo, bool IsClone, bool IsCloned,
 
   // Figure out the register class to create for the destreg.
   if (VRBase) {
-    DstRC = MRI->getRegClass(VRBase);
+    if (VRBase.isPhysical()) {
+      DstRC = SrcRC;
+    } else {
+      DstRC = MRI->getRegClass(VRBase);
+    }
   } else if (UseRC) {
     assert(TRI->isTypeLegalForClass(*UseRC, VT) &&
            "Incompatible phys register def and uses!");
