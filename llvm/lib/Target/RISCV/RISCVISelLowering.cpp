@@ -5800,13 +5800,16 @@ void RISCVTargetLowering::analyzeFormalArgumentsCompute(MachineFunction &MF,
 // The caller is responsible for loading the full value if the argument is
 // passed with CCValAssign::Indirect.
 static SDValue unpackFromRegLoc(SelectionDAG &DAG, SDValue Chain,
-                                const CCValAssign &VA, const SDLoc &DL,
-                                const RISCVTargetLowering &TLI) {
+                    const CCValAssign &VA, const SDLoc &DL,
+                    const RISCVTargetLowering &TLI, const ISD::InputArg &Arg) {
   MachineFunction &MF = DAG.getMachineFunction();
   MachineRegisterInfo &RegInfo = MF.getRegInfo();
   EVT LocVT = VA.getLocVT();
+  bool IsPriMem = Arg.Flags.isPointer() && Arg.Flags.getPointerAddrSpace() ==
+              RISCVAS::PRIVATE_ADDRESS;
   // Setting isDivergent = true is essential to use VGPR
-  const TargetRegisterClass *RC = TLI.getRegClassFor(LocVT.getSimpleVT(), true);
+  const TargetRegisterClass *RC = TLI.getRegClassFor(LocVT.getSimpleVT(),
+              IsPriMem ? false : true);
   Register VReg = RegInfo.createVirtualRegister(RC);
   RegInfo.addLiveIn(VA.getLocReg(), VReg);
   return DAG.getCopyFromReg(Chain, DL, VReg, LocVT);
@@ -5941,7 +5944,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
       if (VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::f64)
         ArgValue = unpackF64OnRV32DSoftABI(DAG, Chain, VA, DL);
       else if (VA.isRegLoc())
-        ArgValue = unpackFromRegLoc(DAG, Chain, VA, DL, *this);
+        ArgValue = unpackFromRegLoc(DAG, Chain, VA, DL, *this, Ins[i]);
       else
         ArgValue = unpackFromMemLoc(DAG, Chain, VA, DL);
 
