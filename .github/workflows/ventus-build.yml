@@ -48,32 +48,32 @@ jobs:
     - name: Start building llvm-ventus
       shell: bash
       run: |
-        ./build-ventus.sh --build llvm-ventus
+        bash build-ventus.sh --build llvm
 
     - name: Start building ocl-icd
       shell: bash
       run: |
-        ./build-ventus.sh --build ${OCL_ICD}
+        bash build-ventus.sh --build ${OCL_ICD}
 
     - name: Start building libclc
       shell: bash
       run: |
-        ./build-ventus.sh --build libclc
+        bash build-ventus.sh --build libclc
 
     - name: Start building spike
       shell: bash
       run: |
-        ./build-ventus.sh --build spike
+        bash build-ventus.sh --build spike
 
     - name: Start building driver
       shell: bash
       run: |
-        ./build-ventus.sh --build driver
+        bash build-ventus.sh --build driver
 
     - name: Start building pocl
       shell: bash
       run: |
-        ./build-ventus.sh --build ${POCL}
+        bash build-ventus.sh --build ${POCL}
 
     - name: Start ISA simulation test
       run: |
