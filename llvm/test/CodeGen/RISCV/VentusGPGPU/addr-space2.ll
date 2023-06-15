@@ -8,12 +8,12 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 16
-; VENTUS-NEXT:    addi tp, tp, 20
+; VENTUS-NEXT:    addi tp, tp, 4
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, -36(sp)
-; VENTUS-NEXT:    sw s0, -40(sp)
-; VENTUS-NEXT:    sw s1, -44(sp)
-; VENTUS-NEXT:    sw s2, -48(sp)
+; VENTUS-NEXT:    sw ra, -4(sp)
+; VENTUS-NEXT:    sw s0, -8(sp)
+; VENTUS-NEXT:    sw s1, -12(sp)
+; VENTUS-NEXT:    sw s2, -16(sp)
 ; VENTUS-NEXT:    .cfi_offset ra, 12
 ; VENTUS-NEXT:    .cfi_offset s0, 8
 ; VENTUS-NEXT:    .cfi_offset s1, 4
@@ -21,18 +21,17 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    lw s0, 0(a0)
 ; VENTUS-NEXT:    lui a0, %hi(foo.b)
 ; VENTUS-NEXT:    addi s1, a0, %lo(foo.b)
-; VENTUS-NEXT:    addi s2, sp, -32
-; VENTUS-NEXT:    vmv.v.x v0, s2
-; VENTUS-NEXT:    vmv.v.x v1, s1
-; VENTUS-NEXT:    vmv.v.x v2, s0
+; VENTUS-NEXT:    addi a0, sp, -16
+; VENTUS-NEXT:    vmv.v.x v0, s1
+; VENTUS-NEXT:    vmv.v.x v1, s0
+; VENTUS-NEXT:    addi s2, sp, -16
 ; VENTUS-NEXT:    call bar
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z12get_local_idj
-; VENTUS-NEXT:    vmv.x.s a0, v0
-; VENTUS-NEXT:    li a1, 4
-; VENTUS-NEXT:    vmv.v.x v0, a1
+; VENTUS-NEXT:    li a0, 4
 ; VENTUS-NEXT:    vmv.v.x v1, a0
-; VENTUS-NEXT:    vbltu v0, v1, .LBB0_2
+; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    vbltu v1, v0, .LBB0_2
 ; VENTUS-NEXT:  # %bb.1: # %if.then
 ; VENTUS-NEXT:    slli a0, a0, 2
 ; VENTUS-NEXT:    add s2, s2, a0
@@ -53,12 +52,12 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    sw zero, 0(a0)
 ; VENTUS-NEXT:    join v0, v0, .LBB0_3
 ; VENTUS-NEXT:  .LBB0_3: # %if.end
-; VENTUS-NEXT:    lw ra, -36(sp)
-; VENTUS-NEXT:    lw s0, -40(sp)
-; VENTUS-NEXT:    lw s1, -44(sp)
-; VENTUS-NEXT:    lw s2, -48(sp)
+; VENTUS-NEXT:    lw ra, -4(sp)
+; VENTUS-NEXT:    lw s0, -8(sp)
+; VENTUS-NEXT:    lw s1, -12(sp)
+; VENTUS-NEXT:    lw s2, -16(sp)
 ; VENTUS-NEXT:    addi sp, sp, -16
-; VENTUS-NEXT:    addi tp, tp, -20
+; VENTUS-NEXT:    addi tp, tp, -4
 ; VENTUS-NEXT:    ret
 entry:
   %a = alloca [5 x i32], align 4, addrspace(5)
@@ -161,7 +160,6 @@ entry:
 define dso_local void @private_memmory(ptr addrspace(5) nocapture noundef %a) local_unnamed_addr {
 ; VENTUS-LABEL: private_memmory:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vlw.v v0, 0(a0)
 ; VENTUS-NEXT:    lui a1, %hi(global_int)
 ; VENTUS-NEXT:    lw a1, %lo(global_int)(a1)
@@ -180,7 +178,6 @@ entry:
 define dso_local void @private_memmory_with_offset(ptr addrspace(5) nocapture noundef %a) local_unnamed_addr{
 ; VENTUS-LABEL: private_memmory_with_offset:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vlw.v v0, 4(a0)
 ; VENTUS-NEXT:    lui a1, %hi(global_int)
 ; VENTUS-NEXT:    lw a1, %lo(global_int)(a1)
@@ -200,7 +197,6 @@ entry:
 define dso_local void @private_memmory_lh(ptr addrspace(5) nocapture noundef %a) local_unnamed_addr {
 ; VENTUS-LABEL: private_memmory_lh:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    lui a1, %hi(global_short)
 ; VENTUS-NEXT:    lh a1, %lo(global_short)(a1)
 ; VENTUS-NEXT:    vlh.v v0, 0(a0)
@@ -219,7 +215,6 @@ entry:
 define dso_local zeroext i16 @private_memmory_lhu(ptr addrspace(5) nocapture noundef readonly %a) local_unnamed_addr {
 ; VENTUS-LABEL: private_memmory_lhu:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vlhu.v v0, 0(a0)
 ; VENTUS-NEXT:    ret
 entry:
@@ -231,7 +226,6 @@ entry:
 define dso_local zeroext i8 @private_memmory_lbu(ptr addrspace(5) nocapture noundef readonly %a) local_unnamed_addr {
 ; VENTUS-LABEL: private_memmory_lbu:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vmv.x.s a0, v0
 ; VENTUS-NEXT:    vlbu.v v0, 0(a0)
 ; VENTUS-NEXT:    ret
 entry:

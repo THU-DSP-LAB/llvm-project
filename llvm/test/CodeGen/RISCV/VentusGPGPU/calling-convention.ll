@@ -5,10 +5,11 @@
 define dso_local ventus_kernel void @_kernel(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B){
 ; VENTUS-LABEL: _kernel:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    .cfi_def_cfa_offset 0
-; VENTUS-NEXT:    sw ra, -8(sp)
-; VENTUS-NEXT:    sw s0, -12(sp)
-; VENTUS-NEXT:    sw s1, -16(sp)
+; VENTUS-NEXT:    addi sp, sp, 12
+; VENTUS-NEXT:    .cfi_def_cfa_offset 12
+; VENTUS-NEXT:    sw ra, -4(sp)
+; VENTUS-NEXT:    sw s0, -8(sp)
+; VENTUS-NEXT:    sw s1, -12(sp)
 ; VENTUS-NEXT:    .cfi_offset ra, 8
 ; VENTUS-NEXT:    .cfi_offset s0, 4
 ; VENTUS-NEXT:    .cfi_offset s1, 0
@@ -23,9 +24,10 @@ define dso_local ventus_kernel void @_kernel(ptr addrspace(1) nocapture noundef 
 ; VENTUS-NEXT:    vlw12.v v2, 0(v0)
 ; VENTUS-NEXT:    vfadd.vv v1, v1, v2
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
-; VENTUS-NEXT:    lw ra, -8(sp)
-; VENTUS-NEXT:    lw s0, -12(sp)
-; VENTUS-NEXT:    lw s1, -16(sp)
+; VENTUS-NEXT:    lw ra, -4(sp)
+; VENTUS-NEXT:    lw s0, -8(sp)
+; VENTUS-NEXT:    lw s1, -12(sp)
+; VENTUS-NEXT:    addi sp, sp, -12
 ; VENTUS-NEXT:    ret
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
@@ -64,12 +66,11 @@ entry:
 ; THis non-kernel function takes 34 arguments, the range is beyond 32
 ; so the left two arguments need to be passed by tp stack
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(read, inaccessiblemem: none)
-define dso_local i32 @non_kernel(ptr nocapture noundef readonly %a1, ptr nocapture noundef readonly %a2, ptr nocapture noundef readonly %a3, ptr nocapture noundef readonly %a4, ptr nocapture noundef readonly %a5, ptr nocapture noundef readonly %a6, ptr nocapture noundef readonly %a7, ptr nocapture noundef readonly %a8, ptr nocapture noundef readonly %a9, ptr nocapture noundef readonly %a10, ptr nocapture noundef readonly %a11, ptr nocapture noundef readonly %a12, ptr nocapture noundef readonly %a13, ptr nocapture noundef readonly %a14, ptr nocapture noundef readonly %a15, ptr nocapture noundef readonly %a16, ptr nocapture noundef readonly %a17, ptr nocapture noundef readonly %a18, ptr nocapture noundef readonly %a19, ptr nocapture noundef readonly %a20, ptr nocapture noundef readonly %a21, ptr nocapture noundef readonly %a22, ptr nocapture noundef readonly %a23, ptr nocapture noundef readonly %a24, ptr nocapture noundef readonly %a25, ptr nocapture noundef readonly %a26, ptr nocapture noundef readonly %a27, ptr nocapture noundef readonly %a28, ptr nocapture noundef readonly %a29, ptr nocapture noundef readonly %a30, ptr nocapture noundef readonly %a31, ptr nocapture noundef readonly %a32, 
-ptr addrspace(5) nocapture noundef readonly %0, ptr addrspace(5) nocapture noundef readonly %1) {
+define dso_local i32 @non_kernel(ptr nocapture noundef readonly %a1, ptr nocapture noundef readonly %a2, ptr nocapture noundef readonly %a3, ptr nocapture noundef readonly %a4, ptr nocapture noundef readonly %a5, ptr nocapture noundef readonly %a6, ptr nocapture noundef readonly %a7, ptr nocapture noundef readonly %a8, ptr nocapture noundef readonly %a9, ptr nocapture noundef readonly %a10, ptr nocapture noundef readonly %a11, ptr nocapture noundef readonly %a12, ptr nocapture noundef readonly %a13, ptr nocapture noundef readonly %a14, ptr nocapture noundef readonly %a15, ptr nocapture noundef readonly %a16, ptr nocapture noundef readonly %a17, ptr nocapture noundef readonly %a18, ptr nocapture noundef readonly %a19, ptr nocapture noundef readonly %a20, ptr nocapture noundef readonly %a21, ptr nocapture noundef readonly %a22, ptr nocapture noundef readonly %a23, ptr nocapture noundef readonly %a24, ptr nocapture noundef readonly %a25, ptr nocapture noundef readonly %a26, ptr nocapture noundef readonly %a27, ptr nocapture noundef readonly %a28, ptr nocapture noundef readonly %a29, ptr nocapture noundef readonly %a30, ptr nocapture noundef readonly %a31, ptr nocapture noundef readonly %a32,
 ; VENTUS-LABEL: non_kernel:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vlw.v v49, 0(a0)
-; VENTUS-NEXT:    vlw.v v48, 0(a1)
+; VENTUS-NEXT:    vlw.v v48, 0(a0)
+; VENTUS-NEXT:    vlw.v v49, 0(a1)
 ; VENTUS-NEXT:    vlw12.v v0, 0(v0)
 ; VENTUS-NEXT:    vlw12.v v1, 0(v1)
 ; VENTUS-NEXT:    vlw12.v v2, 0(v2)
@@ -132,12 +133,13 @@ ptr addrspace(5) nocapture noundef readonly %0, ptr addrspace(5) nocapture nound
 ; VENTUS-NEXT:    vadd.vv v0, v0, v2
 ; VENTUS-NEXT:    vadd.vv v0, v0, v3
 ; VENTUS-NEXT:    vlw12.v v1, 0(v31)
-; VENTUS-NEXT:    vlw12.v v2, 0(v49)
-; VENTUS-NEXT:    vlw12.v v3, 0(v48)
+; VENTUS-NEXT:    vlw12.v v2, 0(v48)
+; VENTUS-NEXT:    vlw12.v v3, 0(v49)
 ; VENTUS-NEXT:    vadd.vv v0, v0, v1
 ; VENTUS-NEXT:    vadd.vv v0, v0, v2
 ; VENTUS-NEXT:    vadd.vv v0, v0, v3
 ; VENTUS-NEXT:    ret
+ptr addrspace(5) nocapture noundef readonly %0, ptr addrspace(5) nocapture noundef readonly %1) {
 entry:
   %a33 = load ptr, ptr addrspace(5) %0, align 4
   %a34 = load ptr, ptr addrspace(5) %1, align 4

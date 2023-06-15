@@ -5,15 +5,15 @@
 define dso_local ventus_kernel void @func(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(3) nocapture noundef readonly align 4 %B) {
 ; VENTUS-LABEL: func:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 16
+; VENTUS-NEXT:    addi sp, sp, 12
 ; VENTUS-NEXT:    addi tp, tp, 4
-; VENTUS-NEXT:    .cfi_def_cfa_offset 16
+; VENTUS-NEXT:    .cfi_def_cfa_offset 12
 ; VENTUS-NEXT:    sw ra, -4(sp)
 ; VENTUS-NEXT:    sw s0, -8(sp)
 ; VENTUS-NEXT:    sw s1, -12(sp)
-; VENTUS-NEXT:    .cfi_offset ra, 12
-; VENTUS-NEXT:    .cfi_offset s0, 8
-; VENTUS-NEXT:    .cfi_offset s1, 4
+; VENTUS-NEXT:    .cfi_offset ra, 8
+; VENTUS-NEXT:    .cfi_offset s0, 4
+; VENTUS-NEXT:    .cfi_offset s1, 0
 ; VENTUS-NEXT:    .cfi_offset v32.l, 0
 ; VENTUS-NEXT:    lw s0, 0(a0)
 ; VENTUS-NEXT:    lw s1, 4(a0)
@@ -33,7 +33,7 @@ define dso_local ventus_kernel void @func(ptr addrspace(1) nocapture noundef ali
 ; VENTUS-NEXT:    lw ra, -4(sp)
 ; VENTUS-NEXT:    lw s0, -8(sp)
 ; VENTUS-NEXT:    lw s1, -12(sp)
-; VENTUS-NEXT:    addi sp, sp, -16
+; VENTUS-NEXT:    addi sp, sp, -12
 ; VENTUS-NEXT:    addi tp, tp, -4
 ; VENTUS-NEXT:    ret
 entry:

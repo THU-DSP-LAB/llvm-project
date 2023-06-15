@@ -12,9 +12,8 @@ target triple = "riscv32"
 define dso_local i32 @printf(ptr noundef %fmt, ...) {
 ; VENTUS-LABEL: printf:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 32
-; VENTUS-NEXT:    addi tp, tp, 28
-; VENTUS-NEXT:    .cfi_def_cfa_offset 28
+; VENTUS-NEXT:    addi tp, tp, 76
+; VENTUS-NEXT:    .cfi_def_cfa_offset 76
 ; VENTUS-NEXT:    li a0, 0
 ; VENTUS-NEXT:    vsw.v v7, -28(tp)
 ; VENTUS-NEXT:    vsw.v v6, -24(tp)
@@ -45,8 +44,7 @@ define dso_local i32 @printf(ptr noundef %fmt, ...) {
 ; VENTUS-NEXT:    blt a0, a4, .LBB0_1
 ; VENTUS-NEXT:  .LBB0_2: # %for.end
 ; VENTUS-NEXT:    vmv.v.x v0, a1
-; VENTUS-NEXT:    addi sp, sp, -32
-; VENTUS-NEXT:    addi tp, tp, -28
+; VENTUS-NEXT:    addi tp, tp, -76
 ; VENTUS-NEXT:    ret
 entry:
   %fmt.addr = alloca ptr, align 4

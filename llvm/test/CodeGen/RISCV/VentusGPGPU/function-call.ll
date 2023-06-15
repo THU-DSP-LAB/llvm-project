@@ -23,10 +23,10 @@ entry:
 define dso_local ventus_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr addrspace(1) noundef align 4 %c) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 16
-; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, -12(sp)
-; VENTUS-NEXT:    sw s0, -16(sp)
+; VENTUS-NEXT:    addi sp, sp, 8
+; VENTUS-NEXT:    .cfi_def_cfa_offset 8
+; VENTUS-NEXT:    sw ra, -4(sp)
+; VENTUS-NEXT:    sw s0, -8(sp)
 ; VENTUS-NEXT:    .cfi_offset ra, 4
 ; VENTUS-NEXT:    .cfi_offset s0, 0
 ; VENTUS-NEXT:    lw s0, 8(a0)
@@ -37,9 +37,9 @@ define dso_local ventus_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr add
 ; VENTUS-NEXT:    call bar
 ; VENTUS-NEXT:    vmv.v.x v1, s0
 ; VENTUS-NEXT:    vsw12.v v0, 0(v1)
-; VENTUS-NEXT:    lw ra, -12(sp)
-; VENTUS-NEXT:    lw s0, -16(sp)
-; VENTUS-NEXT:    addi sp, sp, -16
+; VENTUS-NEXT:    lw ra, -4(sp)
+; VENTUS-NEXT:    lw s0, -8(sp)
+; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
 entry:
   %a.addr = alloca i32, align 4, addrspace(5)

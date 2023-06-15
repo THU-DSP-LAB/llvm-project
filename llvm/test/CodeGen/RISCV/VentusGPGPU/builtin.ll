@@ -5,11 +5,11 @@
 define ventus_kernel void @foo_ker(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
 ; VENTUS-LABEL: foo_ker:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 16
-; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, -8(sp)
-; VENTUS-NEXT:    sw s0, -12(sp)
-; VENTUS-NEXT:    sw s1, -16(sp)
+; VENTUS-NEXT:    addi sp, sp, 12
+; VENTUS-NEXT:    .cfi_def_cfa_offset 12
+; VENTUS-NEXT:    sw ra, -4(sp)
+; VENTUS-NEXT:    sw s0, -8(sp)
+; VENTUS-NEXT:    sw s1, -12(sp)
 ; VENTUS-NEXT:    .cfi_offset ra, 8
 ; VENTUS-NEXT:    .cfi_offset s0, 4
 ; VENTUS-NEXT:    .cfi_offset s1, 0
@@ -24,10 +24,10 @@ define ventus_kernel void @foo_ker(ptr addrspace(1) nocapture noundef align 4 %A
 ; VENTUS-NEXT:    vlw12.v v2, 0(v0)
 ; VENTUS-NEXT:    vadd.vv v1, v2, v1
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
-; VENTUS-NEXT:    lw ra, -8(sp)
-; VENTUS-NEXT:    lw s0, -12(sp)
-; VENTUS-NEXT:    lw s1, -16(sp)
-; VENTUS-NEXT:    addi sp, sp, -16
+; VENTUS-NEXT:    lw ra, -4(sp)
+; VENTUS-NEXT:    lw s0, -8(sp)
+; VENTUS-NEXT:    lw s1, -12(sp)
+; VENTUS-NEXT:    addi sp, sp, -12
 ; VENTUS-NEXT:    ret
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
@@ -43,12 +43,12 @@ entry:
 define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrspace(1) nocapture noundef readonly %B) {
 ; VENTUS-LABEL: foo_fun:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 16
+; VENTUS-NEXT:    addi sp, sp, 4
 ; VENTUS-NEXT:    addi tp, tp, 8
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 8
-; VENTUS-NEXT:    sw ra, -8(sp)
-; VENTUS-NEXT:    .cfi_offset ra, 8
-; VENTUS-NEXT:    .cfi_offset v32.l, 4
+; VENTUS-NEXT:    sw ra, -4(sp)
+; VENTUS-NEXT:    .cfi_offset ra, 0
+; VENTUS-NEXT:    .cfi_offset v32.l, 0
 ; VENTUS-NEXT:    .cfi_offset v33.l, 0
 ; VENTUS-NEXT:    addi s0, tp, -8
 ; VENTUS-NEXT:    .cfi_def_cfa s0, 0
@@ -63,8 +63,8 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    vlw12.v v2, 0(v0)
 ; VENTUS-NEXT:    vadd.vv v1, v2, v1
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
-; VENTUS-NEXT:    lw ra, -8(sp)
-; VENTUS-NEXT:    addi sp, sp, -16
+; VENTUS-NEXT:    lw ra, -4(sp)
+; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    addi tp, tp, -8
 ; VENTUS-NEXT:    ret
 entry:

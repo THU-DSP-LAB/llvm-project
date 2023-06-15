@@ -22,8 +22,8 @@
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/MC/MCDwarf.h"
-
 #include <algorithm>
+#include <cmath>
 
 using namespace llvm;
 
@@ -622,7 +622,7 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
                                            Register &FrameReg) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   const TargetRegisterInfo *RI = MF.getSubtarget().getRegisterInfo();
-  const auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
+  const auto *RMFI = MF.getInfo<RISCVMachineFunctionInfo>();
 
   // Callee-saved registers should be referenced relative to the stack
   // pointer (positive offset), otherwise use the frame pointer (negative
@@ -647,19 +647,18 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
     MaxCSFI = CSI[CSI.size() - 1].getFrameIdx();
   }
 
+  // This goes to the offset calculation of callee saved register, ra/s0
   if (FI >= MinCSFI && FI <= MaxCSFI) {
     // sp represents SGPR spill, tp represents VGPR spill
     // FIXME: we need to define TargetStackID::VGPRSpill?
     FrameReg = StackID == TargetStackID::SGPRSpill ? RISCV::X2 : RISCV::X4;
-    if (FirstSPAdjustAmount)
-      Offset -= StackOffset::getFixed(FirstSPAdjustAmount);
-    else
-      Offset -= StackOffset::getFixed(MFI.getStackSize());
+    // if (FirstSPAdjustAmount)
+    //   Offset -= StackOffset::getFixed(FirstSPAdjustAmount);
+    // else
+    Offset -= StackOffset::getFixed(getStackSize(const_cast<MachineFunction&>(MF)
+        , RISCVStackID::SGPRSpill));
     return Offset;
   }
-
-  // assert(StackID == TargetStackID::Default &&
-  //        "SGPRSpill stack should not reach here!");
 
   if (RI->hasStackRealignment(MF) && !MFI.isFixedObjectIndex(FI)) {
     assert(0 && "TODO: Add stack realignment support for Ventus?");
@@ -693,9 +692,9 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
 
   if (FrameReg == getFPReg(STI)) {
     // assert(0 && "TODO: Add fp support for Ventus?");
-    Offset -= StackOffset::getFixed(RVFI->getVarArgsSaveSize());
+    Offset -= StackOffset::getFixed(RMFI->getVarArgsSaveSize());
     if (FI >= 0)
-      Offset -= StackOffset::getFixed(RVFI->getLibCallStackSize());
+      Offset -= StackOffset::getFixed(RMFI->getLibCallStackSize());
     // When using FP to access scalable vector objects, we need to minus
     // the frame size.
     //
@@ -732,7 +731,7 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
     assert(!RI->hasStackRealignment(MF) &&
             "Can't index across variable sized realign");
     Offset -= StackOffset::get(MFI.getStackSize() +
-                               RVFI->getLibCallStackSize(),0);
+                               RMFI->getLibCallStackSize(),0);
   } else {
     Offset -= StackOffset::getFixed(MFI.getStackSize());
   }
@@ -879,8 +878,12 @@ uint64_t RISCVFrameLowering::getStackSize(MachineFunction &MF,
   uint64_t StackSize = 0;
 
   for(int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
-    if(static_cast<unsigned>(MFI.getStackID(I)) == ID)
-      StackSize += MFI.getObjectSize(I);
+    if(static_cast<unsigned>(MFI.getStackID(I)) == ID) {
+      // Need to consider the alignment for different frame index
+      uint64_t Align = MFI.getObjectAlign(I).value();
+      StackSize += ceil(double(Align) / 4) * MFI.getObjectSize(I);
+    }
+
   }
   return StackSize;
 }
@@ -892,6 +895,9 @@ void RISCVFrameLowering::deterMineStackID(MachineFunction &MF) const {
     if((MFI.getStackID(I) != RISCVStackID::SGPRSpill) &&
           PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
       MFI.setStackID(I, RISCVStackID::VGPRSpill);
+    else
+      // FIXME: other stack?
+      MFI.setStackID(I, RISCVStackID::SGPRSpill);
   }
 }
 
@@ -927,9 +933,9 @@ bool RISCVFrameLowering::spillCalleeSavedRegisters(
 
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
     if(Reg.id() < RISCV::V0 || Reg.id() > RISCV::V255 ) {
+      MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::SGPRSpill);
       TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
                             RC, TRI);
-      MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::SGPRSpill);
     }
 
   }
