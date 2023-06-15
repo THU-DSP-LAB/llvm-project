@@ -19,7 +19,7 @@ Usage: ${DIR}/$(basename ${0})
 
 Options:
   --build <build programs>
-    Chosen programs to build : llvm, pocl, ocl-icd, libclc
+    Chosen programs to build : llvm, ocl-icd, libclc, spike, driver, pocl
     Option format : "llvm;pocl", string are seperated by semicolon
     Default : "llvm;ocl-icd;libclc;spike;driver;pocl"
     'BUILD_TYPE' is default 'Debug' which can be changed by enviroment variable
