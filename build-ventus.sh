@@ -1,16 +1,16 @@
-#!/usr/bin/bash
+#!bash
 
 DIR=$(cd "$(dirname "${0}")" &> /dev/null && (pwd -W 2> /dev/null || pwd))
 VENTUS_BUILD_DIR=${DIR}/build
 LIBCLC_BUILD_DIR=${DIR}/build-libclc
 VENTUS_INSTALL_PREFIX=${DIR}/install
-PROGRAMS_TOBUILD=(llvm-ventus ocl-icd libclc spike driver pocl)
+PROGRAMS_TOBUILD=(llvm ocl-icd libclc spike driver pocl)
 
 # Helper function
 help() {
   cat <<END
 
-Build llvm-ventus, pocl, ocl-icd, libclc programs
+Build llvm, pocl, ocl-icd, libclc programs
 Read ${DIR}/README.md to get started.
 
 Usage: ${DIR}/$(basename ${0})
@@ -19,9 +19,9 @@ Usage: ${DIR}/$(basename ${0})
 
 Options:
   --build <build programs>
-    Chosen programs to build : llvm-ventus, pocl, ocl-icd, libclc
-    Option format : "llvm-ventus;pocl", string are seperated by semicolon
-    Default : "llvm-ventus;ocl-icd;libclc;spike;driver;pocl"
+    Chosen programs to build : llvm, pocl, ocl-icd, libclc
+    Option format : "llvm;pocl", string are seperated by semicolon
+    Default : "llvm;ocl-icd;libclc;spike;driver;pocl"
     'BUILD_TYPE' is default 'Debug' which can be changed by enviroment variable
 
   --help | -h
@@ -102,8 +102,8 @@ fi
 check_if_program_exits ${OCL_ICD_DIR} "ocl icd"
 OCL_ICD_BUILD_DIR=${OCL_ICD_DIR}/build
 
-# Build llvm-ventus
-build_ventus() {
+# Build llvm
+build_llvm() {
   if [ ! -d "${VENTUS_BUILD_DIR}" ]; then
     mkdir ${VENTUS_BUILD_DIR}
   fi
@@ -207,15 +207,15 @@ export_elements() {
   export SPIKE_TARGET_DIR=${VENTUS_INSTALL_PREFIX}
 }
 
-# When no need to build llvm-ventus, export needed elements
-if [[ ! "${PROGRAMS_TOBUILD[*]}" =~ "llvm-ventus" ]];then
+# When no need to build llvm, export needed elements
+if [[ ! "${PROGRAMS_TOBUILD[*]}" =~ "llvm" ]];then
   export_elements
 fi
 
-# Check llvm-ventus is built or not
+# Check llvm is built or not
 check_if_ventus_built() {
   if [ ! -d "${VENTUS_INSTALL_PREFIX}" ];then
-    echo "Please build llvm-ventus first!"
+    echo "Please build llvm first!"
     exit 1
   fi
 }
@@ -244,8 +244,8 @@ check_if_ocl_icd_built() {
 # Process build options
 for program in "${PROGRAMS_TOBUILD[@]}"
 do
-  if [ "${program}" == "llvm-ventus" ];then
-    build_ventus
+  if [ "${program}" == "llvm" ];then
+    build_llvm
     export_elements
   elif [ "${program}" == "ocl-icd" ];then
     build_icd_loader
