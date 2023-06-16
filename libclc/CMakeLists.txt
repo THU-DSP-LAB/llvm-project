@@ -363,3 +363,11 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
 		endif()
 	endforeach( d )
 endforeach( t )
+
+# Build archive file for riscv32--.bc
+if( ${ARCH} STREQUAL riscv32)
+	execute_process(
+		COMMAND ./build_riscv32_archive.sh ${LLVM_TOOLS_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/${obj_suffix} ${CMAKE_CURRENT_BINARY_DIR}
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	)
+endif()
