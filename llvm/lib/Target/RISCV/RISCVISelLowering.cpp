@@ -29,7 +29,6 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/DiagnosticInfo.h"
@@ -352,7 +351,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
       setOperationAction(ISD::FPOWI, MVT::i32, Custom);
   }
 
-  if (Subtarget.hasStdExtF()) {
+    if (Subtarget.hasStdExtF()) {
 
     setOperationAction(FPLegalNodeTypes, MVT::f32, Legal);
     setOperationAction(ISD::FCEIL, MVT::f32, Custom);
@@ -11411,60 +11410,6 @@ static const MCPhysReg VarArgVGPRs[] = {
   RISCV::V0,  RISCV::V1,  RISCV::V2,  RISCV::V3,
   RISCV::V4,  RISCV::V5,  RISCV::V6,  RISCV::V7
 };
-
-// Pass a 2*XLEN argument that has been split into two XLEN values through
-// registers or the stack as necessary.
-static bool CC_RISCVAssign2XLen(unsigned XLen, CCState &State, CCValAssign VA1,
-                                ISD::ArgFlagsTy ArgFlags1, unsigned ValNo2,
-                                MVT ValVT2, MVT LocVT2,
-                                ISD::ArgFlagsTy ArgFlags2) {
-  unsigned XLenInBytes = XLen / 8;
-  if (Register Reg = State.AllocateReg(ArgVGPRs)) {
-    // At least one half can be passed via register.
-    State.addLoc(CCValAssign::getReg(VA1.getValNo(), VA1.getValVT(), Reg,
-                                     VA1.getLocVT(), CCValAssign::Full));
-  } else {
-    // Both halves must be passed on the stack, with proper alignment.
-    Align StackAlign =
-        std::max(Align(XLenInBytes), ArgFlags1.getNonZeroOrigAlign());
-    State.addLoc(
-        CCValAssign::getMem(VA1.getValNo(), VA1.getValVT(),
-                            State.AllocateStack(XLenInBytes, StackAlign),
-                            VA1.getLocVT(), CCValAssign::Full));
-    State.addLoc(CCValAssign::getMem(
-        ValNo2, ValVT2, State.AllocateStack(XLenInBytes, Align(XLenInBytes)),
-        LocVT2, CCValAssign::Full));
-    return false;
-  }
-
-  if (Register Reg = State.AllocateReg(ArgVGPRs)) {
-    // The second half can also be passed via register.
-    State.addLoc(
-        CCValAssign::getReg(ValNo2, ValVT2, Reg, LocVT2, CCValAssign::Full));
-  } else {
-    // The second half is passed via the stack, without additional alignment.
-    State.addLoc(CCValAssign::getMem(
-        ValNo2, ValVT2, State.AllocateStack(XLenInBytes, Align(XLenInBytes)),
-        LocVT2, CCValAssign::Full));
-  }
-
-  return false;
-}
-static unsigned allocateRVVReg(MVT ValVT, unsigned ValNo,
-                               std::optional<unsigned> FirstMaskArgument,
-                               CCState &State, const RISCVTargetLowering &TLI) {
-  const TargetRegisterClass *RC = TLI.llvm::TargetLoweringBase::getRegClassFor(ValVT);
-  if (RC == &RISCV::VGPRRegClass) {
-    // Assign the first mask argument to V0.
-    // This is an interim calling convention and it may be changed in the
-    // future.
-    if (FirstMaskArgument && ValNo == *FirstMaskArgument)
-      return State.AllocateReg(RISCV::V0);
-    return State.AllocateReg(ArgVGPRs);
-  }
-  llvm_unreachable("Unhandled register class for ValueType");
-}
-
 static bool CC_Ventus_PriMem(const DataLayout &DL, RISCVABI::ABI ABI,
                              unsigned ValNo, MVT ValVT, MVT LocVT,
                              CCValAssign::LocInfo LocInfo,
@@ -11539,9 +11484,60 @@ static bool CC_Ventus_PriMem(const DataLayout &DL, RISCVABI::ABI ABI,
   }
   State.addLoc(CCValAssign::getMem(ValNo, ValVT, StackOffset, LocVT, LocInfo));
   return false;
+}
+// Pass a 2*XLEN argument that has been split into two XLEN values through
+// registers or the stack as necessary.
+static bool CC_RISCVAssign2XLen(unsigned XLen, CCState &State, CCValAssign VA1,
+                                ISD::ArgFlagsTy ArgFlags1, unsigned ValNo2,
+                                MVT ValVT2, MVT LocVT2,
+                                ISD::ArgFlagsTy ArgFlags2) {
+  unsigned XLenInBytes = XLen / 8;
+  if (Register Reg = State.AllocateReg(ArgVGPRs)) {
+    // At least one half can be passed via register.
+    State.addLoc(CCValAssign::getReg(VA1.getValNo(), VA1.getValVT(), Reg,
+                                     VA1.getLocVT(), CCValAssign::Full));
+  } else {
+    // Both halves must be passed on the stack, with proper alignment.
+    Align StackAlign =
+        std::max(Align(XLenInBytes), ArgFlags1.getNonZeroOrigAlign());
+    State.addLoc(
+        CCValAssign::getMem(VA1.getValNo(), VA1.getValVT(),
+                            State.AllocateStack(XLenInBytes, StackAlign),
+                            VA1.getLocVT(), CCValAssign::Full));
+    State.addLoc(CCValAssign::getMem(
+        ValNo2, ValVT2, State.AllocateStack(XLenInBytes, Align(XLenInBytes)),
+        LocVT2, CCValAssign::Full));
+    return false;
+  }
+
+  if (Register Reg = State.AllocateReg(ArgVGPRs)) {
+    // The second half can also be passed via register.
+    State.addLoc(
+        CCValAssign::getReg(ValNo2, ValVT2, Reg, LocVT2, CCValAssign::Full));
+  } else {
+    // The second half is passed via the stack, without additional alignment.
+    State.addLoc(CCValAssign::getMem(
+        ValNo2, ValVT2, State.AllocateStack(XLenInBytes, Align(XLenInBytes)),
+        LocVT2, CCValAssign::Full));
+  }
+
   return false;
 }
 
+static unsigned allocateRVVReg(MVT ValVT, unsigned ValNo,
+                               std::optional<unsigned> FirstMaskArgument,
+                               CCState &State, const RISCVTargetLowering &TLI) {
+  const TargetRegisterClass *RC = TLI.llvm::TargetLoweringBase::getRegClassFor(ValVT);
+  if (RC == &RISCV::VGPRRegClass) {
+    // Assign the first mask argument to V0.
+    // This is an interim calling convention and it may be changed in the
+    // future.
+    if (FirstMaskArgument && ValNo == *FirstMaskArgument)
+      return State.AllocateReg(RISCV::V0);
+    return State.AllocateReg(ArgVGPRs);
+  }
+  llvm_unreachable("Unhandled register class for ValueType");
+}
 // Implements the Ventus RISC-V calling convention. Returns true upon failure.
 static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
                       MVT ValVT, MVT LocVT, CCValAssign::LocInfo LocInfo,
@@ -11549,9 +11545,7 @@ static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
                       bool IsRet, Type *OrigTy, const RISCVTargetLowering &TLI,
                       std::optional<unsigned> FirstMaskArgument) {
   unsigned XLen = DL.getLargestLegalIntTypeSizeInBits();
-  MVT XLenVT = MVT::i32;
   assert(XLen == 32 || XLen == 64);
-
   // Dealing with calling convention for non-kernel function arguments which
   // points to private memory address space
   if (ArgFlags.isPointer() &&
@@ -11559,7 +11553,6 @@ static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
     return CC_Ventus_PriMem(DL, ABI, ValNo, ValVT, LocVT, LocInfo, ArgFlags,
                             State, IsFixed, IsRet, OrigTy, TLI,
                             FirstMaskArgument);
-
   // If this is a variadic argument, the RISC-V calling convention requires
   // that it is assigned an 'even' or 'aligned' register if it has 8-byte
   // alignment (RV32) or 16-byte alignment (RV64). An aligned register should
@@ -11583,106 +11576,22 @@ static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
   assert(PendingLocs.size() == PendingArgFlags.size() &&
          "PendingLocs and PendingArgFlags out of sync");
 
-  // Handle passing f64 on RV32D with a soft float ABI or when floating point
-  // registers are exhausted.
-  if (XLen == 32 && ValVT == MVT::f64) {
-    assert(!ArgFlags.isSplit() && PendingLocs.empty() &&
-           "Can't lower f64 if it is split");
-    // Depending on available argument GPRS, f64 may be passed in a pair of
-    // GPRs, split between a GPR and the stack, or passed completely on the
-    // stack. LowerCall/LowerFormalArguments/LowerReturn must recognise these
-    // cases.
-    Register Reg = State.AllocateReg(ArgVGPRs);
-    LocVT = MVT::i32;
-
-    if (!Reg) {
-      unsigned StackOffset = State.AllocateStack(8, Align(8));
-      State.addLoc(
-          CCValAssign::getMem(ValNo, ValVT, StackOffset, LocVT, LocInfo));
-      return false;
-    }
-    if (!State.AllocateReg(ArgVGPRs))
-      State.AllocateStack(4, Align(4));
-    State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-    return false;
-  }
-
-  // Fixed-length vectors are located in the corresponding scalable-vector
-  // container types.
-  if (ValVT.isFixedLengthVector())
-    LocVT = TLI.getContainerForFixedLengthVector(LocVT);
-
-  // Split arguments might be passed indirectly, so keep track of the pending
-  // values. Split vectors are passed via a mix of registers and indirectly, so
-  // treat them as we would any other argument.
-  if (ValVT.isScalarInteger() && (ArgFlags.isSplit() || !PendingLocs.empty())) {
-    LocVT = XLenVT;
-    LocInfo = CCValAssign::Indirect;
-    PendingLocs.push_back(
-        CCValAssign::getPending(ValNo, ValVT, LocVT, LocInfo));
-    PendingArgFlags.push_back(ArgFlags);
-    if (!ArgFlags.isSplitEnd()) {
-      return false;
-    }
-  }
-
-  // If the split argument only had two elements, it should be passed directly
-  // in registers or on the stack.
-  if (ValVT.isScalarInteger() && ArgFlags.isSplitEnd() &&
-      PendingLocs.size() <= 2) {
-    assert(PendingLocs.size() == 2 && "Unexpected PendingLocs.size()");
-    // Apply the normal calling convention rules to the first half of the
-    // split argument.
-    CCValAssign VA = PendingLocs[0];
-    ISD::ArgFlagsTy AF = PendingArgFlags[0];
-    PendingLocs.clear();
-    PendingArgFlags.clear();
-    return CC_RISCVAssign2XLen(XLen, State, VA, AF, ValNo, ValVT, LocVT,
-                               ArgFlags);
-  }
-
   // Allocate to a register if possible, or else a stack slot.
   Register Reg;
   unsigned StoreSizeBytes = XLen / 8;
   Align StackAlign = Align(XLen / 8);
 
-  // if (ValVT == MVT::f16 && !UseGPRForF16_F32)
-  //   Reg = State.AllocateReg(ArgFPR16s);
-  // else if (ValVT == MVT::f32 && !UseGPRForF16_F32)
-  //   Reg = State.AllocateReg(ArgFPR32s);
-  // else if (ValVT == MVT::f64 && !UseGPRForF64)
-  //   Reg = State.AllocateReg(ArgFPR64s);
-  // else
-
-  if (ValVT.isVector()) {
-    Reg = allocateRVVReg(ValVT, ValNo, FirstMaskArgument, State, TLI);
-    if (!Reg) {
-      // For return values, the vector must be passed fully via registers or
-      // via the stack.
-      // FIXME: The proposed vector ABI only mandates v8-v15 for return values,
-      // but we're using all of them.
-      if (IsRet)
-        return true;
-      // Try using a GPR to pass the address
-      if ((Reg = State.AllocateReg(ArgVGPRs))) {
-        LocVT = XLenVT;
-        LocInfo = CCValAssign::Indirect;
-      } else if (ValVT.isScalableVector()) {
-        LocVT = XLenVT;
-        LocInfo = CCValAssign::Indirect;
-      } else {
-        // Pass fixed-length vectors on the stack.
-        LocVT = ValVT;
-        StoreSizeBytes = ValVT.getStoreSize();
-        // Align vectors to their element sizes, being careful for vXi1
-        // vectors.
-        StackAlign = MaybeAlign(ValVT.getScalarSizeInBits() / 8).valueOrOne();
-      }
-    }
-  } else {
-    Reg = State.AllocateReg(ArgVGPRs);
+  Reg = State.AllocateReg(ArgVGPRs);
+  if (!Reg) {
+    if (IsRet)
+      return true;
+    LocVT = ValVT;
+    StoreSizeBytes = ValVT.getStoreSize();
+    // No VGPR registers can be used, then we use stack to pass argument
+    StackAlign = MaybeAlign(ValVT.getScalarSizeInBits() / 8).valueOrOne();
   }
 
+  // Allocate stack for arguments which can not use register
   unsigned StackOffset =
       Reg ? 0 : State.AllocateStack(StoreSizeBytes, StackAlign);
 
@@ -11703,10 +11612,6 @@ static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
     PendingArgFlags.clear();
     return false;
   }
-
-//   assert((!UseGPRForF16_F32 || !UseGPRForF64 || LocVT == XLenVT ||
-//           (TLI.getSubtarget().hasVInstructions() && ValVT.isVector())) &&
-//          "Expected an XLenVT or vector types at this stage");
 
   if (Reg) {
     State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
@@ -12166,7 +12071,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
 
     // Record the frame index of the first variable argument
     // which is a value necessary to VASTART.
-    int FI = MFI.CreateFixedObject(XLenInBytes, 0, true);
+    int FI = MFI.CreateFixedObject(XLenInBytes, VaArgOffset, true);
     RVFI->setVarArgsFrameIndex(FI);
 
     // If saving an odd number of registers then create an extra stack slot to
@@ -12637,7 +12542,7 @@ RISCVTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 
     if (VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::f64) {
       // Handle returning f64 on RV32D with a soft float ABI.
-    //   assert(VA.isRegLoc() && "Expected return via registers");
+      assert(VA.isRegLoc() && "Expected return via registers");
       SDValue SplitF64 = DAG.getNode(RISCVISD::SplitF64, DL,
                                      DAG.getVTList(MVT::i32, MVT::i32), Val);
       SDValue Lo = SplitF64.getValue(0);
@@ -13650,14 +13555,11 @@ bool RISCVTargetLowering::isIntDivCheap(EVT VT, AttributeList Attr) const {
 bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
     const SDNode *N, FunctionLoweringInfo *FLI,
     LegacyDivergenceAnalysis *KDA) const {
-    N->isKnownSentinel();
-  const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
-  const MachineRegisterInfo &MRI = FLI->MF->getRegInfo();
-  // N->op_end();
-  // for(auto tt : N->op_end())
   switch (N->getOpcode()) {
   case ISD::CopyFromReg: {
     const RegisterSDNode *R = cast<RegisterSDNode>(N->getOperand(1));
+    const MachineRegisterInfo &MRI = FLI->MF->getRegInfo();
+    const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
     Register Reg = R->getReg();
 
     // FIXME: Why does this need to consider isLiveIn?
@@ -13669,15 +13571,6 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
 
     return !TRI->isSGPRReg(MRI, Reg);
   }
-  // case ISD::ADD:{
-  //   SDValue dd = N->getOperand(0);
-  //   if(dd->getOpcode() == ISD::CopyFromReg) {
-  //     dd->dump();
-  //     const RegisterSDNode *R = cast<RegisterSDNode>(dd->getOperand(1));
-  //     return TRI->isSGPRReg(MRI, R->getReg());
-  //   }
-  //   return false;
-  // }
   case ISD::LOAD: {
     const LoadSDNode *L = cast<LoadSDNode>(N);
     return L->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||

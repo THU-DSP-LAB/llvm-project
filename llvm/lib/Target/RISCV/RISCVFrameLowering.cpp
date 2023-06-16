@@ -23,7 +23,7 @@
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/MC/MCDwarf.h"
 #include <algorithm>
-#include <cmath>
+
 
 using namespace llvm;
 
@@ -885,7 +885,9 @@ uint64_t RISCVFrameLowering::getStackSize(MachineFunction &MF,
     if(static_cast<unsigned>(MFI.getStackID(I)) == ID) {
       // Need to consider the alignment for different frame index
       uint64_t Align = MFI.getObjectAlign(I).value();
-      StackSize += ceil(double(Align) / 4) * MFI.getObjectSize(I);
+      uint64_t ActualAlignSize = (Align + 3) >> 2;
+      uint64_t Size = ActualAlignSize * MFI.getObjectSize(I);
+      StackSize +=  Size;
     }
 
   }
