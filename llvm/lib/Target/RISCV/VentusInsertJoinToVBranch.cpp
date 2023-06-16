@@ -303,8 +303,9 @@ bool VentusInsertJoinToVBranch::legalizeRetMBB(MachineBasicBlock &MBB) {
     return false;
   MachineInstr &LastInst = MBB.back();
   unsigned LastInstOpcode = LastInst.getOpcode();
-  assert(LastInstOpcode == RISCV::PseudoRET ||
-         LastInstOpcode == RISCV::PseudoTAIL && "Unexpected opcode");
+  assert((LastInstOpcode == RISCV::PseudoRET ||
+          LastInstOpcode == RISCV::PseudoTAIL) &&
+         "Unexpected opcode");
   if (LastInstOpcode == RISCV::PseudoRET)
     // Get the return instruction's implicit operands
     LastInst.eraseFromParent();

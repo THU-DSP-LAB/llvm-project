@@ -95,9 +95,9 @@ bool RISCVExpandPseudo::expandMI(MachineBasicBlock &MBB,
 bool RISCVExpandPseudo::expandBarrier(MachineBasicBlock &MBB,
                                       MachineBasicBlock::iterator MBBI,
                                       MachineBasicBlock::iterator &NextMBBI) {
-  assert(MBBI->getOpcode() == RISCV::PseudoBarrier ||
-         MBBI->getOpcode() == RISCV::PseudoSubGroupBarrier &&
-             "Unexpected opcode");
+  assert((MBBI->getOpcode() == RISCV::PseudoBarrier ||
+          MBBI->getOpcode() == RISCV::PseudoSubGroupBarrier) &&
+         "Unexpected opcode");
   bool isBarrier = MBBI->getOpcode() == RISCV::PseudoBarrier;
   unsigned BarrierOpcode = isBarrier ? RISCV::BARRIER : RISCV::SUBGROUP_BARRIER;
   uint32_t MemFlag = MBBI->getOperand(0).getImm();
