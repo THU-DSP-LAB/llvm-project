@@ -60,8 +60,6 @@ class RVInstSetVLi<dag outs, dag ins, string opcodestr, string argstr>
   let Inst{14-12} = OPCFG.Value;
   let Inst{11-7} = rd;
   let Opcode = OPC_OP_V.Value;
-
-  let Defs = [VTYPE, VL];
 }
 
 // vsetvli inst format is used for VLW/VLH/VLB

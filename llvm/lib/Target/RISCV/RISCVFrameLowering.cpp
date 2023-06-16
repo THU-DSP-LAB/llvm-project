@@ -23,7 +23,7 @@
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/MC/MCDwarf.h"
 #include <algorithm>
-#include <cmath>
+
 
 using namespace llvm;
 
@@ -660,8 +660,12 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
     return Offset;
   }
 
+  // assert(StackID == TargetStackID::Default &&
+  //        "SGPRSpill stack should not reach here!");
+
   if (RI->hasStackRealignment(MF) && !MFI.isFixedObjectIndex(FI)) {
-    assert(0 && "TODO: Add stack realignment support for Ventus?");
+    // TODO: add stack alignment
+    // assert(0 && "TODO: Add stack realignment support for Ventus?");
     // If the per-thread stack was realigned, the frame pointer is set in order
     // to allow TP to be restored, so we need another base register to record
     // the stack after realignment.
@@ -881,7 +885,9 @@ uint64_t RISCVFrameLowering::getStackSize(MachineFunction &MF,
     if(static_cast<unsigned>(MFI.getStackID(I)) == ID) {
       // Need to consider the alignment for different frame index
       uint64_t Align = MFI.getObjectAlign(I).value();
-      StackSize += ceil(double(Align) / 4) * MFI.getObjectSize(I);
+      uint64_t ActualAlignSize = (Align + 3) >> 2;
+      uint64_t Size = ActualAlignSize * MFI.getObjectSize(I);
+      StackSize +=  Size;
     }
 
   }
