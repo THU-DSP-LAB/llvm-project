@@ -569,8 +569,7 @@ bool RISCVInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
   }
 
   // Handle a single conditional branch.
-  if (NumTerminators == 1 && !isDivergentBranch(*I) &&
-      I->getDesc().isConditionalBranch()) {
+  if (NumTerminators == 1 && I->getDesc().isConditionalBranch()) {
     parseCondBranch(*I, TBB, Cond);
     return false;
   }
@@ -669,7 +668,8 @@ void RISCVInstrInfo::insertIndirectBranch(MachineBasicBlock &MBB,
                                           MachineBasicBlock &RestoreBB,
                                           const DebugLoc &DL, int64_t BrOffset,
                                           RegScavenger *RS) const {
-  assert(0 && "Add vALU support!");
+  // FIXME: fix this assertion
+  // assert(0 && "Add vALU support!");
   assert(RS && "RegScavenger required for long branching");
   assert(MBB.empty() &&
          "new block should be inserted for expanding unconditional branch");

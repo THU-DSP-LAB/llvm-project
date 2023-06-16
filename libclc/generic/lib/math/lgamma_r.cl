@@ -227,7 +227,7 @@ _CLC_OVERLOAD _CLC_DEF float lgamma_r(float x, private int *signp) {
     return r;
 }
 
-_CLC_V_V_VP_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, float, lgamma_r, float, private, int)
+// _CLC_V_V_VP_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, float, lgamma_r, float, private, int)
 
 #ifdef cl_khr_fp64
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
