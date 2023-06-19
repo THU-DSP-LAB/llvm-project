@@ -682,20 +682,21 @@ class Branch_i<bits<3> funct3, string opcodestr>
   let vs2 = 0;
 }
 
-// Customized load/store instructions
+// Private memory load/store instructions
 class VENTUS_VL<bits<3> funct3, string opcodestr>:
-          RVInstSetVLVLi<0b0, (outs VGPR:$vd), (ins GPRMem:$rs1, simm11:$imm11),
-                      opcodestr # ".v", "$vd, ${imm11}(${rs1})"> {
+          RVInstSetVLVLi<(outs VGPR:$vd), (ins VGPRMem:$vs1, simm11:$imm11),
+                      opcodestr # ".v", "$vd, ${imm11}(${vs1})"> {
       let Inst{14-12} = funct3;
       let Opcode = OPC_CUSTOM_1.Value;
 }
 class VENTUS_VS<bits<3> funct3, string opcodestr>:
-          RVInstSetVSVLi<0b1, (outs), (ins VGPR:$vd, GPRMem:$rs1, simm11:$imm11),
-                      opcodestr # ".v", "$vd, ${imm11}(${rs1})"> {
+          RVInstSetVSVLi<(outs), (ins VGPR:$vd, VGPRMem:$vs1, simm11:$imm11),
+                      opcodestr # ".v", "$vd, ${imm11}(${vs1})"> {
       let Inst{14-12} = funct3;
       let Opcode = OPC_CUSTOM_1.Value;
 }
 
+// Local/Global memory load/store instructions
 class VENTUS_VLI12<bits<3> funct3, string opcodestr> :
               RVInstI<funct3, OPC_CUSTOM_3, (outs VGPR:$vd),
               (ins VGPRMem:$vs1, simm12:$imm12),
@@ -721,8 +722,8 @@ class VENTUS_VSI12<bits<3> funct3, string opcodestr> :
 // Instructions
 //===----------------------------------------------------------------------===//
 let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in {
-def VSETVLI : RVInstSetVLi<(outs GPR:$rd), (ins GPR:$rs1, VTypeIOp11:$vtypei),
-                           "vsetvli", "$rd, $rs1, $vtypei">,
+def VSETVLI : RVInstSetVLi<(outs GPR:$rd), (ins VGPR:$vs1, VTypeIOp11:$vtypei),
+                           "vsetvli", "$rd, $vs1, $vtypei">,
                            Sched<[WriteVSETVLI, ReadVSETVLI]>;
 }
 def VBEQ  : BranchCC_vvi<0b000, "vbeq">;

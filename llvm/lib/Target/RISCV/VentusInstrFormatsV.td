@@ -50,36 +50,36 @@ def LSWidth64    : RISCVWidth<0b0111>;
 
 class RVInstSetVLi<dag outs, dag ins, string opcodestr, string argstr>
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI> {
-  bits<5> rs1;
+  bits<5> vs1;
   bits<5> rd;
   bits<11> vtypei;
 
   let Inst{31} = 0;
   let Inst{30-20} = vtypei;
-  let Inst{19-15} = rs1;
+  let Inst{19-15} = vs1;
   let Inst{14-12} = OPCFG.Value;
   let Inst{11-7} = rd;
   let Opcode = OPC_OP_V.Value;
 }
 
-// vsetvli inst format is used for VLW/VLH/VLB
-class RVInstSetVLVLi<bit isLoad, dag outs, dag ins, string opcodestr, string argstr>
+// vsetvli inst format is used by private memory loads VLW/VLH/VLB
+class RVInstSetVLVLi<dag outs, dag ins, string opcodestr, string argstr>
     : RVInstSetVLi<outs, ins, opcodestr, argstr> {
   bits<5> vd;
   bits<11> imm11;
 
-  let Inst{31} = isLoad;
+  let Inst{31} = 1;
   let Inst{30-20} = imm11;
   let Inst{11-7} = vd;
 }
 
-// vsetvli inst format is used for VSW/VSH/VSB instruction encoding.
-class RVInstSetVSVLi<bit isLoad, dag outs, dag ins, string opcodestr, string argstr>
+// vsetvli inst format is used by private memory stores VSW/VSH/VSB
+class RVInstSetVSVLi<dag outs, dag ins, string opcodestr, string argstr>
     : RVInstSetVLi<outs, ins, opcodestr, argstr> {
   bits<5> vd;
   bits<11> imm11;
 
-  let Inst{31} = isLoad;
+  let Inst{31} = 0;
   let Inst{30-25} = imm11{10-5};
   let Inst{24-20} = vd;
   let Inst{11-7} = imm11{4-0};
