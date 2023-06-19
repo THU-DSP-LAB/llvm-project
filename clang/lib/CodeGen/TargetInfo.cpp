@@ -11309,7 +11309,7 @@ private:
   // Ventus GPGPU only support OpenCL C where non-kernel function passes
   // non-private address space arguments in V0-V31, private address space in
   // a0-a7, return value is passed back in V0-v15.
-  static const int NumArgGPRs = 40; // 32 VGPRS + 8 GPR
+  static const int NumArgGPRs = 32; // 32 VGPRS
   static const int NumRetVGPRs = 16;
 
 public:

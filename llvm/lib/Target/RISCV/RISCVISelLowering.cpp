@@ -11389,11 +11389,6 @@ void RISCVTargetLowering::AdjustInstrPostInstrSelection(MachineInstr &MI,
 // register-size fields in the same situations they would be for fixed
 // arguments.
 
-static const MCPhysReg ArgGPRs[] = {
-  RISCV::X10, RISCV::X11, RISCV::X12, RISCV::X13,
-  RISCV::X14, RISCV::X15, RISCV::X16, RISCV::X17
-};
-
 // Calling convention for Ventus GPGPU: V0-V31 as arg registers
 static const MCPhysReg ArgVGPRs[] = {
   RISCV::V0,  RISCV::V1,  RISCV::V2,  RISCV::V3,  RISCV::V4,  RISCV::V5,
@@ -11410,81 +11405,6 @@ static const MCPhysReg VarArgVGPRs[] = {
   RISCV::V0,  RISCV::V1,  RISCV::V2,  RISCV::V3,
   RISCV::V4,  RISCV::V5,  RISCV::V6,  RISCV::V7
 };
-static bool CC_Ventus_PriMem(const DataLayout &DL, RISCVABI::ABI ABI,
-                             unsigned ValNo, MVT ValVT, MVT LocVT,
-                             CCValAssign::LocInfo LocInfo,
-                             ISD::ArgFlagsTy ArgFlags, CCState &State,
-                             bool IsFixed, bool IsRet, Type *OrigTy,
-                             const RISCVTargetLowering &TLI,
-                             std::optional<unsigned> FirstMaskArgument) {
-  unsigned XLen = DL.getLargestLegalIntTypeSizeInBits();
-  unsigned TwoXLenInBytes = (2 * XLen) / 8;
-  if (!IsFixed && ArgFlags.getNonZeroOrigAlign() == TwoXLenInBytes &&
-      DL.getTypeAllocSize(OrigTy) == TwoXLenInBytes) {
-    unsigned RegIdx = State.getFirstUnallocated(ArgGPRs);
-    // Skip 'odd' register if necessary.
-    if (RegIdx != std::size(ArgGPRs) && RegIdx % 2 == 1)
-      State.AllocateReg(ArgGPRs);
-  }
-
-  SmallVectorImpl<CCValAssign> &PendingLocs = State.getPendingLocs();
-  SmallVectorImpl<ISD::ArgFlagsTy> &PendingArgFlags =
-      State.getPendingArgFlags();
-
-  assert(PendingLocs.size() == PendingArgFlags.size() &&
-         "PendingLocs and PendingArgFlags out of sync");
-
-  // Allocate to a register if possible, or else a stack slot.
-  Register Reg;
-  unsigned StoreSizeBytes = XLen / 8;
-  Align StackAlign = Align(XLen / 8);
-
-  Reg = State.AllocateReg(ArgGPRs);
-  if (!Reg) {
-    if (IsRet)
-      return true;
-    LocVT = ValVT;
-    StoreSizeBytes = ValVT.getStoreSize();
-    // No VGPR registers can be used, then we use stack to pass argument
-    StackAlign = MaybeAlign(ValVT.getScalarSizeInBits() / 8).valueOrOne();
-  }
-
-  // Allocate stack for arguments which can not use register
-  unsigned StackOffset =
-      Reg ? 0 : State.AllocateStack(StoreSizeBytes, StackAlign);
-
-  // If we reach this point and PendingLocs is non-empty, we must be at the
-  // end of a split argument that must be passed indirectly.
-  if (!PendingLocs.empty()) {
-    assert(ArgFlags.isSplitEnd() && "Expected ArgFlags.isSplitEnd()");
-    assert(PendingLocs.size() > 2 && "Unexpected PendingLocs.size()");
-
-    for (auto &It : PendingLocs) {
-      if (Reg)
-        It.convertToReg(Reg);
-      else
-        It.convertToMem(StackOffset);
-      State.addLoc(It);
-    }
-    PendingLocs.clear();
-    PendingArgFlags.clear();
-    return false;
-  }
-
-  if (Reg) {
-    State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-    return false;
-  }
-
-  // When a floating-point value is passed on the stack, no bit-conversion is
-  // needed.
-  if (ValVT.isFloatingPoint()) {
-    LocVT = ValVT;
-    LocInfo = CCValAssign::Full;
-  }
-  State.addLoc(CCValAssign::getMem(ValNo, ValVT, StackOffset, LocVT, LocInfo));
-  return false;
-}
 // Pass a 2*XLEN argument that has been split into two XLEN values through
 // registers or the stack as necessary.
 static bool CC_RISCVAssign2XLen(unsigned XLen, CCState &State, CCValAssign VA1,
@@ -11524,20 +11444,6 @@ static bool CC_RISCVAssign2XLen(unsigned XLen, CCState &State, CCValAssign VA1,
   return false;
 }
 
-static unsigned allocateRVVReg(MVT ValVT, unsigned ValNo,
-                               std::optional<unsigned> FirstMaskArgument,
-                               CCState &State, const RISCVTargetLowering &TLI) {
-  const TargetRegisterClass *RC = TLI.llvm::TargetLoweringBase::getRegClassFor(ValVT);
-  if (RC == &RISCV::VGPRRegClass) {
-    // Assign the first mask argument to V0.
-    // This is an interim calling convention and it may be changed in the
-    // future.
-    if (FirstMaskArgument && ValNo == *FirstMaskArgument)
-      return State.AllocateReg(RISCV::V0);
-    return State.AllocateReg(ArgVGPRs);
-  }
-  llvm_unreachable("Unhandled register class for ValueType");
-}
 // Implements the Ventus RISC-V calling convention. Returns true upon failure.
 static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
                       MVT ValVT, MVT LocVT, CCValAssign::LocInfo LocInfo,
@@ -11546,13 +11452,6 @@ static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
                       std::optional<unsigned> FirstMaskArgument) {
   unsigned XLen = DL.getLargestLegalIntTypeSizeInBits();
   assert(XLen == 32 || XLen == 64);
-  // Dealing with calling convention for non-kernel function arguments which
-  // points to private memory address space
-  if (ArgFlags.isPointer() &&
-      ArgFlags.getPointerAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
-    return CC_Ventus_PriMem(DL, ABI, ValNo, ValVT, LocVT, LocInfo, ArgFlags,
-                            State, IsFixed, IsRet, OrigTy, TLI,
-                            FirstMaskArgument);
   // If this is a variadic argument, the RISC-V calling convention requires
   // that it is assigned an 'even' or 'aligned' register if it has 8-byte
   // alignment (RV32) or 16-byte alignment (RV64). An aligned register should
@@ -11829,15 +11728,12 @@ static SDValue unpackFromRegLoc(SelectionDAG &DAG, SDValue Chain,
   MachineFunction &MF = DAG.getMachineFunction();
   MachineRegisterInfo &RegInfo = MF.getRegInfo();
   EVT LocVT = VA.getLocVT();
-  SDValue Val;
-  bool IsPriMem = Arg.Flags.isPointer() && Arg.Flags.getPointerAddrSpace() ==
-              RISCVAS::PRIVATE_ADDRESS;
   // Setting isDivergent = true is essential to use VGPR
-  const TargetRegisterClass *RC = TLI.getRegClassFor(LocVT.getSimpleVT(),
-              IsPriMem ? false : true);
+  const TargetRegisterClass *RC = TLI.getRegClassFor(LocVT.getSimpleVT(), true);
   Register VReg = RegInfo.createVirtualRegister(RC);
   RegInfo.addLiveIn(VA.getLocReg(), VReg);
-   return DAG.getCopyFromReg(Chain, DL, VReg, LocVT);
+  SDValue Val;
+  Val = DAG.getCopyFromReg(Chain, DL, VReg, LocVT);
 
   // If input is sign extended from 32 bits, note it for the SExtWRemoval pass.
   if (Arg.isOrigArg()) {
