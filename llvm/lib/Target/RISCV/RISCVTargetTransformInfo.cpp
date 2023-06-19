@@ -360,20 +360,20 @@ bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
   // if (const Argument *A = dyn_cast<Argument>(V))
   //   return !AMDGPU::isArgPassedInSGPR(A);
 
-  // // Loads from the private and flat address spaces are divergent, because
-  // // threads can execute the load instruction with the same inputs and get
-  // // different results.
-  // //
-  // // All other loads are not divergent, because if threads issue loads with the
-  // // same arguments, they will always get the same result.
+  // Loads from the private and flat address spaces are divergent, because
+  // threads can execute the load instruction with the same inputs and get
+  // different results.
+  //
+  // All other loads are not divergent, because if threads issue loads with the
+  // same arguments, they will always get the same result.
   if (const LoadInst *Load = dyn_cast<LoadInst>(V))
     return Load->getPointerAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
            Load->getPointerAddressSpace() == RISCVAS::LOCAL_ADDRESS;
 
-  // // Atomics are divergent because they are executed sequentially: when an
-  // // atomic operation refers to the same address in each thread, then each
-  // // thread after the first sees the value written by the previous thread as
-  // // original value.
+  // Atomics are divergent because they are executed sequentially: when an
+  // atomic operation refers to the same address in each thread, then each
+  // thread after the first sees the value written by the previous thread as
+  // original value.
   if (isa<AtomicRMWInst>(V) || isa<AtomicCmpXchgInst>(V))
     return true;
 
@@ -384,7 +384,7 @@ bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
   //   return AMDGPU::isIntrinsicSourceOfDivergence(Intrinsic->getIntrinsicID());
   // }
 
-  // // Assume all function calls are a source of divergence.
+  // Assume all function calls are a source of divergence.
   // if (const CallInst *CI = dyn_cast<CallInst>(V)) {
   //   if (CI->isInlineAsm() && isa<IntrinsicInst>(CI))
   //     return RISCVII::isIntrinsicSourceOfDivergence(
@@ -392,7 +392,7 @@ bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
   //   return true;
   // }
 
-  // // Assume all function calls are a source of divergence.
+  // Assume all function calls are a source of divergence.
   if (isa<InvokeInst>(V))
     return true;
 
