@@ -722,7 +722,7 @@ class VENTUS_VSI12<bits<3> funct3, string opcodestr> :
 // Instructions
 //===----------------------------------------------------------------------===//
 let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in {
-def VSETVLI : RVInstSetVLi<(outs GPR:$rd), (ins VGPR:$vs1, VTypeIOp11:$vtypei),
+def VSETVLI : RVInstSetVLi<(outs GPR:$rd), (ins GPR:$vs1, VTypeIOp11:$vtypei),
                            "vsetvli", "$rd, $vs1, $vtypei">,
                            Sched<[WriteVSETVLI, ReadVSETVLI]>;
 }
