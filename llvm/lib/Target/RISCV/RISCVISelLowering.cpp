@@ -866,7 +866,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
       // FIXME: Use SPLAT_VECTOR for all types? DAGCombine probably needs
       // improvements first.
       if (!Subtarget.is64Bit() && VT.getVectorElementType() == MVT::i64) {
-        setOperationAction(ISD::SPLAT_VECTOR, VT, Legal);
+        // setOperationAction(ISD::SPLAT_VECTOR, VT, Legal);
         setOperationAction(ISD::SPLAT_VECTOR_PARTS, VT, Custom);
       }
 

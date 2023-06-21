@@ -166,16 +166,19 @@ build_pocl() {
 }
 
 # Build libclc for pocl
+# FIXME: "-fno-optimize-sibling-calls" flag maybe need to be removed
 build_libclc() {
   if [ ! -d "${LIBCLC_BUILD_DIR}" ]; then
     mkdir ${LIBCLC_BUILD_DIR}
   fi
   cd ${LIBCLC_BUILD_DIR}
   cmake -G Ninja -B ${LIBCLC_BUILD_DIR} ${DIR}/libclc \
+    -DCMAKE_CLC_COMPILER=clang \
     -DCMAKE_LLAsm_COMPILER_WORKS=ON \
     -DCMAKE_CLC_COMPILER_WORKS=ON \
     -DCMAKE_CLC_COMPILER_FORCED=ON \
-    -DCMAKE_LLAsm_FLAGS="-target riscv32 -mcpu=ventus-gpgpu" \
+    -DCMAKE_LLAsm_FLAGS="-target riscv32 -mcpu=ventus-gpgpu -cl-std=CL2.0" \
+    -DCMAKE_CLC_FLAGS="-target riscv32 -mcpu=ventus-gpgpu -cl-std=CL2.0 -I${DIR}/libclc/generic/include -fno-optimize-sibling-calls" \
     -DLIBCLC_TARGETS_TO_BUILD="riscv32--" \
     -DCMAKE_CXX_FLAGS="-I ${DIR}/llvm/include/ -std=c++17" \
     -DCMAKE_C_COMPILER=clang \
