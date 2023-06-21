@@ -247,13 +247,9 @@ def XLenRI : RegInfoByHwMode<
       [RegInfo<32,32,32>, RegInfo<64,64,64>]>;
 
 // The order of registers represents the preferred allocation sequence.
-// Registers are listed in the order caller-save, callee-save, specials.
+// All sGPRs are callee saved registers.
 def GPR : RVRegisterClass<"RISCV", [XLenVT], 32, (add
-    (sequence "X%u", 10, 17),
-    (sequence "X%u", 5, 7),
-    (sequence "X%u", 28, 31),
-    (sequence "X%u", 8, 9),
-    (sequence "X%u", 18, 27),
+    (sequence "X%u", 5, 63),
     (sequence "X%u", 0, 4)
   )> {
   let RegInfos = XLenRI;

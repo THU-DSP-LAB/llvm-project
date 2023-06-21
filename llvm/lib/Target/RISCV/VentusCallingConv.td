@@ -13,9 +13,12 @@
 // The Ventus GPGPU calling convention is handled with custom code in
 // RISCVISelLowering.cpp (CC_Ventus).
 
+// sGPRs (except ra) can only be set by kernel function, so there is no callee
+// saved sGPRs is needed.
 def CSR_ILP32_LP64
-    : CalleeSavedRegs<(add X1, X3, X8, X9, (sequence "X%u", 18, 27),
-                      (sequence "V%u", 32, 47))>;
+    : CalleeSavedRegs<(add X1, (sequence "V%u", 32, 255))>;
+
+// Following are not used by Ventus GPGPU.
 
 def CSR_ILP32F_LP64F
     : CalleeSavedRegs<(add CSR_ILP32_LP64,

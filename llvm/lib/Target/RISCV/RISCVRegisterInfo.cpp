@@ -261,7 +261,7 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
   Register FrameReg;
-  StackOffset Offset =
+  StackOffset Offset = // FIXME: The FrameReg and Offset should be depended on divergency route.
       getFrameLowering(MF)->getFrameIndexReference(MF, FrameIndex, FrameReg);
 
   Offset += StackOffset::getFixed(MI.getOperand(FIOperandNum + 1).getImm());
@@ -305,13 +305,8 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 }
 
 Register RISCVRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = getFrameLowering(MF);
-  const RISCVMachineFunctionInfo *FuncInfo =
-                                      MF.getInfo<RISCVMachineFunctionInfo>();
-  if(FuncInfo->isEntryFunction())
-    return TFI->hasFP(MF) ? RISCV::X8 : RISCV::X2;
-  // Non-kernel function, we also use X8 for frame pointer
-  return TFI->hasFP(MF) ? RISCV::X8 : RISCV::X4;
+  return MF.getInfo<RISCVMachineFunctionInfo>()->isEntryFunction()
+      ? RISCV::X2 : RISCV::X4;
 }
 
 const uint32_t *

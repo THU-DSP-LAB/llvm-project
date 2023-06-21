@@ -355,20 +355,18 @@ unsigned RISCVTTIImpl::getRegUsageForType(Type *Ty) {
   return BaseT::getRegUsageForType(Ty);
 }
 
-// FIXME: Copy from AMDGPU
 bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
   // if (const Argument *A = dyn_cast<Argument>(V))
   //   return !AMDGPU::isArgPassedInSGPR(A);
 
-  // Loads from the private and flat address spaces are divergent, because
+  // Loads from the private memory are divergent, because
   // threads can execute the load instruction with the same inputs and get
   // different results.
   //
   // All other loads are not divergent, because if threads issue loads with the
   // same arguments, they will always get the same result.
   if (const LoadInst *Load = dyn_cast<LoadInst>(V))
-    return Load->getPointerAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
-           Load->getPointerAddressSpace() == RISCVAS::LOCAL_ADDRESS;
+    return Load->getPointerAddressSpace() == RISCVAS::PRIVATE_ADDRESS;
 
   // Atomics are divergent because they are executed sequentially: when an
   // atomic operation refers to the same address in each thread, then each
@@ -380,24 +378,19 @@ bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
   // if (const IntrinsicInst *Intrinsic = dyn_cast<IntrinsicInst>(V)) {
   //   if (Intrinsic->getIntrinsicID() == Intrinsic::read_register)
   //     return isReadRegisterSourceOfDivergence(Intrinsic);
-
   //   return AMDGPU::isIntrinsicSourceOfDivergence(Intrinsic->getIntrinsicID());
   // }
 
   // Assume all function calls are a source of divergence.
-  // if (const CallInst *CI = dyn_cast<CallInst>(V)) {
-  //   if (CI->isInlineAsm() && isa<IntrinsicInst>(CI))
-  //     return RISCVII::isIntrinsicSourceOfDivergence(
-  //                 cast<IntrinsicInst>(CI)->getIntrinsicID());
-  //   return true;
-  // }
+  if (const CallInst *CI = dyn_cast<CallInst>(V)) {
+    if (CI->isInlineAsm() && isa<IntrinsicInst>(CI))
+      return RISCVII::isIntrinsicSourceOfDivergence(
+                  cast<IntrinsicInst>(CI)->getIntrinsicID());
+    return true;
+  }
 
   // Assume all function calls are a source of divergence.
   if (isa<InvokeInst>(V))
-    return true;
-
-  // Assume all function calls are a source of divergence.
-  if (isa<CallInst>(V))
     return true;
 
   return false;

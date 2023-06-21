@@ -68,7 +68,7 @@ public:
   uint64_t getStackSize(MachineFunction &MF, RISCVStackID::Value ID) const;
 
   /// Before insert prolog/epilog information, set stack ID for each frame index
-  void deterMineStackID(MachineFunction &MF) const;
+  void determineStackID(MachineFunction &MF) const;
 
   bool enableShrinkWrapping(const MachineFunction &MF) const override;
 

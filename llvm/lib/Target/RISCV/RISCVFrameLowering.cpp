@@ -316,10 +316,8 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   MachineBasicBlock::iterator MBBI = MBB.begin();
   bool IsEntryFunction = RMFI->isEntryFunction();
 
-  Register FPReg = getFPReg(STI);
   Register SPReg = getSPReg(STI);
   Register TPReg = getTPReg(STI);
-  Register BPReg = RISCVABI::getBPReg();
 
   // Debug location must be unknown since the first debug location is used
   // to determine the end of the prologue.
@@ -342,7 +340,7 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   determineFrameLayout(MF);
 
   // Determine stack ID for each frame index
-  deterMineStackID(MF);
+  determineStackID(MF);
 
   // If libcalls are used to spill and restore callee-saved registers, the frame
   // has two sections; the opaque section managed by the libcalls, and the
@@ -373,9 +371,9 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   // FIXME: TP stack size calculation is also not
   uint64_t SPStackSize = getStackSize(MF, RISCVStackID::SGPRSpill);
   uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
-  uint64_t RealStackSize = IsEntryFunction ?
-                                    SPStackSize + RMFI->getLibCallStackSize() :
-                                    TPStackSize + RMFI->getLibCallStackSize();
+  //uint64_t RealStackSize = IsEntryFunction ?
+  //                                SPStackSize + RMFI->getLibCallStackSize() :
+  //                                TPStackSize + RMFI->getLibCallStackSize();
 
   // Early exit if there is no need to allocate on the stack
   if (MFI.getStackSize() == 0 && !MFI.adjustsStack())
@@ -391,29 +389,32 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
     MF.getFunction().getContext().diagnose(DiagnosticInfoUnsupported{
         MF.getFunction(), "Thread pointer required, but has been reserved."});
 
+  // Allocate space on the local-mem stack and private-mem stack if necessary.
+  if(SPStackSize) {
+    RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
+                  StackOffset::getFixed(SPStackSize),
+                  MachineInstr::FrameSetup, getStackAlign());
 
-  uint64_t FirstSPAdjustAmount = getFirstSPAdjustAmount(MF);
-  // Split the SP adjustment to reduce the offsets of callee saved spill.
-  if (FirstSPAdjustAmount) {
-    SPStackSize = FirstSPAdjustAmount;
-    RealStackSize = FirstSPAdjustAmount;
+    // Emit ".cfi_def_cfa_offset SPStackSize"
+    unsigned CFIIndex = MF.addFrameInst(
+        MCCFIInstruction::cfiDefCfaOffset(nullptr, SPStackSize));
+    BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
+        .addCFIIndex(CFIIndex)
+        .setMIFlag(MachineInstr::FrameSetup);
   }
 
-  // Allocate space on the local-mem stack and private-mem stack if necessary.
-  if(SPStackSize)
-    RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg, StackOffset::getFixed(SPStackSize),
-                MachineInstr::FrameSetup, getStackAlign());
-  if(TPStackSize)
+  if(TPStackSize) {
     RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
                   StackOffset::getFixed(TPStackSize),
                   MachineInstr::FrameSetup, getStackAlign());
 
-  // Emit ".cfi_def_cfa_offset RealStackSize"
-  unsigned CFIIndex = MF.addFrameInst(
-      MCCFIInstruction::cfiDefCfaOffset(nullptr, RealStackSize));
-  BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
-      .addCFIIndex(CFIIndex)
-      .setMIFlag(MachineInstr::FrameSetup);
+    // Emit ".cfi_def_cfa_offset TPStackSize"
+    unsigned CFIIndex = MF.addFrameInst(
+        MCCFIInstruction::cfiDefCfaOffset(nullptr, TPStackSize));
+    BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
+        .addCFIIndex(CFIIndex)
+        .setMIFlag(MachineInstr::FrameSetup);
+  }
 
   const auto &CSI = MFI.getCalleeSavedInfo();
 
@@ -444,96 +445,15 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
         .addCFIIndex(CFIIndex)
         .setMIFlag(MachineInstr::FrameSetup);
   }
-
-  // Generate new FP.
-  if (hasFP(MF)) {
-    if (STI.isRegisterReservedByUser(FPReg))
-      MF.getFunction().getContext().diagnose(DiagnosticInfoUnsupported{
-          MF.getFunction(), "Frame pointer required, but has been reserved."});
-    // The frame pointer does need to be reserved from register allocation.
-    // assert(MF.getRegInfo().isReserved(FPReg) && "FP not reserved");
-
-    RI->adjustReg(MBB, MBBI, DL, FPReg, IsEntryFunction ? SPReg : TPReg,
-            -StackOffset::getFixed(RealStackSize - RMFI->getVarArgsSaveSize()),
-            MachineInstr::FrameSetup, getStackAlign());
-
-    // Emit ".cfi_def_cfa $fp, RVFI->getVarArgsSaveSize()"
-    unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::cfiDefCfa(
-        nullptr, RI->getDwarfRegNum(FPReg, true), RMFI->getVarArgsSaveSize()));
-    BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
-        .addCFIIndex(CFIIndex)
-        .setMIFlag(MachineInstr::FrameSetup);
-  }
-
-  // Emit the second SP adjustment after saving callee saved registers.
-  if (FirstSPAdjustAmount) {
-    uint64_t SecondSPAdjustAmount = MFI.getStackSize() - FirstSPAdjustAmount;
-    assert(SecondSPAdjustAmount > 0 &&
-           "SecondSPAdjustAmount should be greater than zero");
-    RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
-                  StackOffset::getFixed(SecondSPAdjustAmount),
-                  MachineInstr::FrameSetup, getStackAlign());
-
-    // If we are using a frame-pointer, and thus emitted ".cfi_def_cfa fp, 0",
-    // don't emit an sp-based .cfi_def_cfa_offset
-    if (!hasFP(MF)) {
-      // Emit ".cfi_def_cfa_offset StackSize"
-      unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::cfiDefCfaOffset(
-          nullptr, MFI.getStackSize()));
-      BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
-          .addCFIIndex(CFIIndex)
-          .setMIFlag(MachineInstr::FrameSetup);
-    }
-  }
-
-  if (hasFP(MF)) {
-    // Realign Stack
-    const RISCVRegisterInfo *RI = STI.getRegisterInfo();
-    if (RI->hasStackRealignment(MF)) {
-      Align MaxAlignment = MFI.getMaxAlign();
-
-      const RISCVInstrInfo *TII = STI.getInstrInfo();
-      if (isInt<12>(-(int)MaxAlignment.value())) {
-        BuildMI(MBB, MBBI, DL, TII->get(RISCV::ANDI), SPReg)
-            .addReg(SPReg)
-            .addImm(-(int)MaxAlignment.value())
-            .setMIFlag(MachineInstr::FrameSetup);
-      } else {
-        unsigned ShiftAmount = Log2(MaxAlignment);
-        Register VR =
-            MF.getRegInfo().createVirtualRegister(&RISCV::GPRRegClass);
-        BuildMI(MBB, MBBI, DL, TII->get(RISCV::SRLI), VR)
-            .addReg(SPReg)
-            .addImm(ShiftAmount)
-            .setMIFlag(MachineInstr::FrameSetup);
-        BuildMI(MBB, MBBI, DL, TII->get(RISCV::SLLI), SPReg)
-            .addReg(VR)
-            .addImm(ShiftAmount)
-            .setMIFlag(MachineInstr::FrameSetup);
-      }
-      // FP will be used to restore the frame in the epilogue, so we need
-      // another base register BP to record SP after re-alignment. SP will
-      // track the current stack after allocating variable sized objects.
-      if (hasBP(MF)) {
-        // move BP, SP
-        BuildMI(MBB, MBBI, DL, TII->get(RISCV::ADDI), BPReg)
-            .addReg(SPReg)
-            .addImm(0)
-            .setMIFlag(MachineInstr::FrameSetup);
-      }
-    }
-  }
 }
 
 void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
                                       MachineBasicBlock &MBB) const {
   const RISCVRegisterInfo *RI = STI.getRegisterInfo();
   MachineFrameInfo &MFI = MF.getFrameInfo();
-  auto *RMFI = MF.getInfo<RISCVMachineFunctionInfo>();
-  Register FPReg = getFPReg(STI);
   Register SPReg = getSPReg(STI);
   Register TPReg = getTPReg(STI);
-  bool IsEntryFunction = RMFI->isEntryFunction();
+
   // Get the insert location for the epilogue. If there were no terminators in
   // the block, get the last instruction.
   MachineBasicBlock::iterator MBBI = MBB.end();
@@ -561,49 +481,11 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
   if (!CSI.empty())
     LastFrameDestroy = std::prev(MBBI, CSI.size());
 
-  // FIXME: Need to get 2 stack size for TP and SP!
+  // Get 2 stack size for TP and SP
   uint64_t SPStackSize = getStackSize(MF, RISCVStackID::SGPRSpill);
   uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
-  uint64_t RealStackSize = IsEntryFunction ? SPStackSize :
-                                      TPStackSize + RMFI->getLibCallStackSize();
-  uint64_t FPOffset = RealStackSize - RMFI->getVarArgsSaveSize();
-
-  // Restore the stack pointer using the value of the frame pointer. Only
-  // necessary if the stack pointer was modified, meaning the stack size is
-  // unknown.
-  //
-  // In order to make sure the stack point is right through the EH region,
-  // we also need to restore stack pointer from the frame pointer if we
-  // don't preserve stack space within prologue/epilogue for outgoing variables,
-  // normally it's just checking the variable sized object is present or not
-  // is enough, but we also don't preserve that at prologue/epilogue when
-  // have vector objects in stack.
-  if (RI->hasStackRealignment(MF) || MFI.hasVarSizedObjects() ||
-      !hasReservedCallFrame(MF)) {
-    assert(hasFP(MF) && "frame pointer should not have been eliminated");
-    RI->adjustReg(MBB, LastFrameDestroy, DL, SPReg, FPReg,
-                  StackOffset::getFixed(-FPOffset),
-                  MachineInstr::FrameDestroy, getStackAlign());
-  }
-
-  uint64_t FirstSPAdjustAmount = getFirstSPAdjustAmount(MF);
-  if (FirstSPAdjustAmount) {
-    uint64_t SecondSPAdjustAmount = MFI.getStackSize() - FirstSPAdjustAmount;
-    assert(SecondSPAdjustAmount > 0 &&
-           "SecondSPAdjustAmount should be greater than zero");
-
-    RI->adjustReg(MBB, LastFrameDestroy, DL, SPReg, SPReg,
-                  StackOffset::getFixed(-SecondSPAdjustAmount),
-                  MachineInstr::FrameDestroy, getStackAlign());
-  }
-
-  if (FirstSPAdjustAmount)
-    SPStackSize = FirstSPAdjustAmount;
 
   // Deallocate stack
-
-  // FIXME: Allocate space for two stacks, this is depend on the actual use of
-  // these two stacks, not based on calling convention
   if(SPStackSize)
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
                   StackOffset::getFixed(-SPStackSize),
@@ -621,8 +503,6 @@ StackOffset
 RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
                                            Register &FrameReg) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  const TargetRegisterInfo *RI = MF.getSubtarget().getRegisterInfo();
-  const auto *RMFI = MF.getInfo<RISCVMachineFunctionInfo>();
 
   // Callee-saved registers should be referenced relative to the stack
   // pointer (positive offset), otherwise use the frame pointer (negative
@@ -640,107 +520,24 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
       StackOffset::getFixed(MFI.getObjectOffset(FI) - getOffsetOfLocalArea() +
                             MFI.getOffsetAdjustment());
 
-  uint64_t FirstSPAdjustAmount = getFirstSPAdjustAmount(MF);
-
   if (CSI.size()) {
     MinCSFI = CSI[0].getFrameIdx();
     MaxCSFI = CSI[CSI.size() - 1].getFrameIdx();
   }
 
-  // This goes to the offset calculation of callee saved register, ra/s0
-  if (FI >= MinCSFI && FI <= MaxCSFI) {
-    // sp represents SGPR spill, tp represents VGPR spill
-    // FIXME: we need to define TargetStackID::VGPRSpill?
-    FrameReg = StackID == TargetStackID::SGPRSpill ? RISCV::X2 : RISCV::X4;
-    // if (FirstSPAdjustAmount)
-    //   Offset -= StackOffset::getFixed(FirstSPAdjustAmount);
-    // else
-    Offset -= StackOffset::getFixed(getStackSize(const_cast<MachineFunction&>(MF)
-        , RISCVStackID::SGPRSpill));
+  // Different stacks for sALU and vALU threads.
+  FrameReg = StackID == RISCVStackID::SGPRSpill ? RISCV::X2 : RISCV::X4;
+
+  // TODO: This only saves sGPR CSRs, as we haven't define vGPR CSRs
+  // within getNonLibcallCSI.
+  //if (FI >= MinCSFI && FI <= MaxCSFI) {
+    Offset -= StackOffset::getFixed(
+      getStackSize(const_cast<MachineFunction&>(MF),
+                   (RISCVStackID::Value)StackID));
     return Offset;
-  }
+  //}
 
-  // assert(StackID == TargetStackID::Default &&
-  //        "SGPRSpill stack should not reach here!");
-
-  if (RI->hasStackRealignment(MF) && !MFI.isFixedObjectIndex(FI)) {
-    // TODO: add stack alignment
-    // assert(0 && "TODO: Add stack realignment support for Ventus?");
-    // If the per-thread stack was realigned, the frame pointer is set in order
-    // to allow TP to be restored, so we need another base register to record
-    // the stack after realignment.
-    // |--------------------------| -- <-- FP
-    // | callee-allocated save    | | <----|
-    // | area for register varargs| |      |
-    // |--------------------------| |      |
-    // | callee-saved registers   | |      |
-    // |--------------------------| --     |
-    // | realignment (the size of | |      |
-    // | this area is not counted | |      |
-    // | in MFI.getStackSize())   | |      |
-    // |--------------------------| --     |-- MFI.getStackSize()
-    // | scalar local variables   | | <----'
-    // |--------------------------| -- <-- BP (if var sized objects present)
-    // | VarSize objects          | |
-    // |--------------------------| -- <-- TP
-    if (hasBP(MF)) {
-      FrameReg = RISCVABI::getBPReg();
-    } else {
-      // VarSize objects must be empty in this case!
-      assert(!MFI.hasVarSizedObjects());
-      FrameReg = RISCV::X4;
-    }
-  } else {
-    FrameReg = RI->getFrameRegister(MF);
-  }
-
-  if (FrameReg == getFPReg(STI)) {
-    // assert(0 && "TODO: Add fp support for Ventus?");
-    Offset -= StackOffset::getFixed(RMFI->getVarArgsSaveSize());
-    if (FI >= 0)
-      Offset -= StackOffset::getFixed(RMFI->getLibCallStackSize());
-    // When using FP to access scalable vector objects, we need to minus
-    // the frame size.
-    //
-    // |--------------------------| -- <-- FP
-    // | callee-allocated save    | |
-    // | area for register varargs| |
-    // |--------------------------| |
-    // | callee-saved registers   | |
-    // |--------------------------| | MFI.getStackSize()
-    // | scalar local variables   | |
-    // |--------------------------| --
-    // | VarSize objects          |
-    // |--------------------------| <-- SP
-    return Offset;
-  }
-
-  // This case handles indexing off both SP and BP.
-  // If indexing off SP, there must not be any var sized objects
-  assert(FrameReg == RISCVABI::getBPReg() || !MFI.hasVarSizedObjects());
-
-  // |--------------------------| -- <-- FP
-  // | callee-allocated save    | | <----|
-  // | area for register varargs| |      |
-  // |--------------------------| |      |
-  // | callee-saved registers   | |      |
-  // |--------------------------| --     |
-  // | scalar local variables   | | <----'
-  // |--------------------------| -- <-- BP (if var sized objects present)
-  // | VarSize objects          | |
-  // |--------------------------| -- <-- SP
-  //
-  if (MFI.isFixedObjectIndex(FI)) {
-    // assert(0 && "TODO!");
-    assert(!RI->hasStackRealignment(MF) &&
-            "Can't index across variable sized realign");
-    Offset -= StackOffset::get(MFI.getStackSize() +
-                               RMFI->getLibCallStackSize(),0);
-  } else {
-    Offset -= StackOffset::getFixed(MFI.getStackSize());
-  }
-
-  return Offset;
+  //return Offset;
 }
 
 void RISCVFrameLowering::determineCalleeSaves(MachineFunction &MF,
@@ -877,7 +674,7 @@ RISCVFrameLowering::getFirstSPAdjustAmount(const MachineFunction &MF) const {
 }
 
 uint64_t RISCVFrameLowering::getStackSize(MachineFunction &MF,
-                                                RISCVStackID::Value ID) const {
+                                          RISCVStackID::Value ID) const {
   MachineFrameInfo &MFI = MF.getFrameInfo();
   uint64_t StackSize = 0;
 
@@ -887,23 +684,25 @@ uint64_t RISCVFrameLowering::getStackSize(MachineFunction &MF,
       uint64_t Align = MFI.getObjectAlign(I).value();
       uint64_t ActualAlignSize = (Align + 3) >> 2;
       uint64_t Size = ActualAlignSize * MFI.getObjectSize(I);
-      StackSize +=  Size;
+      StackSize += Size;
     }
 
   }
   return StackSize;
 }
 
-void RISCVFrameLowering::deterMineStackID(MachineFunction &MF) const {
+void RISCVFrameLowering::determineStackID(MachineFunction &MF) const {
   llvm::MachineFrameInfo &MFI = MF.getFrameInfo();
   for(int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
-    MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF,I);
-    if((MFI.getStackID(I) != RISCVStackID::SGPRSpill) &&
-          PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
-      MFI.setStackID(I, RISCVStackID::VGPRSpill);
-    else
-      // FIXME: other stack?
-      MFI.setStackID(I, RISCVStackID::SGPRSpill);
+    // FIXME: There is no sGPR spill stack!
+    MFI.setStackID(I, RISCVStackID::VGPRSpill);
+
+    // MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF,I);
+    // if(MFI.getStackID(I) != RISCVStackID::SGPRSpill &&
+    //    PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
+    //   MFI.setStackID(I, RISCVStackID::VGPRSpill);
+    // else
+    //  MFI.setStackID(I, RISCVStackID::SGPRSpill);
   }
 }
 
@@ -938,12 +737,14 @@ bool RISCVFrameLowering::spillCalleeSavedRegisters(
     Register Reg = CS.getReg();
 
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
-    if(Reg.id() < RISCV::V0 || Reg.id() > RISCV::V255 ) {
+    // TODO: Have we allocated stack for vGPR spilling?
+    if(Reg.id() < RISCV::V0 || Reg.id() > RISCV::V255) {
       MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::SGPRSpill);
-      TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
-                            RC, TRI);
+    } else {
+      MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::VGPRSpill);
     }
-
+    TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
+                            RC, TRI);
   }
 
   return true;
