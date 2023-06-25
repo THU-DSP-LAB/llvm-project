@@ -2,41 +2,54 @@
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs -O1 < %s \
 ; RUN:   | FileCheck -check-prefix=VENTUS %s
 
-define dso_local ventus_kernel void @_kernel(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B){
-; VENTUS-LABEL: _kernel:
+; kernel void kernel_calling_convention(global int *a, local int *b, constant int *c) {
+; int id = get_global_id(0);
+; *a = *a + *c + id;
+; *b = *b + *c;
+; }
+define dso_local ventus_kernel void @kernel_calling_convention(ptr addrspace(1) nocapture noundef align 4 %a, ptr addrspace(3) nocapture noundef align 4 %b, ptr addrspace(4) nocapture noundef readonly align 4 %c) {
+; VENTUS-LABEL: kernel_calling_convention:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 12
-; VENTUS-NEXT:    .cfi_def_cfa_offset 12
-; VENTUS-NEXT:    sw ra, -4(sp)
-; VENTUS-NEXT:    sw s0, -8(sp)
-; VENTUS-NEXT:    sw s1, -12(sp)
-; VENTUS-NEXT:    .cfi_offset ra, 8
-; VENTUS-NEXT:    .cfi_offset s0, 4
-; VENTUS-NEXT:    .cfi_offset s1, 0
-; VENTUS-NEXT:    lw s0, 0(a0)
-; VENTUS-NEXT:    lw s1, 4(a0)
+; VENTUS-NEXT:    addi sp, sp, 16
+; VENTUS-NEXT:    .cfi_def_cfa_offset 16
+; VENTUS-NEXT:    sw ra, -16(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset ra, 0
+; VENTUS-NEXT:    lw t0, 4(a0)
+; VENTUS-NEXT:    sw t0, -12(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    lw t0, 8(a0)
+; VENTUS-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    lw t0, 0(a0)
+; VENTUS-NEXT:    sw t0, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
-; VENTUS-NEXT:    vsll.vi v0, v0, 2
-; VENTUS-NEXT:    vadd.vx v1, v0, s1
-; VENTUS-NEXT:    vlw12.v v1, 0(v1)
-; VENTUS-NEXT:    vadd.vx v0, v0, s0
-; VENTUS-NEXT:    vlw12.v v2, 0(v0)
-; VENTUS-NEXT:    vfadd.vv v1, v1, v2
+; VENTUS-NEXT:    lw s0, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw t0, 0(s0)
+; VENTUS-NEXT:    lw t2, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw t1, 0(t2)
+; VENTUS-NEXT:    vadd.vx v0, v0, t0
+; VENTUS-NEXT:    vadd.vx v0, v0, t1
+; VENTUS-NEXT:    vmv.v.x v1, s0
+; VENTUS-NEXT:    vsw12.v v0, 0(v1)
+; VENTUS-NEXT:    lw t0, -12(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vlw12.v v1, 0(v0)
+; VENTUS-NEXT:    lw t0, 0(t2)
+; VENTUS-NEXT:    vadd.vx v1, v1, t0
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
-; VENTUS-NEXT:    lw ra, -4(sp)
-; VENTUS-NEXT:    lw s0, -8(sp)
-; VENTUS-NEXT:    lw s1, -12(sp)
-; VENTUS-NEXT:    addi sp, sp, -12
+; VENTUS-NEXT:    lw ra, -16(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -16
 ; VENTUS-NEXT:    ret
 entry:
-  %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
-  %arrayidx = getelementptr inbounds float, ptr addrspace(1) %B, i32 %call
-  %0 = load float, ptr addrspace(1) %arrayidx, align 4
-  %arrayidx1 = getelementptr inbounds float, ptr addrspace(1) %A, i32 %call
-  %1 = load float, ptr addrspace(1) %arrayidx1, align 4
-  %add = fadd float %0, %1
-  store float %add, ptr addrspace(1) %arrayidx1, align 4
+  %call = call i32 @_Z13get_global_idj(i32 noundef 0)
+  %0 = load i32, ptr addrspace(1) %a, align 4
+  %1 = load i32, ptr addrspace(4) %c, align 4
+  %add = add i32 %0, %call
+  %add1 = add i32 %add, %1
+  store i32 %add1, ptr addrspace(1) %a, align 4
+  %2 = load i32, ptr addrspace(3) %b, align 4
+  %3 = load i32, ptr addrspace(4) %c, align 4
+  %add2 = add nsw i32 %3, %2
+  store i32 %add2, ptr addrspace(3) %b, align 4
   ret void
 }
 
@@ -66,11 +79,16 @@ entry:
 ; THis non-kernel function takes 34 arguments, the range is beyond 32
 ; so the left two arguments need to be passed by tp stack
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(read, inaccessiblemem: none)
-define dso_local i32 @non_kernel(ptr nocapture noundef readonly %a1, ptr nocapture noundef readonly %a2, ptr nocapture noundef readonly %a3, ptr nocapture noundef readonly %a4, ptr nocapture noundef readonly %a5, ptr nocapture noundef readonly %a6, ptr nocapture noundef readonly %a7, ptr nocapture noundef readonly %a8, ptr nocapture noundef readonly %a9, ptr nocapture noundef readonly %a10, ptr nocapture noundef readonly %a11, ptr nocapture noundef readonly %a12, ptr nocapture noundef readonly %a13, ptr nocapture noundef readonly %a14, ptr nocapture noundef readonly %a15, ptr nocapture noundef readonly %a16, ptr nocapture noundef readonly %a17, ptr nocapture noundef readonly %a18, ptr nocapture noundef readonly %a19, ptr nocapture noundef readonly %a20, ptr nocapture noundef readonly %a21, ptr nocapture noundef readonly %a22, ptr nocapture noundef readonly %a23, ptr nocapture noundef readonly %a24, ptr nocapture noundef readonly %a25, ptr nocapture noundef readonly %a26, ptr nocapture noundef readonly %a27, ptr nocapture noundef readonly %a28, ptr nocapture noundef readonly %a29, ptr nocapture noundef readonly %a30, ptr nocapture noundef readonly %a31, ptr nocapture noundef readonly %a32,
-; VENTUS-LABEL: non_kernel:
+define dso_local i32 @non_kernel_calling_convention(ptr nocapture noundef readonly %a1, ptr nocapture noundef readonly %a2, ptr nocapture noundef readonly %a3, ptr nocapture noundef readonly %a4, ptr nocapture noundef readonly %a5, ptr nocapture noundef readonly %a6, ptr nocapture noundef readonly %a7, ptr nocapture noundef readonly %a8, ptr nocapture noundef readonly %a9, ptr nocapture noundef readonly %a10, ptr nocapture noundef readonly %a11, ptr nocapture noundef readonly %a12, ptr nocapture noundef readonly %a13, ptr nocapture noundef readonly %a14, ptr nocapture noundef readonly %a15, ptr nocapture noundef readonly %a16, ptr nocapture noundef readonly %a17, ptr nocapture noundef readonly %a18, ptr nocapture noundef readonly %a19, ptr nocapture noundef readonly %a20, ptr nocapture noundef readonly %a21, ptr nocapture noundef readonly %a22, ptr nocapture noundef readonly %a23, ptr nocapture noundef readonly %a24, ptr nocapture noundef readonly %a25, ptr nocapture noundef readonly %a26, ptr nocapture noundef readonly %a27, ptr nocapture noundef readonly %a28, ptr nocapture noundef readonly %a29, ptr nocapture noundef readonly %a30, ptr nocapture noundef readonly %a31, ptr nocapture noundef readonly %a32, ptr addrspace(3) nocapture noundef readonly %a33, ptr addrspace(5) nocapture noundef readonly %a34) local_unnamed_addr #2 {
+; VENTUS-LABEL: non_kernel_calling_convention:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vlw.v v48, 0(a0)
-; VENTUS-NEXT:    vlw.v v49, 0(a1)
+; VENTUS-NEXT:    addi tp, tp, 28
+; VENTUS-NEXT:    .cfi_def_cfa_offset 28
+; VENTUS-NEXT:    vmv.v.x v32, tp
+; VENTUS-NEXT:    .cfi_offset v33.l, 4
+; VENTUS-NEXT:    .cfi_offset v34.l, 0
+; VENTUS-NEXT:    vlw.v v33, -24(v32)
+; VENTUS-NEXT:    vlw.v v34, -28(v32)
 ; VENTUS-NEXT:    vlw12.v v0, 0(v0)
 ; VENTUS-NEXT:    vlw12.v v1, 0(v1)
 ; VENTUS-NEXT:    vlw12.v v2, 0(v2)
@@ -133,83 +151,81 @@ define dso_local i32 @non_kernel(ptr nocapture noundef readonly %a1, ptr nocaptu
 ; VENTUS-NEXT:    vadd.vv v0, v0, v2
 ; VENTUS-NEXT:    vadd.vv v0, v0, v3
 ; VENTUS-NEXT:    vlw12.v v1, 0(v31)
-; VENTUS-NEXT:    vlw12.v v2, 0(v48)
-; VENTUS-NEXT:    vlw12.v v3, 0(v49)
+; VENTUS-NEXT:    vlw12.v v2, 0(v34)
+; VENTUS-NEXT:    vlw.v v3, 0(v33)
 ; VENTUS-NEXT:    vadd.vv v0, v0, v1
 ; VENTUS-NEXT:    vadd.vv v0, v0, v2
 ; VENTUS-NEXT:    vadd.vv v0, v0, v3
+; VENTUS-NEXT:    addi tp, tp, -28
 ; VENTUS-NEXT:    ret
-ptr addrspace(5) nocapture noundef readonly %0, ptr addrspace(5) nocapture noundef readonly %1) {
 entry:
-  %a33 = load ptr, ptr addrspace(5) %0, align 4
-  %a34 = load ptr, ptr addrspace(5) %1, align 4
-  %2 = load i32, ptr %a1, align 4
-  %3 = load i32, ptr %a2, align 4
-  %add = add nsw i32 %3, %2
-  %4 = load i32, ptr %a3, align 4
-  %add1 = add nsw i32 %add, %4
-  %5 = load i32, ptr %a4, align 4
-  %add2 = add nsw i32 %add1, %5
-  %6 = load i32, ptr %a5, align 4
-  %add3 = add nsw i32 %add2, %6
-  %7 = load i32, ptr %a6, align 4
-  %add4 = add nsw i32 %add3, %7
-  %8 = load i32, ptr %a7, align 4
-  %add5 = add nsw i32 %add4, %8
-  %9 = load i32, ptr %a8, align 4
-  %add6 = add nsw i32 %add5, %9
-  %10 = load i32, ptr %a9, align 4
-  %add7 = add nsw i32 %add6, %10
-  %11 = load i32, ptr %a10, align 4
-  %add8 = add nsw i32 %add7, %11
-  %12 = load i32, ptr %a11, align 4
-  %add9 = add nsw i32 %add8, %12
-  %13 = load i32, ptr %a12, align 4
-  %add10 = add nsw i32 %add9, %13
-  %14 = load i32, ptr %a13, align 4
-  %add11 = add nsw i32 %add10, %14
-  %15 = load i32, ptr %a14, align 4
-  %add12 = add nsw i32 %add11, %15
-  %16 = load i32, ptr %a15, align 4
-  %add13 = add nsw i32 %add12, %16
-  %17 = load i32, ptr %a16, align 4
-  %add14 = add nsw i32 %add13, %17
-  %18 = load i32, ptr %a17, align 4
-  %add15 = add nsw i32 %add14, %18
-  %19 = load i32, ptr %a18, align 4
-  %add16 = add nsw i32 %add15, %19
-  %20 = load i32, ptr %a19, align 4
-  %add17 = add nsw i32 %add16, %20
-  %21 = load i32, ptr %a20, align 4
-  %add18 = add nsw i32 %add17, %21
-  %22 = load i32, ptr %a21, align 4
-  %add19 = add nsw i32 %add18, %22
-  %23 = load i32, ptr %a22, align 4
-  %add20 = add nsw i32 %add19, %23
-  %24 = load i32, ptr %a23, align 4
-  %add21 = add nsw i32 %add20, %24
-  %25 = load i32, ptr %a24, align 4
-  %add22 = add nsw i32 %add21, %25
-  %26 = load i32, ptr %a25, align 4
-  %add23 = add nsw i32 %add22, %26
-  %27 = load i32, ptr %a26, align 4
-  %add24 = add nsw i32 %add23, %27
-  %28 = load i32, ptr %a27, align 4
-  %add25 = add nsw i32 %add24, %28
-  %29 = load i32, ptr %a28, align 4
-  %add26 = add nsw i32 %add25, %29
-  %30 = load i32, ptr %a29, align 4
-  %add27 = add nsw i32 %add26, %30
-  %31 = load i32, ptr %a30, align 4
-  %add28 = add nsw i32 %add27, %31
-  %32 = load i32, ptr %a31, align 4
-  %add29 = add nsw i32 %add28, %32
-  %33 = load i32, ptr %a32, align 4
-  %add30 = add nsw i32 %add29, %33
-  %34 = load i32, ptr %a33, align 4
-  %add31 = add nsw i32 %add30, %34
-  %35 = load i32, ptr %a34, align 4
-  %add32 = add nsw i32 %add31, %35
+  %0 = load i32, ptr %a1, align 4
+  %1 = load i32, ptr %a2, align 4
+  %add = add nsw i32 %1, %0
+  %2 = load i32, ptr %a3, align 4
+  %add1 = add nsw i32 %add, %2
+  %3 = load i32, ptr %a4, align 4
+  %add2 = add nsw i32 %add1, %3
+  %4 = load i32, ptr %a5, align 4
+  %add3 = add nsw i32 %add2, %4
+  %5 = load i32, ptr %a6, align 4
+  %add4 = add nsw i32 %add3, %5
+  %6 = load i32, ptr %a7, align 4
+  %add5 = add nsw i32 %add4, %6
+  %7 = load i32, ptr %a8, align 4
+  %add6 = add nsw i32 %add5, %7
+  %8 = load i32, ptr %a9, align 4
+  %add7 = add nsw i32 %add6, %8
+  %9 = load i32, ptr %a10, align 4
+  %add8 = add nsw i32 %add7, %9
+  %10 = load i32, ptr %a11, align 4
+  %add9 = add nsw i32 %add8, %10
+  %11 = load i32, ptr %a12, align 4
+  %add10 = add nsw i32 %add9, %11
+  %12 = load i32, ptr %a13, align 4
+  %add11 = add nsw i32 %add10, %12
+  %13 = load i32, ptr %a14, align 4
+  %add12 = add nsw i32 %add11, %13
+  %14 = load i32, ptr %a15, align 4
+  %add13 = add nsw i32 %add12, %14
+  %15 = load i32, ptr %a16, align 4
+  %add14 = add nsw i32 %add13, %15
+  %16 = load i32, ptr %a17, align 4
+  %add15 = add nsw i32 %add14, %16
+  %17 = load i32, ptr %a18, align 4
+  %add16 = add nsw i32 %add15, %17
+  %18 = load i32, ptr %a19, align 4
+  %add17 = add nsw i32 %add16, %18
+  %19 = load i32, ptr %a20, align 4
+  %add18 = add nsw i32 %add17, %19
+  %20 = load i32, ptr %a21, align 4
+  %add19 = add nsw i32 %add18, %20
+  %21 = load i32, ptr %a22, align 4
+  %add20 = add nsw i32 %add19, %21
+  %22 = load i32, ptr %a23, align 4
+  %add21 = add nsw i32 %add20, %22
+  %23 = load i32, ptr %a24, align 4
+  %add22 = add nsw i32 %add21, %23
+  %24 = load i32, ptr %a25, align 4
+  %add23 = add nsw i32 %add22, %24
+  %25 = load i32, ptr %a26, align 4
+  %add24 = add nsw i32 %add23, %25
+  %26 = load i32, ptr %a27, align 4
+  %add25 = add nsw i32 %add24, %26
+  %27 = load i32, ptr %a28, align 4
+  %add26 = add nsw i32 %add25, %27
+  %28 = load i32, ptr %a29, align 4
+  %add27 = add nsw i32 %add26, %28
+  %29 = load i32, ptr %a30, align 4
+  %add28 = add nsw i32 %add27, %29
+  %30 = load i32, ptr %a31, align 4
+  %add29 = add nsw i32 %add28, %30
+  %31 = load i32, ptr %a32, align 4
+  %add30 = add nsw i32 %add29, %31
+  %32 = load i32, ptr addrspace(3) %a33, align 4
+  %add31 = add nsw i32 %add30, %32
+  %33 = load i32, ptr addrspace(5) %a34, align 4
+  %add32 = add nsw i32 %add31, %33
   ret i32 %add32
 }
 
@@ -219,10 +235,10 @@ entry:
 define dso_local void @load_from_primem(ptr addrspace(5) nocapture noundef readonly %a, ptr addrspace(3) nocapture noundef %b) {
 ; VENTUS-LABEL: load_from_primem:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vlw.v v1, 0(a0)
-; VENTUS-NEXT:    vlw12.v v2, 0(v0)
-; VENTUS-NEXT:    vadd.vv v1, v2, v1
-; VENTUS-NEXT:    vsw12.v v1, 0(v0)
+; VENTUS-NEXT:    vlw.v v0, 0(v0)
+; VENTUS-NEXT:    vlw12.v v2, 0(v1)
+; VENTUS-NEXT:    vadd.vv v0, v2, v0
+; VENTUS-NEXT:    vsw12.v v0, 0(v1)
 ; VENTUS-NEXT:    ret
 entry:
   %0 = load i32, ptr addrspace(5) %a, align 4
@@ -231,3 +247,66 @@ entry:
   store i32 %add, ptr addrspace(3) %b, align 4
   ret void
 }
+
+; extern int add(int *a, int* b);
+
+; int test_add(int *a, int *b) {
+;   int d = *a + 1;
+;   int e = *b +2;
+;   int f =  add(&d, &e);
+;   return f+d;
+; }
+define dso_local i32 @test_add(ptr nocapture noundef readonly %a, ptr nocapture noundef readonly %b) {
+; VENTUS-LABEL: test_add:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    addi sp, sp, 4
+; VENTUS-NEXT:    .cfi_def_cfa_offset 4
+; VENTUS-NEXT:    addi tp, tp, 8
+; VENTUS-NEXT:    .cfi_def_cfa_offset 8
+; VENTUS-NEXT:    vmv.v.x v32, tp
+; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset ra, 0
+; VENTUS-NEXT:    vlw12.v v0, 0(v0)
+; VENTUS-NEXT:    vadd.vi v0, v0, 1
+; VENTUS-NEXT:    vsw.v v0, -8(v32)
+; VENTUS-NEXT:    vlw12.v v0, 0(v1)
+; VENTUS-NEXT:    vadd.vi v0, v0, 2
+; VENTUS-NEXT:    vsw.v v0, -4(v32)
+; VENTUS-NEXT:    addi t0, tp, -8
+; VENTUS-NEXT:    addi t1, tp, -4
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vmv.v.x v1, t1
+; VENTUS-NEXT:    call add
+; VENTUS-NEXT:    vlw.v v1, -8(v32)
+; VENTUS-NEXT:    vadd.vv v0, v1, v0
+; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -4
+; VENTUS-NEXT:    addi tp, tp, -8
+; VENTUS-NEXT:    ret
+entry:
+  %d = alloca i32, align 4, addrspace(5)
+  %e = alloca i32, align 4, addrspace(5)
+  call void @llvm.lifetime.start.p5(i64 4, ptr addrspace(5) %d)
+  %0 = load i32, ptr %a, align 4
+  %add = add nsw i32 %0, 1
+  store i32 %add, ptr addrspace(5) %d, align 4
+  call void @llvm.lifetime.start.p5(i64 4, ptr addrspace(5) %e)
+  %1 = load i32, ptr %b, align 4
+  %add1 = add nsw i32 %1, 2
+  store i32 %add1, ptr addrspace(5) %e, align 4
+  %d.ascast = addrspacecast ptr addrspace(5) %d to ptr
+  %e.ascast = addrspacecast ptr addrspace(5) %e to ptr
+  %call = call i32 @add(ptr noundef %d.ascast, ptr noundef %e.ascast)
+  %2 = load i32, ptr addrspace(5) %d, align 4
+  %add2 = add nsw i32 %2, %call
+  call void @llvm.lifetime.end.p5(i64 4, ptr addrspace(5) %e)
+  call void @llvm.lifetime.end.p5(i64 4, ptr addrspace(5) %d)
+  ret i32 %add2
+}
+
+; Function Attrs: convergent
+declare dso_local i32 @add(ptr noundef, ptr noundef)
+
+declare void @llvm.lifetime.start.p5(i64 immarg, ptr addrspace(5) nocapture)
+
+declare void @llvm.lifetime.end.p5(i64 immarg, ptr addrspace(5) nocapture)

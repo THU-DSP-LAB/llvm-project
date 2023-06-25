@@ -552,14 +552,11 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
 
   // TODO: This only saves sGPR CSRs, as we haven't define vGPR CSRs
   // within getNonLibcallCSI.
-  //if (FI >= MinCSFI && FI <= MaxCSFI) {
-    Offset -= StackOffset::getFixed(
-      getStackSize(const_cast<MachineFunction&>(MF),
-                   (RISCVStackID::Value)StackID));
-    return Offset;
-  //}
-
-  //return Offset;
+  // if (FI >= MinCSFI && FI <= MaxCSFI) {
+  Offset -= StackOffset::getFixed(
+    getStackSize(const_cast<MachineFunction&>(MF),
+                  (RISCVStackID::Value)StackID));
+  return Offset;
 }
 
 void RISCVFrameLowering::determineCalleeSaves(MachineFunction &MF,
@@ -762,11 +759,14 @@ bool RISCVFrameLowering::spillCalleeSavedRegisters(
     // TODO: Have we allocated stack for vGPR spilling?
     if(Reg.id() < RISCV::V0 || Reg.id() > RISCV::V255) {
       MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::SGPRSpill);
-    } else {
-      MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::VGPRSpill);
-    }
-    TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
+      // FIXME: Right now, no vgpr callee saved register, maybe later needed
+      TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
                             RC, TRI);
+    } 
+    // else {
+      // FIXME: Right now, no callee saved register for VGPR
+      // MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::VGPRSpill);
+    // }
   }
 
   return true;
