@@ -47,13 +47,13 @@ multiclass PatVFRBin<SDPatternOperator Op, list<RVInst> Insts> {
 
 class DivergentPriLdPat<PatFrag LoadOp, RVInst Inst>
  : Pat<(XLenVT (DivergentPrivateLoadFrag<LoadOp>
-                (PriAddrRegImm TP:$rs1, (simm11:$imm11)))),
-                (Inst TP:$rs1, simm11:$imm11)>;
+                (PriAddrRegImm (XLenVT VGPR:$rs1), (simm11:$imm11)))),
+                (Inst VGPR:$rs1, simm11:$imm11)>;
 
 class DivergentPriStPat<PatFrag StoreOp, RVInst Inst>
   : Pat<(DivergentPrivateStoreFrag<StoreOp>
-         (XLenVT VGPR:$vs3), (PriAddrRegImm TP:$rs1, (simm11:$imm11))),
-         (Inst VGPR:$vs3, TP:$rs1, simm11:$imm11)>;
+         (XLenVT VGPR:$vs3), (PriAddrRegImm (XLenVT VGPR:$rs1), (simm11:$imm11))),
+         (Inst VGPR:$vs3, VGPR:$rs1, simm11:$imm11)>;
 
 class DivergentNonPriLdPat<PatFrag LoadOp, RVInst Inst>
  : Pat<(XLenVT (DivergentNonPrivateLoadFrag<LoadOp>

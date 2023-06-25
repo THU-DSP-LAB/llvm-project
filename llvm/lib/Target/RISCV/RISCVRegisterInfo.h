@@ -21,11 +21,7 @@
 namespace llvm {
 
 // This needs to be kept in sync with the field bits in VentusRegisterClass.
-enum RISCVRCFlags {
-  IsVGPR = 1 << 0,
-  IsSGPR = 1 << 1
-}; // enum RISCVRCFlags
-
+enum RISCVRCFlags { IsVGPR = 1 << 0, IsSGPR = 1 << 1 }; // enum RISCVRCFlags
 
 struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
 
@@ -84,11 +80,22 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
                  StackOffset Offset, MachineInstr::MIFlag Flag,
                  MaybeAlign RequiredAlign) const;
 
+  /// Adjust private memory offset which is supposed to be simm11, when offset is
+  /// beyond the range, we need to legalize the offset
+  void adjustPriMemRegOffset(MachineFunction &MF, MachineBasicBlock &MBB,
+          MachineInstr &MI, int64_t offset, Register PriMemReg,
+                                  unsigned FIOperandNum) const;
+
   bool eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
                            unsigned FIOperandNum,
                            RegScavenger *RS = nullptr) const override;
 
   Register getFrameRegister(const MachineFunction &MF) const override;
+
+  /// In Ventus, private memory access are based on TP, but the memory access
+  /// instructions are based on VGPR, we need to define a VGPR register for
+  /// private memory access
+  const Register getPrivateMemoryBaseRegister(const MachineFunction &MF) const;
 
   bool requiresRegisterScavenging(const MachineFunction &MF) const override {
     return true;
@@ -118,6 +125,6 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
                              const MachineFunction &MF, const VirtRegMap *VRM,
                              const LiveRegMatrix *Matrix) const override;
 };
-}
+} // namespace llvm
 
 #endif

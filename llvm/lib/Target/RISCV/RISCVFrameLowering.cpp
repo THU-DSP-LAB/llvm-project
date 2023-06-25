@@ -414,6 +414,10 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
     BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
         .addCFIIndex(CFIIndex)
         .setMIFlag(MachineInstr::FrameSetup);
+    BuildMI(MBB, MBBI, DL, TII->get(RISCV::VMV_S_X),
+        RI->getPrivateMemoryBaseRegister(MF))
+      .addReg(RI->getPrivateMemoryBaseRegister(MF))
+      .addReg(TPReg);
   }
 
   const auto &CSI = MFI.getCalleeSavedInfo();
@@ -499,6 +503,22 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
   emitSCSEpilogue(MF, MBB, MBBI, DL);
 }
 
+uint64_t RISCVFrameLowering::getExtractedStackOffset(const MachineFunction &MF,
+  unsigned FI, RISCVStackID::Value Stack) const {
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
+  uint64_t StackSize = 0;
+  for(int I = FI + 1; I != MFI.getObjectIndexEnd(); I++) {
+    if(static_cast<unsigned>(MFI.getStackID(I)) != Stack) {
+      // Need to consider the alignment for different frame index
+      uint64_t Align = MFI.getObjectAlign(I).value();
+      uint64_t ActualAlignSize = (Align + 3) >> 2;
+      uint64_t Size = ActualAlignSize * MFI.getObjectSize(I);
+      StackSize +=  Size;
+    }
+  }
+  return StackSize;
+}
+
 StackOffset
 RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
                                            Register &FrameReg) const {
@@ -516,9 +536,11 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
           StackID == RISCVStackID::SGPRSpill ||
           StackID == RISCVStackID::VGPRSpill) &&
          "Unexpected stack ID for the frame object.");
+  uint8_t Stack = MFI.getStackID(FI);
   StackOffset Offset =
-      StackOffset::getFixed(MFI.getObjectOffset(FI) - getOffsetOfLocalArea() +
-                            MFI.getOffsetAdjustment());
+      StackOffset::getFixed(MFI.getObjectOffset(FI) - getOffsetOfLocalArea()
+         -getExtractedStackOffset(MF, FI, RISCVStackID::Value(Stack))
+         + MFI.getOffsetAdjustment());
 
   if (CSI.size()) {
     MinCSFI = CSI[0].getFrameIdx();
@@ -692,17 +714,17 @@ uint64_t RISCVFrameLowering::getStackSize(MachineFunction &MF,
 }
 
 void RISCVFrameLowering::determineStackID(MachineFunction &MF) const {
-  llvm::MachineFrameInfo &MFI = MF.getFrameInfo();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
   for(int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
     // FIXME: There is no sGPR spill stack!
-    MFI.setStackID(I, RISCVStackID::VGPRSpill);
+    // MFI.setStackID(I, RISCVStackID::VGPRSpill);
 
-    // MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF,I);
-    // if(MFI.getStackID(I) != RISCVStackID::SGPRSpill &&
-    //    PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
-    //   MFI.setStackID(I, RISCVStackID::VGPRSpill);
-    // else
-    //  MFI.setStackID(I, RISCVStackID::SGPRSpill);
+    MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF,I);
+    if(MFI.getStackID(I) != RISCVStackID::SGPRSpill &&
+       PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
+      MFI.setStackID(I, RISCVStackID::VGPRSpill);
+    else
+     MFI.setStackID(I, RISCVStackID::SGPRSpill);
   }
 }
 

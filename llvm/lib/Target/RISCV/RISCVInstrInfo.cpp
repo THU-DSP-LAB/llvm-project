@@ -98,6 +98,22 @@ unsigned RISCVInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
   return 0;
 }
 
+bool RISCVInstrInfo::isPrivateMemoryAccess(const MachineInstr &MI) const {
+  switch (MI.getOpcode()) {
+    default:
+      return false;
+    case RISCV::VLW:
+    case RISCV::VLB:
+    case RISCV::VLBU:
+    case RISCV::VLH:
+    case RISCV::VLHU:
+    case RISCV::VSW:
+    case RISCV::VSH:
+    case RISCV::VSB:
+      return true;
+  }
+}
+
 unsigned RISCVInstrInfo::isStoreToStackSlot(const MachineInstr &MI,
                                             int &FrameIndex) const {
   switch (MI.getOpcode()) {
