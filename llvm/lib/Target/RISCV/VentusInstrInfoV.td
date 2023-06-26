@@ -726,13 +726,23 @@ def VSETVLI : RVInstSetVLi<(outs GPR:$rd), (ins GPR:$vs1, VTypeIOp11:$vtypei),
                            "vsetvli", "$rd, $vs1, $vtypei">,
                            Sched<[WriteVSETVLI, ReadVSETVLI]>;
 }
+
 def VBEQ  : BranchCC_vvi<0b000, "vbeq">;
 def VBNE  : BranchCC_vvi<0b001, "vbne">;
 def VBLT  : BranchCC_vvi<0b100, "vblt">;
 def VBGE  : BranchCC_vvi<0b101, "vbge">;
 def VBLTU : BranchCC_vvi<0b110, "vbltu">;
 def VBGEU : BranchCC_vvi<0b111, "vbgeu">;
-def JOIN  : Branch_i<0b011, "join">;
+
+let hasSideEffects = 1, mayLoad = 0, mayStore = 0, vs1 = 0, vs2 = 0 in
+def SETRPC : RVInstVB<0b011, (outs), (ins simm13_lsb0:$imm12),
+                      "setrpc", "v0, v0, $imm12">,
+             Sched<[]>;
+
+let hasSideEffects = 1, mayLoad = 0, mayStore = 0, vs1 = 0, vs2 = 0,
+    imm12 = 0 in
+def JOIN : RVInstVB<0b010, (outs), (ins), "join", "v0, v0, 0">,
+           Sched<[]>;
 
 def VLUXEI8  : VectorLoad<LSWidth8,  "vluxei8.v">;
 def VLUXEI16 : VectorLoad<LSWidth16, "vluxei16.v">;

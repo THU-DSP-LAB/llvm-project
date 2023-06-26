@@ -440,7 +440,6 @@ static bool isDivergentBranch(MachineInstr &I) {
   case RISCV::VBGE:
   case RISCV::VBLTU:
   case RISCV::VBGEU:
-  case RISCV::JOIN:
     return true;
   }
 }
@@ -635,11 +634,9 @@ unsigned RISCVInstrInfo::insertBranch(
   assert((Cond.size() == 3 || Cond.size() == 0) &&
          "RISCV branch conditions have two components!");
 
-  unsigned UncondBr = IsDivergentBranch ? RISCV::JOIN : RISCV::PseudoBR;
-
   // Unconditional branch.
   if (Cond.empty()) {
-    MachineInstr &MI = *BuildMI(&MBB, DL, get(UncondBr)).addMBB(TBB);
+    MachineInstr &MI = *BuildMI(&MBB, DL, get(RISCV::PseudoBR)).addMBB(TBB);
     if (BytesAdded)
       *BytesAdded += getInstSizeInBytes(MI);
     return 1;
@@ -647,9 +644,8 @@ unsigned RISCVInstrInfo::insertBranch(
 
   // Either a one or two-way conditional branch.
   auto CC = static_cast<RISCVCC::CondCode>(Cond[0].getImm());
-  const MCInstrDesc& CondBr = IsDivergentBranch ? getVBrCond(CC) : getBrCond(CC);
   MachineInstr &CondMI =
-      *BuildMI(&MBB, DL, CondBr).add(Cond[1]).add(Cond[2]).addMBB(TBB);
+      *BuildMI(&MBB, DL, getBrCond(CC)).add(Cond[1]).add(Cond[2]).addMBB(TBB);
   if (BytesAdded)
     *BytesAdded += getInstSizeInBytes(CondMI);
 
@@ -658,7 +654,7 @@ unsigned RISCVInstrInfo::insertBranch(
     return 1;
 
   // Two-way conditional branch.
-  MachineInstr &MI = *BuildMI(&MBB, DL, get(UncondBr)).addMBB(FBB);
+  MachineInstr &MI = *BuildMI(&MBB, DL, get(RISCV::PseudoBR)).addMBB(FBB);
   if (BytesAdded)
     *BytesAdded += getInstSizeInBytes(MI);
   return 2;
@@ -768,7 +764,6 @@ bool RISCVInstrInfo::isBranchOffsetInRange(unsigned BranchOp,
   case RISCV::VBLTU:
   case RISCV::BGEU:
   case RISCV::VBGEU:
-  case RISCV::JOIN:
     return isIntN(13, BrOffset);
   case RISCV::JAL:
   case RISCV::PseudoBR:

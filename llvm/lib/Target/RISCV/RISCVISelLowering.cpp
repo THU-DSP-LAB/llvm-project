@@ -11056,10 +11056,6 @@ static MachineBasicBlock *emitVSelectPseudo(MachineInstr &MI,
     .addReg(RHS)
     .addMBB(IfTrueMBB);
 
-  // Insert appropriate join
-  BuildMI(IfTrueMBB, DL, TII.get(RISCV::JOIN)).addMBB(JoinMBB);
-  BuildMI(IfFalseMBB, DL, TII.get(RISCV::JOIN)).addMBB(JoinMBB);
-
   IfTrueMBB->addSuccessor(JoinMBB);
   IfFalseMBB->addSuccessor(JoinMBB);
 
