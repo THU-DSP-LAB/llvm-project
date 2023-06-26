@@ -531,86 +531,91 @@ def : Pat<(f32 (fpimmneg0)), (FSGNJN_S (FMV_W_X X0), (FMV_W_X X0))>;
 
 /// Float arithmetic operations
 
-def : PatFprFprDynFrm<any_fadd, FADD_S, GPRF32>;
-def : PatFprFprDynFrm<any_fsub, FSUB_S, GPRF32>;
-def : PatFprFprDynFrm<any_fmul, FMUL_S, GPRF32>;
-def : PatFprFprDynFrm<any_fdiv, FDIV_S, GPRF32>;
+def : PatFprFprDynFrm<UniformBinFrag<any_fadd>, FADD_S, GPRF32>;
+def : PatFprFprDynFrm<UniformBinFrag<any_fsub>, FSUB_S, GPRF32>;
+def : PatFprFprDynFrm<UniformBinFrag<any_fmul>, FMUL_S, GPRF32>;
+def : PatFprFprDynFrm<UniformBinFrag<any_fdiv>, FDIV_S, GPRF32>;
 
-def : Pat<(any_fsqrt GPRF32:$rs1), (FSQRT_S GPRF32:$rs1, 0b111)>;
+def : Pat<(UniformUnaryFrag<any_fsqrt> GPRF32:$rs1), (FSQRT_S GPRF32:$rs1, 0b111)>;
 
-def : Pat<(fneg GPRF32:$rs1), (FSGNJN_S $rs1, $rs1)>;
-def : Pat<(fabs GPRF32:$rs1), (FSGNJX_S $rs1, $rs1)>;
+def : Pat<(UniformUnaryFrag<fneg> GPRF32:$rs1), (FSGNJN_S $rs1, $rs1)>;
+def : Pat<(UniformUnaryFrag<fabs> GPRF32:$rs1), (FSGNJX_S $rs1, $rs1)>;
 
-def : PatFprFpr<fcopysign, FSGNJ_S, GPRF32>;
-def : Pat<(fcopysign GPRF32:$rs1, (fneg GPRF32:$rs2)), (FSGNJN_S $rs1, $rs2)>;
+def : PatFprFpr<UniformBinFrag<fcopysign>, FSGNJ_S, GPRF32>;
+def : Pat<(UniformBinFrag<fcopysign> GPRF32:$rs1, (fneg GPRF32:$rs2)),
+                                                  (FSGNJN_S $rs1, $rs2)>;
 
 // fmadd: rs1 * rs2 + rs3
-def : Pat<(any_fma GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3),
+def : Pat<(UniformTernaryFrag<any_fma> GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3),
           (FMADD_S $rs1, $rs2, $rs3, 0b111)>;
 
 // def : Pat<(any_fma GPRF32:$rs1, GPRF32:$rs1, GPRF32:$rs3),
 //           (FMADD $rs1, $rs1, $rs3)>;
 
 // fmsub: rs1 * rs2 - rs3
-def : Pat<(any_fma GPRF32:$rs1, GPRF32:$rs2, (fneg GPRF32:$rs3)),
+def : Pat<(UniformTernaryFrag<any_fma> GPRF32:$rs1, GPRF32:$rs2, (fneg GPRF32:$rs3)),
           (FMSUB_S GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3, 0b111)>;
 
-def : Pat<(any_fma GPRF32:$rs1, GPRF32:$rs2, (fneg GPRF32:$rs3)),
+def : Pat<(UniformTernaryFrag<any_fma> GPRF32:$rs1, GPRF32:$rs2, (fneg GPRF32:$rs3)),
           (FMSUB GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3)>;
 
 // fnmsub: -rs1 * rs2 + rs3
-def : Pat<(any_fma (fneg GPRF32:$rs1), GPRF32:$rs2, GPRF32:$rs3),
+def : Pat<(UniformTernaryFrag<any_fma> (fneg GPRF32:$rs1), GPRF32:$rs2, GPRF32:$rs3),
           (FNMSUB_S GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3, 0b111)>;
-def : Pat<(any_fma (fneg GPRF32:$rs1), GPRF32:$rs2, GPRF32:$rs3),
+def : Pat<(UniformTernaryFrag<any_fma> (fneg GPRF32:$rs1), GPRF32:$rs2, GPRF32:$rs3),
           (FNMSUB GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3)>;
 
 // fnmadd: -rs1 * rs2 - rs3
-def : Pat<(any_fma (fneg GPRF32:$rs1), GPRF32:$rs2, (fneg GPRF32:$rs3)),
+def : Pat<(UniformTernaryFrag<any_fma> (UniformUnaryFrag<fneg> GPRF32:$rs1),
+          GPRF32:$rs2, (UniformUnaryFrag<fneg> GPRF32:$rs3)),
           (FNMADD_S GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3, 0b111)>;
-def : Pat<(any_fma (fneg GPRF32:$rs1), GPRF32:$rs2, (fneg GPRF32:$rs3)),
+def : Pat<(UniformTernaryFrag<any_fma> (UniformUnaryFrag<fneg> GPRF32:$rs1),
+          GPRF32:$rs2, (UniformUnaryFrag<fneg> GPRF32:$rs3)),
           (FNMADD GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3)>;
 
 // fnmadd: -(rs1 * rs2 + rs3) (the nsz flag on the FMA)
-def : Pat<(fneg (any_fma_nsz GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3)),
+def : Pat<(UniformUnaryFrag<fneg> (UniformTernaryFrag<any_fma_nsz> GPRF32:$rs1,
+          GPRF32:$rs2, GPRF32:$rs3)),
           (FNMADD_S GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3, 0b111)>;
 
-def : Pat<(fneg (any_fma_nsz GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3)),
+def : Pat<(UniformUnaryFrag<fneg> (UniformTernaryFrag<any_fma_nsz> GPRF32:$rs1,
+          GPRF32:$rs2, GPRF32:$rs3)),
           (FNMADD GPRF32:$rs1, GPRF32:$rs2, GPRF32:$rs3)>;
 // The ratified 20191213 ISA spec defines fmin and fmax in a way that matches
 // LLVM's fminnum and fmaxnum
 // <https://github.com/riscv/riscv-isa-manual/commit/cd20cee7efd9bac7c5aa127ec3b451749d2b3cce>.
-def : PatFprFpr<fminnum, FMIN_S, GPRF32>;
-def : PatFprFpr<fmaxnum, FMAX_S, GPRF32>;
+def : PatFprFpr<UniformBinFrag<fminnum>, FMIN_S, GPRF32>;
+def : PatFprFpr<UniformBinFrag<fmaxnum>, FMAX_S, GPRF32>;
 
 /// Setcc
 // FIXME: SETEQ/SETLT/SETLE imply nonans, can we pick better instructions for
 // strict versions of those.
 
 // Match non-signaling FEQ_S
-def : PatSetCC<GPRF32, any_fsetcc, SETEQ, FEQ_S>;
-def : PatSetCC<GPRF32, any_fsetcc, SETOEQ, FEQ_S>;
-def : PatSetCC<GPRF32, strict_fsetcc, SETLT, PseudoQuietFLT_S>;
-def : PatSetCC<GPRF32, strict_fsetcc, SETOLT, PseudoQuietFLT_S>;
-def : PatSetCC<GPRF32, strict_fsetcc, SETLE, PseudoQuietFLE_S>;
-def : PatSetCC<GPRF32, strict_fsetcc, SETOLE, PseudoQuietFLE_S>;
+def : PatSetCC<GPRF32, UniformTernaryFrag<any_fsetcc>, SETEQ, FEQ_S>;
+def : PatSetCC<GPRF32, UniformTernaryFrag<any_fsetcc>, SETOEQ, FEQ_S>;
+def : PatSetCC<GPRF32, UniformTernaryFrag<strict_fsetcc>, SETLT, PseudoQuietFLT_S>;
+def : PatSetCC<GPRF32, UniformTernaryFrag<strict_fsetcc>, SETOLT, PseudoQuietFLT_S>;
+def : PatSetCC<GPRF32, UniformTernaryFrag<strict_fsetcc>, SETLE, PseudoQuietFLE_S>;
+def : PatSetCC<GPRF32, UniformTernaryFrag<strict_fsetcc>, SETOLE, PseudoQuietFLE_S>;
 
 // Match signaling FEQ_S
-def : Pat<(strict_fsetccs GPRF32:$rs1, GPRF32:$rs2, SETEQ),
+def : Pat<(UniformTernaryFrag<strict_fsetccs> GPRF32:$rs1, GPRF32:$rs2, SETEQ),
           (AND (FLE_S $rs1, $rs2),
                (FLE_S $rs2, $rs1))>;
-def : Pat<(strict_fsetccs GPRF32:$rs1, GPRF32:$rs2, SETOEQ),
+def : Pat<(UniformTernaryFrag<strict_fsetccs> GPRF32:$rs1, GPRF32:$rs2, SETOEQ),
           (AND (FLE_S $rs1, $rs2),
                (FLE_S $rs2, $rs1))>;
 // If both operands are the same, use a single FLE.
-def : Pat<(strict_fsetccs GPRF32:$rs1, GPRF32:$rs1, SETEQ),
+def : Pat<(UniformTernaryFrag<strict_fsetccs> GPRF32:$rs1, GPRF32:$rs1, SETEQ),
           (FLE_S $rs1, $rs1)>;
-def : Pat<(strict_fsetccs GPRF32:$rs1, GPRF32:$rs1, SETOEQ),
+def : Pat<(UniformTernaryFrag<strict_fsetccs> GPRF32:$rs1, GPRF32:$rs1, SETOEQ),
           (FLE_S $rs1, $rs1)>;
 
-def : PatSetCC<GPRF32, any_fsetccs, SETLT, FLT_S>;
-def : PatSetCC<GPRF32, any_fsetccs, SETOLT, FLT_S>;
-def : PatSetCC<GPRF32, any_fsetccs, SETLE, FLE_S>;
-def : PatSetCC<GPRF32, any_fsetccs, SETOLE, FLE_S>;
+def : PatSetCC<GPRF32, UniformTernaryFrag<any_fsetccs>, SETLT, FLT_S>;
+def : PatSetCC<GPRF32, UniformTernaryFrag<any_fsetccs>, SETOLT, FLT_S>;
+def : PatSetCC<GPRF32, UniformTernaryFrag<any_fsetccs>, SETLE, FLE_S>;
+def : PatSetCC<GPRF32, UniformTernaryFrag<any_fsetccs>, SETOLE, FLE_S>;
 
 defm Select_FPR32 : SelectCC_GPR_rrirr<GPRF32>;
 
@@ -632,22 +637,24 @@ def : Pat<(bitconvert (i32 GPR:$rs1)), (FMV_W_X GPR:$rs1)>;
 def : Pat<(i32 (bitconvert GPRF32:$rs1)), (FMV_X_W GPRF32:$rs1)>;
 
 // float->[u]int. Round-to-zero must be used.
-def : Pat<(i32 (any_fp_to_sint GPRF32:$rs1)), (FCVT_W_S $rs1, 0b001)>;
-def : Pat<(i32 (any_fp_to_uint GPRF32:$rs1)), (FCVT_WU_S $rs1, 0b001)>;
+def : Pat<(i32 (UniformUnaryFrag<any_fp_to_sint> GPRF32:$rs1)), (FCVT_W_S $rs1, 0b001)>;
+def : Pat<(i32 (UniformUnaryFrag<any_fp_to_uint> GPRF32:$rs1)), (FCVT_WU_S $rs1, 0b001)>;
 
 // Saturating float->[u]int32.
-def : Pat<(i32 (riscv_fcvt_x GPRF32:$rs1, timm:$frm)), (FCVT_W_S $rs1, timm:$frm)>;
-def : Pat<(i32 (riscv_fcvt_xu GPRF32:$rs1, timm:$frm)), (FCVT_WU_S $rs1, timm:$frm)>;
+def : Pat<(i32 (UniformBinFrag<riscv_fcvt_x> GPRF32:$rs1, timm:$frm)),
+                                          (FCVT_W_S $rs1, timm:$frm)>;
+def : Pat<(i32 (UniformBinFrag<riscv_fcvt_xu> GPRF32:$rs1, timm:$frm)),
+                                          (FCVT_WU_S $rs1, timm:$frm)>;
 
 // float->int32 with current rounding mode.
-def : Pat<(i32 (any_lrint GPRF32:$rs1)), (FCVT_W_S $rs1, 0b111)>;
+def : Pat<(i32 (UniformUnaryFrag<any_lrint> GPRF32:$rs1)), (FCVT_W_S $rs1, 0b111)>;
 
 // float->int32 rounded to nearest with ties rounded away from zero.
-def : Pat<(i32 (any_lround GPRF32:$rs1)), (FCVT_W_S $rs1, 0b100)>;
+def : Pat<(i32 (UniformUnaryFrag<any_lround> GPRF32:$rs1)), (FCVT_W_S $rs1, 0b100)>;
 
 // [u]int->float. Match GCC and default to using dynamic rounding mode.
-def : Pat<(any_sint_to_fp (i32 GPR:$rs1)), (FCVT_S_W $rs1, 0b111)>;
-def : Pat<(any_uint_to_fp (i32 GPR:$rs1)), (FCVT_S_WU $rs1, 0b111)>;
+def : Pat<(UniformUnaryFrag<any_sint_to_fp> (i32 GPR:$rs1)), (FCVT_S_W $rs1, 0b111)>;
+def : Pat<(UniformUnaryFrag<any_uint_to_fp> (i32 GPR:$rs1)), (FCVT_S_WU $rs1, 0b111)>;
 } // Predicates = [HasStdExtZfinx, IsRV32]
 
 let Predicates = [HasStdExtZfinx, IsRV64] in {
@@ -660,28 +667,36 @@ def : Pat<(sext_inreg (riscv_fmv_x_anyextw_rv64 GPRF32:$src), i32),
 // Use target specific isd nodes to help us remember the result is sign
 // extended. Matching sext_inreg+fptoui/fptosi may cause the conversion to be
 // duplicated if it has another user that didn't need the sign_extend.
-def : Pat<(riscv_any_fcvt_w_rv64 GPRF32:$rs1, timm:$frm),  (FCVT_W_S $rs1, timm:$frm)>;
-def : Pat<(riscv_any_fcvt_wu_rv64 GPRF32:$rs1, timm:$frm), (FCVT_WU_S $rs1, timm:$frm)>;
+def : Pat<(UniformBinFrag<riscv_any_fcvt_w_rv64> GPRF32:$rs1, timm:$frm),
+                                              (FCVT_W_S $rs1, timm:$frm)>;
+def : Pat<(UniformBinFrag<riscv_any_fcvt_wu_rv64> GPRF32:$rs1, timm:$frm),
+                                              (FCVT_WU_S $rs1, timm:$frm)>;
 
 // float->[u]int64. Round-to-zero must be used.
-def : Pat<(i64 (any_fp_to_sint GPRF32:$rs1)), (FCVT_L_S $rs1, 0b001)>;
-def : Pat<(i64 (any_fp_to_uint GPRF32:$rs1)), (FCVT_LU_S $rs1, 0b001)>;
+def : Pat<(i64 (UniformUnaryFrag<any_fp_to_sint> GPRF32:$rs1)),
+                                      (FCVT_L_S $rs1, 0b001)>;
+def : Pat<(i64 (UniformUnaryFrag<any_fp_to_uint> GPRF32:$rs1)),
+                                      (FCVT_LU_S $rs1, 0b001)>;
 
 // Saturating float->[u]int64.
-def : Pat<(i64 (riscv_fcvt_x GPRF32:$rs1, timm:$frm)), (FCVT_L_S $rs1, timm:$frm)>;
-def : Pat<(i64 (riscv_fcvt_xu GPRF32:$rs1, timm:$frm)), (FCVT_LU_S $rs1, timm:$frm)>;
+def : Pat<(i64 (UniformBinFrag<riscv_fcvt_x> GPRF32:$rs1, timm:$frm)),
+                                          (FCVT_L_S $rs1, timm:$frm)>;
+def : Pat<(i64 (UniformBinFrag<riscv_fcvt_xu> GPRF32:$rs1, timm:$frm)),
+                                          (FCVT_LU_S $rs1, timm:$frm)>;
 
 // float->int64 with current rounding mode.
-def : Pat<(i64 (any_lrint GPRF32:$rs1)), (FCVT_L_S $rs1, 0b111)>;
-def : Pat<(i64 (any_llrint GPRF32:$rs1)), (FCVT_L_S $rs1, 0b111)>;
+def : Pat<(i64 (UniformUnaryFrag<any_lrint> GPRF32:$rs1)), (FCVT_L_S $rs1, 0b111)>;
+def : Pat<(i64 (UniformUnaryFrag<any_llrint> GPRF32:$rs1)), (FCVT_L_S $rs1, 0b111)>;
 
 // float->int64 rounded to neartest with ties rounded away from zero.
-def : Pat<(i64 (any_lround GPRF32:$rs1)), (FCVT_L_S $rs1, 0b100)>;
-def : Pat<(i64 (any_llround GPRF32:$rs1)), (FCVT_L_S $rs1, 0b100)>;
+def : Pat<(i64 (UniformUnaryFrag<any_lround> GPRF32:$rs1)), (FCVT_L_S $rs1, 0b100)>;
+def : Pat<(i64 (UniformUnaryFrag<any_llround> GPRF32:$rs1)), (FCVT_L_S $rs1, 0b100)>;
 
 // [u]int->fp. Match GCC and default to using dynamic rounding mode.
-def : Pat<(any_sint_to_fp (i64 (sexti32 (i64 GPR:$rs1)))), (FCVT_S_W $rs1, 0b111)>;
-def : Pat<(any_uint_to_fp (i64 (zexti32 (i64 GPR:$rs1)))), (FCVT_S_WU $rs1, 0b111)>;
-def : Pat<(any_sint_to_fp (i64 GPR:$rs1)), (FCVT_S_L $rs1, 0b111)>;
-def : Pat<(any_uint_to_fp (i64 GPR:$rs1)), (FCVT_S_LU $rs1, 0b111)>;
+def : Pat<(UniformUnaryFrag<any_sint_to_fp> (i64 (sexti32 (i64 GPR:$rs1)))),
+                                                    (FCVT_S_W $rs1, 0b111)>;
+def : Pat<(UniformUnaryFrag<any_uint_to_fp> (i64 (zexti32 (i64 GPR:$rs1)))),
+                                                  (FCVT_S_WU $rs1, 0b111)>;
+def : Pat<(UniformUnaryFrag<any_sint_to_fp> (i64 GPR:$rs1)), (FCVT_S_L $rs1, 0b111)>;
+def : Pat<(UniformUnaryFrag<any_uint_to_fp> (i64 GPR:$rs1)), (FCVT_S_LU $rs1, 0b111)>;
 } // Predicates = [HasStdExtZfinx, IsRV64]

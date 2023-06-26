@@ -6,11 +6,11 @@
 define dso_local ventus_kernel void @fadd(float noundef %c, float noundef %d, ptr addrspace(1) nocapture noundef writeonly align 4 %result)  {
 ; VENTUS-LABEL: fadd:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lw a1, 4(a0)
-; VENTUS-NEXT:    lw a2, 0(a0)
-; VENTUS-NEXT:    fadd.s a1, a2, a1
-; VENTUS-NEXT:    lw a0, 8(a0)
-; VENTUS-NEXT:    sw a1, 0(a0)
+; VENTUS-NEXT:    lw t0, 4(a0)
+; VENTUS-NEXT:    lw t1, 0(a0)
+; VENTUS-NEXT:    fadd.s t0, t1, t0
+; VENTUS-NEXT:    lw t1, 8(a0)
+; VENTUS-NEXT:    sw t0, 0(t1)
 ; VENTUS-NEXT:    ret
 entry:
   %add1 = fadd float %c, %d
@@ -21,11 +21,11 @@ entry:
 define dso_local ventus_kernel void @fsub(float noundef %c, float noundef %d, ptr addrspace(1) nocapture noundef writeonly align 4 %result)  {
 ; VENTUS-LABEL: fsub:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lw a1, 4(a0)
-; VENTUS-NEXT:    lw a2, 0(a0)
-; VENTUS-NEXT:    fsub.s a1, a2, a1
-; VENTUS-NEXT:    lw a0, 8(a0)
-; VENTUS-NEXT:    sw a1, 0(a0)
+; VENTUS-NEXT:    lw t0, 4(a0)
+; VENTUS-NEXT:    lw t1, 0(a0)
+; VENTUS-NEXT:    fsub.s t0, t1, t0
+; VENTUS-NEXT:    lw t1, 8(a0)
+; VENTUS-NEXT:    sw t0, 0(t1)
 ; VENTUS-NEXT:    ret
 entry:
   %sub = fsub float %c, %d
@@ -36,11 +36,11 @@ entry:
 define dso_local ventus_kernel void @fmul(float noundef %c, float noundef %d, ptr addrspace(1) nocapture noundef writeonly align 4 %result)  {
 ; VENTUS-LABEL: fmul:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lw a1, 4(a0)
-; VENTUS-NEXT:    lw a2, 0(a0)
-; VENTUS-NEXT:    fmul.s a1, a2, a1
-; VENTUS-NEXT:    lw a0, 8(a0)
-; VENTUS-NEXT:    sw a1, 0(a0)
+; VENTUS-NEXT:    lw t0, 4(a0)
+; VENTUS-NEXT:    lw t1, 0(a0)
+; VENTUS-NEXT:    fmul.s t0, t1, t0
+; VENTUS-NEXT:    lw t1, 8(a0)
+; VENTUS-NEXT:    sw t0, 0(t1)
 ; VENTUS-NEXT:    ret
 entry:
   %mul = fmul float %c, %d
@@ -51,11 +51,11 @@ entry:
 define dso_local ventus_kernel void @fdiv(float noundef %c, float noundef %d, ptr addrspace(1) nocapture noundef writeonly align 4 %result)  {
 ; VENTUS-LABEL: fdiv:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lw a1, 4(a0)
-; VENTUS-NEXT:    lw a2, 0(a0)
-; VENTUS-NEXT:    fdiv.s a1, a2, a1
-; VENTUS-NEXT:    lw a0, 8(a0)
-; VENTUS-NEXT:    sw a1, 0(a0)
+; VENTUS-NEXT:    lw t0, 4(a0)
+; VENTUS-NEXT:    lw t1, 0(a0)
+; VENTUS-NEXT:    fdiv.s t0, t1, t0
+; VENTUS-NEXT:    lw t1, 8(a0)
+; VENTUS-NEXT:    sw t0, 0(t1)
 ; VENTUS-NEXT:    ret
 entry:
   %div = fdiv float %c, %d
@@ -66,12 +66,12 @@ entry:
 define dso_local ventus_kernel void @fmadd(float noundef %a, float noundef %b, float noundef %c, ptr addrspace(1) nocapture noundef writeonly align 4 %result)  {
 ; VENTUS-LABEL: fmadd:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lw a1, 8(a0)
-; VENTUS-NEXT:    lw a2, 4(a0)
-; VENTUS-NEXT:    lw a3, 0(a0)
-; VENTUS-NEXT:    fmadd.s a1, a3, a2, a1
-; VENTUS-NEXT:    lw a0, 12(a0)
-; VENTUS-NEXT:    sw a1, 0(a0)
+; VENTUS-NEXT:    lw t0, 8(a0)
+; VENTUS-NEXT:    lw t1, 4(a0)
+; VENTUS-NEXT:    lw t2, 0(a0)
+; VENTUS-NEXT:    fmadd.s t0, t2, t1, t0
+; VENTUS-NEXT:    lw t1, 12(a0)
+; VENTUS-NEXT:    sw t0, 0(t1)
 ; VENTUS-NEXT:    ret
 entry:
   %div = call float @llvm.fma.f32(float  %a, float  %b, float  %c)

@@ -1326,8 +1326,8 @@ defm : PatVFRBin<DivergentBinFrag<fadd>,  [VFADD_VV, VFADD_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fsub>,  [VFSUB_VV, VFSUB_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fmul>,  [VFMUL_VV, VFMUL_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fdiv>,  [VFDIV_VV, VFDIV_VF, VFRDIV_VF]>;
-defm : PatVFRBin<DivergentBinFrag<fminimum>,  [VFMIN_VV, VFMIN_VF]>;
-defm : PatVFRBin<DivergentBinFrag<fmaximum>,  [VFMAX_VV, VFMAX_VF]>;
+defm : PatVFRBin<DivergentBinFrag<fminnum>,  [VFMIN_VV, VFMIN_VF]>;
+defm : PatVFRBin<DivergentBinFrag<fmaxnum>,  [VFMAX_VV, VFMAX_VF]>;
 defm : PatVFRBin<DivergentBinFrag<fcopysign>, [VFSGNJ_VV, VFSGNJ_VF]>;
 def : Pat<(fcopysign (f32 VGPR:$rs1), (f32 (fneg VGPR:$rs2))),
                                     (VFSGNJN_VV $rs1, $rs2)>;
@@ -1350,6 +1350,10 @@ defm : PatVXFTer<[ReverseDivergentBinFrag<sub>, DivergentBinFrag<mul>],
                                   XLenVT, GPR, [VNMSUB_VV, VNMSUB_VX]>;
 // TODO: vfrec7.v? what is this
 def : Pat<(any_fsqrt (f32 VGPR:$rs1)), (VFSQRT_V (f32 VGPR:$rs1))>;
+
+// fmadd: rs1 * rs2 + rs3
+def : Pat<(DivergentTernaryFrag<any_fma>  (f32 VGPR:$vd), (f32 VGPR:$vs1),
+      (f32 VGPR:$vs2)), (VFMADD_VV $vd, $vs1, $vs2)>;
 
 def DivergentSelectCCFrag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
                                        node:$truev, node:$falsev),
@@ -1390,14 +1394,14 @@ def Select_VGPR_Using_CC_VGPR : Pseudo<(outs VGPR:$dst),
                                (XLenVT VGPR:$lhs), (XLenVT VGPR:$rhs), cond,
                                (XLenVT VGPR:$truev), (XLenVT VGPR:$falsev)))]>;
 let usesCustomInserter = 1 in
-def Select_GPRF32_Using_CC_VGPR : Pseudo<(outs GPRF32:$dst),
+def Select_GPRF32_Using_CC_VGPR : Pseudo<(outs VGPR:$dst),
                             (ins VGPR:$lhs, VGPR:$rhs, ixlenimm:$cc,
-                             GPRF32:$truev, GPRF32:$falsev),
+                             VGPR:$truev, VGPR:$falsev),
                             [(set f32:$dst,
                               (DivergentSelectCCFrag:$cc
                                (XLenVT VGPR:$lhs), (XLenVT VGPR:$rhs), cond,
-                               (f32 GPRF32:$truev), (f32 GPRF32:$falsev)))]>;
-
+                               (f32 VGPR:$truev), (f32 VGPR:$falsev)))]>;
+// TODO: delete this
 def Select_GPRF32_Using_CC_GPRF32 : Pseudo<(outs GPRF32:$dst),
                             (ins GPRF32:$lhs, GPRF32:$rhs, ixlenimm:$cc,
                              GPRF32:$truev, GPRF32:$falsev),
