@@ -246,78 +246,78 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     }
     break;
   }
-  case ISD::SRL: {
-    auto *N1C = dyn_cast<ConstantSDNode>(Node->getOperand(1));
-    if (!N1C)
-      break;
-    SDValue N0 = Node->getOperand(0);
-    if (N0.getOpcode() != ISD::AND || !isa<ConstantSDNode>(N0.getOperand(1)))
-      break;
-    unsigned ShAmt = N1C->getZExtValue();
-    uint64_t Mask = N0.getConstantOperandVal(1);
+//   case ISD::SRL: {
+//     auto *N1C = dyn_cast<ConstantSDNode>(Node->getOperand(1));
+//     if (!N1C)
+//       break;
+//     SDValue N0 = Node->getOperand(0);
+//     if (N0.getOpcode() != ISD::AND || !isa<ConstantSDNode>(N0.getOperand(1)))
+//       break;
+//     unsigned ShAmt = N1C->getZExtValue();
+//     uint64_t Mask = N0.getConstantOperandVal(1);
 
-    // Optimize (srl (and X, C2), C) -> (slli (srliw X, C3), C3-C) where C2 has
-    // 32 leading zeros and C3 trailing zeros.
-    if (isShiftedMask_64(Mask) && N0.hasOneUse()) {
-      unsigned XLen = Subtarget->getXLen();
-      unsigned LeadingZeros = XLen - (64 - countLeadingZeros(Mask));
-      unsigned TrailingZeros = countTrailingZeros(Mask);
-      if (LeadingZeros == 32 && TrailingZeros > ShAmt) {
-        SDNode *SRLIW = CurDAG->getMachineNode(
-            RISCV::SRLIW, DL, VT, N0->getOperand(0),
-            CurDAG->getTargetConstant(TrailingZeros, DL, VT));
-        SDNode *SLLI = CurDAG->getMachineNode(
-            RISCV::SLLI, DL, VT, SDValue(SRLIW, 0),
-            CurDAG->getTargetConstant(TrailingZeros - ShAmt, DL, VT));
-        ReplaceNode(Node, SLLI);
-        return;
-      }
-    }
+//     // Optimize (srl (and X, C2), C) -> (slli (srliw X, C3), C3-C) where C2 has
+//     // 32 leading zeros and C3 trailing zeros.
+//     if (isShiftedMask_64(Mask) && N0.hasOneUse()) {
+//       unsigned XLen = Subtarget->getXLen();
+//       unsigned LeadingZeros = XLen - (64 - countLeadingZeros(Mask));
+//       unsigned TrailingZeros = countTrailingZeros(Mask);
+//       if (LeadingZeros == 32 && TrailingZeros > ShAmt) {
+//         SDNode *SRLIW = CurDAG->getMachineNode(
+//             RISCV::SRLIW, DL, VT, N0->getOperand(0),
+//             CurDAG->getTargetConstant(TrailingZeros, DL, VT));
+//         SDNode *SLLI = CurDAG->getMachineNode(
+//             RISCV::SLLI, DL, VT, SDValue(SRLIW, 0),
+//             CurDAG->getTargetConstant(TrailingZeros - ShAmt, DL, VT));
+//         ReplaceNode(Node, SLLI);
+//         return;
+//       }
+//     }
 
-    // Optimize (srl (and X, C2), C) ->
-    //          (srli (slli X, (XLen-C3), (XLen-C3) + C)
-    // Where C2 is a mask with C3 trailing ones.
-    // Taking into account that the C2 may have had lower bits unset by
-    // SimplifyDemandedBits. This avoids materializing the C2 immediate.
-    // This pattern occurs when type legalizing right shifts for types with
-    // less than XLen bits.
-    Mask |= maskTrailingOnes<uint64_t>(ShAmt);
-    if (!isMask_64(Mask))
-      break;
-    unsigned TrailingOnes = countTrailingOnes(Mask);
-    if (ShAmt >= TrailingOnes)
-      break;
-    // If the mask has 32 trailing ones, use SRLIW.
-    if (TrailingOnes == 32) {
-      SDNode *SRLIW =
-          CurDAG->getMachineNode(RISCV::SRLIW, DL, VT, N0->getOperand(0),
-                                 CurDAG->getTargetConstant(ShAmt, DL, VT));
-      ReplaceNode(Node, SRLIW);
-      return;
-    }
+//     // Optimize (srl (and X, C2), C) ->
+//     //          (srli (slli X, (XLen-C3), (XLen-C3) + C)
+//     // Where C2 is a mask with C3 trailing ones.
+//     // Taking into account that the C2 may have had lower bits unset by
+//     // SimplifyDemandedBits. This avoids materializing the C2 immediate.
+//     // This pattern occurs when type legalizing right shifts for types with
+//     // less than XLen bits.
+//     Mask |= maskTrailingOnes<uint64_t>(ShAmt);
+//     if (!isMask_64(Mask))
+//       break;
+//     unsigned TrailingOnes = countTrailingOnes(Mask);
+//     if (ShAmt >= TrailingOnes)
+//       break;
+//     // If the mask has 32 trailing ones, use SRLIW.
+//     if (TrailingOnes == 32) {
+//       SDNode *SRLIW =
+//           CurDAG->getMachineNode(RISCV::SRLIW, DL, VT, N0->getOperand(0),
+//                                  CurDAG->getTargetConstant(ShAmt, DL, VT));
+//       ReplaceNode(Node, SRLIW);
+//       return;
+//     }
 
-    // Only do the remaining transforms if the shift has one use.
-    if (!N0.hasOneUse())
-      break;
+//     // Only do the remaining transforms if the shift has one use.
+//     if (!N0.hasOneUse())
+//       break;
 
-    // If C2 is (1 << ShAmt) use bexti if possible.
-    if (Subtarget->hasStdExtZbs() && ShAmt + 1 == TrailingOnes) {
-      SDNode *BEXTI =
-          CurDAG->getMachineNode(RISCV::BEXTI, DL, VT, N0->getOperand(0),
-                                 CurDAG->getTargetConstant(ShAmt, DL, VT));
-      ReplaceNode(Node, BEXTI);
-      return;
-    }
-    unsigned LShAmt = Subtarget->getXLen() - TrailingOnes;
-    SDNode *SLLI =
-        CurDAG->getMachineNode(RISCV::SLLI, DL, VT, N0->getOperand(0),
-                               CurDAG->getTargetConstant(LShAmt, DL, VT));
-    SDNode *SRLI = CurDAG->getMachineNode(
-        RISCV::SRLI, DL, VT, SDValue(SLLI, 0),
-        CurDAG->getTargetConstant(LShAmt + ShAmt, DL, VT));
-    ReplaceNode(Node, SRLI);
-    return;
-  }
+//     // If C2 is (1 << ShAmt) use bexti if possible.
+//     if (Subtarget->hasStdExtZbs() && ShAmt + 1 == TrailingOnes) {
+//       SDNode *BEXTI =
+//           CurDAG->getMachineNode(RISCV::BEXTI, DL, VT, N0->getOperand(0),
+//                                  CurDAG->getTargetConstant(ShAmt, DL, VT));
+//       ReplaceNode(Node, BEXTI);
+//       return;
+//     }
+//     unsigned LShAmt = Subtarget->getXLen() - TrailingOnes;
+//     SDNode *SLLI =
+//         CurDAG->getMachineNode(RISCV::SLLI, DL, VT, N0->getOperand(0),
+//                                CurDAG->getTargetConstant(LShAmt, DL, VT));
+//     SDNode *SRLI = CurDAG->getMachineNode(
+//         RISCV::SRLI, DL, VT, SDValue(SLLI, 0),
+//         CurDAG->getTargetConstant(LShAmt + ShAmt, DL, VT));
+//     ReplaceNode(Node, SRLI);
+//     return;
+//   }
   case ISD::SRA: {
     // Optimize (sra (sext_inreg X, i16), C) ->
     //          (srai (slli X, (XLen-16), (XLen-16) + C)
@@ -865,7 +865,7 @@ bool RISCVDAGToDAGISel::SelectPriAddrRegImm(SDValue Addr, SDValue &Base,
 
   if (CurDAG->isBaseWithConstantOffset(Addr)) {
     int64_t CVal = cast<ConstantSDNode>(Addr.getOperand(1))->getSExtValue();
-    if (isInt<12>(CVal)) {
+    if (isInt<11>(CVal)) {
       Base = Addr.getOperand(0);
       if (Base.getOpcode() == RISCVISD::ADD_LO) {
         SDValue LoOperand = Base.getOperand(1);
@@ -899,12 +899,12 @@ bool RISCVDAGToDAGISel::SelectPriAddrRegImm(SDValue Addr, SDValue &Base,
   // Handle ADD with large immediates.
   if (Addr.getOpcode() == ISD::ADD && isa<ConstantSDNode>(Addr.getOperand(1))) {
     int64_t CVal = cast<ConstantSDNode>(Addr.getOperand(1))->getSExtValue();
-    assert(!isInt<12>(CVal) && "simm12 not already handled?");
+    assert(!isInt<11>(CVal) && "simm11 not already handled?");
 
     // Handle immediates in the range [-4096,-2049] or [2048, 4094]. We can use
     // an ADDI for part of the offset and fold the rest into the load/store.
     // This mirrors the AddiPair PatFrag in RISCVInstrInfo.td.
-    if (isInt<12>(CVal / 2) && isInt<12>(CVal - CVal / 2)) {
+    if (isInt<11>(CVal / 2) && isInt<11>(CVal - CVal / 2)) {
       int64_t Adj = CVal < 0 ? -2048 : 2047;
       Base = SDValue(
           CurDAG->getMachineNode(RISCV::ADDI, DL, VT, Addr.getOperand(0),
