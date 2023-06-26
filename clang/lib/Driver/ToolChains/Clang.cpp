@@ -2095,6 +2095,14 @@ void Clang::AddRISCVTargetArgs(const ArgList &Args,
   CmdArgs.push_back("-target-abi");
   CmdArgs.push_back(ABIName.data());
 
+  std::string CPU =
+      getCPUName(getToolChain().getDriver(), Args, Triple, /*FromAs*/ false);
+
+  // Disable tail call
+  // FIXME: Remove it.
+  if (CPU == "ventus-gpgpu")
+    CmdArgs.push_back("-fno-optimize-sibling-calls");
+
   SetRISCVSmallDataLimit(getToolChain(), Args, CmdArgs);
 
   if (!Args.hasFlag(options::OPT_mimplicit_float,
