@@ -356,8 +356,9 @@ unsigned RISCVTTIImpl::getRegUsageForType(Type *Ty) {
 }
 
 bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
-  // if (const Argument *A = dyn_cast<Argument>(V))
-  //   return !AMDGPU::isArgPassedInSGPR(A);
+  // FIXME: Maybe need to check kernel or kernel function?
+  if (const Argument *A = dyn_cast<Argument>(V))
+    return true;
 
   // Loads from the private memory are divergent, because
   // threads can execute the load instruction with the same inputs and get
@@ -375,11 +376,12 @@ bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
   if (isa<AtomicRMWInst>(V) || isa<AtomicCmpXchgInst>(V))
     return true;
 
-  // if (const IntrinsicInst *Intrinsic = dyn_cast<IntrinsicInst>(V)) {
-  //   if (Intrinsic->getIntrinsicID() == Intrinsic::read_register)
-  //     return isReadRegisterSourceOfDivergence(Intrinsic);
-  //   return AMDGPU::isIntrinsicSourceOfDivergence(Intrinsic->getIntrinsicID());
-  // }
+  if (const IntrinsicInst *Intrinsic = dyn_cast<IntrinsicInst>(V)) {
+    if (Intrinsic->getIntrinsicID() == Intrinsic::read_register)
+    //   return isReadRegisterSourceOfDivergence(Intrinsic);
+    // return AMDGPU::isIntrinsicSourceOfDivergence(Intrinsic->getIntrinsicID());
+      return true;
+  }
 
   // Assume all function calls are a source of divergence.
   if (const CallInst *CI = dyn_cast<CallInst>(V)) {
