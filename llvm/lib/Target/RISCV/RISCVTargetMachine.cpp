@@ -286,7 +286,7 @@ void RISCVPassConfig::addPreEmitPass2() {
   // Insert regext instruction for instruction whose register id is greater
   // than 31.
   addPass(createVentusRegextInsertionPass());
-  addPass(createVentusInsertJoinToVBranchPass());
+  // addPass(createVentusInsertJoinToVBranchPass());
 }
 
 void RISCVPassConfig::addMachineSSAOptimization() {
