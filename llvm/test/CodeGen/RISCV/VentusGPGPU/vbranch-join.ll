@@ -16,23 +16,25 @@ define dso_local i32 @branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    li t1, 14
 ; VENTUS-NEXT:    vmv.v.x v2, t1
 ; VENTUS-NEXT:    vmv.v.x v1, t0
-; VENTUS-NEXT:    vblt v0, v2, .LBB0_2
+; VENTUS-NEXT:    setrpc v0, v0, .LBB0_3
+; VENTUS-NEXT:    vblt v0, v2, .LBB0_3
 ; VENTUS-NEXT:  # %bb.1: # %if.else
 ; VENTUS-NEXT:    li t0, 18
 ; VENTUS-NEXT:    vmv.v.x v2, t0
 ; VENTUS-NEXT:    vmv.v.x v1, t0
-; VENTUS-NEXT:    vbgeu v0, v2, .LBB0_3
-; VENTUS-NEXT:  .LBB0_2: # %cleanup
+; VENTUS-NEXT:    setrpc v0, v0, .LBB0_3
+; VENTUS-NEXT:    vbltu v0, v2, .LBB0_3
+; VENTUS-NEXT:  # %bb.2: # %if.end3
+; VENTUS-NEXT:    li t0, 4
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    call _Z13get_global_idj
+; VENTUS-NEXT:    vadd.vx v1, v0, zero
+; VENTUS-NEXT:  .LBB0_3: # %cleanup
+; VENTUS-NEXT:    join v0, v0, 0
 ; VENTUS-NEXT:    vadd.vx v0, v1, zero
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    ret
-; VENTUS-NEXT:  .LBB0_3: # %if.end3
-; VENTUS-NEXT:    li t0, 4
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi sp, sp, -4
-; VENTUS-NEXT:    tail _Z13get_global_idj
 entry:
   %call = call i32 @_Z13get_global_idj(i32 noundef 0)
   %cmp = icmp slt i32 %call, 14
@@ -62,6 +64,7 @@ define dso_local ventus_kernel void @loop_branch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vmv.v.x v1, zero
+; VENTUS-NEXT:    setrpc v0, v0, .LBB1_3
 ; VENTUS-NEXT:    vbeq v0, v1, .LBB1_3
 ; VENTUS-NEXT:  # %bb.1: # %for.body.lr.ph
 ; VENTUS-NEXT:    lw t1, -4(sp) # 4-byte Folded Reload
@@ -80,8 +83,10 @@ define dso_local ventus_kernel void @loop_branch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    vadd.vv v2, v2, v4
 ; VENTUS-NEXT:    vadd.vi v0, v0, -1
 ; VENTUS-NEXT:    vsw12.v v2, 0(v1)
+; VENTUS-NEXT:    setrpc v0, v0, .LBB1_3
 ; VENTUS-NEXT:    vbne v0, v5, .LBB1_2
 ; VENTUS-NEXT:  .LBB1_3: # %for.cond.cleanup
+; VENTUS-NEXT:    join v0, v0, 0
 ; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
@@ -110,7 +115,7 @@ for.body:                                         ; preds = %for.body.lr.ph, %fo
   br i1 %exitcond.not, label %for.cond.cleanup, label %for.body
 }
 
-define i32 @branch_in_branch() {
+define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-LABEL: branch_in_branch:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 4
@@ -196,7 +201,8 @@ define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vmv.v.x v1, zero
-; VENTUS-NEXT:    vbeq v0, v1, .LBB2_5
+; VENTUS-NEXT:    setrpc v0, v0, .LBB3_5
+; VENTUS-NEXT:    vbeq v0, v1, .LBB3_5
 ; VENTUS-NEXT:  # %bb.1: # %for.cond1.preheader.lr.ph
 ; VENTUS-NEXT:    li t0, 0
 ; VENTUS-NEXT:    lw t2, -4(sp) # 4-byte Folded Reload
@@ -209,24 +215,28 @@ define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    vmv.v.x v4, t2
 ; VENTUS-NEXT:    vadd.vv v3, v4, v3
 ; VENTUS-NEXT:    vmv.v.x v6, zero
-; VENTUS-NEXT:  .LBB2_2: # %for.cond1.preheader
+; VENTUS-NEXT:  .LBB3_2: # %for.cond1.preheader
 ; VENTUS-NEXT:    # =>This Loop Header: Depth=1
-; VENTUS-NEXT:    # Child Loop BB2_3 Depth 2
+; VENTUS-NEXT:    # Child Loop BB3_3 Depth 2
 ; VENTUS-NEXT:    vadd.vx v4, v0, zero
-; VENTUS-NEXT:  .LBB2_3: # %for.body4
-; VENTUS-NEXT:    # Parent Loop BB2_2 Depth=1
+; VENTUS-NEXT:  .LBB3_3: # %for.body4
+; VENTUS-NEXT:    # Parent Loop BB3_2 Depth=1
 ; VENTUS-NEXT:    # => This Inner Loop Header: Depth=2
 ; VENTUS-NEXT:    vlw12.v v5, 0(v3)
 ; VENTUS-NEXT:    vadd.vv v2, v2, v5
 ; VENTUS-NEXT:    vadd.vi v4, v4, -1
 ; VENTUS-NEXT:    vsw12.v v2, 0(v1)
-; VENTUS-NEXT:    vbne v4, v6, .LBB2_3
+; VENTUS-NEXT:    setrpc v0, v0, .LBB3_4
+; VENTUS-NEXT:    vbne v4, v6, .LBB3_3
 ; VENTUS-NEXT:  # %bb.4: # %for.cond1.for.cond.cleanup3_crit_edge
-; VENTUS-NEXT:    # in Loop: Header=BB2_2 Depth=1
+; VENTUS-NEXT:    # in Loop: Header=BB3_2 Depth=1
+; VENTUS-NEXT:    join v0, v0, 0
 ; VENTUS-NEXT:    addi t0, t0, 1
 ; VENTUS-NEXT:    vmv.v.x v4, t0
-; VENTUS-NEXT:    vbne v4, v0, .LBB2_2
-; VENTUS-NEXT:  .LBB2_5: # %for.cond.cleanup
+; VENTUS-NEXT:    setrpc v0, v0, .LBB3_5
+; VENTUS-NEXT:    vbne v4, v0, .LBB3_2
+; VENTUS-NEXT:  .LBB3_5: # %for.cond.cleanup
+; VENTUS-NEXT:    join v0, v0, 0
 ; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
@@ -277,7 +287,8 @@ define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vmv.v.x v1, zero
-; VENTUS-NEXT:    vbeq v0, v1, .LBB3_9
+; VENTUS-NEXT:    setrpc v0, v0, .LBB4_9
+; VENTUS-NEXT:    vbeq v0, v1, .LBB4_9
 ; VENTUS-NEXT:  # %bb.1: # %for.body.lr.ph
 ; VENTUS-NEXT:    li t0, 0
 ; VENTUS-NEXT:    lw t2, -4(sp) # 4-byte Folded Reload
@@ -293,38 +304,40 @@ define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    li t1, 1
 ; VENTUS-NEXT:    li t2, 2
 ; VENTUS-NEXT:    li s0, 23
-; VENTUS-NEXT:    j .LBB3_5
-; VENTUS-NEXT:  .LBB3_2: # %sw.default
-; VENTUS-NEXT:    # in Loop: Header=BB3_5 Depth=1
+; VENTUS-NEXT:    j .LBB4_5
+; VENTUS-NEXT:  .LBB4_2: # %sw.default
+; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
 ; VENTUS-NEXT:    vlw12.v v6, 0(v1)
 ; VENTUS-NEXT:    vadd.vx v5, v2, zero
-; VENTUS-NEXT:  .LBB3_3: # %for.inc.sink.split
-; VENTUS-NEXT:    # in Loop: Header=BB3_5 Depth=1
+; VENTUS-NEXT:  .LBB4_3: # %for.inc.sink.split
+; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
 ; VENTUS-NEXT:    vlw12.v v7, 0(v5)
 ; VENTUS-NEXT:    vadd.vv v6, v7, v6
 ; VENTUS-NEXT:    vsw12.v v6, 0(v5)
-; VENTUS-NEXT:  .LBB3_4: # %for.inc
-; VENTUS-NEXT:    # in Loop: Header=BB3_5 Depth=1
+; VENTUS-NEXT:  .LBB4_4: # %for.inc
+; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
 ; VENTUS-NEXT:    addi t0, t0, 1
 ; VENTUS-NEXT:    vmv.v.x v5, t0
-; VENTUS-NEXT:    vbeq v0, v5, .LBB3_9
-; VENTUS-NEXT:  .LBB3_5: # %for.body
+; VENTUS-NEXT:    setrpc v0, v0, .LBB4_9
+; VENTUS-NEXT:    vbeq v0, v5, .LBB4_9
+; VENTUS-NEXT:  .LBB4_5: # %for.body
 ; VENTUS-NEXT:    # =>This Inner Loop Header: Depth=1
-; VENTUS-NEXT:    beqz t0, .LBB3_4
+; VENTUS-NEXT:    beqz t0, .LBB4_4
 ; VENTUS-NEXT:  # %bb.6: # %for.body
-; VENTUS-NEXT:    # in Loop: Header=BB3_5 Depth=1
+; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
 ; VENTUS-NEXT:    vadd.vx v5, v4, zero
 ; VENTUS-NEXT:    vmv.v.x v6, t2
-; VENTUS-NEXT:    beq t0, t1, .LBB3_3
+; VENTUS-NEXT:    beq t0, t1, .LBB4_3
 ; VENTUS-NEXT:  # %bb.7: # %for.body
-; VENTUS-NEXT:    # in Loop: Header=BB3_5 Depth=1
-; VENTUS-NEXT:    bne t0, t2, .LBB3_2
+; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
+; VENTUS-NEXT:    bne t0, t2, .LBB4_2
 ; VENTUS-NEXT:  # %bb.8: # %sw.bb4
-; VENTUS-NEXT:    # in Loop: Header=BB3_5 Depth=1
+; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
 ; VENTUS-NEXT:    vadd.vx v5, v3, zero
 ; VENTUS-NEXT:    vmv.v.x v6, s0
-; VENTUS-NEXT:    j .LBB3_3
-; VENTUS-NEXT:  .LBB3_9: # %for.cond.cleanup
+; VENTUS-NEXT:    j .LBB4_3
+; VENTUS-NEXT:  .LBB4_9: # %for.cond.cleanup
+; VENTUS-NEXT:    join v0, v0, 0
 ; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
@@ -381,26 +394,30 @@ define dso_local i32 @_Z13get_global_idj(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    li t0, 2
 ; VENTUS-NEXT:    vmv.v.x v1, t0
-; VENTUS-NEXT:    vbeq v0, v1, .LBB4_4
+; VENTUS-NEXT:    setrpc v0, v0, .LBB5_7
+; VENTUS-NEXT:    vbeq v0, v1, .LBB5_4
 ; VENTUS-NEXT:  # %bb.1: # %entry
 ; VENTUS-NEXT:    li t0, 1
 ; VENTUS-NEXT:    vmv.v.x v1, t0
-; VENTUS-NEXT:    vbeq v0, v1, .LBB4_5
+; VENTUS-NEXT:    setrpc v0, v0, .LBB5_7
+; VENTUS-NEXT:    vbeq v0, v1, .LBB5_5
 ; VENTUS-NEXT:  # %bb.2: # %entry
 ; VENTUS-NEXT:    vmv.v.x v1, zero
-; VENTUS-NEXT:    vbne v0, v1, .LBB4_6
+; VENTUS-NEXT:    setrpc v0, v0, .LBB5_7
+; VENTUS-NEXT:    vbne v0, v1, .LBB5_6
 ; VENTUS-NEXT:  # %bb.3: # %sw.bb
 ; VENTUS-NEXT:    call __builtin_riscv_global_id_x
-; VENTUS-NEXT:    j .LBB4_7
-; VENTUS-NEXT:  .LBB4_4: # %sw.bb3
+; VENTUS-NEXT:    j .LBB5_7
+; VENTUS-NEXT:  .LBB5_4: # %sw.bb3
 ; VENTUS-NEXT:    call __builtin_riscv_global_id_z
-; VENTUS-NEXT:    j .LBB4_7
-; VENTUS-NEXT:  .LBB4_5: # %sw.bb1
+; VENTUS-NEXT:    j .LBB5_7
+; VENTUS-NEXT:  .LBB5_5: # %sw.bb1
 ; VENTUS-NEXT:    call __builtin_riscv_global_id_y
-; VENTUS-NEXT:    j .LBB4_7
-; VENTUS-NEXT:  .LBB4_6:
+; VENTUS-NEXT:    j .LBB5_7
+; VENTUS-NEXT:  .LBB5_6:
 ; VENTUS-NEXT:    vmv.v.x v0, zero
-; VENTUS-NEXT:  .LBB4_7: # %return
+; VENTUS-NEXT:  .LBB5_7: # %return
+; VENTUS-NEXT:    join v0, v0, 0
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    ret

@@ -29,6 +29,7 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    call _Z12get_local_idj
 ; VENTUS-NEXT:    li t0, 4
 ; VENTUS-NEXT:    vmv.v.x v1, t0
+; VENTUS-NEXT:    setrpc v0, v0, .LBB0_3
 ; VENTUS-NEXT:    vbltu v1, v0, .LBB0_2
 ; VENTUS-NEXT:  # %bb.1: # %if.then
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
@@ -51,6 +52,7 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    vadd.vv v0, v33, v0
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
 ; VENTUS-NEXT:  .LBB0_3: # %if.end
+; VENTUS-NEXT:    join v0, v0, 0
 ; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    addi tp, tp, -24
