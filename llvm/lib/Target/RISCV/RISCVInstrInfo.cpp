@@ -410,23 +410,29 @@ static RISCVCC::CondCode getCondFromBranchOpc(unsigned Opc) {
   default:
     return RISCVCC::COND_INVALID;
   case RISCV::BEQ:
-  case RISCV::VBEQ:
     return RISCVCC::COND_EQ;
   case RISCV::BNE:
-  case RISCV::VBNE:
     return RISCVCC::COND_NE;
   case RISCV::BLT:
-  case RISCV::VBLT:
     return RISCVCC::COND_LT;
   case RISCV::BGE:
-  case RISCV::VBGE:
     return RISCVCC::COND_GE;
   case RISCV::BLTU:
-  case RISCV::VBLTU:
     return RISCVCC::COND_LTU;
   case RISCV::BGEU:
-  case RISCV::VBGEU:
     return RISCVCC::COND_GEU;
+  case RISCV::VBEQ:
+    return RISCVCC::VCOND_EQ;
+  case RISCV::VBNE:
+    return RISCVCC::VCOND_NE;
+  case RISCV::VBLT:
+    return RISCVCC::VCOND_LT;
+  case RISCV::VBGE:
+    return RISCVCC::VCOND_GE;
+  case RISCV::VBLTU:
+    return RISCVCC::VCOND_LTU;
+  case RISCV::VBGEU:
+    return RISCVCC::VCOND_GEU;
   }
 }
 
@@ -476,24 +482,17 @@ const MCInstrDesc &RISCVInstrInfo::getBrCond(RISCVCC::CondCode CC) const {
     return get(RISCV::BLTU);
   case RISCVCC::COND_GEU:
     return get(RISCV::BGEU);
-  }
-}
-
-const MCInstrDesc &RISCVInstrInfo::getVBrCond(RISCVCC::CondCode CC) const {
-  switch (CC) {
-  default:
-    llvm_unreachable("Unknown condition code!");
-  case RISCVCC::COND_EQ:
+  case RISCVCC::VCOND_EQ:
     return get(RISCV::VBEQ);
-  case RISCVCC::COND_NE:
+  case RISCVCC::VCOND_NE:
     return get(RISCV::VBNE);
-  case RISCVCC::COND_LT:
+  case RISCVCC::VCOND_LT:
     return get(RISCV::VBLT);
-  case RISCVCC::COND_GE:
+  case RISCVCC::VCOND_GE:
     return get(RISCV::VBGE);
-  case RISCVCC::COND_LTU:
+  case RISCVCC::VCOND_LTU:
     return get(RISCV::VBLTU);
-  case RISCVCC::COND_GEU:
+  case RISCVCC::VCOND_GEU:
     return get(RISCV::VBGEU);
   }
 }
@@ -514,6 +513,18 @@ RISCVCC::CondCode RISCVCC::getOppositeBranchCondition(RISCVCC::CondCode CC) {
     return RISCVCC::COND_GEU;
   case RISCVCC::COND_GEU:
     return RISCVCC::COND_LTU;
+  case RISCVCC::VCOND_EQ:
+    return RISCVCC::VCOND_NE;
+  case RISCVCC::VCOND_NE:
+    return RISCVCC::VCOND_EQ;
+  case RISCVCC::VCOND_LT:
+    return RISCVCC::VCOND_GE;
+  case RISCVCC::VCOND_GE:
+    return RISCVCC::VCOND_LT;
+  case RISCVCC::VCOND_LTU:
+    return RISCVCC::VCOND_GEU;
+  case RISCVCC::VCOND_GEU:
+    return RISCVCC::VCOND_LTU;
   }
 }
 

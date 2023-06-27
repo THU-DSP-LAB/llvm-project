@@ -1371,7 +1371,7 @@ def DivergentSelectCCFrag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
                                                     node:$cc, node:$truev,
                                                     node:$falsev),
                                     [{ return N->isDivergent(); }],
-                                    IntCCtoRISCVCC>;
+                                    IntCCtoDivergentCC>;
 def NonDivergentSelectCCFrag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
                                        node:$truev, node:$falsev),
                                     (riscv_selectcc node:$lhs, node:$rhs,
@@ -1399,19 +1399,18 @@ let usesCustomInserter = 1, Predicates = [NoShortForwardBranchOpt] in
 def Select_VGPR_Using_CC_VGPR : Pseudo<(outs VGPR:$dst),
                             (ins VGPR:$lhs, VGPR:$rhs, ixlenimm:$cc,
                              VGPR:$truev, VGPR:$falsev),
-                            [(set i32:$dst,
-                              (DivergentSelectCCFrag:$cc
-                               (XLenVT VGPR:$lhs), (XLenVT VGPR:$rhs), cond,
-                               (XLenVT VGPR:$truev), (XLenVT VGPR:$falsev)))]>;
-let usesCustomInserter = 1 in
-def Select_GPRF32_Using_CC_VGPR : Pseudo<(outs VGPR:$dst),
-                            (ins VGPR:$lhs, VGPR:$rhs, ixlenimm:$cc,
-                             VGPR:$truev, VGPR:$falsev),
-                            [(set f32:$dst,
-                              (DivergentSelectCCFrag:$cc
-                               (XLenVT VGPR:$lhs), (XLenVT VGPR:$rhs), cond,
-                               (f32 VGPR:$truev), (f32 VGPR:$falsev)))]>;
-// TODO: delete this
+                            []>;
+
+// FIXME: Bug in SelectionDAGISel::SelectCodeCommon ? Remove IntCCtoDivergentCC.
+def : Pat<(i32 (DivergentSelectCCFrag:$cc (XLenVT VGPR:$lhs), (XLenVT VGPR:$rhs),
+            cond, (XLenVT VGPR:$truev), (XLenVT VGPR:$falsev))),
+          (Select_VGPR_Using_CC_VGPR VGPR:$lhs, VGPR:$rhs,
+            (IntCCtoDivergentCC $cc), VGPR:$truev, VGPR:$falsev)>;
+def : Pat<(f32 (DivergentSelectCCFrag:$cc (XLenVT VGPR:$lhs), (XLenVT VGPR:$rhs),
+            cond, (f32 VGPR:$truev), (f32 VGPR:$falsev))),
+          (Select_VGPR_Using_CC_VGPR VGPR:$lhs, VGPR:$rhs,
+            (IntCCtoDivergentCC $cc), VGPR:$truev, VGPR:$falsev)>;
+
 def Select_GPRF32_Using_CC_GPRF32 : Pseudo<(outs GPRF32:$dst),
                             (ins GPRF32:$lhs, GPRF32:$rhs, ixlenimm:$cc,
                              GPRF32:$truev, GPRF32:$falsev),

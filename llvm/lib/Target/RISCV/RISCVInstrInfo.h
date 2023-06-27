@@ -34,6 +34,12 @@ enum CondCode {
   COND_GE,
   COND_LTU,
   COND_GEU,
+  VCOND_EQ,
+  VCOND_NE,
+  VCOND_LT,
+  VCOND_GE,
+  VCOND_LTU,
+  VCOND_GEU,
   COND_INVALID
 };
 
@@ -51,8 +57,6 @@ public:
 
   MCInst getNop() const override;
   const MCInstrDesc &getBrCond(RISCVCC::CondCode CC) const;
-  const MCInstrDesc &getVBrCond(RISCVCC::CondCode CC) const;
-
 
   bool isPrivateMemoryAccess(const MachineInstr &MI) const;
 

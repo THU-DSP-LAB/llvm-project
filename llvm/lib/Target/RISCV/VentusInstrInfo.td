@@ -1552,6 +1552,12 @@ def IntCCtoRISCVCC : SDNodeXForm<riscv_selectcc, [{
   return CurDAG->getTargetConstant(BrCC, SDLoc(N), Subtarget->getXLenVT());
 }]>;
 
+def IntCCtoDivergentCC : SDNodeXForm<riscv_selectcc, [{
+  ISD::CondCode CC = cast<CondCodeSDNode>(N->getOperand(2))->get();
+  RISCVCC::CondCode BrCC = getDivergentCCForIntCC(CC);
+  return CurDAG->getTargetConstant(BrCC, SDLoc(N), Subtarget->getXLenVT());
+}]>;
+
 def UniformSelectCCFrag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
                                        node:$truev, node:$falsev),
                                   (riscv_selectcc node:$lhs, node:$rhs,
