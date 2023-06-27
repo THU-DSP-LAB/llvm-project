@@ -105,6 +105,7 @@ bool RISCVExpandPseudo::expandBarrier(MachineBasicBlock &MBB,
   uint32_t MemScope = isBarrier ? MBBI->getOperand(1).getImm() : 0;
   BuildMI(MBB, MBBI, MBBI->getDebugLoc(), TII->get(BarrierOpcode))
       .addImm((MemScope << 3) + MemFlag);
+  MBBI->eraseFromParent();
   return true;
 }
 
