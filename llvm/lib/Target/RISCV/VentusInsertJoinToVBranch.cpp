@@ -42,8 +42,7 @@
 #include "RISCV.h"
 #include "RISCVInstrInfo.h"
 #include "RISCVTargetMachine.h"
-#include "llvm/CodeGen/CodeGenPassBuilder.h"
-#include "llvm/CodeGen/MachineDominators.h"
+#include "llvm/CodeGen/MachinePostDominators.h"
 
 #define VENTUS_INSERT_JOIN_TO_BRANCH "Insert join to VBranch"
 #define DEBUG_TYPE "Insert_join_to_VBranch"
@@ -52,92 +51,24 @@ using namespace llvm;
 
 namespace {
 
-struct BranchInfo {
-  bool isDivergentBranch = false; // MBB is divergent branch or not
-  bool hasBeenJoined = false;     // MBB has been joined
-};
-
 class VentusInsertJoinToVBranch : public MachineFunctionPass {
 
 public:
   const RISCVInstrInfo *TII;
-  const RISCVFrameLowering *RFL;
   static char ID;
-  MachineFunction *MachineFunc;
-  SmallVector<MachineBasicBlock *, 8> ReturnBlocks;
-  SmallDenseMap<MachineBasicBlock *, BranchInfo> BranchMBBInfo;
-  MachineDominatorTree *MDT = new MachineDominatorTree();
+  MachinePostDominatorTree *MPDT = new MachinePostDominatorTree();
 
   VentusInsertJoinToVBranch() : MachineFunctionPass(ID) {
     initializeVentusInsertJoinToVBranchPass(*PassRegistry::getPassRegistry());
   }
 
-  ~VentusInsertJoinToVBranch() { delete MDT; }
-
-  // Collect all the branch blocks information in function
-  void collectBranchMBBInfo(MachineFunction &MF);
-
-  bool insertJoinMBB(MachineBasicBlock &MBB1, MachineBasicBlock &MBB2);
+  ~VentusInsertJoinToVBranch() { delete MPDT; }
 
   bool runOnMachineFunction(MachineFunction &MF) override;
 
-  bool legalizeRetMBB(MachineBasicBlock &MBB);
+  MachineInstr *getDivergentBranchInstr(MachineBasicBlock &MBB);
 
-  bool hasCommonBranchPredecessor(MachineBasicBlock &MBB1,
-                                  MachineBasicBlock &MBB2);
-
-  bool canJoinMBB(MachineBasicBlock &MBB1, MachineBasicBlock &MBB2);
-
-  /// This function check two return blocks whether can join or not
-  bool hasNoUnjoinedBranch(MachineBasicBlock *CurrMBB,
-                           MachineBasicBlock *TargetMBB);
-
-  /// Find all the branch predecessor no matter direct or indirect
-  SmallVector<MachineBasicBlock *>
-  findAllBranchPredecessor(MachineBasicBlock &MBB);
-
-  /// Check MBB is divergent branch or not
-  bool isDivergentBranchBlock(MachineBasicBlock &MBB) {
-    if (MBB.empty())
-      return false;
-
-    const MachineInstr &MI = MBB.instr_back();
-    switch (MI.getOpcode()) {
-    default:
-      return false;
-    case RISCV::VBEQ:
-    case RISCV::VBNE:
-    case RISCV::VBLT:
-    case RISCV::VBGE:
-    case RISCV::VBLTU:
-    case RISCV::VBGEU:
-      return true;
-    }
-  }
-
-  /// Check MBB is common branch or not
-  bool isCommonBranchBlock(MachineBasicBlock &MBB) {
-
-    if (MBB.empty())
-      return false;
-    const MachineInstr &MI = MBB.instr_back();
-    switch (MI.getOpcode()) {
-    default:
-      return false;
-    case RISCV::BEQ:
-    case RISCV::BNE:
-    case RISCV::BLT:
-    case RISCV::BGE:
-    case RISCV::BLTU:
-    case RISCV::BGEU:
-      return true;
-    }
-  }
-
-  bool analyzeRetMBB(MachineFunction &MF);
-
-  /// Get return MBB count
-  unsigned getReturnBlockCount(MachineFunction &MF);
+  bool convergeReturnBlock(MachineFunction &MF);
 
   StringRef getPassName() const override {
     return VENTUS_INSERT_JOIN_TO_BRANCH;
@@ -146,230 +77,119 @@ public:
 
 char VentusInsertJoinToVBranch::ID = 0;
 
-void VentusInsertJoinToVBranch::collectBranchMBBInfo(MachineFunction &MF) {
-  for (auto &MBB : MF) {
-    if (isCommonBranchBlock(MBB))
-      BranchMBBInfo[&MBB] = {false, false};
+bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
+  TII = static_cast<const RISCVInstrInfo *>(MF.getSubtarget().getInstrInfo());
 
-    else if (isDivergentBranchBlock(MBB))
-      BranchMBBInfo[&MBB] = {true, false};
+  // After this, all return blocks are expected to be legal
+  bool IsChanged = convergeReturnBlock(MF);
+  MPDT->getBase().recalculate(MF);
+
+#ifndef NDEBUG
+  unsigned NumberRetBB = 0;
+  for (auto &BB : MF)
+    if (BB.isReturnBlock())
+      NumberRetBB++;
+  assert(NumberRetBB == 1 && "Converge return MBB process not completed");
+#endif
+
+  DenseSet<MachineBasicBlock *> JoinedBB;
+
+  for (auto &MBB : MF) {
+    if (auto *VBranch = getDivergentBranchInstr(MBB)) {
+      auto *PostIDomBB = MPDT->getNode(&MBB)->getIDom()->getBlock();
+      assert(PostIDomBB);
+
+      auto *SETRPC = BuildMI(MBB, VBranch->getIterator(), DebugLoc(),
+                             TII->get(RISCV::SETRPC))
+                         .addMBB(PostIDomBB)
+                         .getInstr();
+
+      SETRPC->addOperand(MachineOperand::CreateReg(RISCV::RPC, /*isDef*/ true,
+                                                   /*isImp*/ true));
+      VBranch->addOperand(MachineOperand::CreateReg(RISCV::RPC, /*isDef*/ false,
+                                                    /*isImp*/ true));
+
+      if (!JoinedBB.contains(PostIDomBB)) {
+        IsChanged = true;
+        JoinedBB.insert(PostIDomBB);
+        BuildMI(*PostIDomBB, PostIDomBB->begin(), DebugLoc(),
+                TII->get(RISCV::JOIN));
+      }
+    }
   }
+  return IsChanged;
 }
 
-unsigned VentusInsertJoinToVBranch::getReturnBlockCount(MachineFunction &MF) {
-  // Clear return block before each analysis
-  if (!ReturnBlocks.empty())
-    ReturnBlocks.clear();
-  for (auto &MBB : MF) {
-    if (MBB.isReturnBlock())
-      ReturnBlocks.push_back(&MBB);
-  }
-  return ReturnBlocks.size();
-}
-
-bool VentusInsertJoinToVBranch::insertJoinMBB(MachineBasicBlock &MBB1,
-                                              MachineBasicBlock &MBB2) {
-  if (MBB1.isReturnBlock() && MBB2.isReturnBlock()) {
-    MachineBasicBlock *PseudoJoinMBB = MachineFunc->CreateMachineBasicBlock();
-    BuildMI(*PseudoJoinMBB, PseudoJoinMBB->end(), DebugLoc(),
-            TII->get(RISCV::PseudoRET));
-    MachineFunc->push_back(PseudoJoinMBB);
-    legalizeRetMBB(MBB1);
-    legalizeRetMBB(MBB2);
-    MBB1.addSuccessor(PseudoJoinMBB);
-    MBB2.addSuccessor(PseudoJoinMBB);
+static bool isDivergentBranch(MachineInstr &MI) {
+  switch (MI.getOpcode()) {
+  default:
+    return false;
+  case RISCV::VBEQ:
+  case RISCV::VBNE:
+  case RISCV::VBLT:
+  case RISCV::VBGE:
+  case RISCV::VBLTU:
+  case RISCV::VBGEU:
     return true;
   }
-  return false;
 }
 
-/// Check if two return blocks can join or not
-bool VentusInsertJoinToVBranch::canJoinMBB(MachineBasicBlock &MBB1,
-                                           MachineBasicBlock &MBB2) {
-  auto DominatorBlock = MDT->findNearestCommonDominator(&MBB1, &MBB2);
-  if (DominatorBlock) {
-    if (!hasNoUnjoinedBranch(DominatorBlock, &MBB1) &&
-        !hasNoUnjoinedBranch(DominatorBlock, &MBB2)) {
-      BranchMBBInfo.find(DominatorBlock)->second.hasBeenJoined = true;
-      return true;
-    }
-  }
-  return false;
+MachineInstr *
+VentusInsertJoinToVBranch::getDivergentBranchInstr(MachineBasicBlock &MBB) {
+  // If the block has no terminators, it just falls into the block after it.
+  MachineBasicBlock::iterator I = MBB.getLastNonDebugInstr();
+  if (I == MBB.end() || !TII->isUnpredicatedTerminator(*I))
+    return nullptr;
+
+  // Count the number of terminators.
+  int NumTerminators = 0;
+  for (auto J = I.getReverse();
+       J != MBB.rend() && TII->isUnpredicatedTerminator(*J); J++)
+    NumTerminators++;
+
+  // Handle a single conditional branch.
+  if (NumTerminators == 1 && isDivergentBranch(*I))
+    return &(*I);
+
+  // Handle a conditional branch followed by an unconditional branch.
+  if (NumTerminators == 2 && isDivergentBranch(*std::prev(I)) &&
+      I->getDesc().isUnconditionalBranch())
+    return &(*std::prev(I));
+
+#ifndef NDEBUG
+  for (auto J = I.getReverse();
+       J != MBB.rend() && TII->isUnpredicatedTerminator(*J); J++)
+    assert(!isDivergentBranch(*J) && "Unresolved divergent branch");
+#endif
+
+  // Otherwise, we can't handle this.
+  return nullptr;
 }
 
-bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
+bool VentusInsertJoinToVBranch::convergeReturnBlock(MachineFunction &MF) {
+  DenseSet<MachineBasicBlock *> ReturnBlocks;
+  for (auto &BB : MF)
+    if (BB.isReturnBlock())
+      ReturnBlocks.insert(&BB);
 
-  bool IsChanged = false;
-  TII = static_cast<const RISCVInstrInfo *>(MF.getSubtarget().getInstrInfo());
-  RFL = static_cast<const RISCVFrameLowering *>(
-      MF.getSubtarget().getFrameLowering());
-  MachineFunc = &MF;
-  collectBranchMBBInfo(MF);
-  MDT->getBase().recalculate(*MachineFunc);
+  assert(!ReturnBlocks.empty() && "At least one return block");
 
-  // After this check, all return blocks are expected to be legal
-  IsChanged |= analyzeRetMBB(MF);
-  MDT->getBase().recalculate(*MachineFunc);
-  assert(getReturnBlockCount(MF) == 1 &&
-         "Join return MBB process not completed");
-  for (auto &MBB : make_early_inc_range(MF)) {
-    MachineDomTreeNode *Node = MDT->getNode(&MBB);
-    if (Node && Node->getIDom()) {
-      // At least two predecessors
-      unsigned PredecessorNum = std::distance(MBB.pred_begin(), MBB.pred_end());
-      auto FoundBranchMBB = BranchMBBInfo.find(Node->getIDom()->getBlock());
-      if (FoundBranchMBB != BranchMBBInfo.end() &&
-          FoundBranchMBB->getSecond().isDivergentBranch && PredecessorNum > 1) {
-        SmallVector<MachineBasicBlock *, 4> Predecessors;
-        for (auto Pred : MBB.predecessors())
-          Predecessors.push_back(Pred);
-        for (auto Predecessor : make_early_inc_range(Predecessors)) {
-          // Divergent branch, insert a block between MBB & predecessor
-          if (isDivergentBranchBlock(*Predecessor)) {
-
-            MachineBasicBlock *NewBB = MF.CreateMachineBasicBlock();
-            // This is essential to keep CFG legal, if MBB is the fall through
-            // block of predecessor, the NewBB should replace MBB's place
-            // otherwise, we only need to insert before MBB
-            if (Predecessor->getFallThrough() == &MBB)
-              MF.insert(std::next(Predecessor->getIterator()), NewBB);
-            else
-              MF.insert(MBB.getIterator(), NewBB);
-            Predecessor->replaceSuccessor(&MBB, NewBB);
-            NewBB->addSuccessor(&MBB);
-
-            BuildMI(*NewBB, NewBB->end(), DebugLoc(), TII->get(RISCV::JOIN))
-                .addMBB(&MBB);
-            MachineInstr *LastInst = &(*Predecessor->getFirstInstrTerminator());
-            assert(LastInst->isBranch() && "Not branch instruction");
-            LastInst->getOperand(2).setMBB(NewBB);
-
-          } else {
-            // Avoid duplicate JOIN add
-            if (Predecessor->empty() ||
-                !(Predecessor->instr_back().getOpcode() == RISCV::JOIN)) {
-              if (!Predecessor->empty() &&
-                  Predecessor->instr_back().getOpcode() == RISCV::PseudoBR)
-                Predecessor->instr_back().eraseFromParent();
-              BuildMI(*Predecessor, Predecessor->end(), DebugLoc(),
-                      TII->get(RISCV::JOIN))
-                  .addMBB(&MBB);
-            }
-          }
-        }
-      }
-    }
-  }
-  return IsChanged;
-}
-
-bool VentusInsertJoinToVBranch::analyzeRetMBB(MachineFunction &MF) {
-  bool IsChanged = false;
-  // Check two MBBs' nearest parent branch MBB is the same or not, if is same
-  // we need to join them to a maybe Joint block. otherwise
-  unsigned ReturnBlockNum = getReturnBlockCount(MF);
-  for (size_t i = 0; i < ReturnBlockNum; i++) {
-    for (size_t j = i + 1; j < ReturnBlockNum; j++) {
-      if (hasCommonBranchPredecessor(*ReturnBlocks[i], *ReturnBlocks[j]))
-        IsChanged |= insertJoinMBB(*ReturnBlocks[i], *ReturnBlocks[j]);
-    }
-  }
-  // Rebuild dominator tree
-  MDT->getBase().recalculate(MF);
-  unsigned RetNum = getReturnBlockCount(MF);
-  while (true) {
-    for (size_t i = 0; i < ReturnBlocks.size(); i++) {
-      for (size_t j = i + 1; j < ReturnBlocks.size(); j++) {
-        if (canJoinMBB(*ReturnBlocks[i], *ReturnBlocks[j]))
-          IsChanged |= insertJoinMBB(*ReturnBlocks[i], *ReturnBlocks[j]);
-      }
-    }
-    // After check, rebuild dominator tree
-    MDT->getBase().recalculate(MF);
-    unsigned RetNum1 = getReturnBlockCount(MF);
-    if (RetNum1 == RetNum)
-      // Avoid dead loop
-      break;
-    RetNum = RetNum1;
-  }
-  return IsChanged;
-}
-
-/// Legalize return block, right now, we only consider tail call && ret
-bool VentusInsertJoinToVBranch::legalizeRetMBB(MachineBasicBlock &MBB) {
-  // Get last instruction in this basic block
-  assert((MBB.isReturnBlock() || MBB.empty()) && "Not legal block");
-  if (MBB.empty())
+  // No need to converge if there is one return block.
+  if (ReturnBlocks.size() == 1)
     return false;
-  MachineInstr &LastInst = MBB.back();
-  unsigned LastInstOpcode = LastInst.getOpcode();
-  assert((LastInstOpcode == RISCV::PseudoRET ||
-          LastInstOpcode == RISCV::PseudoTAIL) &&
-         "Unexpected opcode");
-  if (LastInstOpcode == RISCV::PseudoRET)
-    // Get the return instruction's implicit operands
-    LastInst.eraseFromParent();
-  else
-    LastInst.setDesc(TII->get(RISCV::PseudoCALL));
+
+  auto *NewRetBB = MF.CreateMachineBasicBlock();
+  BuildMI(NewRetBB, DebugLoc(), TII->get(RISCV::PseudoRET));
+  MF.insert(MF.end(), NewRetBB);
+
+  for (auto *RetBB : ReturnBlocks) {
+    auto &RetMI = RetBB->back();
+    assert(RetMI.getOpcode() == RISCV::PseudoRET && "Unexpected opcode");
+    RetMI.eraseFromParent();
+    RetBB->addSuccessor(NewRetBB);
+  }
 
   return true;
-}
-
-bool VentusInsertJoinToVBranch::hasCommonBranchPredecessor(
-    MachineBasicBlock &MBB1, MachineBasicBlock &MBB2) {
-  auto BranchPredecessor1 = findAllBranchPredecessor(MBB1);
-  auto BranchPredecessor2 = findAllBranchPredecessor(MBB2);
-  for (auto BranchPred1 : BranchPredecessor1) {
-    auto FoundBranchPred1 = std::find(BranchPredecessor2.begin(),
-                                      BranchPredecessor2.end(), BranchPred1);
-    if (FoundBranchPred1 != BranchPredecessor2.end()) {
-      auto FoundBranchMBB = BranchMBBInfo.find(*FoundBranchPred1);
-      if (FoundBranchMBB != BranchMBBInfo.end())
-        // Update BranchMBB's hasBeenJoined flag
-        FoundBranchMBB->getSecond().hasBeenJoined = true;
-      return true;
-    }
-  }
-  return false;
-}
-
-SmallVector<MachineBasicBlock *>
-VentusInsertJoinToVBranch::findAllBranchPredecessor(MachineBasicBlock &MBB) {
-  SmallVector<MachineBasicBlock *, 6> BranchParents;
-
-  for (auto Pred : MBB.predecessors()) {
-    unsigned PredNum = std::distance(Pred->succ_begin(), Pred->succ_end());
-    if (PredNum >= 2)
-      BranchParents.push_back(Pred);
-    else {
-      auto Parents = findAllBranchPredecessor(*Pred);
-      BranchParents.insert(BranchParents.end(), Parents.begin(), Parents.end());
-    }
-  }
-
-  return BranchParents;
-}
-
-bool VentusInsertJoinToVBranch::hasNoUnjoinedBranch(
-    MachineBasicBlock *DominatorMBB, MachineBasicBlock *TargetMBB) {
-  // Find the path between MBB1 and its immediate dominator
-  MachineDomTreeNode *TargetMBBNode = MDT->getNode(TargetMBB);
-  SmallVector<MachineBasicBlock *, 4> DominatorMBBs;
-  // Build path between dominator DominatorMBB and TargetMBB
-  // FIXME: Maybe can simplify below codes
-  while (TargetMBBNode->getIDom()->getBlock() != DominatorMBB) {
-    DominatorMBBs.push_back(TargetMBBNode->getIDom()->getBlock());
-    TargetMBBNode = TargetMBBNode->getIDom();
-  }
-  // Traverse this path, if found unjoined branch, return true
-  for (auto DominatorMBB : DominatorMBBs) {
-    auto Dominator = BranchMBBInfo.find(DominatorMBB);
-    if (Dominator != BranchMBBInfo.end()) {
-      if (!Dominator->getSecond().hasBeenJoined)
-        return true;
-    }
-  }
-  return false;
 }
 
 } // end of anonymous namespace

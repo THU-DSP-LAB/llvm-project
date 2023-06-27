@@ -34,7 +34,7 @@ define dso_local i32 @branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    tail _Z13get_global_idj
 entry:
-  %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
+  %call = call i32 @_Z13get_global_idj(i32 noundef 0)
   %cmp = icmp slt i32 %call, 14
   br i1 %cmp, label %cleanup, label %if.else
 
@@ -43,7 +43,7 @@ if.else:                                          ; preds = %entry
   br i1 %cmp1, label %cleanup, label %if.end3
 
 if.end3:                                          ; preds = %if.else
-  %call4 = tail call i32 @_Z13get_global_idj(i32 noundef 4)
+  %call4 = call i32 @_Z13get_global_idj(i32 noundef 4)
   br label %cleanup
 
 cleanup:                                          ; preds = %if.else, %entry, %if.end3
@@ -86,7 +86,7 @@ define dso_local ventus_kernel void @loop_branch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
 entry:
-  %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
+  %call = call i32 @_Z13get_global_idj(i32 noundef 0)
   %cmp5.not = icmp eq i32 %call, 0
   br i1 %cmp5.not, label %for.cond.cleanup, label %for.body.lr.ph
 
@@ -110,83 +110,79 @@ for.body:                                         ; preds = %for.body.lr.ph, %fo
   br i1 %exitcond.not, label %for.cond.cleanup, label %for.body
 }
 
-; FIXME: Fix this 2 noundef %dim) local_unnamed_addr {
+define i32 @branch_in_branch() {
 ; VENTUS-LABEL: branch_in_branch:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi tp, tp, 16
-; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    sw s0, -16(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    addi sp, sp, 4
+; VENTUS-NEXT:    .cfi_def_cfa_offset 4
+; VENTUS-NEXT:    addi tp, tp, 4
+; VENTUS-NEXT:    .cfi_def_cfa_offset 4
+; VENTUS-NEXT:    vmv.v.x v32, tp
+; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 4
-; VENTUS-NEXT:    .cfi_offset s0, 0
+; VENTUS-NEXT:    .cfi_offset v33.l, 0
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
-; VENTUS-NEXT:    li a0, 14
-; VENTUS-NEXT:    vmv.v.x v1, a0
-; VENTUS-NEXT:    li a0, 13
-; VENTUS-NEXT:    vblt v0, v1, .LBB2_9
+; VENTUS-NEXT:    vadd.vx v33, v0, zero
+; VENTUS-NEXT:    li t0, 13
+; VENTUS-NEXT:    li t1, 14
+; VENTUS-NEXT:    vmv.v.x v1, t1
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    setrpc v0, v0, .LBB2_7
+; VENTUS-NEXT:    vblt v33, v1, .LBB2_7
 ; VENTUS-NEXT:  # %bb.1: # %if.else
-; VENTUS-NEXT:    vmv.x.s s0, v0
-; VENTUS-NEXT:    li a0, 17
-; VENTUS-NEXT:    bltu a0, s0, .LBB2_4
+; VENTUS-NEXT:    li t0, 17
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    setrpc v0, v0, .LBB2_7
+; VENTUS-NEXT:    vbltu v0, v33, .LBB2_4
 ; VENTUS-NEXT:  # %bb.2: # %if.then2
-; VENTUS-NEXT:    li a0, 1
-; VENTUS-NEXT:    vmv.v.x v0, a0
+; VENTUS-NEXT:    li t0, 1
+; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:    call _Z13get_global_idj
-; VENTUS-NEXT:    vmv.v.x v1, s0
-; VENTUS-NEXT:    vblt v0, v1, .LBB2_5
+; VENTUS-NEXT:    setrpc v0, v0, .LBB2_6
+; VENTUS-NEXT:    vblt v0, v33, .LBB2_5
 ; VENTUS-NEXT:  # %bb.3: # %if.then2
-; VENTUS-NEXT:    li a0, 23
-; VENTUS-NEXT:    vmv.v.x v0, a0
-; VENTUS-NEXT:    join v0, v0, .LBB2_6
+; VENTUS-NEXT:    li t0, 23
+; VENTUS-NEXT:    j .LBB2_6
 ; VENTUS-NEXT:  .LBB2_4: # %if.end7
-; VENTUS-NEXT:    li a0, 4
-; VENTUS-NEXT:    vmv.v.x v0, a0
-; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s0, -16(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi tp, tp, -16
+; VENTUS-NEXT:    li t0, 4
+; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:    call _Z13get_global_idj
-; VENTUS-NEXT:    join v0, v0, .LBB2_8
-; VENTUS-NEXT:  .LBB2_5: # %if.then2
-; VENTUS-NEXT:    li a0, 12
-; VENTUS-NEXT:    vmv.v.x v0, a0
-; VENTUS-NEXT:    join v0, v0, .LBB2_6
-; VENTUS-NEXT:  .LBB2_6: # %if.then2
-; VENTUS-NEXT:    vmv.x.s a0, v0
-; VENTUS-NEXT:    join v0, v0, .LBB2_7
-; VENTUS-NEXT:  .LBB2_9:
-; VENTUS-NEXT:    join v0, v0, .LBB2_7
+; VENTUS-NEXT:    j .LBB2_7
+; VENTUS-NEXT:  .LBB2_5:
+; VENTUS-NEXT:    li t0, 12
+; VENTUS-NEXT:  .LBB2_6: # %cleanup9
+; VENTUS-NEXT:    join v0, v0, 0
+; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:  .LBB2_7: # %cleanup9
-; VENTUS-NEXT:    vmv.v.x v0, a0
-; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw s0, -16(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi tp, tp, -16
-; VENTUS-NEXT:    join v0, v0, .LBB2_8
-; VENTUS-NEXT:  .LBB2_8:
+; VENTUS-NEXT:    join v0, v0, 0
+; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -4
+; VENTUS-NEXT:    addi tp, tp, -4
 ; VENTUS-NEXT:    ret
-; entry:
-;   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
-;   %cmp = icmp slt i32 %call, 14
-;   br i1 %cmp, label %cleanup9, label %if.else
+entry:
+  %call = call i32 @_Z13get_global_idj(i32 noundef 0)
+  %cmp = icmp slt i32 %call, 14
+  br i1 %cmp, label %cleanup9, label %if.else
 
-; if.else:                                          ; preds = %entry
-;   %cmp1 = icmp ult i32 %call, 18
-;   br i1 %cmp1, label %if.then2, label %if.end7
+if.else:                                          ; preds = %entry
+  %cmp1 = icmp ult i32 %call, 18
+  br i1 %cmp1, label %if.then2, label %if.end7
 
-; if.then2:                                         ; preds = %if.else
-;   %call3 = tail call i32 @_Z13get_global_idj(i32 noundef 1)
-;   %cmp4 = icmp sgt i32 %call, %call3
-;   %. = select i1 %cmp4, i32 12, i32 23
-;   br label %cleanup9
+if.then2:                                         ; preds = %if.else
+  %call3 = call i32 @_Z13get_global_idj(i32 noundef 1)
+  %cmp4 = icmp sgt i32 %call, %call3
+  %. = select i1 %cmp4, i32 12, i32 23
+  br label %cleanup9
 
-; if.end7:                                          ; preds = %if.else
-;   %call8 = tail call i32 @_Z13get_global_idj(i32 noundef 4)
-;   br label %cleanup9
+if.end7:                                          ; preds = %if.else
+  %call8 = call i32 @_Z13get_global_idj(i32 noundef 4)
+  br label %cleanup9
 
-; cleanup9:                                         ; preds = %entry, %if.end7, %if.then2
-;   %retval.1 = phi i32 [ %., %if.then2 ], [ %call8, %if.end7 ], [ 13, %entry ]
-;   ret i32 %retval.1
-; }
+cleanup9:                                         ; preds = %entry, %if.end7, %if.then2
+  %retval.1 = phi i32 [ %., %if.then2 ], [ %call8, %if.end7 ], [ 13, %entry ]
+  ret i32 %retval.1
+}
 
 ; Function Attrs: convergent nofree norecurse nounwind memory(argmem: readwrite) vscale_range(1,2048)
 define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
@@ -235,7 +231,7 @@ define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
 entry:
-  %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
+  %call = call i32 @_Z13get_global_idj(i32 noundef 0)
   %cmp16.not = icmp eq i32 %call, 0
   br i1 %cmp16.not, label %for.cond.cleanup, label %for.cond1.preheader.lr.ph
 
@@ -333,7 +329,7 @@ define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
 entry:
-  %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
+  %call = call i32 @_Z13get_global_idj(i32 noundef 0)
   %cmp21.not = icmp eq i32 %call, 0
   br i1 %cmp21.not, label %for.cond.cleanup, label %for.body.lr.ph
 

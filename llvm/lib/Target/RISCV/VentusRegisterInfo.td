@@ -408,6 +408,8 @@ let RegAltNameIndices = [ABIRegAltName] in {
                DwarfRegNum<[!add(4096, SysRegVLENB.Encoding)]>;
 }
 
+def RPC : RISCVReg<0, "rpc", ["rpc"]>;
+
 def VCSR : RegisterClass<"RISCV", [XLenVT], 32,
                           (add VTYPE, VL, VLENB)> {
   let RegInfos = XLenRI;
