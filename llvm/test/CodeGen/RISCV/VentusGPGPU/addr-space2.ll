@@ -7,57 +7,53 @@
 define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 16
-; VENTUS-NEXT:    addi tp, tp, 4
-; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    sw ra, -4(sp)
-; VENTUS-NEXT:    sw s0, -8(sp)
-; VENTUS-NEXT:    sw s1, -12(sp)
-; VENTUS-NEXT:    sw s2, -16(sp)
-; VENTUS-NEXT:    .cfi_offset ra, 12
-; VENTUS-NEXT:    .cfi_offset s0, 8
-; VENTUS-NEXT:    .cfi_offset s1, 4
-; VENTUS-NEXT:    .cfi_offset s2, 0
-; VENTUS-NEXT:    lw s0, 0(a0)
-; VENTUS-NEXT:    lui a0, %hi(foo.b)
-; VENTUS-NEXT:    addi s1, a0, %lo(foo.b)
-; VENTUS-NEXT:    addi a0, sp, -16
-; VENTUS-NEXT:    vmv.v.x v0, s1
-; VENTUS-NEXT:    vmv.v.x v1, s0
-; VENTUS-NEXT:    addi s2, sp, -16
+; VENTUS-NEXT:    addi sp, sp, 8
+; VENTUS-NEXT:    .cfi_def_cfa_offset 8
+; VENTUS-NEXT:    addi tp, tp, 24
+; VENTUS-NEXT:    .cfi_def_cfa_offset 24
+; VENTUS-NEXT:    vmv.v.x v32, tp
+; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset ra, 4
+; VENTUS-NEXT:    .cfi_offset v33.l, 0
+; VENTUS-NEXT:    lw t0, 0(a0)
+; VENTUS-NEXT:    vmv.v.x v33, t0
+; VENTUS-NEXT:    lui t1, %hi(foo.b)
+; VENTUS-NEXT:    addi t2, t1, %lo(foo.b)
+; VENTUS-NEXT:    addi t1, tp, -24
+; VENTUS-NEXT:    vmv.v.x v0, t1
+; VENTUS-NEXT:    sw t2, 16(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    vmv.v.x v1, t2
+; VENTUS-NEXT:    vmv.v.x v2, t0
 ; VENTUS-NEXT:    call bar
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z12get_local_idj
-; VENTUS-NEXT:    li a0, 4
-; VENTUS-NEXT:    vmv.v.x v1, a0
-; VENTUS-NEXT:    vmv.x.s a0, v0
+; VENTUS-NEXT:    li t0, 4
+; VENTUS-NEXT:    vmv.v.x v1, t0
 ; VENTUS-NEXT:    vbltu v1, v0, .LBB0_2
 ; VENTUS-NEXT:  # %bb.1: # %if.then
-; VENTUS-NEXT:    slli a0, a0, 2
-; VENTUS-NEXT:    add s2, s2, a0
-; VENTUS-NEXT:    vlw.v v0, 0(s2)
-; VENTUS-NEXT:    add s1, s1, a0
-; VENTUS-NEXT:    vmv.v.x v1, s1
-; VENTUS-NEXT:    vlw12.v v1, 0(v1)
-; VENTUS-NEXT:    add a0, s0, a0
-; VENTUS-NEXT:    lw a1, 0(a0)
-; VENTUS-NEXT:    vmv.v.x v2, a1
-; VENTUS-NEXT:    vmadd.vv v0, v1, v2
-; VENTUS-NEXT:    vmv.v.x v1, a0
-; VENTUS-NEXT:    vsw12.v v0, 0(v1)
-; VENTUS-NEXT:    join v0, v0, .LBB0_3
+; VENTUS-NEXT:    vsll.vi v0, v0, 2
+; VENTUS-NEXT:    addi t0, tp, -24
+; VENTUS-NEXT:    vadd.vx v1, v0, t0
+; VENTUS-NEXT:    vlw.v v1, 0(v1)
+; VENTUS-NEXT:    lw t1, 16(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vadd.vx v2, v0, t1
+; VENTUS-NEXT:    vlw12.v v2, 0(v2)
+; VENTUS-NEXT:    vadd.vv v0, v33, v0
+; VENTUS-NEXT:    vlw12.v v3, 0(v0)
+; VENTUS-NEXT:    # kill: def $v4 killed $x5
+; VENTUS-NEXT:    # kill: def $v4 killed $x6
+; VENTUS-NEXT:    vmadd.vv v2, v1, v3
+; VENTUS-NEXT:    vsw12.v v2, 0(v0)
+; VENTUS-NEXT:    j .LBB0_3
 ; VENTUS-NEXT:  .LBB0_2: # %if.else
-; VENTUS-NEXT:    slli a0, a0, 2
-; VENTUS-NEXT:    add a0, s0, a0
-; VENTUS-NEXT:    sw zero, 0(a0)
-; VENTUS-NEXT:    join v0, v0, .LBB0_3
+; VENTUS-NEXT:    vmv.v.x v1, zero
+; VENTUS-NEXT:    vsll.vi v0, v0, 2
+; VENTUS-NEXT:    vadd.vv v0, v33, v0
+; VENTUS-NEXT:    vsw12.v v1, 0(v0)
 ; VENTUS-NEXT:  .LBB0_3: # %if.end
-; VENTUS-NEXT:    lw ra, -4(sp)
-; VENTUS-NEXT:    lw s0, -8(sp)
-; VENTUS-NEXT:    lw s1, -12(sp)
-; VENTUS-NEXT:    lw s2, -16(sp)
-; VENTUS-NEXT:    addi sp, sp, -16
-; VENTUS-NEXT:    addi tp, tp, -4
+; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -8
+; VENTUS-NEXT:    addi tp, tp, -24
 ; VENTUS-NEXT:    ret
 entry:
   %a = alloca [5 x i32], align 4, addrspace(5)
@@ -111,9 +107,9 @@ define dso_local void @local_memmory(ptr addrspace(3) nocapture noundef %a) loca
 ; VENTUS-LABEL: local_memmory:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vlw12.v v1, 0(v0)
-; VENTUS-NEXT:    lui a0, %hi(global_int)
-; VENTUS-NEXT:    lw a0, %lo(global_int)(a0)
-; VENTUS-NEXT:    vadd.vx v1, v1, a0
+; VENTUS-NEXT:    lui t0, %hi(global_int)
+; VENTUS-NEXT:    lw t0, %lo(global_int)(t0)
+; VENTUS-NEXT:    vadd.vx v1, v1, t0
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
 ; VENTUS-NEXT:    ret
 entry:
@@ -160,11 +156,11 @@ entry:
 define dso_local void @private_memmory(ptr addrspace(5) nocapture noundef %a) local_unnamed_addr {
 ; VENTUS-LABEL: private_memmory:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vlw.v v0, 0(a0)
-; VENTUS-NEXT:    lui a1, %hi(global_int)
-; VENTUS-NEXT:    lw a1, %lo(global_int)(a1)
-; VENTUS-NEXT:    vadd.vx v0, v0, a1
-; VENTUS-NEXT:    vsw.v v0, 0(a0)
+; VENTUS-NEXT:    vlw.v v1, 0(v0)
+; VENTUS-NEXT:    lui t0, %hi(global_int)
+; VENTUS-NEXT:    lw t0, %lo(global_int)(t0)
+; VENTUS-NEXT:    vadd.vx v1, v1, t0
+; VENTUS-NEXT:    vsw.v v1, 0(v0)
 ; VENTUS-NEXT:    ret
 entry:
   %0 = load i32, ptr addrspace(5) %a, align 4
@@ -178,11 +174,11 @@ entry:
 define dso_local void @private_memmory_with_offset(ptr addrspace(5) nocapture noundef %a) local_unnamed_addr{
 ; VENTUS-LABEL: private_memmory_with_offset:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vlw.v v0, 4(a0)
-; VENTUS-NEXT:    lui a1, %hi(global_int)
-; VENTUS-NEXT:    lw a1, %lo(global_int)(a1)
-; VENTUS-NEXT:    vadd.vx v0, v0, a1
-; VENTUS-NEXT:    vsw.v v0, 4(a0)
+; VENTUS-NEXT:    vlw.v v1, 4(v0)
+; VENTUS-NEXT:    lui t0, %hi(global_int)
+; VENTUS-NEXT:    lw t0, %lo(global_int)(t0)
+; VENTUS-NEXT:    vadd.vx v1, v1, t0
+; VENTUS-NEXT:    vsw.v v1, 4(v0)
 ; VENTUS-NEXT:    ret
 entry:
   %incdec.ptr = getelementptr inbounds i32, ptr addrspace(5) %a, i32 1
@@ -197,11 +193,11 @@ entry:
 define dso_local void @private_memmory_lh(ptr addrspace(5) nocapture noundef %a) local_unnamed_addr {
 ; VENTUS-LABEL: private_memmory_lh:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lui a1, %hi(global_short)
-; VENTUS-NEXT:    lh a1, %lo(global_short)(a1)
-; VENTUS-NEXT:    vlh.v v0, 0(a0)
-; VENTUS-NEXT:    vadd.vx v0, v0, a1
-; VENTUS-NEXT:    vsh.v v0, 0(a0)
+; VENTUS-NEXT:    lui t0, %hi(global_short)
+; VENTUS-NEXT:    lh t0, %lo(global_short)(t0)
+; VENTUS-NEXT:    vlh.v v1, 0(v0)
+; VENTUS-NEXT:    vadd.vx v1, v1, t0
+; VENTUS-NEXT:    vsh.v v1, 0(v0)
 ; VENTUS-NEXT:    ret
 entry:
   %0 = load i16, ptr addrspace(5) %a, align 2
@@ -215,7 +211,7 @@ entry:
 define dso_local zeroext i16 @private_memmory_lhu(ptr addrspace(5) nocapture noundef readonly %a) local_unnamed_addr {
 ; VENTUS-LABEL: private_memmory_lhu:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vlhu.v v0, 0(a0)
+; VENTUS-NEXT:    vlhu.v v0, 0(v0)
 ; VENTUS-NEXT:    ret
 entry:
   %0 = load i16, ptr addrspace(5) %a, align 2
@@ -226,7 +222,7 @@ entry:
 define dso_local zeroext i8 @private_memmory_lbu(ptr addrspace(5) nocapture noundef readonly %a) local_unnamed_addr {
 ; VENTUS-LABEL: private_memmory_lbu:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vlbu.v v0, 0(a0)
+; VENTUS-NEXT:    vlbu.v v0, 0(v0)
 ; VENTUS-NEXT:    ret
 entry:
   %0 = load i8, ptr addrspace(5) %a, align 1
@@ -236,8 +232,8 @@ entry:
 define dso_local ventus_kernel void @local_memmory1(ptr addrspace(3) nocapture noundef align 4 %b) {
 ; VENTUS-LABEL: local_memmory1:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    lw a0, 0(a0)
-; VENTUS-NEXT:    vmv.v.x v0, a0
+; VENTUS-NEXT:    lw t0, 0(a0)
+; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:    vlw12.v v1, 0(v0)
 ; VENTUS-NEXT:    vadd.vi v1, v1, 1
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
@@ -247,4 +243,86 @@ entry:
   %add = add nsw i32 %0, 1
   store i32 %add, ptr addrspace(3) %b, align 4
   ret void
+}
+
+; Function Attrs: nofree norecurse nosync nounwind memory(argmem: read) vscale_range(1,2048)
+define dso_local i32 @stack_space(ptr addrspace(3) nocapture noundef readnone %a, ptr addrspace(3) nocapture noundef readonly %b) {
+; VENTUS-LABEL: stack_space:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    addi tp, tp, 48
+; VENTUS-NEXT:    .cfi_def_cfa_offset 48
+; VENTUS-NEXT:    vmv.v.x v32, tp
+; VENTUS-NEXT:    vmv.v.x v0, zero
+; VENTUS-NEXT:    vsw.v v0, -48(v32)
+; VENTUS-NEXT:    li t0, 1
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vsw.v v0, -44(v32)
+; VENTUS-NEXT:    li t0, 2
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vsw.v v0, -40(v32)
+; VENTUS-NEXT:    li t0, 3
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vsw.v v0, -36(v32)
+; VENTUS-NEXT:    li t0, 4
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vsw.v v0, -32(v32)
+; VENTUS-NEXT:    li t0, 5
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vsw.v v0, -28(v32)
+; VENTUS-NEXT:    li t0, 6
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vsw.v v0, -24(v32)
+; VENTUS-NEXT:    li t0, 7
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vsw.v v0, -20(v32)
+; VENTUS-NEXT:    li t0, 8
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vsw.v v0, -16(v32)
+; VENTUS-NEXT:    li t0, 9
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vsw.v v0, -12(v32)
+; VENTUS-NEXT:    li t0, 10
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vsw.v v0, -8(v32)
+; VENTUS-NEXT:    li t0, 11
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vsw.v v0, -4(v32)
+; VENTUS-NEXT:    vlw12.v v0, 0(v1)
+; VENTUS-NEXT:    vsll.vi v0, v0, 2
+; VENTUS-NEXT:    addi t0, tp, -48
+; VENTUS-NEXT:    vadd.vx v0, v0, t0
+; VENTUS-NEXT:    vlw.v v0, 0(v0)
+; VENTUS-NEXT:    addi tp, tp, -48
+; VENTUS-NEXT:    ret
+entry:
+  %test = alloca [12 x i32], align 4, addrspace(5)
+  call void @llvm.lifetime.start.p5(i64 48, ptr addrspace(5) %test)
+  store i32 0, ptr addrspace(5) %test, align 4
+  %arrayidx.1 = getelementptr inbounds [12 x i32], ptr addrspace(5) %test, i32 0, i32 1
+  store i32 1, ptr addrspace(5) %arrayidx.1, align 4
+  %arrayidx.2 = getelementptr inbounds [12 x i32], ptr addrspace(5) %test, i32 0, i32 2
+  store i32 2, ptr addrspace(5) %arrayidx.2, align 4
+  %arrayidx.3 = getelementptr inbounds [12 x i32], ptr addrspace(5) %test, i32 0, i32 3
+  store i32 3, ptr addrspace(5) %arrayidx.3, align 4
+  %arrayidx.4 = getelementptr inbounds [12 x i32], ptr addrspace(5) %test, i32 0, i32 4
+  store i32 4, ptr addrspace(5) %arrayidx.4, align 4
+  %arrayidx.5 = getelementptr inbounds [12 x i32], ptr addrspace(5) %test, i32 0, i32 5
+  store i32 5, ptr addrspace(5) %arrayidx.5, align 4
+  %arrayidx.6 = getelementptr inbounds [12 x i32], ptr addrspace(5) %test, i32 0, i32 6
+  store i32 6, ptr addrspace(5) %arrayidx.6, align 4
+  %arrayidx.7 = getelementptr inbounds [12 x i32], ptr addrspace(5) %test, i32 0, i32 7
+  store i32 7, ptr addrspace(5) %arrayidx.7, align 4
+  %arrayidx.8 = getelementptr inbounds [12 x i32], ptr addrspace(5) %test, i32 0, i32 8
+  store i32 8, ptr addrspace(5) %arrayidx.8, align 4
+  %arrayidx.9 = getelementptr inbounds [12 x i32], ptr addrspace(5) %test, i32 0, i32 9
+  store i32 9, ptr addrspace(5) %arrayidx.9, align 4
+  %arrayidx.10 = getelementptr inbounds [12 x i32], ptr addrspace(5) %test, i32 0, i32 10
+  store i32 10, ptr addrspace(5) %arrayidx.10, align 4
+  %arrayidx.11 = getelementptr inbounds [12 x i32], ptr addrspace(5) %test, i32 0, i32 11
+  store i32 11, ptr addrspace(5) %arrayidx.11, align 4
+  %0 = load i32, ptr addrspace(3) %b, align 4
+  %arrayidx1 = getelementptr inbounds [12 x i32], ptr addrspace(5) %test, i32 0, i32 %0
+  %1 = load i32, ptr addrspace(5) %arrayidx1, align 4
+  call void @llvm.lifetime.end.p5(i64 48, ptr addrspace(5) %test)
+  ret i32 %1
 }

@@ -173,7 +173,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   // TODO: add all necessary setOperationAction calls.
   setOperationAction(ISD::DYNAMIC_STACKALLOC, XLenVT, Expand);
 
-  setOperationAction(ISD::BR_JT, MVT::Other, Expand);
+  setOperationAction({ISD::BR_JT, ISD::BRIND}, MVT::Other, Expand);
   setOperationAction(ISD::BR_CC, XLenVT, Expand);
   setOperationAction(ISD::BRCOND, MVT::Other, Custom);
   setOperationAction(ISD::SELECT_CC, XLenVT, Expand);
@@ -11061,6 +11061,7 @@ static MachineBasicBlock *emitFROUND(MachineInstr &MI, MachineBasicBlock *MBB,
                                      const RISCVSubtarget &Subtarget) {
   unsigned CmpOpc, F2IOpc, I2FOpc, FSGNJOpc, FSGNJXOpc;
   const TargetRegisterClass *RC;
+  bool isDivergent = false;
   switch (MI.getOpcode()) {
   default:
     llvm_unreachable("Unexpected opcode");
@@ -11079,6 +11080,15 @@ static MachineBasicBlock *emitFROUND(MachineInstr &MI, MachineBasicBlock *MBB,
     FSGNJOpc = RISCV::FSGNJ_S;
     FSGNJXOpc = RISCV::FSGNJX_S;
     RC = &RISCV::GPRF32RegClass;
+    break;
+  case RISCV::PseudoVFROUND_S:
+    CmpOpc = RISCV::VMFLT_VV;
+    F2IOpc = RISCV::VFCVT_X_F_V ;
+    I2FOpc = RISCV::VFCVT_F_X_V;
+    FSGNJOpc = RISCV::VFSGNJ_VV;
+    FSGNJXOpc = RISCV::VFSGNJX_VV;
+    RC = &RISCV::VGPRRegClass;
+    isDivergent = true;
     break;
   case RISCV::PseudoFROUND_D:
     assert(Subtarget.is64Bit() && "Expected 64-bit GPR.");
@@ -11123,29 +11133,50 @@ static MachineBasicBlock *emitFROUND(MachineInstr &MI, MachineBasicBlock *MBB,
   BuildMI(MBB, DL, TII.get(FSGNJXOpc), FabsReg).addReg(SrcReg).addReg(SrcReg);
 
   // Compare the FP value to the max value.
-  Register CmpReg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
+  Register CmpReg = isDivergent ? MRI.createVirtualRegister(&RISCV::VGPRRegClass)
+                              : MRI.createVirtualRegister(&RISCV::GPRRegClass);
   auto MIB =
       BuildMI(MBB, DL, TII.get(CmpOpc), CmpReg).addReg(FabsReg).addReg(MaxReg);
   if (MI.getFlag(MachineInstr::MIFlag::NoFPExcept))
     MIB->setFlag(MachineInstr::MIFlag::NoFPExcept);
 
   // Insert branch.
-  BuildMI(MBB, DL, TII.get(RISCV::BEQ))
+  if(isDivergent) {
+    Register Dummy = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
+    Register Dummy1 = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
+    BuildMI(MBB, DL, TII.get(RISCV::VMV_S_X), Dummy)
+        .addReg(Dummy, RegState::Undef)
+        .addReg(RISCV::X0);
+    BuildMI(MBB, DL, TII.get(RISCV::VADD_VX), Dummy1)
+        .addReg(Dummy)
+        .addReg(RISCV::X0);
+    BuildMI(MBB, DL, TII.get(RISCV::VBEQ))
       .addReg(CmpReg)
-      .addReg(RISCV::X0)
+      .addReg(Dummy1)
       .addMBB(DoneMBB);
+  } else
+      BuildMI(MBB, DL, TII.get(RISCV::BEQ))
+        .addReg(CmpReg)
+        .addReg(RISCV::X0)
+        .addMBB(DoneMBB);
 
   CvtMBB->addSuccessor(DoneMBB);
 
   // Convert to integer.
-  Register F2IReg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
-  MIB = BuildMI(CvtMBB, DL, TII.get(F2IOpc), F2IReg).addReg(SrcReg).addImm(FRM);
+  Register F2IReg = MRI.createVirtualRegister(isDivergent ?
+                                  &RISCV::VGPRRegClass : &RISCV::GPRRegClass);
+  MIB = BuildMI(CvtMBB, DL, TII.get(F2IOpc), F2IReg).addReg(SrcReg);
+  if(!isDivergent)
+    MIB.addImm(FRM);
   if (MI.getFlag(MachineInstr::MIFlag::NoFPExcept))
     MIB->setFlag(MachineInstr::MIFlag::NoFPExcept);
 
   // Convert back to FP.
-  Register I2FReg = MRI.createVirtualRegister(RC);
-  MIB = BuildMI(CvtMBB, DL, TII.get(I2FOpc), I2FReg).addReg(F2IReg).addImm(FRM);
+  Register I2FReg = MRI.createVirtualRegister(isDivergent ?
+                                  &RISCV::VGPRRegClass : &RISCV::GPRRegClass);
+  MIB = BuildMI(CvtMBB, DL, TII.get(I2FOpc), I2FReg).addReg(F2IReg);
+  if(!isDivergent)
+    MIB.addImm(FRM);
   if (MI.getFlag(MachineInstr::MIFlag::NoFPExcept))
     MIB->setFlag(MachineInstr::MIFlag::NoFPExcept);
 
@@ -11229,6 +11260,7 @@ RISCVTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
   //                                    RISCV::PseudoVFCVT_F_X_V_MF4_MASK);
   case RISCV::PseudoFROUND_H:
   case RISCV::PseudoFROUND_S:
+  case RISCV::PseudoVFROUND_S:
   case RISCV::PseudoFROUND_D:
     return emitFROUND(MI, BB, Subtarget);
   }

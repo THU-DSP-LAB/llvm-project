@@ -314,7 +314,17 @@ multiclass FPCmp_rr_m<bits<7> funct7, bits<3> funct3, string opcodestr,
 
 class PseudoFROUND<RegisterClass Ty>
     : Pseudo<(outs Ty:$rd), (ins Ty:$rs1, Ty:$rs2, ixlenimm:$rm),
-      [(set Ty:$rd, (riscv_fround Ty:$rs1, Ty:$rs2, timm:$rm))]> {
+      [(set Ty:$rd, (UniformTernaryFrag<riscv_fround> Ty:$rs1, Ty:$rs2, timm:$rm))]> {
+  let hasSideEffects = 0;
+  let mayLoad = 0;
+  let mayStore = 0;
+  let usesCustomInserter = 1;
+  let mayRaiseFPException = 1;
+}
+
+class PseudoVFROUND<RegisterClass Ty>
+    : Pseudo<(outs Ty:$rd), (ins Ty:$rs1, Ty:$rs2, ixlenimm:$rm),
+      [(set Ty:$rd, (DivergentTernaryFrag<riscv_fround>  (f32 Ty:$rs1), (f32 Ty:$rs2), timm:$rm))]> {
   let hasSideEffects = 0;
   let mayLoad = 0;
   let mayStore = 0;
@@ -619,6 +629,7 @@ def : PatSetCC<GPRF32, UniformTernaryFrag<any_fsetccs>, SETOLE, FLE_S>;
 
 defm Select_FPR32 : SelectCC_GPR_rrirr<GPRF32>;
 
+def PseudoVFROUND_S : PseudoVFROUND<VGPR>;
 def PseudoFROUND_S : PseudoFROUND<GPRF32>;
 
 /// Loads

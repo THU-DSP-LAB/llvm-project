@@ -12,39 +12,40 @@ target triple = "riscv32"
 define dso_local i32 @printf(ptr noundef %fmt, ...) {
 ; VENTUS-LABEL: printf:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi tp, tp, 76
-; VENTUS-NEXT:    .cfi_def_cfa_offset 76
-; VENTUS-NEXT:    li a0, 0
-; VENTUS-NEXT:    vsw.v v7, -28(tp)
-; VENTUS-NEXT:    vsw.v v6, -24(tp)
-; VENTUS-NEXT:    vsw.v v5, -20(tp)
-; VENTUS-NEXT:    vsw.v v4, -16(tp)
-; VENTUS-NEXT:    vsw.v v3, -12(tp)
-; VENTUS-NEXT:    vsw.v v2, -8(tp)
-; VENTUS-NEXT:    vsw.v v1, -4(tp)
-; VENTUS-NEXT:    addi a1, tp, -28
-; VENTUS-NEXT:    sw a1, -4(tp)
-; VENTUS-NEXT:    lw a1, -32(tp)
-; VENTUS-NEXT:    lui a2, %hi(MAX_FORMAT_STR_SIZE)
-; VENTUS-NEXT:    lui a3, %hi(PRINT_BUFFER_ADDR)
-; VENTUS-NEXT:    lw a4, %lo(MAX_FORMAT_STR_SIZE)(a2)
-; VENTUS-NEXT:    bge a0, a4, .LBB0_2
+; VENTUS-NEXT:    addi tp, tp, 64
+; VENTUS-NEXT:    .cfi_def_cfa_offset 64
+; VENTUS-NEXT:    vmv.v.x v32, tp
+; VENTUS-NEXT:    li t0, 0
+; VENTUS-NEXT:    vsw.v v7, -60(v32)
+; VENTUS-NEXT:    vsw.v v6, -56(v32)
+; VENTUS-NEXT:    vsw.v v5, -52(v32)
+; VENTUS-NEXT:    vsw.v v4, -48(v32)
+; VENTUS-NEXT:    vsw.v v3, -44(v32)
+; VENTUS-NEXT:    vsw.v v2, -40(v32)
+; VENTUS-NEXT:    vsw.v v1, -36(v32)
+; VENTUS-NEXT:    addi t1, tp, -32
+; VENTUS-NEXT:    sw t1, -32(tp)
+; VENTUS-NEXT:    vmv.x.s t1, v1
+; VENTUS-NEXT:    lui t2, %hi(MAX_FORMAT_STR_SIZE)
+; VENTUS-NEXT:    lui s0, %hi(PRINT_BUFFER_ADDR)
+; VENTUS-NEXT:    lw s1, %lo(MAX_FORMAT_STR_SIZE)(t2)
+; VENTUS-NEXT:    bge t0, s1, .LBB0_2
 ; VENTUS-NEXT:  .LBB0_1: # %for.body
 ; VENTUS-NEXT:    # =>This Inner Loop Header: Depth=1
-; VENTUS-NEXT:    # kill: def $v1 killed $x10
-; VENTUS-NEXT:    vadd.vx v1, v0, a0
-; VENTUS-NEXT:    vmv.x.s a4, v1
-; VENTUS-NEXT:    lw a5, %lo(PRINT_BUFFER_ADDR)(a3)
-; VENTUS-NEXT:    lb a4, 0(a4)
-; VENTUS-NEXT:    addi a6, a5, 1
-; VENTUS-NEXT:    sw a6, %lo(PRINT_BUFFER_ADDR)(a3)
-; VENTUS-NEXT:    sb a4, 0(a5)
-; VENTUS-NEXT:    addi a0, a0, 1
-; VENTUS-NEXT:    lw a4, %lo(MAX_FORMAT_STR_SIZE)(a2)
-; VENTUS-NEXT:    blt a0, a4, .LBB0_1
+; VENTUS-NEXT:    # kill: def $v1 killed $x5
+; VENTUS-NEXT:    vadd.vx v1, v0, t0
+; VENTUS-NEXT:    lw s1, %lo(PRINT_BUFFER_ADDR)(s0)
+; VENTUS-NEXT:    vlb12.v v1, 0(v1)
+; VENTUS-NEXT:    addi a0, s1, 1
+; VENTUS-NEXT:    sw a0, %lo(PRINT_BUFFER_ADDR)(s0)
+; VENTUS-NEXT:    vmv.v.x v2, s1
+; VENTUS-NEXT:    vsb12.v v1, 0(v2)
+; VENTUS-NEXT:    addi t0, t0, 1
+; VENTUS-NEXT:    lw s1, %lo(MAX_FORMAT_STR_SIZE)(t2)
+; VENTUS-NEXT:    blt t0, s1, .LBB0_1
 ; VENTUS-NEXT:  .LBB0_2: # %for.end
-; VENTUS-NEXT:    vmv.v.x v0, a1
-; VENTUS-NEXT:    addi tp, tp, -76
+; VENTUS-NEXT:    vmv.v.x v0, t1
+; VENTUS-NEXT:    addi tp, tp, -64
 ; VENTUS-NEXT:    ret
 entry:
   %fmt.addr = alloca ptr, align 4
