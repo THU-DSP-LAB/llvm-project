@@ -436,21 +436,6 @@ static RISCVCC::CondCode getCondFromBranchOpc(unsigned Opc) {
   }
 }
 
-static bool isDivergentBranch(MachineInstr &I) {
-  switch (I.getOpcode()) {
-  default:
-    return false;
-  case RISCV::VBEQ:
-  case RISCV::VBNE:
-  case RISCV::VBLT:
-  case RISCV::VBGE:
-  case RISCV::VBLTU:
-  case RISCV::VBGEU:
-    return true;
-  }
-}
-
-
 // The contents of values added to Cond are not examined outside of
 // RISCVInstrInfo, giving us flexibility in what to push to it. For RISCV, we
 // push BranchOpcode, Reg1, Reg2.
@@ -573,8 +558,7 @@ bool RISCVInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
     return true;
 
   // Handle a single unconditional branch.
-  if (NumTerminators == 1 && !isDivergentBranch(*I) &&
-      I->getDesc().isUnconditionalBranch()) {
+  if (NumTerminators == 1 && I->getDesc().isUnconditionalBranch()) {
     TBB = getBranchDestBlock(*I);
     return false;
   }
@@ -586,8 +570,7 @@ bool RISCVInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
   }
 
   // Handle a conditional branch followed by an unconditional branch.
-  if (NumTerminators == 2 && !isDivergentBranch(*I) &&
-      std::prev(I)->getDesc().isConditionalBranch() &&
+  if (NumTerminators == 2 && std::prev(I)->getDesc().isConditionalBranch() &&
       I->getDesc().isUnconditionalBranch()) {
     parseCondBranch(*std::prev(I), TBB, Cond);
     FBB = getBranchDestBlock(*I);
@@ -613,7 +596,6 @@ unsigned RISCVInstrInfo::removeBranch(MachineBasicBlock &MBB,
   // Remove the branch.
   if (BytesRemoved)
     *BytesRemoved += getInstSizeInBytes(*I);
-  IsDivergentBranch = isDivergentBranch(*I);
   I->eraseFromParent();
 
   I = MBB.end();
@@ -627,7 +609,6 @@ unsigned RISCVInstrInfo::removeBranch(MachineBasicBlock &MBB,
   // Remove the branch.
   if (BytesRemoved)
     *BytesRemoved += getInstSizeInBytes(*I);
-  IsDivergentBranch = isDivergentBranch(*I);
   I->eraseFromParent();
   return 2;
 }

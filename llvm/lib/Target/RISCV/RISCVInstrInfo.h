@@ -48,9 +48,6 @@ CondCode getOppositeBranchCondition(CondCode);
 } // end of namespace RISCVCC
 
 class RISCVInstrInfo : public RISCVGenInstrInfo {
-  // WORKAROUND: Indicate the branch remove is in a divergent execution env.
-  // so that a newly inserted branch should be it as well.
-  mutable bool IsDivergentBranch;
 
 public:
   explicit RISCVInstrInfo(RISCVSubtarget &STI);
