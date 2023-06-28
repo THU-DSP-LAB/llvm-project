@@ -75,7 +75,7 @@ POCL_BUILD_DIR=${POCL_DIR}/build
 
 # Get build type from env, otherwise use default value 'Debug'
 if [ -z "${BUILD_TYPE}" ]; then
-  BUILD_TYPE=Debug
+  BUILD_TYPE=Release
 fi
 
 # Need to get the ventus-driver folder from enviroment variables
@@ -166,7 +166,6 @@ build_pocl() {
 }
 
 # Build libclc for pocl
-# FIXME: "-fno-optimize-sibling-calls" flag maybe need to be removed
 build_libclc() {
   if [ ! -d "${LIBCLC_BUILD_DIR}" ]; then
     mkdir ${LIBCLC_BUILD_DIR}
@@ -178,14 +177,18 @@ build_libclc() {
     -DCMAKE_CLC_COMPILER_WORKS=ON \
     -DCMAKE_CLC_COMPILER_FORCED=ON \
     -DCMAKE_LLAsm_FLAGS="-target riscv32 -mcpu=ventus-gpgpu -cl-std=CL2.0" \
-    -DCMAKE_CLC_FLAGS="-target riscv32 -mcpu=ventus-gpgpu -cl-std=CL2.0 -I${DIR}/libclc/generic/include -fno-optimize-sibling-calls" \
+    -DCMAKE_CLC_FLAGS="-target riscv32 -mcpu=ventus-gpgpu -cl-std=CL2.0 -I${DIR}/libclc/generic/include" \
     -DLIBCLC_TARGETS_TO_BUILD="riscv32--" \
     -DCMAKE_CXX_FLAGS="-I ${DIR}/llvm/include/ -std=c++17" \
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_CXX_COMPILER=clang++ \
-    -DCMAKE_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX}
+    -DCMAKE_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX} \
+    -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
   ninja
   ninja install
+  # TODO: There are bugs in linking all libclc object files now
+  # echo "************ Building riscv32 libclc library archive file ************"
+  # bash ${DIR}/libclc/build_riscv32_archive.sh ${VENTUS_INSTALL_PREFIX}/bin ${LIBCLC_BUILD_DIR}/riscv32--.bc ${LIBCLC_BUILD_DIR} || true
   DstDir=${VENTUS_INSTALL_PREFIX}/share/pocl
   if [ ! -d "${DstDir}" ]; then
     mkdir -p ${DstDir}

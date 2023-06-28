@@ -41,6 +41,7 @@ The following packages are needed for other repositories:
 
 
 Run `./build-ventus.sh` to automatically build all the programs, but we need to run firstly
+* For developers who want to build `Debug` version for llvm, `export BUILD_TYPE=Debug`, since it's set default to be 'Release'
 * `export POCL_DIR=<path-to-pocl-dir>`, default folder path will be set to be **`<llvm-ventus-parentFolder>`/pocl**
 * `export OCL_ICD_DIR=<path-to-ocl-icd-dir>`, default folder path will be set to be **`<llvm-ventus-parentFolder>`/ocl-icd**
 

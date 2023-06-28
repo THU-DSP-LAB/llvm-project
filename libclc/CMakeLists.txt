@@ -84,11 +84,11 @@ endif()
 
 list( SORT LIBCLC_TARGETS_TO_BUILD )
 
-if( "spirv-mesa3d-" IN_LIST LIBCLC_TARGETS_TO_BUILD OR "spirv64-mesa3d-" IN_LIST LIBCLC_TARGETS_TO_BUILD )
-	if( NOT LLVM_SPIRV )
-		message( FATAL_ERROR "SPIR-V targets requested, but spirv-tools is not installed" )
-	endif()
-endif()
+# if( "spirv-mesa3d-" IN_LIST LIBCLC_TARGETS_TO_BUILD OR "spirv64-mesa3d-" IN_LIST LIBCLC_TARGETS_TO_BUILD )
+# 	if( NOT LLVM_SPIRV )
+# 		message( FATAL_ERROR "SPIR-V targets requested, but spirv-tools is not installed" )
+# 	endif()
+# endif()
 
 set( CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake )
 set( CMAKE_CLC_COMPILER ${LLVM_CLANG} )
@@ -363,11 +363,3 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
 		endif()
 	endforeach( d )
 endforeach( t )
-
-# Build archive file for riscv32--.bc
-# if( ${ARCH} STREQUAL riscv32)
-# 	execute_process(
-# 		COMMAND ./build_riscv32_archive.sh ${LLVM_TOOLS_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/${obj_suffix} ${CMAKE_CURRENT_BINARY_DIR}
-# 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-# 	)
-# endif()
