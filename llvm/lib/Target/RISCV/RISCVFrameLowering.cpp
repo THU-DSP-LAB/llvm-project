@@ -762,7 +762,7 @@ bool RISCVFrameLowering::spillCalleeSavedRegisters(
       // FIXME: Right now, no vgpr callee saved register, maybe later needed
       TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
                             RC, TRI);
-    } 
+    }
     // else {
       // FIXME: Right now, no callee saved register for VGPR
       // MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::VGPRSpill);
@@ -885,4 +885,16 @@ bool RISCVFrameLowering::isSupportedStackID(TargetStackID::Value ID) const {
     return false;
   }
   llvm_unreachable("Invalid RISCVStackID::Value");
+}
+
+/// TODO: Implements this interface
+bool RISCVFrameLowering::storeRegToReg(const TargetRegisterInfo *TRI) const {
+
+  return false;
+}
+
+/// TODO: Implements this interface
+bool RISCVFrameLowering::loadRegFromReg(const TargetRegisterInfo *TRI) const {
+
+  return false;
 }

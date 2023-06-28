@@ -259,6 +259,16 @@ public:
     return false;
   }
 
+  /// store registers to certain offset of a specific register
+  virtual bool storeRegToReg(const TargetRegisterInfo *TRI) const {
+    return false;
+  }
+
+  /// load registers from certain offset of a specific register
+  virtual bool loadRegFromReg(const TargetRegisterInfo *TRI) const {
+    return false;
+  }
+
   /// restoreCalleeSavedRegisters - Issues instruction(s) to restore all callee
   /// saved registers and returns true if it isn't possible / profitable to do
   /// so by issuing a series of load instructions via loadRegToStackSlot().

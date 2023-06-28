@@ -613,6 +613,7 @@ static void insertCSRSaves(MachineBasicBlock &SaveBlock,
       }
     }
   }
+  TFI->storeRegToReg(TRI);
 }
 
 /// Insert restore code for the callee-saved registers used in the function.
@@ -643,6 +644,7 @@ static void insertCSRRestores(MachineBasicBlock &RestoreBlock,
       }
     }
   }
+  TFI->loadRegFromReg(TRI);
 }
 
 void PEI::spillCalleeSavedRegs(MachineFunction &MF) {

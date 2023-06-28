@@ -56,6 +56,9 @@ public:
                               MutableArrayRef<CalleeSavedInfo> CSI,
                               const TargetRegisterInfo *TRI) const override;
 
+  bool storeRegToReg(const TargetRegisterInfo *TRI) const override;
+
+  bool loadRegFromReg(const TargetRegisterInfo *TRI) const override;
   // Get the first stack adjustment amount for SplitSPAdjust.
   // Return 0 if we don't want to to split the SP adjustment in prologue and
   // epilogue.
