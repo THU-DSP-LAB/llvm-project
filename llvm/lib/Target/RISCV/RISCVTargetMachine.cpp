@@ -271,6 +271,12 @@ bool RISCVPassConfig::addGlobalInstructionSelect() {
 void RISCVPassConfig::addPreSched2() {}
 
 void RISCVPassConfig::addPreEmitPass() {
+  // NOTE: This pass must be at the end of all optimization passes, as it
+  // breaks the def-use chain!
+  // Insert regext instruction for instruction whose register id is greater
+  // than 31.
+  addPass(createVentusRegextInsertionPass());
+  addPass(createVentusInsertJoinToVBranchPass());
   addPass(&BranchRelaxationPassID);
   addPass(createRISCVMakeCompressibleOptPass());
 }
@@ -281,12 +287,6 @@ void RISCVPassConfig::addPreEmitPass2() {
   // possibility for other passes to break the requirements for forward
   // progress in the LR/SC block.
   addPass(createRISCVExpandAtomicPseudoPass());
-  // NOTE: This pass must be at the end of all optimization passes, as it
-  // breaks the def-use chain!
-  // Insert regext instruction for instruction whose register id is greater
-  // than 31.
-  addPass(createVentusRegextInsertionPass());
-  addPass(createVentusInsertJoinToVBranchPass());
 }
 
 void RISCVPassConfig::addMachineSSAOptimization() {
