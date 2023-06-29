@@ -68,7 +68,7 @@ DenseMap<unsigned, unsigned> VV2VXOpcodeMap = {
     {RISCV::VDIVU_VV   ,    RISCV::VDIVU_VX},
     {RISCV::VDIV_VV    ,    RISCV::VDIV_VX},
     {RISCV::VREMU_VV   ,    RISCV::VREMU_VX},
-    {RISCV::VFSUB_VV   ,    RISCV::VFSUB_VF},
+    // {RISCV::VFSUB_VV   ,    RISCV::VFSUB_VF},
     {RISCV::VREM_VV    ,    RISCV::VREM_VX},
     {RISCV::VMULHU_VV  ,    RISCV::VMULHU_VX},
     {RISCV::VMUL_VV    ,    RISCV::VMUL_VX},
@@ -78,26 +78,27 @@ DenseMap<unsigned, unsigned> VV2VXOpcodeMap = {
     {RISCV::VNMSUB_VV  ,    RISCV::VNMSUB_VX},
     {RISCV::VMACC_VV   ,    RISCV::VMACC_VX},
     {RISCV::VNMSAC_VV  ,    RISCV::VNMSAC_VX},
-    {RISCV::VFADD_VV   ,    RISCV::VFADD_VF},
-    {RISCV::VFMSUB_VV  ,    RISCV::VFMSUB_VF},
-    {RISCV::VFMIN_VV   ,    RISCV::VFMIN_VF},
-    {RISCV::VFMAX_VV   ,    RISCV::VFMAX_VF},
-    {RISCV::VFSGNJ_VV  ,    RISCV::VFSGNJ_VF},
-    {RISCV::VFSGNJN_VV ,    RISCV::VFSGNJN_VF},
-    {RISCV::VFSGNJX_VV ,    RISCV::VFSGNJX_VF},
-    {RISCV::VMFEQ_VV   ,    RISCV::VMFEQ_VF},
-    {RISCV::VMFLE_VV   ,    RISCV::VMFLE_VF},
-    {RISCV::VMFLT_VV   ,    RISCV::VMFLT_VF},
-    {RISCV::VMFNE_VV   ,    RISCV::VMFNE_VF},
-    {RISCV::VFDIV_VV   ,    RISCV::VFDIV_VF},
-    {RISCV::VFMUL_VV   ,    RISCV::VFMUL_VF},
-    {RISCV::VFMADD_VV  ,    RISCV::VFMADD_VF},
-    {RISCV::VFNMADD_VV ,    RISCV::VFNMADD_VF},
-    {RISCV::VFMACC_VV  ,    RISCV::VFMACC_VF},
-    {RISCV::VFNMACC_VV ,    RISCV::VFNMACC_VF},
-    {RISCV::VFNMSUB_VV ,    RISCV::VFNMSUB_VF},
-    {RISCV::VFMSAC_VV  ,    RISCV::VFMSAC_VF},
-    {RISCV::VFNMSAC_VV ,    RISCV::VFNMSAC_VF}};
+    // {RISCV::VFADD_VV   ,    RISCV::VFADD_VF},
+    // {RISCV::VFMSUB_VV  ,    RISCV::VFMSUB_VF},
+    // {RISCV::VFMIN_VV   ,    RISCV::VFMIN_VF},
+    // {RISCV::VFMAX_VV   ,    RISCV::VFMAX_VF},
+    // {RISCV::VFSGNJ_VV  ,    RISCV::VFSGNJ_VF},
+    // {RISCV::VFSGNJN_VV ,    RISCV::VFSGNJN_VF},
+    // {RISCV::VFSGNJX_VV ,    RISCV::VFSGNJX_VF},
+    // {RISCV::VMFEQ_VV   ,    RISCV::VMFEQ_VF},
+    // {RISCV::VMFLE_VV   ,    RISCV::VMFLE_VF},
+    // {RISCV::VMFLT_VV   ,    RISCV::VMFLT_VF},
+    // {RISCV::VMFNE_VV   ,    RISCV::VMFNE_VF},
+    // {RISCV::VFDIV_VV   ,    RISCV::VFDIV_VF},
+    // {RISCV::VFMUL_VV   ,    RISCV::VFMUL_VF},
+    // {RISCV::VFMADD_VV  ,    RISCV::VFMADD_VF},
+    // {RISCV::VFNMADD_VV ,    RISCV::VFNMADD_VF},
+    // {RISCV::VFMACC_VV  ,    RISCV::VFMACC_VF},
+    // {RISCV::VFNMACC_VV ,    RISCV::VFNMACC_VF},
+    // {RISCV::VFNMSUB_VV ,    RISCV::VFNMSUB_VF},
+    // {RISCV::VFMSAC_VV  ,    RISCV::VFMSAC_VF},
+    // {RISCV::VFNMSAC_VV ,    RISCV::VFNMSAC_VF}
+    };
 
 class VentusVVInstrConversion : public MachineFunctionPass {
 public:
@@ -196,7 +197,8 @@ bool VentusVVInstrConversion::convertInstr(MachineBasicBlock &MBB,
   // Other incommutable instructions check
   if (CopyMI.getOperand(0).getReg() != VVMI.getOperand(2).getReg())
     return isMBBChanged;
-
+  if(VV2VXOpcodeMap.find(VVMI.getOpcode()) == VV2VXOpcodeMap.end())
+    return isMBBChanged;
   unsigned NewOpcode = VV2VXOpcodeMap[VVMI.getOpcode()];
   assert(NewOpcode && "No VV instruction reflection to VX/VF "
                       "instruction, please check the mapping");
@@ -234,10 +236,10 @@ bool VentusVVInstrConversion::isVALUCommutableInstr(MachineInstr &MI) {
     return false;
   case RISCV::VADD_VV:
   case RISCV::VMUL_VV:
-  case RISCV::VFADD_VV:
-  case RISCV::VFMUL_VV:
+  // case RISCV::VFADD_VV:
+  // case RISCV::VFMUL_VV:
   case RISCV::VMADD_VV:
-  case RISCV::VFMADD_VV:
+  // case RISCV::VFMADD_VV:
   case RISCV::VMULH_VV:
   case RISCV::VMULHSU_VV:
   case RISCV::VMULHU_VV:
