@@ -191,6 +191,8 @@ bool VentusInsertJoinToVBranch::convergeReturnBlock(MachineFunction &MF) {
     auto &RetMI = RetBB->back();
     assert(RetMI.getOpcode() == RISCV::PseudoRET && "Unexpected opcode");
     RetMI.eraseFromParent();
+    if (RetBB->getFallThrough() != NewRetBB)
+      BuildMI(RetBB, DebugLoc(), TII->get(RISCV::PseudoBR)).addMBB(NewRetBB);
     RetBB->addSuccessor(NewRetBB);
   }
 
