@@ -7,12 +7,14 @@ define i32 @foo(i32 noundef %cond, i32 noundef %a, i32 noundef %b, i32 noundef %
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vmv.v.x v4, zero
-; VENTUS-NEXT:    setrpc v0, v0, .LBB0_2
+; VENTUS-NEXT:  .Lpcrel_hi0:
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB0_2)
+; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi0)
 ; VENTUS-NEXT:    vbne v0, v4, .LBB0_2
 ; VENTUS-NEXT:  # %bb.1:
 ; VENTUS-NEXT:    vrsub.vi v3, v3, 0
 ; VENTUS-NEXT:  .LBB0_2: # %entry
-; VENTUS-NEXT:    join v0, v0, 0
+; VENTUS-NEXT:    join
 ; VENTUS-NEXT:    vmadd.vv v2, v1, v3
 ; VENTUS-NEXT:    vadd.vx v0, v2, zero
 ; VENTUS-NEXT:    ret

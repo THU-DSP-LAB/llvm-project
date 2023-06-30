@@ -43,6 +43,7 @@
 #include "RISCVInstrInfo.h"
 #include "RISCVTargetMachine.h"
 #include "llvm/CodeGen/MachinePostDominators.h"
+#include "llvm/MC/MCContext.h"
 
 #define VENTUS_INSERT_JOIN_TO_BRANCH "Insert join to VBranch"
 #define DEBUG_TYPE "Insert_join_to_VBranch"
@@ -99,15 +100,18 @@ bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
       auto *PostIDomBB = MPDT->getNode(&MBB)->getIDom()->getBlock();
       assert(PostIDomBB);
 
-      auto *SETRPC = BuildMI(MBB, VBranch->getIterator(), DebugLoc(),
-                             TII->get(RISCV::SETRPC))
-                         .addMBB(PostIDomBB)
-                         .getInstr();
+      MCSymbol *AUIPCSymbol = MF.getContext().createNamedTempSymbol("pcrel_hi");
+      MachineInstr *MIAUIPC = BuildMI(MBB, VBranch->getIterator(), DebugLoc(),
+                                      TII->get(RISCV::AUIPC), RISCV::X6)
+                                  .addMBB(PostIDomBB, RISCVII::MO_PCREL_HI);
+      MIAUIPC->setPreInstrSymbol(MF, AUIPCSymbol);
+      BuildMI(MBB, VBranch->getIterator(), DebugLoc(), TII->get(RISCV::SETRPC))
+          .addReg(RISCV::X0, RegState::Define | RegState::Dead)
+          .addReg(RISCV::X6)
+          .addSym(AUIPCSymbol, RISCVII::MO_PCREL_LO);
 
-      SETRPC->addOperand(MachineOperand::CreateReg(RISCV::RPC, /*isDef*/ true,
-                                                   /*isImp*/ true));
-      VBranch->addOperand(MachineOperand::CreateReg(RISCV::RPC, /*isDef*/ false,
-                                                    /*isImp*/ true));
+      VBranch->addOperand(MachineOperand::CreateReg(
+          RISCV::RPC, false /* isDef */, true /* isImp */));
 
       if (!JoinedBB.contains(PostIDomBB)) {
         IsChanged = true;
