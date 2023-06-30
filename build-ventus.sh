@@ -187,14 +187,16 @@ build_libclc() {
   ninja
   ninja install
   # TODO: There are bugs in linking all libclc object files now
-  # echo "************ Building riscv32 libclc library archive file ************"
-  # bash ${DIR}/libclc/build_riscv32_archive.sh ${VENTUS_INSTALL_PREFIX}/bin ${LIBCLC_BUILD_DIR}/riscv32--.bc ${LIBCLC_BUILD_DIR} || true
+  echo "************* Building riscv32 libclc library archive file ************"
+  bash ${DIR}/libclc/build_riscv32_archive.sh ${VENTUS_INSTALL_PREFIX}/bin ${LIBCLC_BUILD_DIR}/riscv32--.bc ${LIBCLC_BUILD_DIR} || true
+
   DstDir=${VENTUS_INSTALL_PREFIX}/share/pocl
   if [ ! -d "${DstDir}" ]; then
     mkdir -p ${DstDir}
   fi
   # TODO: make this copy process done during libclc build process?
   cp ${LIBCLC_BUILD_DIR}/riscv32--.bc ${DstDir}/kernel-riscv32.bc
+  cp ${LIBCLC_BUILD_DIR}/riscv32--.a ${VENTUS_INSTALL_PREFIX}/lib
 }
 
 # Build icd_loader
