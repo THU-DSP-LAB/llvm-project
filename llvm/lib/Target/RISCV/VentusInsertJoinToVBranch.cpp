@@ -110,8 +110,9 @@ bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
           .addReg(RISCV::X6)
           .addSym(AUIPCSymbol, RISCVII::MO_PCREL_LO);
 
-      VBranch->addOperand(MachineOperand::CreateReg(
-          RISCV::RPC, false /* isDef */, true /* isImp */));
+      // FIXME: There is something wrong when add this operand.
+      // VBranch->addOperand(MachineOperand::CreateReg(
+      //     RISCV::RPC, false /* isDef */, true /* isImp */));
 
       if (!JoinedBB.contains(PostIDomBB)) {
         IsChanged = true;
