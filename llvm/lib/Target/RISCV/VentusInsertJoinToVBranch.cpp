@@ -57,15 +57,19 @@ class VentusInsertJoinToVBranch : public MachineFunctionPass {
 public:
   const RISCVInstrInfo *TII;
   static char ID;
-  MachinePostDominatorTree *MPDT = new MachinePostDominatorTree();
+  MachinePostDominatorTree *MPDT;
 
-  VentusInsertJoinToVBranch() : MachineFunctionPass(ID) {
+  VentusInsertJoinToVBranch()
+      : MachineFunctionPass(ID), TII(nullptr), MPDT(nullptr) {
     initializeVentusInsertJoinToVBranchPass(*PassRegistry::getPassRegistry());
   }
 
-  ~VentusInsertJoinToVBranch() { delete MPDT; }
-
   bool runOnMachineFunction(MachineFunction &MF) override;
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<MachinePostDominatorTree>();
+    MachineFunctionPass::getAnalysisUsage(AU);
+  }
 
   MachineInstr *getDivergentBranchInstr(MachineBasicBlock &MBB);
 
@@ -80,10 +84,12 @@ char VentusInsertJoinToVBranch::ID = 0;
 
 bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
   TII = static_cast<const RISCVInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  MPDT = &getAnalysis<MachinePostDominatorTree>();
 
   // After this, all return blocks are expected to be legal
   bool IsChanged = convergeReturnBlock(MF);
-  MPDT->getBase().recalculate(MF);
+  if (IsChanged)
+    MPDT->getBase().recalculate(MF);
 
 #ifndef NDEBUG
   unsigned NumberRetBB = 0;
