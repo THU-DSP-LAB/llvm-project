@@ -705,7 +705,6 @@ class VENTUS_VLI12<bits<3> funct3, string opcodestr> :
       bits<5> vd;
       let Inst{19-15} = vs1;
       let Inst{11-7} = vd;
-      let IsVecImm12MemInstr = 1;
 }
 class VENTUS_VSI12<bits<3> funct3, string opcodestr> :
               RVInstS<funct3, OPC_CUSTOM_3, (outs),
@@ -715,7 +714,6 @@ class VENTUS_VSI12<bits<3> funct3, string opcodestr> :
       bits<5> vs2;
       let Inst{24-20} = vs2;
       let Inst{19-15} = vs1;
-      let IsVecImm12MemInstr = 1;
 }
 
 //===----------------------------------------------------------------------===//
