@@ -196,7 +196,7 @@ build_libclc() {
   fi
   # TODO: make this copy process done during libclc build process?
   cp ${LIBCLC_BUILD_DIR}/riscv32--.bc ${DstDir}/kernel-riscv32.bc
-  cp ${LIBCLC_BUILD_DIR}/riscv32--.a ${VENTUS_INSTALL_PREFIX}/lib
+  cp ${LIBCLC_BUILD_DIR}/riscv32--.a ${VENTUS_INSTALL_PREFIX}/lib/libriscv32clc.a
 }
 
 # Build icd_loader
