@@ -33,15 +33,9 @@ namespace MCOI {
 /// This allows for a maximum of 3 constraints.
 enum OperandConstraint {
   TIED_TO = 0,  // Must be allocated the same register as specified value.
+  CUSTOM,       // Used by target custom flag
   EARLY_CLOBBER // If present, operand is an early clobber register.
 };
-
-// Define a macro to produce each constraint value.
-#define MCOI_TIED_TO(op) \
-  ((1 << MCOI::TIED_TO) | ((op) << (4 + MCOI::TIED_TO * 4)))
-
-#define MCOI_EARLY_CLOBBER \
-  (1 << MCOI::EARLY_CLOBBER)
 
 /// These are flags set on operands, but should be considered
 /// private, all access should go through the MCOperandInfo accessors.

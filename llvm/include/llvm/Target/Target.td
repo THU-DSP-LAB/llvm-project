@@ -626,6 +626,8 @@ class Instruction : InstructionEncoding {
 
   string Constraints = "";  // OperandConstraint, e.g. $src = $dst.
 
+  string CustomConstraints = "";  // OperandCustomConstraint, e.g. $dst = 3.
+
   /// DisableEncoding - List of operand names (e.g. "$op1,$op2") that should not
   /// be encoded into the output machineinstr.
   string DisableEncoding = "";

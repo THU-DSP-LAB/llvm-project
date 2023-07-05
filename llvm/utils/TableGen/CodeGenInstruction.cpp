@@ -306,12 +306,11 @@ static void ParseConstraint(StringRef CStr, CGIOperandList &Ops,
     std::pair<unsigned,unsigned> Op = Ops.ParseOperandName(Name, false);
 
     // Build the string for the operand
-    if (!Ops[Op.first].Constraints[Op.second].isNone())
+    if (Ops[Op.first].Constraints[Op.second].isEarlyClobber())
       PrintFatalError(
         Rec->getLoc(), "Operand '" + Name + "' of '" + Rec->getName() +
-        "' cannot have multiple constraints!");
-    Ops[Op.first].Constraints[Op.second] =
-    CGIOperandList::ConstraintInfo::getEarlyClobber();
+        "' cannot have multiple @earlyclobber constraints!");
+    Ops[Op.first].Constraints[Op.second].setConstraint(MCOI::EARLY_CLOBBER);
     return;
   }
 
@@ -361,28 +360,66 @@ static void ParseConstraint(StringRef CStr, CGIOperandList &Ops,
   // The constraint has to go on the operand with higher index, i.e.
   // the source one. Check there isn't another constraint there
   // already.
-  if (!Ops[SrcOp.first].Constraints[SrcOp.second].isNone())
+  if (Ops[SrcOp.first].Constraints[SrcOp.second].isTied())
     PrintFatalError(
       Rec->getLoc(), "Operand '" + SrcOpName + "' of '" + Rec->getName() +
-      "' cannot have multiple constraints!");
+      "' cannot have multiple tied-to constraints!");
 
   unsigned DestFlatOpNo = Ops.getFlattenedOperandNumber(DestOp);
-  auto NewConstraint = CGIOperandList::ConstraintInfo::getTied(DestFlatOpNo);
 
   // Check that the earlier operand is not the target of another tie
   // before making it the target of this one.
   for (const CGIOperandList::OperandInfo &Op : Ops) {
     for (unsigned i = 0; i < Op.MINumOperands; i++)
-      if (Op.Constraints[i] == NewConstraint)
+      if (Op.Constraints[i].getConstraint(MCOI::TIED_TO) == (int)DestFlatOpNo)
         PrintFatalError(
           Rec->getLoc(), "Operand '" + DestOpName + "' of '" + Rec->getName() +
           "' cannot have multiple operands tied to it!");
   }
 
-  Ops[SrcOp.first].Constraints[SrcOp.second] = NewConstraint;
+  Ops[SrcOp.first].Constraints[SrcOp.second].setConstraint(MCOI::TIED_TO,
+                                                           DestFlatOpNo);
 }
 
-static void ParseConstraints(StringRef CStr, CGIOperandList &Ops, Record *Rec) {
+static void ParseCustomConstraint(StringRef CStr, CGIOperandList &Ops,
+                                  Record *Rec) {
+  // Only custom constraint is "CUSTOM" for now.
+  StringRef::size_type pos = CStr.find_first_of('=');
+  if (pos == StringRef::npos)
+    PrintFatalError(Rec->getLoc(), "Unrecognized custom constraint '" + CStr +
+                                       "' in '" + Rec->getName() + "'");
+  StringRef::size_type start = CStr.find_first_not_of(" \t");
+
+  // CUSTOM: $dst = number
+  StringRef::size_type wpos = CStr.find_first_of(" \t", start);
+  if (wpos == StringRef::npos || wpos > pos)
+    PrintFatalError(Rec->getLoc(), "Illegal format for custom constraint in '" +
+                                       Rec->getName() + "': '" + CStr + "'");
+  StringRef Name = CStr.substr(start, wpos - start);
+  std::pair<unsigned, unsigned> Op = Ops.ParseOperandName(Name, false);
+
+  wpos = CStr.find_first_not_of(" \t", pos + 1);
+  if (wpos == StringRef::npos)
+    PrintFatalError(Rec->getLoc(),
+                    "Illegal format for custom constraint: '" + CStr + "'");
+
+  unsigned CustomNum;
+  if (CStr.substr(wpos).consumeInteger(0, CustomNum) || CustomNum > 15)
+    PrintFatalError(Rec->getLoc(), "Illegal format custom number in range[0, "
+                                   "15] for custom constraint: '" +
+                                       CStr + "'");
+
+  // Build the string for the operand
+  if (Ops[Op.first].Constraints[Op.second].isCustom())
+    PrintFatalError(Rec->getLoc(),
+                    "Operand '" + Name + "' of '" + Rec->getName() +
+                        "' cannot have multiple custom constraints!");
+
+  Ops[Op.first].Constraints[Op.second].setConstraint(MCOI::CUSTOM, CustomNum);
+}
+
+static void ParseConstraints(StringRef CStr, CGIOperandList &Ops, Record *Rec,
+                             bool isCustom = false) {
   if (CStr.empty()) return;
 
   StringRef delims(",");
@@ -394,7 +431,10 @@ static void ParseConstraints(StringRef CStr, CGIOperandList &Ops, Record *Rec) {
     if (eidx == StringRef::npos)
       eidx = CStr.size();
 
-    ParseConstraint(CStr.substr(bidx, eidx - bidx), Ops, Rec);
+    if (isCustom)
+      ParseCustomConstraint(CStr.substr(bidx, eidx - bidx), Ops, Rec);
+    else
+      ParseConstraint(CStr.substr(bidx, eidx - bidx), Ops, Rec);
     bidx = CStr.find_first_not_of(delims, eidx);
   }
 }
@@ -484,6 +524,9 @@ CodeGenInstruction::CodeGenInstruction(Record *R)
 
   // Parse Constraints.
   ParseConstraints(R->getValueAsString("Constraints"), Operands, R);
+
+  // Parse CustomConstraints.
+  ParseConstraints(R->getValueAsString("CustomConstraints"), Operands, R, true);
 
   // Parse the DisableEncoding field.
   Operands.ProcessDisableEncoding(

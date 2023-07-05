@@ -15,12 +15,13 @@ def R0 : TestReg<"R0", 0>;
 def R1 : TestReg<"R1", 1>;
 def Reg : RegisterClass<"TestTarget", [i32], 32, (sequence "R%d", 0, 1)>;
 
-class TestInstructionWithConstraints<string cstr> : Encoding {
+class TestInstructionWithConstraints<string cstr, string ccstr = ""> : Encoding {
   dag OutOperandList = (outs Reg:$dest1, Reg:$dest2);
   dag InOperandList = (ins Reg:$src1, Reg:$src2);
   string AsmString = "mnemonic $dest1, $dest2, $src1, $src2";
   string AsmVariantName = "";
   let Constraints = cstr;
+  let CustomConstraints = ccstr;
   field bits<1> dest1;
   field bits<1> dest2;
   field bits<1> src1;

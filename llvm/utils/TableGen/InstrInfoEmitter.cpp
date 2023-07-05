@@ -197,16 +197,7 @@ InstrInfoEmitter::GetOperandInfo(const CodeGenInstruction &Inst) {
       // Fill in constraint info.
       Res += ", ";
 
-      const CGIOperandList::ConstraintInfo &Constraint =
-        Op.Constraints[j];
-      if (Constraint.isNone())
-        Res += "0";
-      else if (Constraint.isEarlyClobber())
-        Res += "MCOI_EARLY_CLOBBER";
-      else {
-        assert(Constraint.isTied());
-        Res += "MCOI_TIED_TO(" + utostr(Constraint.getTiedOperand()) + ")";
-      }
+      Res += utostr(Op.Constraints[j].getConstraintsValue());
 
       Result.push_back(Res);
     }

@@ -17,6 +17,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/MachineValueType.h"
+#include "llvm/MC/MCInstrDesc.h"
 #include <cassert>
 #include <string>
 #include <utility>
@@ -32,44 +33,43 @@ template <typename T> class ArrayRef;
   class CGIOperandList {
   public:
     class ConstraintInfo {
-      enum { None, EarlyClobber, Tied } Kind = None;
-      unsigned OtherTiedOperand = 0;
+      uint16_t Constraints = 0;
 
     public:
       ConstraintInfo() = default;
 
-      static ConstraintInfo getEarlyClobber() {
-        ConstraintInfo I;
-        I.Kind = EarlyClobber;
-        I.OtherTiedOperand = 0;
-        return I;
+      uint16_t getConstraintsValue() const { return Constraints; }
+
+      /// Returns the value of the specified operand constraint if
+      /// it is present. Returns -1 if it is not present.
+      int getConstraint(MCOI::OperandConstraint Constraint) const {
+        if (Constraints & (1 << Constraint)) {
+          unsigned ValuePos = 4 + Constraint * 4;
+          return (int)(Constraints >> ValuePos) & 0x0f;
+        }
+        return -1;
       }
 
-      static ConstraintInfo getTied(unsigned Op) {
-        ConstraintInfo I;
-        I.Kind = Tied;
-        I.OtherTiedOperand = Op;
-        return I;
+      void setConstraint(MCOI::OperandConstraint Constraint,
+                         unsigned Value = 0) {
+        assert(Value <= 15 && "Out of range [0, 15] constraint value");
+        assert(getConstraint(Constraint) &&
+               "Cannot have multiple same constraints");
+
+        // Produce each constraint value.
+        Constraints |= ((1 << Constraint) | (Value << (4 + Constraint * 4)));
       }
 
-      bool isNone() const { return Kind == None; }
-      bool isEarlyClobber() const { return Kind == EarlyClobber; }
-      bool isTied() const { return Kind == Tied; }
+      bool isEarlyClobber() const {
+        return getConstraint(MCOI::EARLY_CLOBBER) != -1;
+      }
+      bool isCustom() const { return getConstraint(MCOI::CUSTOM) != -1; }
+      bool isTied() const { return getConstraint(MCOI::TIED_TO) != -1; }
 
       unsigned getTiedOperand() const {
-        assert(isTied());
-        return OtherTiedOperand;
-      }
-
-      bool operator==(const ConstraintInfo &RHS) const {
-        if (Kind != RHS.Kind)
-          return false;
-        if (Kind == Tied && OtherTiedOperand != RHS.OtherTiedOperand)
-          return false;
-        return true;
-      }
-      bool operator!=(const ConstraintInfo &RHS) const {
-        return !(*this == RHS);
+        int TiedOperand = getConstraint(MCOI::TIED_TO);
+        assert(TiedOperand != -1);
+        return (unsigned)TiedOperand;
       }
     };
 
@@ -131,7 +131,9 @@ template <typename T> class ArrayRef;
       int getTiedRegister() const {
         for (unsigned j = 0, e = Constraints.size(); j != e; ++j) {
           const CGIOperandList::ConstraintInfo &CI = Constraints[j];
-          if (CI.isTied()) return CI.getTiedOperand();
+          int TiedOperand = CI.getConstraint(MCOI::TIED_TO);
+          if (TiedOperand != -1)
+            return TiedOperand;
         }
         return -1;
       }
