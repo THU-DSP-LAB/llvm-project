@@ -3,11 +3,12 @@ if(NOT CMAKE_CLC_COMPILE_OBJECT)
 	set(CMAKE_CLC_COMPILE_OBJECT
 	"<CMAKE_CLC_COMPILER> <DEFINES> <INCLUDES> <FLAGS> -o <OBJECT> -c <SOURCE> -emit-llvm")
 	if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
-		# This is only for depveloper's option to build debug 
+		# This is only for depveloper's option to build debug
 		list(APPEND CMAKE_CLC_COMPILE_OBJECT
 		"<CMAKE_CLC_COMPILER> <DEFINES> <INCLUDES> <FLAGS> -o <OBJECT>.s -S  <SOURCE>"
 		"<CMAKE_CLC_COMPILER> <DEFINES> <INCLUDES> <FLAGS> -o <OBJECT>.ll -S -emit-llvm <SOURCE>"
-		"<CMAKE_CLC_COMPILER> <DEFINES> <INCLUDES> <FLAGS> -o <OBJECT>.o -c <SOURCE>")
+		"<CMAKE_CLC_COMPILER> <DEFINES> <INCLUDES> <FLAGS> -o <OBJECT>.o -c <SOURCE>"
+		"<CMAKE_CLC_COMPILER> <DEFINES> <INCLUDES> <FLAGS>  -o <OBJECT>.h -E <SOURCE>")
 	endif()
 endif()
 
