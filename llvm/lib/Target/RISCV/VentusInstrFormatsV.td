@@ -100,6 +100,8 @@ class RVInstVV<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
   let Inst{11-7} = vd;
   let Opcode = OPC_OP_V.Value;
   let IsVVALUInstr = 1;
+
+  let CustomConstraints = "$vd = 0,$vs1 = 1,$vs2 = 2";
 }
 
 // vALU branch
@@ -118,6 +120,8 @@ class RVInstVB<bits<3> funct3, dag outs, dag ins,
   let Inst{11-8} = imm12{3-0};
   let Inst{7} = imm12{10};
   let Opcode = OPC_CUSTOM_2.Value;
+
+  let CustomConstraints = "$vs1 = 1,$vs2 = 2";
 }
 
 class RVInstVX<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
@@ -134,6 +138,8 @@ class RVInstVX<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
   let Inst{14-12} = opv.Value;
   let Inst{11-7} = vd;
   let Opcode = OPC_OP_V.Value;
+
+  let CustomConstraints = "$vd = 0,$rs1 = 1,$vs2 = 2";
 }
 
 class RVInstV2<bits<6> funct6, bits<5> vs2, RISCVVFormat opv, dag outs, dag ins,
@@ -149,6 +155,8 @@ class RVInstV2<bits<6> funct6, bits<5> vs2, RISCVVFormat opv, dag outs, dag ins,
   let Inst{14-12} = opv.Value;
   let Inst{11-7} = vd;
   let Opcode = OPC_OP_V.Value;
+
+  let CustomConstraints = "$vd = 0,$rs1 = 1";
 }
 
 class RVInstIVI<bits<6> funct6, dag outs, dag ins, string opcodestr,
@@ -165,6 +173,8 @@ class RVInstIVI<bits<6> funct6, dag outs, dag ins, string opcodestr,
   let Inst{14-12} = OPIVI.Value;
   let Inst{11-7} = vd;
   let Opcode = OPC_OP_V.Value;
+
+  let CustomConstraints = "$vd = 0,$vs2 = 2";
 }
 
 class RVInstV<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, dag outs,
@@ -180,6 +190,8 @@ class RVInstV<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, dag outs,
   let Inst{14-12} = opv.Value;
   let Inst{11-7} = vd;
   let Opcode = OPC_OP_V.Value;
+
+  let CustomConstraints = "$vd = 0,$vs2 = 2";
 }
 
 class RVInstVLX<bits<3> nf, bit mew, bits<3> width,
@@ -198,6 +210,8 @@ class RVInstVLX<bits<3> nf, bit mew, bits<3> width,
   let Inst{14-12} = width;
   let Inst{11-7} = vd;
   let Opcode = OPC_LOAD_FP.Value;
+
+  let CustomConstraints = "$vd = 0,$rs1 = 1,$vs2 = 2";
 }
 
 class RVInstVLU<bits<3> nf, bit mew, RISCVLSUMOP lumop,
@@ -216,6 +230,8 @@ class RVInstVLU<bits<3> nf, bit mew, RISCVLSUMOP lumop,
   let Inst{14-12} = width;
   let Inst{11-7} = vd;
   let Opcode = OPC_LOAD_FP.Value;
+
+  let CustomConstraints = "$vd = 0,$rs1 = 1";
 }
 
 class RVInstVSU<bits<3> nf, bit mew, RISCVLSUMOP sumop,
@@ -234,6 +250,8 @@ class RVInstVSU<bits<3> nf, bit mew, RISCVLSUMOP sumop,
   let Inst{14-12} = width;
   let Inst{11-7} = vs3;
   let Opcode = OPC_STORE_FP.Value;
+
+  let CustomConstraints = "$vs3 = 0,$rs1 = 1";
 }
 
 class RVInstVSX<bits<3> nf, bit mew, bits<3> width,
@@ -252,4 +270,6 @@ class RVInstVSX<bits<3> nf, bit mew, bits<3> width,
   let Inst{14-12} = width;
   let Inst{11-7} = vs3;
   let Opcode = OPC_STORE_FP.Value;
+
+  let CustomConstraints = "$vs3 = 0,$rs1 = 1,$vs2 = 2";
 }

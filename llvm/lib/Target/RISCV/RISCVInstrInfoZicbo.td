@@ -40,6 +40,8 @@ class CBO_r<bits<12> optype, string opcodestr>
               opcodestr, "$rs1"> {
   let imm12 = optype;
   let rd = 0b00000;
+
+  let CustomConstraints = "$rs1 = 1";
 }
 
 let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in
@@ -48,6 +50,8 @@ class Prefetch_ri<bits<5> optype, string opcodestr>
               opcodestr, "${imm12}(${rs1})"> {
   let Inst{11-7} = 0b00000;
   let rs2 = optype;
+
+  let CustomConstraints = "$rs1 = 1";
 }
 
 //===----------------------------------------------------------------------===//

@@ -270,6 +270,8 @@ class RVInstR<bits<7> funct7, bits<3> funct3, RISCVOpcode opcode, dag outs,
   let Inst{14-12} = funct3;
   let Inst{11-7} = rd;
   let Opcode = opcode.Value;
+
+  let CustomConstraints = "$rd = 0,$rs1 = 1,$rs2 = 2";
 }
 
 class RVInstR4<bits<2> funct2, bits<3> funct3, RISCVOpcode opcode, dag outs,
@@ -287,6 +289,8 @@ class RVInstR4<bits<2> funct2, bits<3> funct3, RISCVOpcode opcode, dag outs,
   let Inst{14-12} = funct3;
   let Inst{11-7} = rd;
   let Opcode = opcode.Value;
+
+  let CustomConstraints = "$rd = 0,$rs1 = 1,$rs2 = 2,$rs3 = 3";
 }
 
 class RVInstR4Frm<bits<2> funct2, RISCVOpcode opcode, dag outs, dag ins,
@@ -305,6 +309,8 @@ class RVInstR4Frm<bits<2> funct2, RISCVOpcode opcode, dag outs, dag ins,
   let Inst{14-12} = frm;
   let Inst{11-7} = rd;
   let Opcode = opcode.Value;
+
+  let CustomConstraints = "$rd = 0,$rs1 = 1,$rs2 = 2,$rs3 = 3";
 }
 
 class RVInstRAtomic<bits<5> funct5, bit aq, bit rl, bits<3> funct3,
@@ -323,6 +329,8 @@ class RVInstRAtomic<bits<5> funct5, bit aq, bit rl, bits<3> funct3,
   let Inst{14-12} = funct3;
   let Inst{11-7} = rd;
   let Opcode = opcode.Value;
+
+  let CustomConstraints = "$rd = 0,$rs1 = 1,$rs2 = 2";
 }
 
 class RVInstRFrm<bits<7> funct7, RISCVOpcode opcode, dag outs, dag ins,
@@ -339,6 +347,8 @@ class RVInstRFrm<bits<7> funct7, RISCVOpcode opcode, dag outs, dag ins,
   let Inst{14-12} = frm;
   let Inst{11-7} = rd;
   let Opcode = opcode.Value;
+
+  let CustomConstraints = "$rd = 0,$rs1 = 1,$rs2 = 2";
 }
 
 class RVInstI<bits<3> funct3, RISCVOpcode opcode, dag outs, dag ins,
@@ -353,6 +363,8 @@ class RVInstI<bits<3> funct3, RISCVOpcode opcode, dag outs, dag ins,
   let Inst{14-12} = funct3;
   let Inst{11-7} = rd;
   let Opcode = opcode.Value;
+
+  let CustomConstraints = "$rd = 0,$rs1 = 1";
 }
 
 class RVInstIShift<bits<5> imm11_7, bits<3> funct3, RISCVOpcode opcode,
@@ -369,6 +381,8 @@ class RVInstIShift<bits<5> imm11_7, bits<3> funct3, RISCVOpcode opcode,
   let Inst{14-12} = funct3;
   let Inst{11-7} = rd;
   let Opcode = opcode.Value;
+
+  let CustomConstraints = "$rd = 0,$rs1 = 1";
 }
 
 class RVInstIShiftW<bits<7> imm11_5, bits<3> funct3, RISCVOpcode opcode,
@@ -384,6 +398,8 @@ class RVInstIShiftW<bits<7> imm11_5, bits<3> funct3, RISCVOpcode opcode,
   let Inst{14-12} = funct3;
   let Inst{11-7} = rd;
   let Opcode = opcode.Value;
+
+  let CustomConstraints = "$rd = 0,$rs1 = 1";
 }
 
 class RVInstS<bits<3> funct3, RISCVOpcode opcode, dag outs, dag ins,
@@ -399,6 +415,8 @@ class RVInstS<bits<3> funct3, RISCVOpcode opcode, dag outs, dag ins,
   let Inst{14-12} = funct3;
   let Inst{11-7} = imm12{4-0};
   let Opcode = opcode.Value;
+
+  let CustomConstraints = "$rs1 = 1,$rs2 = 2";
 }
 
 class RVInstB<bits<3> funct3, RISCVOpcode opcode, dag outs, dag ins,
@@ -416,6 +434,8 @@ class RVInstB<bits<3> funct3, RISCVOpcode opcode, dag outs, dag ins,
   let Inst{11-8} = imm12{3-0};
   let Inst{7} = imm12{10};
   let Opcode = opcode.Value;
+
+  let CustomConstraints = "$rs1 = 1,$rs2 = 2";
 }
 
 class RVInstU<RISCVOpcode opcode, dag outs, dag ins, string opcodestr,
@@ -427,6 +447,8 @@ class RVInstU<RISCVOpcode opcode, dag outs, dag ins, string opcodestr,
   let Inst{31-12} = imm20;
   let Inst{11-7} = rd;
   let Opcode = opcode.Value;
+
+  let CustomConstraints = "$rd = 0";
 }
 
 class RVInstJ<RISCVOpcode opcode, dag outs, dag ins, string opcodestr,
@@ -441,6 +463,8 @@ class RVInstJ<RISCVOpcode opcode, dag outs, dag ins, string opcodestr,
   let Inst{19-12} = imm20{18-11};
   let Inst{11-7} = rd;
   let Opcode = opcode.Value;
+
+  let CustomConstraints = "$rd = 0";
 }
 
 //===----------------------------------------------------------------------===//

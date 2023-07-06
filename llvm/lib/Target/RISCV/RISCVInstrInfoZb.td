@@ -274,6 +274,8 @@ class RVBUnary<bits<7> funct7, bits<5> funct5, bits<3> funct3,
     : RVInstR<funct7, funct3, opcode, (outs GPR:$rd), (ins GPR:$rs1),
               opcodestr, "$rd, $rs1"> {
   let rs2 = funct5;
+
+  let CustomConstraints = "$rd = 0,$rs1 = 1";
 }
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in

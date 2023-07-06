@@ -698,23 +698,13 @@ class VENTUS_VS<bits<3> funct3, string opcodestr>:
 
 // Local/Global memory load/store instructions
 class VENTUS_VLI12<bits<3> funct3, string opcodestr> :
-              RVInstI<funct3, OPC_CUSTOM_3, (outs VGPR:$vd),
-              (ins VGPRMem:$vs1, simm12:$imm12),
-              opcodestr # ".v" , "$vd, ${imm12}(${vs1})">, Sched<[]> {
-      bits<5> vs1;
-      bits<5> vd;
-      let Inst{19-15} = vs1;
-      let Inst{11-7} = vd;
-}
+              RVInstI<funct3, OPC_CUSTOM_3, (outs VGPR:$rd),
+              (ins VGPRMem:$rs1, simm12:$imm12),
+              opcodestr # ".v" , "$rd, ${imm12}(${rs1})">, Sched<[]>;
 class VENTUS_VSI12<bits<3> funct3, string opcodestr> :
               RVInstS<funct3, OPC_CUSTOM_3, (outs),
-              (ins VGPR:$vs2, VGPRMem:$vs1, simm12:$imm12),
-              opcodestr # ".v", "$vs2, ${imm12}(${vs1})">, Sched<[]> {
-      bits<5> vs1;
-      bits<5> vs2;
-      let Inst{24-20} = vs2;
-      let Inst{19-15} = vs1;
-}
+              (ins VGPR:$rs2, VGPRMem:$rs1, simm12:$imm12),
+              opcodestr # ".v", "$rs2, ${imm12}(${rs1})">, Sched<[]>;
 
 //===----------------------------------------------------------------------===//
 // Instructions
@@ -741,7 +731,7 @@ def SETRPC : RVInstI<0b011, OPC_CUSTOM_2, (outs GPR:$rd), (ins GPR:$rs1, simm12:
              Sched<[WriteIALU, ReadIALU]>;
 
 let hasSideEffects = 1, mayLoad = 0, mayStore = 0, vs1 = 0, vs2 = 0,
-    imm12 = 0 in
+    imm12 = 0, CustomConstraints = "" in
 def JOIN : RVInstVB<0b010, (outs), (ins), "join", "">,
            Sched<[]>;
 
@@ -1097,7 +1087,7 @@ defm VFCLASS_V : VCLS_FV_VS2<"vfclass.v", 0b010011, 0b10000>;
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 // Vector Floating-Point Move Instruction
 let RVVConstraint = NoConstraint in
-let vs2 = 0 in
+let vs2 = 0, CustomConstraints = "$vd = 0,$rs1 = 1" in
 def VFMV_V_F : RVInstVX<0b010111, OPFVF, (outs VGPR:$vd),
                        (ins GPRF32:$rs1), "vfmv.v.f", "$vd, $rs1">,
                Sched<[WriteVFMovV_UpperBound, ReadVFMovF_UpperBound]>;
@@ -1153,7 +1143,7 @@ defm VFNCVT_ROD_F_F_W : VNCVTF_FV_VS2<"vfncvt.rod.f.f.w", 0b010010, 0b10101>;
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 
-let vs2 = 0 in
+let vs2 = 0, CustomConstraints = "$vd = 0" in
 def VID_V : RVInstV<0b010100, 0b10001, OPMVV, (outs VGPR:$vd),
                     (ins), "vid.v", "$vd">,
             Sched<[WriteVMIdxV]>;
@@ -1163,9 +1153,9 @@ let RVVConstraint = NoConstraint in {
 def VMV_X_S : RVInstV<0b010000, 0b00000, OPMVV, (outs GPR:$vd),
                       (ins VGPR:$vs2), "vmv.x.s", "$vd, $vs2">,
               Sched<[WriteVIMovVX, ReadVIMovVX]>;
-let Constraints = "$vd = $vd_wb" in
-def VMV_S_X : RVInstV2<0b010000, 0b00000, OPMVX, (outs VGPR:$vd_wb),
-                      (ins VGPR:$vd, GPR:$rs1), "vmv.s.x", "$vd, $rs1">,
+let Constraints = "$vd = $vd_rb" in
+def VMV_S_X : RVInstV2<0b010000, 0b00000, OPMVX, (outs VGPR:$vd),
+                      (ins VGPR:$vd_rb, GPR:$rs1), "vmv.s.x", "$vd, $rs1">,
               Sched<[WriteVIMovXV, ReadVIMovXV, ReadVIMovXX]>;
 } // RVVConstraint = NoConstraint
 

@@ -260,6 +260,8 @@ class FPUnaryOp_r<bits<7> funct7, bits<5> rs2val, bits<3> funct3,
     : RVInstR<funct7, funct3, OPC_OP_FP, (outs rdty:$rd), (ins rs1ty:$rs1),
               opcodestr, "$rd, $rs1"> {
   let rs2 = rs2val;
+
+  let CustomConstraints = "$rd = 0,$rs1 = 1";
 }
 multiclass FPUnaryOp_r_m<bits<7> funct7, bits<5> rs2val, bits<3> funct3,
                          list<ExtInfo_rr> Exts, string opcodestr> {
@@ -277,6 +279,8 @@ class FPUnaryOp_r_frm<bits<7> funct7, bits<5> rs2val, DAGOperand rdty,
                  (ins rs1ty:$rs1, frmarg:$frm), opcodestr,
                   "$rd, $rs1, $frm"> {
   let rs2 = rs2val;
+
+  let CustomConstraints = "$rd = 0,$rs1 = 1";
 }
 multiclass FPUnaryOp_r_frm_m<bits<7> funct7, bits<5> rs2val,
                              list<ExtInfo_rr> Exts, string opcodestr> {

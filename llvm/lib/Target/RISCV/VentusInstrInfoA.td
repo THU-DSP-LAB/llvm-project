@@ -21,6 +21,8 @@ class LR_r<bit aq, bit rl, bits<3> funct3, string opcodestr>
                     (outs GPR:$rd), (ins GPRMemZeroOffset:$rs1),
                     opcodestr, "$rd, $rs1"> {
   let rs2 = 0;
+
+  let CustomConstraints = "$rd = 0,$rs1 = 1";
 }
 
 multiclass LR_r_aq_rl<bits<3> funct3, string opcodestr> {

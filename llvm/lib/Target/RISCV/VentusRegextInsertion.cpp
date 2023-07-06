@@ -26,9 +26,10 @@ namespace {
 class VentusRegextInsertion : public MachineFunctionPass {
 public:
   const RISCVInstrInfo *TII;
+  const RISCVRegisterInfo *TRI;
   static char ID;
 
-  VentusRegextInsertion() : MachineFunctionPass(ID)   {
+  VentusRegextInsertion() : MachineFunctionPass(ID) {
     initializeVentusRegextInsertionPass(*PassRegistry::getPassRegistry());
   }
 
@@ -49,6 +50,8 @@ char VentusRegextInsertion::ID = 0;
 
 bool VentusRegextInsertion::runOnMachineFunction(MachineFunction &MF) {
   TII = static_cast<const RISCVInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  TRI = static_cast<const RISCVRegisterInfo *>(
+      MF.getSubtarget().getRegisterInfo());
   bool Modified = false;
 
   // FIXME: As this expansion pass will break def-use chain, it can not pass
@@ -63,7 +66,7 @@ bool VentusRegextInsertion::runOnMachineFunction(MachineFunction &MF) {
 
 bool VentusRegextInsertion::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
   bool Modified = false;
-  for(auto &MI : MBB) {
+  for (auto &MI : MBB) {
     Modified |= insertRegext(MBB, MI);
   }
   return Modified;
@@ -78,37 +81,29 @@ bool VentusRegextInsertion::insertRegext(MachineBasicBlock &MBB,
   unsigned Offsets = 0;
 
   for (unsigned i = 0; i < MI.getNumOperands(); ++i) {
-    unsigned RegIdx = 0;
     MachineOperand &Op = MI.getOperand(i);
-    if (!Op.isReg())
+    if (!Op.isReg() ||
+        MI.getDesc().getOperandConstraint(i, MCOI::TIED_TO) != -1)
       continue;
 
-    unsigned RegId = Op.getReg().id();
-    // FIXME: The ordering of rd, rs1, rs2, rs3 may not be the same as
-    // operand index 0, 1, 2, 3!
-    // TODO: Simplify this!
-    if (RISCV::GPRRegClass.contains(Op.getReg()) && RegId > RISCV::X31) {
-      // Encode overflowed GPR register numbering
-      Offsets |= (RegId - RISCV::X31 + 31) / 32 << (RegIdx * 3);
-      unsigned NewReg = RISCV::X0 + ((RegId - RISCV::X31) % 32);
-      Op.setRegIgnoreDUChain(Register(NewReg));
+    uint16_t RegEncodingValue = TRI->getEncodingValue(Op.getReg());
+    if (RegEncodingValue > 31) {
       hasOverflow = true;
-    } else if (RISCV::VGPRRegClass.contains(Op.getReg()) &&
-               RegId > RISCV::V31) {
-      Offsets |= (RegId - RISCV::V31 + 31) / 32 << (RegIdx * 3);
-      unsigned NewReg = RISCV::V0 + ((RegId - RISCV::V31) % 32);
-      Op.setRegIgnoreDUChain(Register(NewReg));
-      hasOverflow = true;
+      // FIXME: Support assembler/disassembler
+      int Pos = MI.getDesc().getOperandConstraint(i, MCOI::CUSTOM);
+      assert(Pos != -1 && "Out of range[0, 31] register operand custom "
+                          "constraint that must be present.");
+      Offsets |= (RegEncodingValue >> 5 & 0x7) << (3 * Pos);
     }
-
-    RegIdx++;
   }
 
   if (hasOverflow) {
     DebugLoc DL = MI.getDebugLoc();
     // Create instruction to expand register basic offset as imm * 32
     BuildMI(MBB, &MI, DL, TII->get(RISCV::REGEXT))
-      .addReg(RISCV::X0).addReg(RISCV::X0).addImm(Offsets);
+        .addReg(RISCV::X0)
+        .addReg(RISCV::X0)
+        .addImm(Offsets);
   }
 
   return hasOverflow;

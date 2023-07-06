@@ -708,6 +708,8 @@ class HLoad_r<bits<7> funct7, bits<5> funct5, string opcodestr>
     : RVInstR<funct7, 0b100, OPC_SYSTEM, (outs GPR:$rd),
               (ins GPRMemZeroOffset:$rs1), opcodestr, "$rd, $rs1"> {
   let rs2 = funct5;
+
+  let CustomConstraints = "$rd = 0,$rs1 = 1";
 }
 }
 
@@ -725,6 +727,8 @@ class HStore_rr<bits<7> funct7, string opcodestr>
               (ins GPR:$rs2, GPRMemZeroOffset:$rs1),
                opcodestr, "$rs2, $rs1"> {
   let rd = 0;
+
+  let CustomConstraints = "$rs1 = 1,$rs2 = 2";
 }
 }
 
@@ -777,12 +781,14 @@ class ALUW_rr<bits<7> funct7, bits<3> funct3, string opcodestr,
   let isCommutable = Commutable;
 }
 
-let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
+let hasSideEffects = 1, mayLoad = 0, mayStore = 0,
+    CustomConstraints = "$rs1 = 1,$rs2 = 2" in
 class Priv<string opcodestr, bits<7> funct7>
     : RVInstR<funct7, 0b000, OPC_SYSTEM, (outs), (ins GPR:$rs1, GPR:$rs2),
               opcodestr, "">;
 
-let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
+let hasSideEffects = 1, mayLoad = 0, mayStore = 0,
+    CustomConstraints = "$rs1 = 1,$rs2 = 2" in
 class Priv_rr<string opcodestr, bits<7> funct7>
     : RVInstR<funct7, 0b000, OPC_SYSTEM, (outs), (ins GPR:$rs1, GPR:$rs2),
               opcodestr, "$rs1, $rs2"> {
@@ -870,7 +876,7 @@ def AND  : ALU_rr<0b0000000, 0b111, "and", /*Commutable*/1>,
            Sched<[WriteIALU, ReadIALU, ReadIALU]>;
 
 
-let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in {
+let hasSideEffects = 1, mayLoad = 0, mayStore = 0, CustomConstraints = "" in {
 def FENCE : RVInstI<0b000, OPC_MISC_MEM, (outs),
                     (ins fencearg:$pred, fencearg:$succ),
                     "fence", "$pred, $succ">, Sched<[]> {
@@ -994,6 +1000,8 @@ def ENDPRG : RVInstI<0b100, OPC_CUSTOM_0, (outs), (ins),
   let rd = 0;
   let Inst{31-25} = 0;
   let Inst{24-20} = rs2;
+
+  let CustomConstraints = "";
 }
 
 
@@ -1012,6 +1020,8 @@ class BarrierBase<bits<7> func7, string opcodestr> :
   let Inst{24-20} = rs2;
   let Inst{19-18} = uimm5{4-3};
   let Inst{17-15} = uimm5{2-0};
+
+  let CustomConstraints = "";
 }
 
 let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in {
