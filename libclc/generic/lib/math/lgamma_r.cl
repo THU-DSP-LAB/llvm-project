@@ -110,7 +110,7 @@
 #define w5_f   8.3633989561e-04f        /* 0x3a5b3dd2 */
 #define w6_f  -1.6309292987e-03f        /* 0xbad5c4e8 */
 
-_CLC_OVERLOAD _CLC_DEF float lgamma_r(float x, private int *signp) {
+_CLC_OVERLOAD _CLC_DEF float lgamma_r(float x, int *signp) {
     int hx = as_int(x);
     int ix = hx & 0x7fffffff;
     float absx = as_float(ix);
@@ -493,6 +493,11 @@ _CLC_V_V_VP_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, double, lgamma_r, double, private,
 #undef __CLC_ADDRSPACE
 
 #define __CLC_ADDRSPACE local
+#define __CLC_BODY <lgamma_r.inc>
+#include <clc/math/gentype.inc>
+#undef __CLC_ADDRSPACE
+
+#define __CLC_ADDRSPACE private
 #define __CLC_BODY <lgamma_r.inc>
 #include <clc/math/gentype.inc>
 #undef __CLC_ADDRSPACE
