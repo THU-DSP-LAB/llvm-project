@@ -477,10 +477,6 @@ public:
   ///
   void setReg(Register Reg);
 
-  /// Change the register this operand corresponds to, but breaks def-use chain
-  ///
-  void setRegIgnoreDUChain(Register Reg);
-
   void setSubReg(unsigned subReg) {
     assert(isReg() && "Wrong MachineOperand mutator");
     SubReg_TargetFlags = subReg;

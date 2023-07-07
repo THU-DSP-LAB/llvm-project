@@ -14,14 +14,22 @@ define dso_local i32 @printf(ptr noundef %fmt, ...) {
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi tp, tp, 64
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 64
+; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    li t0, 0
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vsw.v v7, -60(v32)
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vsw.v v6, -56(v32)
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vsw.v v5, -52(v32)
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vsw.v v4, -48(v32)
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vsw.v v3, -44(v32)
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vsw.v v2, -40(v32)
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vsw.v v1, -36(v32)
 ; VENTUS-NEXT:    addi t1, tp, -32
 ; VENTUS-NEXT:    sw t1, -32(tp)

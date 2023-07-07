@@ -54,11 +54,6 @@ bool VentusRegextInsertion::runOnMachineFunction(MachineFunction &MF) {
       MF.getSubtarget().getRegisterInfo());
   bool Modified = false;
 
-  // FIXME: As this expansion pass will break def-use chain, it can not pass
-  // the MachineVerifierPass.
-  if (getCGPassBuilderOption().VerifyMachineCode)
-    return Modified;
-
   for (auto &MBB : MF)
     Modified |= runOnMachineBasicBlock(MBB);
   return Modified;
@@ -104,8 +99,7 @@ bool VentusRegextInsertion::insertRegext(MachineBasicBlock &MBB,
   if (hasOverflow) {
     DebugLoc DL = MI.getDebugLoc();
     // Create instruction to expand register basic offset as imm * 32
-    BuildMI(MBB, &MI, DL, TII->get(RISCV::REGEXT))
-        .addReg(RISCV::X0)
+    BuildMI(MBB, &MI, DL, TII->get(RISCV::REGEXT), RISCV::X0)
         .addReg(RISCV::X0)
         .addImm(Offsets);
   }

@@ -130,17 +130,20 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 4
 ; VENTUS-NEXT:    addi tp, tp, 4
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 4
+; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 4
 ; VENTUS-NEXT:    .cfi_offset v33.l, 0
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
+; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vadd.vx v33, v0, zero
 ; VENTUS-NEXT:    li t0, 13
 ; VENTUS-NEXT:    li t1, 14
 ; VENTUS-NEXT:    vmv.v.x v1, t1
 ; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:  .Lpcrel_hi4:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB2_7)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi4)
@@ -148,6 +151,7 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:  # %bb.1: # %if.else
 ; VENTUS-NEXT:    li t0, 17
 ; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    regext zero, zero, 64
 ; VENTUS-NEXT:  .Lpcrel_hi5:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB2_7)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi5)
@@ -156,6 +160,7 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    li t0, 1
 ; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:    call _Z13get_global_idj
+; VENTUS-NEXT:    regext zero, zero, 64
 ; VENTUS-NEXT:  .Lpcrel_hi6:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB2_6)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi6)

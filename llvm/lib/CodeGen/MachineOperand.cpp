@@ -75,17 +75,6 @@ void MachineOperand::setReg(Register Reg) {
   SmallContents.RegNo = Reg;
 }
 
-void MachineOperand::setRegIgnoreDUChain(Register Reg) {
-  if (getReg() == Reg)
-    return; // No change.
-
-  // Clear the IsRenamable bit to keep it conservatively correct.
-  IsRenamable = false;
-
-  // Otherwise, just change the register, no problem.  :)
-  SmallContents.RegNo = Reg;
-}
-
 void MachineOperand::substVirtReg(Register Reg, unsigned SubIdx,
                                   const TargetRegisterInfo &TRI) {
   assert(Reg.isVirtual());

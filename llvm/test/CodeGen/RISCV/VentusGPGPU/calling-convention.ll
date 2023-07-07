@@ -84,10 +84,13 @@ define dso_local i32 @non_kernel_calling_convention(ptr nocapture noundef readon
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi tp, tp, 28
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 28
+; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    .cfi_offset v33.l, 4
 ; VENTUS-NEXT:    .cfi_offset v34.l, 0
+; VENTUS-NEXT:    regext zero, zero, 9
 ; VENTUS-NEXT:    vlw.v v33, -24(v32)
+; VENTUS-NEXT:    regext zero, zero, 9
 ; VENTUS-NEXT:    vlw.v v34, -28(v32)
 ; VENTUS-NEXT:    vlw12.v v0, 0(v0)
 ; VENTUS-NEXT:    vlw12.v v1, 0(v1)
@@ -151,7 +154,9 @@ define dso_local i32 @non_kernel_calling_convention(ptr nocapture noundef readon
 ; VENTUS-NEXT:    vadd.vv v0, v0, v2
 ; VENTUS-NEXT:    vadd.vv v0, v0, v3
 ; VENTUS-NEXT:    vlw12.v v1, 0(v31)
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vlw12.v v2, 0(v34)
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vlw.v v3, 0(v33)
 ; VENTUS-NEXT:    vadd.vv v0, v0, v1
 ; VENTUS-NEXT:    vadd.vv v0, v0, v2
@@ -263,20 +268,24 @@ define dso_local i32 @test_add(ptr nocapture noundef readonly %a, ptr nocapture 
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 4
 ; VENTUS-NEXT:    addi tp, tp, 8
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 8
+; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    vlw12.v v0, 0(v0)
 ; VENTUS-NEXT:    vadd.vi v0, v0, 1
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vsw.v v0, -8(v32)
 ; VENTUS-NEXT:    vlw12.v v0, 0(v1)
 ; VENTUS-NEXT:    vadd.vi v0, v0, 2
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vsw.v v0, -4(v32)
 ; VENTUS-NEXT:    addi t0, tp, -8
 ; VENTUS-NEXT:    addi t1, tp, -4
 ; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:    vmv.v.x v1, t1
 ; VENTUS-NEXT:    call add
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vlw.v v1, -8(v32)
 ; VENTUS-NEXT:    vadd.vv v0, v1, v0
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload

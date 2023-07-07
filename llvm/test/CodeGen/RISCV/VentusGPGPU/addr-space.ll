@@ -9,6 +9,7 @@ define dso_local ventus_kernel void @func(ptr addrspace(1) nocapture noundef ali
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 12
 ; VENTUS-NEXT:    addi tp, tp, 4
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 4
+; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 4
@@ -19,6 +20,7 @@ define dso_local ventus_kernel void @func(ptr addrspace(1) nocapture noundef ali
 ; VENTUS-NEXT:    sw t0, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
+; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vadd.vx v33, v0, zero
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z12get_local_idj
@@ -26,6 +28,7 @@ define dso_local ventus_kernel void @func(ptr addrspace(1) nocapture noundef ali
 ; VENTUS-NEXT:    lw t1, -4(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    vadd.vx v0, v0, t1
 ; VENTUS-NEXT:    vlw12.v v0, 0(v0)
+; VENTUS-NEXT:    regext zero, zero, 64
 ; VENTUS-NEXT:    vsll.vi v1, v33, 2
 ; VENTUS-NEXT:    lw t0, -8(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    vadd.vx v1, v1, t0
