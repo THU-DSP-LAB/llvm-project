@@ -62,29 +62,6 @@ class RVInstSetVLi<dag outs, dag ins, string opcodestr, string argstr>
   let Opcode = OPC_OP_V.Value;
 }
 
-// vsetvli inst format is used by private memory loads VLW/VLH/VLB
-class RVInstSetVLVLi<dag outs, dag ins, string opcodestr, string argstr>
-    : RVInstSetVLi<outs, ins, opcodestr, argstr> {
-  bits<5> vd;
-  bits<11> imm11;
-
-  let Inst{31} = 1;
-  let Inst{30-20} = imm11;
-  let Inst{11-7} = vd;
-}
-
-// vsetvli inst format is used by private memory stores VSW/VSH/VSB
-class RVInstSetVSVLi<dag outs, dag ins, string opcodestr, string argstr>
-    : RVInstSetVLi<outs, ins, opcodestr, argstr> {
-  bits<5> vd;
-  bits<11> imm11;
-
-  let Inst{31} = 0;
-  let Inst{30-25} = imm11{10-5};
-  let Inst{24-20} = vd;
-  let Inst{11-7} = imm11{4-0};
-}
-
 class RVInstVV<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
                string opcodestr, string argstr>
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {

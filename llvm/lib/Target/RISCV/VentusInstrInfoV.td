@@ -683,17 +683,20 @@ class Branch_i<bits<3> funct3, string opcodestr>
 }
 
 // Private memory load/store instructions
-class VENTUS_VL<bits<3> funct3, string opcodestr>:
-          RVInstSetVLVLi<(outs VGPR:$vd), (ins VGPRMem:$vs1, simm11:$imm11),
-                      opcodestr # ".v", "$vd, ${imm11}(${vs1})"> {
-      let Inst{14-12} = funct3;
-      let Opcode = OPC_CUSTOM_1.Value;
+class VENTUS_VL<bits<3> funct3, string opcodestr>
+    : RVInstI<funct3, OPC_OP_V, (outs VGPR:$rd),
+              (ins VGPRMem:$rs1, simm11:$imm12),
+              opcodestr # ".v", "$rd, ${imm12}(${rs1})"> {
+  let Inst{31} = 0;
+  let Inst{30-20} = imm12{10-0};
 }
-class VENTUS_VS<bits<3> funct3, string opcodestr>:
-          RVInstSetVSVLi<(outs), (ins VGPR:$vd, VGPRMem:$vs1, simm11:$imm11),
-                      opcodestr # ".v", "$vd, ${imm11}(${vs1})"> {
-      let Inst{14-12} = funct3;
-      let Opcode = OPC_CUSTOM_1.Value;
+class VENTUS_VS<bits<3> funct3, string opcodestr>
+    : RVInstS<funct3, OPC_OP_V, (outs),
+              (ins VGPR:$rs2, VGPRMem:$rs1, simm11:$imm12),
+              opcodestr # ".v", "$rs2, ${imm12}(${rs1})"> {
+  let Inst{31} = 1;
+  let Inst{30-25} = imm12{10-5};
+  let Inst{11-7} = imm12{4-0};
 }
 
 // Local/Global memory load/store instructions
