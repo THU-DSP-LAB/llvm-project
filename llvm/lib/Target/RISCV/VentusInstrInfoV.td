@@ -115,11 +115,17 @@ multiclass SleOpePatVXIBin<list<PatFrags> Ops, list<RVInst> Insts,
 // FIXME: this pattern class can substitude the multiclass above
 // class PatIntSetCC<list<DAGOperand> Ty, CondCode Cond, RVInst Inst>
 //  : Pat<(setcc (XLenVT Ty[0]:$rs1), (XLenVT Ty[1]:$rs2), Cond), (i32 (Inst Ty[0]:$rs1, Ty[1]:$rs2))>;
-
 // Setcc pattern for float operations
-class PatFloatSetCC<list<DAGOperand> Ty, CondCode Cond, RVInst Inst>
-  : Pat<(DivergentTernaryFrag<any_fsetcc> (f32 Ty[0]:$rs1), (f32 Ty[1]:$rs2), Cond),
-                          (XLenVT (Inst Ty[0]:$rs1, Ty[1]:$rs2))>;
+multiclass PatFloatSetCC<list<DAGOperand> Ty, list<CondCode> Conds, RVInst Inst>
+{
+  foreach Cond = Conds in {
+    def : Pat<(DivergentTernaryFrag<any_fsetcc> (f32 Ty[0]:$rs1),
+              (f32 Ty[1]:$rs2), Cond), (XLenVT (Inst Ty[0]:$rs1, Ty[1]:$rs2))>;
+    def : Pat<(DivergentTernaryFrag<setcc> (f32 Ty[0]:$rs1), (f32 Ty[1]:$rs2),
+              Cond),  (XLenVT (Inst Ty[0]:$rs1, Ty[1]:$rs2))>;
+  }
+}
+
 
 // Float/integer type convert pattern
 class PatFXConvert<PatFrag Frag, list<ValueType> Ty, RVInst Inst>
@@ -1302,16 +1308,18 @@ defm : SleOpePatVXIBin<[DivergentBinFrag<xor>, DivergentBinFrag<setult>],
                                       [VMSLEU_VV, VMSLEU_VX, VMSGTU_VI], uimm5>;
 
 
-def : PatFloatSetCC<[VGPR, VGPR], SETOEQ, VMFEQ_VV>;
-def : PatFloatSetCC<[VGPR, GPRF32], SETOEQ, VMFEQ_VF>;
-def : PatFloatSetCC<[VGPR, VGPR], SETUNE, VMFNE_VV>;
-def : PatFloatSetCC<[VGPR, GPRF32], SETUNE, VMFNE_VF>;
-def : PatFloatSetCC<[VGPR, VGPR], SETOLT, VMFLT_VV>;
-def : PatFloatSetCC<[VGPR, GPRF32], SETOLT, VMFLT_VF>;
-def : PatFloatSetCC<[VGPR, VGPR], SETOLE, VMFLE_VV>;
-def : PatFloatSetCC<[VGPR, GPRF32], SETOLE, VMFLE_VV>;
-def : PatFloatSetCC<[VGPR, GPRF32], SETOGT, VMFGT_VF>;
-def : PatFloatSetCC<[VGPR, GPRF32], SETOGE, VMFGE_VF>;
+defm : PatFloatSetCC<[VGPR, VGPR], [SETOEQ, SETEQ], VMFEQ_VV>;
+defm : PatFloatSetCC<[VGPR, GPRF32], [SETOEQ, SETEQ], VMFEQ_VF>;
+defm : PatFloatSetCC<[VGPR, VGPR], [SETUNE, SETNE], VMFNE_VV>;
+defm : PatFloatSetCC<[VGPR, GPRF32], [SETUNE, SETNE], VMFNE_VF>;
+defm : PatFloatSetCC<[VGPR, VGPR], [SETOLT, SETLT], VMFLT_VV>;
+defm : PatFloatSetCC<[VGPR, VGPR], [SETOLT, SETLT], VMFLT_VV>;
+defm : PatFloatSetCC<[VGPR, VGPR], [SETLT], VMFLT_VV>;
+defm : PatFloatSetCC<[VGPR, GPRF32], [SETOLT, SETLT], VMFLT_VF>;
+defm : PatFloatSetCC<[VGPR, VGPR], [SETOLE, SETLE], VMFLE_VV>;
+defm : PatFloatSetCC<[VGPR, GPRF32], [SETOLE, SETLE], VMFLE_VV>;
+defm : PatFloatSetCC<[VGPR, GPRF32], [SETOGT, SETGT], VMFGT_VF>;
+defm : PatFloatSetCC<[VGPR, GPRF32], [SETOGE, SETGE], VMFGE_VF>;
 
 def : Pat<(i32 (DivergentBinFrag<riscv_fcvt_x> (f32 VGPR:$rs1), timm:$frm)),
                 (VFCVT_RTZ_X_F_V (f32 VGPR:$rs1), $frm)>;
