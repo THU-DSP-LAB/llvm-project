@@ -143,27 +143,27 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    li t1, 14
 ; VENTUS-NEXT:    vmv.v.x v1, t1
 ; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:  .Lpcrel_hi4:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB2_7)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi4)
+; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vblt v33, v1, .LBB2_7
 ; VENTUS-NEXT:  # %bb.1: # %if.else
 ; VENTUS-NEXT:    li t0, 17
 ; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    regext zero, zero, 64
 ; VENTUS-NEXT:  .Lpcrel_hi5:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB2_7)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi5)
+; VENTUS-NEXT:    regext zero, zero, 64
 ; VENTUS-NEXT:    vbltu v0, v33, .LBB2_4
 ; VENTUS-NEXT:  # %bb.2: # %if.then2
 ; VENTUS-NEXT:    li t0, 1
 ; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:    call _Z13get_global_idj
-; VENTUS-NEXT:    regext zero, zero, 64
 ; VENTUS-NEXT:  .Lpcrel_hi6:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB2_6)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi6)
+; VENTUS-NEXT:    regext zero, zero, 64
 ; VENTUS-NEXT:    vblt v0, v33, .LBB2_5
 ; VENTUS-NEXT:  # %bb.3: # %if.then2
 ; VENTUS-NEXT:    li t0, 23

@@ -271,12 +271,12 @@ bool RISCVPassConfig::addGlobalInstructionSelect() {
 void RISCVPassConfig::addPreSched2() {}
 
 void RISCVPassConfig::addPreEmitPass() {
+  addPass(createVentusInsertJoinToVBranchPass());
   // NOTE: This pass must be at the end of all optimization passes, as it
   // breaks the def-use chain!
   // Insert regext instruction for instruction whose register id is greater
   // than 31.
   addPass(createVentusRegextInsertionPass());
-  addPass(createVentusInsertJoinToVBranchPass());
   addPass(&BranchRelaxationPassID);
   addPass(createRISCVMakeCompressibleOptPass());
 }
