@@ -67,6 +67,10 @@ bool VentusRegextInsertion::runOnMachineFunction(MachineFunction &MF) {
 bool VentusRegextInsertion::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
   bool Modified = false;
   for (auto &MI : MBB) {
+    // Skip KILL instruction
+    if (MI.getOpcode() == TargetOpcode::KILL)
+      continue;
+
     Modified |= insertRegext(MBB, MI);
   }
   return Modified;
