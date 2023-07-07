@@ -409,6 +409,12 @@ static void ParseCustomConstraint(StringRef CStr, CGIOperandList &Ops,
                                    "15] for custom constraint: '" +
                                        CStr + "'");
 
+  int TiedFlatOp =
+      Ops[Op.first].Constraints[Op.second].getConstraint(MCOI::TIED_TO);
+
+  if (TiedFlatOp != -1)
+    Op = Ops.getSubOperandNumber(TiedFlatOp);
+
   // Build the string for the operand
   if (Ops[Op.first].Constraints[Op.second].isCustom())
     PrintFatalError(Rec->getLoc(),
