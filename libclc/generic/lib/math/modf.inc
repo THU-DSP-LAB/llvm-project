@@ -43,5 +43,5 @@ _CLC_OVERLOAD _CLC_DEF __CLC_GENTYPE modf(__CLC_GENTYPE x, __CLC_GENTYPE *iptr) 
 
 MODF_DEF(local);
 MODF_DEF(global);
-
+MODF_DEF(private);
 #undef ZERO
