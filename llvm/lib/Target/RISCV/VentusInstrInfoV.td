@@ -690,14 +690,14 @@ class Branch_i<bits<3> funct3, string opcodestr>
 
 // Private memory load/store instructions
 class VENTUS_VL<bits<3> funct3, string opcodestr>
-    : RVInstI<funct3, OPC_OP_V, (outs VGPR:$rd),
+    : RVInstI<funct3, OPC_CUSTOM_1, (outs VGPR:$rd),
               (ins VGPRMem:$rs1, simm11:$imm12),
               opcodestr # ".v", "$rd, ${imm12}(${rs1})"> {
   let Inst{31} = 0;
   let Inst{30-20} = imm12{10-0};
 }
 class VENTUS_VS<bits<3> funct3, string opcodestr>
-    : RVInstS<funct3, OPC_OP_V, (outs),
+    : RVInstS<funct3, OPC_CUSTOM_1, (outs),
               (ins VGPR:$rs2, VGPRMem:$rs1, simm11:$imm12),
               opcodestr # ".v", "$rs2, ${imm12}(${rs1})"> {
   let Inst{31} = 1;
