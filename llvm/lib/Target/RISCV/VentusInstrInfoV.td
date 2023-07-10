@@ -805,27 +805,27 @@ def : InstAlias<"vneg.v $vd, $vs", (VRSUB_VX VGPR:$vd, VGPR:$vs, X0)>;
 // instruction exception is raised.
 let Constraints = "@earlyclobber $vd" in {
 let RVVConstraint = WidenV in {
-defm VWADDU_V : VALU_MV_V_X<"vwaddu", 0b110000>;
-defm VWSUBU_V : VALU_MV_V_X<"vwsubu", 0b110010>;
-defm VWADD_V : VALU_MV_V_X<"vwadd", 0b110001>;
-defm VWSUB_V : VALU_MV_V_X<"vwsub", 0b110011>;
+// defm VWADDU_V : VALU_MV_V_X<"vwaddu", 0b110000>;
+// defm VWSUBU_V : VALU_MV_V_X<"vwsubu", 0b110010>;
+// defm VWADD_V : VALU_MV_V_X<"vwadd", 0b110001>;
+// defm VWSUB_V : VALU_MV_V_X<"vwsub", 0b110011>;
 } // RVVConstraint = WidenV
 // Set earlyclobber for following instructions for second operands.
 // This has the downside that the earlyclobber constraint is too coarse and
 // will impose unnecessary restrictions by not allowing the destination to
 // overlap with the first (wide) operand.
 let RVVConstraint = WidenW in {
-defm VWADDU_W : VALU_MV_V_X<"vwaddu", 0b110100, "w">;
-defm VWSUBU_W : VALU_MV_V_X<"vwsubu", 0b110110, "w">;
-defm VWADD_W : VALU_MV_V_X<"vwadd", 0b110101, "w">;
-defm VWSUB_W : VALU_MV_V_X<"vwsub", 0b110111, "w">;
+// defm VWADDU_W : VALU_MV_V_X<"vwaddu", 0b110100, "w">;
+// defm VWSUBU_W : VALU_MV_V_X<"vwsubu", 0b110110, "w">;
+// defm VWADD_W : VALU_MV_V_X<"vwadd", 0b110101, "w">;
+// defm VWSUB_W : VALU_MV_V_X<"vwsub", 0b110111, "w">;
 } // RVVConstraint = WidenW
 } // Constraints = "@earlyclobber $vd"
 
-def : InstAlias<"vwcvt.x.x.v $vd, $vs",
-                (VWADD_VX VGPR:$vd, VGPR:$vs, X0)>;
-def : InstAlias<"vwcvtu.x.x.v $vd, $vs",
-                (VWADDU_VX VGPR:$vd, VGPR:$vs, X0)>;
+// def : InstAlias<"vwcvt.x.x.v $vd, $vs",
+//                 (VWADD_VX VGPR:$vd, VGPR:$vs, X0)>;
+// def : InstAlias<"vwcvtu.x.x.v $vd, $vs",
+//                 (VWADDU_VX VGPR:$vd, VGPR:$vs, X0)>;
 
 // Vector Integer Extension
 defm VZEXT_VF8 : VALU_MV_VS2<"vzext.vf8", 0b010010, 0b00010>;
@@ -934,9 +934,9 @@ defm VREM_V : VDIV_MV_V_X<"vrem", 0b100011>;
 
 // Vector Widening Integer Multiply Instructions
 let Constraints = "@earlyclobber $vd", RVVConstraint = WidenV in {
-defm VWMUL_V : VWMUL_MV_V_X<"vwmul", 0b111011>;
-defm VWMULU_V : VWMUL_MV_V_X<"vwmulu", 0b111000>;
-defm VWMULSU_V : VWMUL_MV_V_X<"vwmulsu", 0b111010>;
+// defm VWMUL_V : VWMUL_MV_V_X<"vwmul", 0b111011>;
+// defm VWMULU_V : VWMUL_MV_V_X<"vwmulu", 0b111000>;
+// defm VWMULSU_V : VWMUL_MV_V_X<"vwmulsu", 0b111010>;
 } // Constraints = "@earlyclobber $vd", RVVConstraint = WidenV
 
 // Vector Single-Width Integer Multiply-Add Instructions
@@ -949,12 +949,12 @@ let Constraints = "$vd_wb = $vd" in {
   defm VNMSUB_V : VMAC_MV_V_X<"vnmsub", 0b101011>;
 }
 // Vector Widening Integer Multiply-Add Instructions
-let Constraints = "@earlyclobber $vd", RVVConstraint = WidenV in {
-defm VWMACCU_V : VWMAC_MV_V_X<"vwmaccu", 0b111100>;
-defm VWMACC_V : VWMAC_MV_V_X<"vwmacc", 0b111101>;
-defm VWMACCSU_V : VWMAC_MV_V_X<"vwmaccsu", 0b111111>;
-defm VWMACCUS_V : VWMAC_MV_X<"vwmaccus", 0b111110>;
-} // Constraints = "@earlyclobber $vd", RVVConstraint = WidenV
+// let Constraints = "@earlyclobber $vd", RVVConstraint = WidenV in {
+// defm VWMACCU_V : VWMAC_MV_V_X<"vwmaccu", 0b111100>;
+// defm VWMACC_V : VWMAC_MV_V_X<"vwmacc", 0b111101>;
+// defm VWMACCSU_V : VWMAC_MV_V_X<"vwmaccsu", 0b111111>;
+// defm VWMACCUS_V : VWMAC_MV_X<"vwmaccus", 0b111110>;
+// } // Constraints = "@earlyclobber $vd", RVVConstraint = WidenV
 
 // Vector Fixed-Point Arithmetic Instructions
 defm VSADDU_V : VSALU_IV_V_X_I<"vsaddu", 0b100000>;
@@ -994,18 +994,18 @@ defm VFRSUB_V : VALU_FV_F<"vfrsub", 0b100111>;
 let Constraints = "@earlyclobber $vd",
     Uses = [FRM],
     mayRaiseFPException = true in {
-let RVVConstraint = WidenV in {
-defm VFWADD_V : VWALU_FV_V_F<"vfwadd", 0b110000>;
-defm VFWSUB_V : VWALU_FV_V_F<"vfwsub", 0b110010>;
-} // RVVConstraint = WidenV
+// let RVVConstraint = WidenV in {
+// defm VFWADD_V : VWALU_FV_V_F<"vfwadd", 0b110000>;
+// defm VFWSUB_V : VWALU_FV_V_F<"vfwsub", 0b110010>;
+// } // RVVConstraint = WidenV
 // Set earlyclobber for following instructions for second operands.
 // This has the downside that the earlyclobber constraint is too coarse and
 // will impose unnecessary restrictions by not allowing the destination to
 // overlap with the first (wide) operand.
-let RVVConstraint = WidenW in {
-defm VFWADD_W : VWALU_FV_V_F<"vfwadd", 0b110100, "w">;
-defm VFWSUB_W : VWALU_FV_V_F<"vfwsub", 0b110110, "w">;
-} // RVVConstraint = WidenW
+// let RVVConstraint = WidenW in {
+// defm VFWADD_W : VWALU_FV_V_F<"vfwadd", 0b110100, "w">;
+// defm VFWSUB_W : VWALU_FV_V_F<"vfwsub", 0b110110, "w">;
+// } // RVVConstraint = WidenW
 } // Constraints = "@earlyclobber $vd", Uses = [FRM], mayRaiseFPException = true
 
 // Vector Single-Width Floating-Point Multiply/Divide Instructions
@@ -1016,10 +1016,10 @@ defm VFRDIV_V : VRDIV_FV_F<"vfrdiv", 0b100001>;
 }
 
 // Vector Widening Floating-Point Multiply
-let Constraints = "@earlyclobber $vd", RVVConstraint = WidenV,
-    Uses = [FRM], mayRaiseFPException = true in {
-defm VFWMUL_V : VWMUL_FV_V_F<"vfwmul", 0b111000>;
-} // Constraints = "@earlyclobber $vd", RVVConstraint = WidenV, Uses = [FRM], mayRaiseFPException = true
+// let Constraints = "@earlyclobber $vd", RVVConstraint = WidenV,
+//     Uses = [FRM], mayRaiseFPException = true in {
+// defm VFWMUL_V : VWMUL_FV_V_F<"vfwmul", 0b111000>;
+// } // Constraints = "@earlyclobber $vd", RVVConstraint = WidenV, Uses = [FRM], mayRaiseFPException = true
 
 // Vector Single-Width Floating-Point Fused Multiply-Add Instructions
 let Uses = [FRM], mayRaiseFPException = true in {
@@ -1038,13 +1038,13 @@ let Constraints = "$vd_wb = $vd" in {
 }
 
 // Vector Widening Floating-Point Fused Multiply-Add Instructions
-let Constraints = "@earlyclobber $vd", RVVConstraint = WidenV,
-    Uses = [FRM], mayRaiseFPException = true in {
-defm VFWMACC_V : VWMAC_FV_V_F<"vfwmacc", 0b111100>;
-defm VFWNMACC_V : VWMAC_FV_V_F<"vfwnmacc", 0b111101>;
-defm VFWMSAC_V : VWMAC_FV_V_F<"vfwmsac", 0b111110>;
-defm VFWNMSAC_V : VWMAC_FV_V_F<"vfwnmsac", 0b111111>;
-} // Constraints = "@earlyclobber $vd", RVVConstraint = WidenV, Uses = [FRM], mayRaiseFPException = true
+// let Constraints = "@earlyclobber $vd", RVVConstraint = WidenV,
+//     Uses = [FRM], mayRaiseFPException = true in {
+// defm VFWMACC_V : VWMAC_FV_V_F<"vfwmacc", 0b111100>;
+// defm VFWNMACC_V : VWMAC_FV_V_F<"vfwnmacc", 0b111101>;
+// defm VFWMSAC_V : VWMAC_FV_V_F<"vfwmsac", 0b111110>;
+// defm VFWNMSAC_V : VWMAC_FV_V_F<"vfwnmsac", 0b111111>;
+// } // Constraints = "@earlyclobber $vd", RVVConstraint = WidenV, Uses = [FRM], mayRaiseFPException = true
 
 // Vector Floating-Point Square-Root Instruction
 let Uses = [FRM], mayRaiseFPException = true in {
