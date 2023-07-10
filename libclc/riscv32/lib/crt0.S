@@ -24,6 +24,13 @@ BUFFER_ADDR:
 BUFFER_SIZE:
     .word 0
 
+.align 6
+.global tohost
+  tohost: .dword 0
+.align 6
+.global fromhost
+  fromhost: .dword 0
+
   .text
   .global _start
   .type   _start, @function
@@ -76,15 +83,6 @@ _start:
   endprg x0, x0, x0
   j spike_end
   .size  _start, .-_start
-
-
-  .section ".tohost","aw",@progbits
-  .align 6
-  .globl tohost
-  tohost: .dword 0
-  .align 6
-  .globl fromhost
-  fromhost: .dword 0
 
   .global spike_end
   .type spike_end,function
