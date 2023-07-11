@@ -119,7 +119,7 @@ bool DisableLIRP::All;
 static cl::opt<bool, true>
     DisableLIRPAll("disable-" DEBUG_TYPE "-all",
                    cl::desc("Options to disable Loop Idiom Recognize Pass."),
-                   cl::location(DisableLIRP::All), cl::init(false),
+                   cl::location(DisableLIRP::All), cl::init(true),
                    cl::ReallyHidden);
 
 bool DisableLIRP::Memset;
