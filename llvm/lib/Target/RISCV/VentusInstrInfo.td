@@ -989,7 +989,7 @@ def REGEXT : RVInstI<0b010, OPC_CUSTOM_0, (outs GPR:$rd),
                      "regext", "$rd, $rs1, $imm12">;
 def REGEXTI : RVInstI<0b011, OPC_CUSTOM_0, (outs GPR:$rd),
                      (ins GPR:$rs1, simm12:$imm12),
-                     "regextI", "$rd, $rs1, $imm12">;
+                     "regexti", "$rd, $rs1, $imm12">;
 // Ventus extended inst `endprg`
 def ENDPRG : RVInstI<0b100, OPC_CUSTOM_0, (outs), (ins),
                     "endprg", "x0, x0, x0">, Sched<[]> {

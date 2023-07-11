@@ -1,0 +1,20 @@
+# RUN: llvm-mc -triple=riscv32 -show-encoding --mattr=+v %s \
+# RUN:  | FileCheck %s --check-prefixes=CHECK-ENCODING
+
+vbeq v2, v1, 4
+# CHECK-ENCODING: [0x5b,0x82,0x20,0x00]
+
+vbne v2, v1, 4
+# CHECK-ENCODING: [0x5b,0x92,0x20,0x00]
+
+vblt v2, v1, 4
+# CHECK-ENCODING: [0x5b,0xc2,0x20,0x00]
+
+vbge v2, v1, 4
+# CHECK-ENCODING: [0x5b,0xd2,0x20,0x00]
+
+vbltu v2, v1, 4
+# CHECK-ENCODING: [0x5b,0xe2,0x20,0x00]
+
+vbgeu v2, v1, 4
+# CHECK-ENCODING: [0x5b,0xf2,0x20,0x00]

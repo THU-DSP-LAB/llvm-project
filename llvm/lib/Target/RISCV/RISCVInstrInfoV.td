@@ -1190,9 +1190,9 @@ defm VREM_V : VDIV_MV_V_X<"vrem", 0b100011>;
 
 // Vector Widening Integer Multiply Instructions
 let Constraints = "@earlyclobber $vd", RVVConstraint = WidenV in {
-defm VWMUL_V : VWMUL_MV_V_X<"vwmul", 0b111011>;
-defm VWMULU_V : VWMUL_MV_V_X<"vwmulu", 0b111000>;
-defm VWMULSU_V : VWMUL_MV_V_X<"vwmulsu", 0b111010>;
+// defm VWMUL_V : VWMUL_MV_V_X<"vwmul", 0b111011>;
+// defm VWMULU_V : VWMUL_MV_V_X<"vwmulu", 0b111000>;
+// defm VWMULSU_V : VWMUL_MV_V_X<"vwmulsu", 0b111010>;
 } // Constraints = "@earlyclobber $vd", RVVConstraint = WidenV
 
 // Vector Single-Width Integer Multiply-Add Instructions
@@ -1202,12 +1202,12 @@ defm VMADD_V : VMAC_MV_V_X<"vmadd", 0b101001>;
 defm VNMSUB_V : VMAC_MV_V_X<"vnmsub", 0b101011>;
 
 // Vector Widening Integer Multiply-Add Instructions
-let Constraints = "@earlyclobber $vd", RVVConstraint = WidenV in {
-defm VWMACCU_V : VWMAC_MV_V_X<"vwmaccu", 0b111100>;
-defm VWMACC_V : VWMAC_MV_V_X<"vwmacc", 0b111101>;
-defm VWMACCSU_V : VWMAC_MV_V_X<"vwmaccsu", 0b111111>;
-defm VWMACCUS_V : VWMAC_MV_X<"vwmaccus", 0b111110>;
-} // Constraints = "@earlyclobber $vd", RVVConstraint = WidenV
+// let Constraints = "@earlyclobber $vd", RVVConstraint = WidenV in {
+// defm VWMACCU_V : VWMAC_MV_V_X<"vwmaccu", 0b111100>;
+// defm VWMACC_V : VWMAC_MV_V_X<"vwmacc", 0b111101>;
+// defm VWMACCSU_V : VWMAC_MV_V_X<"vwmaccsu", 0b111111>;
+// defm VWMACCUS_V : VWMAC_MV_X<"vwmaccus", 0b111110>;
+// } // Constraints = "@earlyclobber $vd", RVVConstraint = WidenV
 
 // Vector Integer Merge Instructions
 defm VMERGE_V : VMRG_IV_V_X_I<"vmerge", 0b010111>;

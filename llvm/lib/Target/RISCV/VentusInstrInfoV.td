@@ -676,8 +676,8 @@ multiclass VNCLP_IV_V_X_I<string opcodestr, bits<6> funct6, Operand optype = sim
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
     isBranch = 1, isTerminator = 1 in
 class BranchCC_vvi<bits<3> funct3, string opcodestr>
-    : RVInstVB<funct3, (outs), (ins VGPR:$vs1, VGPR:$vs2, simm13_lsb0:$imm12),
-               opcodestr, "$vs1, $vs2, $imm12">, Sched<[]>;
+    : RVInstVB<funct3, (outs), (ins VGPR:$vs2, VGPR:$vs1, simm13_lsb0:$imm12),
+               opcodestr, "$vs2, $vs1, $imm12">, Sched<[]>;
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
     isBarrier = 1, isBranch = 1, isTerminator = 1 in
@@ -739,10 +739,9 @@ def SETRPC : RVInstI<0b011, OPC_CUSTOM_2, (outs GPR:$rd), (ins GPR:$rs1, simm12:
                      "setrpc", "$rd, $rs1, $imm12">,
              Sched<[WriteIALU, ReadIALU]>;
 
-let hasSideEffects = 1, mayLoad = 0, mayStore = 0, vs1 = 0, vs2 = 0,
-    imm12 = 0, CustomConstraints = "" in
-def JOIN : RVInstVB<0b010, (outs), (ins), "join", "">,
-           Sched<[]>;
+let hasSideEffects = 1, mayLoad = 0, mayStore = 0, CustomConstraints = "" in
+def JOIN : RVInstVB<0b010, (outs), (ins VGPR:$vs2, VGPR:$vs1, simm12:$imm12),
+                                    "join", "$vs2, $vs1, $imm12">, Sched<[]>;
 
 def VLUXEI8  : VectorLoad<LSWidth8,  "vluxei8.v">;
 def VLUXEI16 : VectorLoad<LSWidth16, "vluxei16.v">;

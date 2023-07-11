@@ -124,7 +124,10 @@ bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
         IsChanged = true;
         JoinedBB.insert(PostIDomBB);
         BuildMI(*PostIDomBB, PostIDomBB->begin(), DebugLoc(),
-                TII->get(RISCV::JOIN));
+                TII->get(RISCV::JOIN))
+            .addReg(RISCV::V0)
+            .addReg(RISCV::V0)
+            .addImm(0);
       }
     }
   }
