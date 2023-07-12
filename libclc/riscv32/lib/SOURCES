@@ -10,3 +10,14 @@ workitem/get_num_groups.cl
 workitem/get_work_dim.cl
 
 compiler-rt/nextafterf.cl
+compiler-rt/adddf3.cl
+compiler-rt/comparedf2.cl
+compiler-rt/divdf3.cl
+compiler-rt/extendsfdf2.cl
+compiler-rt/fixdfdi.cl
+compiler-rt/float-intrinsics.cl
+compiler-rt/floatdidf.cl
+compiler-rt/floatdisf.cl
+compiler-rt/muldf3.cl
+compiler-rt/subdef3.cl
+compiler-rt/truncdfsf2.cl

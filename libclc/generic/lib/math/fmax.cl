@@ -7,8 +7,9 @@ _CLC_DEFINE_BINARY_BUILTIN(float, fmax, __builtin_fmaxf, float, float);
 #ifdef cl_khr_fp64
 
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-
-_CLC_DEFINE_BINARY_BUILTIN(double, fmax, __builtin_fmax, double, double);
+// This is to avoid conflicting with builtin supported function
+extern double _fmax(double, double);
+_CLC_DEFINE_BINARY_BUILTIN(double, fmax, _fmax, double, double);
 
 #endif
 

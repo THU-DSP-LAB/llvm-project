@@ -376,7 +376,7 @@ _CLC_OVERLOAD _CLC_DEF float lgamma_r(float x, int *signp) {
 #define w5 8.36339918996282139126e-04	/* 0x3F4B67BA, 0x4CDAD5D1 */
 #define w6 -1.63092934096575273989e-03	/* 0xBF5AB89D, 0x0B9E43E4 */
 
-_CLC_OVERLOAD _CLC_DEF double lgamma_r(double x, private int *ip) {
+_CLC_OVERLOAD _CLC_DEF double lgamma_r(double x, int *ip) {
     ulong ux = as_ulong(x);
     ulong ax = ux & EXSIGNBIT_DP64;
     double absx = as_double(ax);
@@ -483,7 +483,7 @@ _CLC_OVERLOAD _CLC_DEF double lgamma_r(double x, private int *ip) {
     return r;
 }
 
-_CLC_V_V_VP_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, double, lgamma_r, double, private, int)
+// _CLC_V_V_VP_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, double, lgamma_r, double, private, int)
 #endif
 
 
