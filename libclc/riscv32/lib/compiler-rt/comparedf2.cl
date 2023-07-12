@@ -120,6 +120,7 @@ CMP_RESULT __ltdf2(fp_t a, fp_t b) { return __ledf2(a, b); }
 CMP_RESULT __nedf2(fp_t a, fp_t b) { return __ledf2(a, b); }
 CMP_RESULT __eqdf2(fp_t a, fp_t b) { return __ledf2(a, b); }
 CMP_RESULT __gedf2(fp_t a, fp_t b) { return __geXf2__(a, b); }
+CMP_RESULT __gtdf2(fp_t a, fp_t b) { return __gedf2(a, b); }
 CMP_RESULT __unorddf2(fp_t a, fp_t b) { return __unordXf2__(a, b); }
 
 #endif

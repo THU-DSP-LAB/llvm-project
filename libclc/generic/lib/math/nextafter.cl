@@ -8,7 +8,7 @@ _CLC_DEFINE_BINARY_BUILTIN(float, nextafter, __nextafterf, float, float)
 #ifdef cl_khr_fp64
 
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-
-_CLC_DEFINE_BINARY_BUILTIN(double, nextafter, __builtin_nextafter, double, double)
+extern double __nextafter(double x, double y);
+_CLC_DEFINE_BINARY_BUILTIN(double, nextafter, __nextafter, double, double)
 
 #endif
