@@ -24,13 +24,6 @@ BUFFER_ADDR:
 BUFFER_SIZE:
     .word 0
 
-.align 6
-.global tohost
-  tohost: .dword 0
-.align 6
-.global fromhost
-  fromhost: .dword 0
-
   .text
   .global _start
   .type   _start, @function
@@ -51,7 +44,7 @@ _start:
   csrr sp, CSR_LDS      # sp points to baseaddr of local memory of each SM
   # TODO: after we complete the stack adjustment for tp
   # change below code into addi tp, x0, 0
-  csrr tp, CSR_PDS      # tp points to baseaddr for lower bound of private memory(1K) of each thread
+  li tp, 0      # tp points to baseaddr for lower bound of private memory(1K) of each thread
 
   # clear BSS segment
   la      a0, _edata
@@ -84,6 +77,16 @@ _start:
   j spike_end
   .size  _start, .-_start
 
+
+  .section ".tohost","aw",@progbits
+  .align 6
+  .globl tohost
+  tohost: .dword 0
+  .align 6
+  .globl fromhost
+  fromhost: .dword 0
+
+  .text
   .global spike_end
   .type spike_end,function
 spike_end:
