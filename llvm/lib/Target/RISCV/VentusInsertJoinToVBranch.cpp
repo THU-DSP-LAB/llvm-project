@@ -106,6 +106,8 @@ bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
       auto *PostIDomBB = MPDT->getNode(&MBB)->getIDom()->getBlock();
       assert(PostIDomBB);
 
+      PostIDomBB->setLabelMustBeEmitted();
+
       MCSymbol *AUIPCSymbol = MF.getContext().createNamedTempSymbol("pcrel_hi");
       MachineInstr *MIAUIPC = BuildMI(MBB, VBranch->getIterator(), DebugLoc(),
                                       TII->get(RISCV::AUIPC), RISCV::X6)
