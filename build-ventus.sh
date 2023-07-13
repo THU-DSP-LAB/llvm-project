@@ -176,10 +176,10 @@ build_libclc() {
     -DCMAKE_LLAsm_COMPILER_WORKS=ON \
     -DCMAKE_CLC_COMPILER_WORKS=ON \
     -DCMAKE_CLC_COMPILER_FORCED=ON \
-    -DCMAKE_LLAsm_FLAGS="-target riscv32 -mcpu=ventus-gpgpu -cl-std=CL2.0" \
-    -DCMAKE_CLC_FLAGS="-target riscv32 -mcpu=ventus-gpgpu -cl-std=CL2.0 -I${DIR}/libclc/generic/include" \
+    -DCMAKE_LLAsm_FLAGS="-target riscv32 -mcpu=ventus-gpgpu -cl-std=CL2.0 -Dcl_khr_fp64" \
+    -DCMAKE_CLC_FLAGS="-target riscv32 -mcpu=ventus-gpgpu -cl-std=CL2.0 -I${DIR}/libclc/generic/include -Dcl_khr_fp64" \
     -DLIBCLC_TARGETS_TO_BUILD="riscv32--" \
-    -DCMAKE_CXX_FLAGS="-I ${DIR}/llvm/include/ -std=c++17" \
+    -DCMAKE_CXX_FLAGS="-I ${DIR}/llvm/include/ -std=c++17 -Dcl_khr_fp64" \
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_CXX_COMPILER=clang++ \
     -DCMAKE_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX} \

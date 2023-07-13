@@ -16,8 +16,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "types.h"
+#ifdef cl_khr_fp64
 
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+#include "types.h"
 
 float __nextafterf(float x, float y) {
   int hx, hy, ix, iy;
@@ -95,10 +98,6 @@ float __nextafterf(float x, float y) {
   } while (0);
   return x;
 }
-
-#ifdef cl_khr_fp64
-
-#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 
 double
 __nextafter (double x, double y)

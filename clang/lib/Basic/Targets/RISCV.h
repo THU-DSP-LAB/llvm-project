@@ -133,6 +133,7 @@ public:
     Opts["__opencl_c_3d_image_writes"] = true;
     Opts["cl_khr_3d_image_writes"] = true;
     Opts["cl_khr_byte_addressable_store"] = true;
+    Opts["cl_khr_fp64"] = true;
   }
 
   LangAS getOpenCLTypeAddrSpace(OpenCLTypeKind TK) const override {
