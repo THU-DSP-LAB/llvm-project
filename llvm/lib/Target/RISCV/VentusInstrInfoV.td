@@ -740,8 +740,13 @@ def SETRPC : RVInstI<0b011, OPC_CUSTOM_2, (outs GPR:$rd), (ins GPR:$rs1, simm12:
              Sched<[WriteIALU, ReadIALU]>;
 
 let hasSideEffects = 1, mayLoad = 0, mayStore = 0, CustomConstraints = "" in
-def JOIN : RVInstVB<0b010, (outs), (ins VGPR:$vs2, VGPR:$vs1, simm12:$imm12),
-                                    "join", "$vs2, $vs1, $imm12">, Sched<[]>;
+def JOIN : RVInstVB<0b010, (outs), (ins GPR:$rs2, GPR:$rs1, simm12:$imm12),
+                                    "join", "$rs2, $rs1, $imm12">, Sched<[]> {
+  bits<5> rs2;
+  bits<5> rs1;
+  let Inst{24-20} = rs2;
+  let Inst{19-15} = rs1;
+}
 
 def VLUXEI8  : VectorLoad<LSWidth8,  "vluxei8.v">;
 def VLUXEI16 : VectorLoad<LSWidth16, "vluxei16.v">;

@@ -4,8 +4,8 @@
 # RUN:   | llvm-objdump -d --mattr=+v - \
 # RUN:   | FileCheck %s --check-prefix=CHECK-INST
 
-join v0, v0, 0
-# CHECK-INST: join v0, v0, 0
+join x0, x0, 0
+# CHECK-INST: join zero, zero, 0
 # CHECK-ENCODING: [0x5b,0x20,0x00,0x00]
 
 setrpc zero, x4, 256
