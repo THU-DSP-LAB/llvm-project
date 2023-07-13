@@ -40,8 +40,6 @@ static __inline fixint_t __fixint(fp_t a) {
     return sign * ((fixint_t)significand << (exponent - 52));
 }
 
-si_int __fixdfsi(fp_t a) { return __fixint(a); }
-
 du_int __fixuint(fp_t a) {
 
   const rep_t aRep = toRep(a);
