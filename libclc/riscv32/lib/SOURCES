@@ -16,6 +16,7 @@ compiler-rt/divdf3.cl
 compiler-rt/extendsfdf2.cl
 compiler-rt/fixdfdi.cl
 compiler-rt/fixdfsi.cl
+compiler-rt/fixsfdi.cl
 compiler-rt/float-intrinsics.cl
 compiler-rt/floatdidf.cl
 compiler-rt/floatdisf.cl
@@ -25,3 +26,7 @@ compiler-rt/truncdfsf2.cl
 compiler-rt/floatsidf.cl
 compiler-rt/fma.cl
 compiler-rt/floor.cl
+compiler-rt/floatunsidf.cl
+compiler-rt/floatundisf.cl
+compiler-rt/floatundidf.cl
+compiler-rt/isfinite.cl
