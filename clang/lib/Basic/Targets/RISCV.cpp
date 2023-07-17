@@ -49,7 +49,8 @@ void RISCVTargetInfo::adjust(DiagnosticsEngine &Diags, LangOptions &Opts) {
   llvm::Triple Triple = getTriple();
   bool isRV32 = Triple.isRISCV32();
   // Only OpenCL language needs special address mapping
-  if(Opts.OpenCL) {
+  // FIXME: when meeting C code here is not valid !!
+  if(Opts.OpenCL || Opts.getOpenCLVersionString().size()) {
     UseAddrSpaceMapMangling = true;
     AddrSpaceMap = &VentusAddrSpaceMap;
     if(isRV32)
