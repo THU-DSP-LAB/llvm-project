@@ -236,12 +236,9 @@ __builtin_riscv_global_id_z:
   call __builtin_riscv_workitem_id_z
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   csrr t1, CSR_GID_Z      # Get group_id_z
-  csrr t2, CSR_TID
-  vid.v v2
-  vadd.vx v2, v2, t2      # workitem_id_z
-  lw t3, KNL_LC_SIZE_Z(a0) # Get local_size_z
-  mul t3, t1, t3          # CSR_GID_Z * local_size_z
-  vadd.vv v0, v2, v0      # global_id_z
+  lw t2, KNL_LC_SIZE_Z(a0) # Get local_size_z
+  mul t2, t2, t1          # CSR_GID_Z * local_size_z
+  vadd.vx v0, v0, t2      # global_id_z
   lw ra, -4(sp)  
   addi sp, sp, -4
   ret
