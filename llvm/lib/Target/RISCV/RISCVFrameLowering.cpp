@@ -702,7 +702,7 @@ uint64_t RISCVFrameLowering::getStackSize(MachineFunction &MF,
       // Need to consider the alignment for different frame index
       uint64_t Align = MFI.getObjectAlign(I).value();
       uint64_t ActualAlignSize = (Align + 3) >> 2;
-      uint64_t Size = ActualAlignSize * MFI.getObjectSize(I);
+      uint64_t Size = ActualAlignSize * ((MFI.getObjectSize(I) + 3) >> 2) * 4;
       StackSize += Size;
     }
 
