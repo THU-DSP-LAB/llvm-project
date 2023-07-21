@@ -25,6 +25,7 @@
 #define CSR_NUMW  0x801    // warp numbers in a workgroup
 #define CSR_NUMT  0x802    // thread numbers in a warp
 #define CSR_KNL   0x803    // Kernel metadata buffer base address
+#define CSR_WGID  0x804    // workgroup id in a warp
 #define CSR_WID   0x805    // warp id in a workgroup
 #define CSR_LDS   0x806    // baseaddr for local memory allocated by workgroup
 #define CSR_PDS   0x807    // baseaddr for private memory allocated by workgroup
