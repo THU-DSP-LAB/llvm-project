@@ -7,6 +7,5 @@ echo $1
 script_dir=$(cd "$(dirname "$0")" && pwd)
 export PATH=$script_dir/install/bin:$PATH
 llvm-objdump -d --mattr=+v $1.riscv > $1.dump
-llvm-objcopy -O binary -j .text $1.riscv $1.temp
-hexdump -e '1/4 "%08x" "\n"' $1.temp > $1.vmem
+awk 'function is_hex(s) { return match(s, /^[0-9a-fA-F]+$/) } /^ *[0-9a-fA-F]+:/ { for (i = 5; i >= 2; i--) { if (is_hex($i)) printf "%s", $i } print "" }' $1.dump > $1.vmem
 echo "finish converting to vmem file!"
