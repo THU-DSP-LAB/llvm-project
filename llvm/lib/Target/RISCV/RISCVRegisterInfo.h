@@ -118,6 +118,11 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
   void getOffsetOpcodes(const StackOffset &Offset,
                         SmallVectorImpl<uint64_t> &Ops) const override;
 
+  MCRegister findUnusedRegister(const MachineRegisterInfo &MRI,
+                                const TargetRegisterClass *RC,
+                                const MachineFunction &MF,
+                                bool ReserveHighestVGPR = false) const;
+
   unsigned getRegisterCostTableIndex(const MachineFunction &MF) const override;
 
   bool getRegAllocationHints(Register VirtReg, ArrayRef<MCPhysReg> Order,

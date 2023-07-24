@@ -150,6 +150,26 @@ bool RISCVRegisterInfo::hasReservedSpillSlot(const MachineFunction &MF,
   return true;
 }
 
+/// Returns a lowest register that is not used at any point in the function.
+///        If all registers are used, then this function will return
+///         RISCV::NoRegister. If \p ReserveHighestVGPR = true, then return
+///         highest unused register.
+MCRegister RISCVRegisterInfo::findUnusedRegister(const MachineRegisterInfo &MRI,
+                                              const TargetRegisterClass *RC,
+                                              const MachineFunction &MF,
+                                              bool ReserveHighestVGPR) const {
+  if (ReserveHighestVGPR) {
+    for (MCRegister Reg : reverse(*RC))
+      if (MRI.isAllocatable(Reg) && !MRI.isPhysRegUsed(Reg))
+        return Reg;
+  } else {
+    for (MCRegister Reg : *RC)
+      if (MRI.isAllocatable(Reg) && !MRI.isPhysRegUsed(Reg))
+        return Reg;
+  }
+  return MCRegister();
+}
+
 bool RISCVRegisterInfo::isSGPRReg(const MachineRegisterInfo &MRI,
                                   Register Reg) const {
   const TargetRegisterClass *RC;
