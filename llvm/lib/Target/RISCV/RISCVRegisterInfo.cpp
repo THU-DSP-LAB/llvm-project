@@ -170,6 +170,17 @@ MCRegister RISCVRegisterInfo::findUnusedRegister(const MachineRegisterInfo &MRI,
   return MCRegister();
 }
 
+uint32_t RISCVRegisterInfo::getUnusedRegistersNum(const MachineRegisterInfo &MRI,
+                              const TargetRegisterClass *RC,
+                              const MachineFunction &MF) const {
+  auto TotalRegNum = std::distance(RC->begin(), RC->end());
+  unsigned UsedRegNum = 0;
+  for (MCRegister Reg : *RC)
+    if (MRI.isPhysRegUsed(Reg))
+      UsedRegNum++;
+  return TotalRegNum - UsedRegNum;
+}
+
 bool RISCVRegisterInfo::isSGPRReg(const MachineRegisterInfo &MRI,
                                   Register Reg) const {
   const TargetRegisterClass *RC;

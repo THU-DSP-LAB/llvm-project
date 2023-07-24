@@ -122,7 +122,11 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
                                 const TargetRegisterClass *RC,
                                 const MachineFunction &MF,
                                 bool ReserveHighestVGPR = false) const;
-
+  
+  uint32_t getUnusedRegistersNum(const MachineRegisterInfo &MRI,
+                                const TargetRegisterClass *RC,
+                                const MachineFunction &MF) const;
+                                
   unsigned getRegisterCostTableIndex(const MachineFunction &MF) const override;
 
   bool getRegAllocationHints(Register VirtReg, ArrayRef<MCPhysReg> Order,
