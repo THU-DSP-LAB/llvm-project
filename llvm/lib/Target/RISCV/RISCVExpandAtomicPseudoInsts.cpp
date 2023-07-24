@@ -120,8 +120,8 @@ bool RISCVExpandAtomicPseudo::expandMI(MachineBasicBlock &MBB,
                                 NextMBBI);
   case RISCV::PseudoCmpXchg32:
     return expandAtomicCmpXchg(MBB, MBBI, false, 32, NextMBBI);
-  case RISCV::PseudoCmpXchg64:
-    return expandAtomicCmpXchg(MBB, MBBI, false, 64, NextMBBI);
+  // case RISCV::PseudoCmpXchg64:
+  //   return expandAtomicCmpXchg(MBB, MBBI, false, 64, NextMBBI);
   case RISCV::PseudoMaskedCmpXchg32:
     return expandAtomicCmpXchg(MBB, MBBI, true, 32, NextMBBI);
   }
@@ -571,6 +571,8 @@ bool RISCVExpandAtomicPseudo::expandAtomicCmpXchg(
   MachineInstr &MI = *MBBI;
   DebugLoc DL = MI.getDebugLoc();
   MachineFunction *MF = MBB.getParent();
+  const RISCVSubtarget &ST = MF->getSubtarget<RISCVSubtarget>();
+  const RISCVRegisterInfo *RRI = ST.getRegisterInfo();
   auto LoopHeadMBB = MF->CreateMachineBasicBlock(MBB.getBasicBlock());
   auto LoopTailMBB = MF->CreateMachineBasicBlock(MBB.getBasicBlock());
   auto DoneMBB = MF->CreateMachineBasicBlock(MBB.getBasicBlock());
@@ -609,7 +611,7 @@ bool RISCVExpandAtomicPseudo::expandAtomicCmpXchg(
     //   bne dest, cmpval, done
     BuildMI(LoopHeadMBB, DL, TII->get(getLRForRMW(Ordering, Width)), DestReg)
         .addReg(AddrReg);
-    BuildMI(LoopHeadMBB, DL, TII->get(RISCV::BNE))
+    BuildMI(LoopHeadMBB, DL, TII->get(RISCV::VBNE))
         .addReg(DestReg)
         .addReg(CmpValReg)
         .addMBB(LoopHeadBNETarget);
@@ -619,9 +621,14 @@ bool RISCVExpandAtomicPseudo::expandAtomicCmpXchg(
     BuildMI(LoopTailMBB, DL, TII->get(getSCForRMW(Ordering, Width)), ScratchReg)
         .addReg(AddrReg)
         .addReg(NewValReg);
-    BuildMI(LoopTailMBB, DL, TII->get(RISCV::BNE))
+    MCRegister VGPR1 = RRI->findUnusedRegister(
+                                   MF->getRegInfo(), &RISCV::VGPRRegClass, *MF);
+    BuildMI(LoopTailMBB, DL, TII->get(RISCV::VMV_S_X), VGPR1)
+        .addReg(VGPR1)
+        .addReg(RISCV::X0);
+    BuildMI(LoopTailMBB, DL, TII->get(RISCV::VBNE))
         .addReg(ScratchReg)
-        .addReg(RISCV::X0)
+        .addReg(VGPR1)
         .addMBB(LoopHeadMBB);
   } else {
     // .loophead:
@@ -631,10 +638,10 @@ bool RISCVExpandAtomicPseudo::expandAtomicCmpXchg(
     Register MaskReg = MI.getOperand(5).getReg();
     BuildMI(LoopHeadMBB, DL, TII->get(getLRForRMW(Ordering, Width)), DestReg)
         .addReg(AddrReg);
-    BuildMI(LoopHeadMBB, DL, TII->get(RISCV::AND), ScratchReg)
+    BuildMI(LoopHeadMBB, DL, TII->get(RISCV::VAND_VV), ScratchReg)
         .addReg(DestReg)
         .addReg(MaskReg);
-    BuildMI(LoopHeadMBB, DL, TII->get(RISCV::BNE))
+    BuildMI(LoopHeadMBB, DL, TII->get(RISCV::VBNE))
         .addReg(ScratchReg)
         .addReg(CmpValReg)
         .addMBB(LoopHeadBNETarget);
@@ -650,9 +657,14 @@ bool RISCVExpandAtomicPseudo::expandAtomicCmpXchg(
     BuildMI(LoopTailMBB, DL, TII->get(getSCForRMW(Ordering, Width)), ScratchReg)
         .addReg(AddrReg)
         .addReg(ScratchReg);
-    BuildMI(LoopTailMBB, DL, TII->get(RISCV::BNE))
+    MCRegister VGPR2 = RRI->findUnusedRegister(
+                                  MF->getRegInfo(), &RISCV::VGPRRegClass, *MF);
+    BuildMI(LoopTailMBB, DL, TII->get(RISCV::VMV_S_X), VGPR2)
+        .addReg(VGPR2)
+        .addReg(RISCV::X0);
+    BuildMI(LoopTailMBB, DL, TII->get(RISCV::VBNE))
         .addReg(ScratchReg)
-        .addReg(RISCV::X0)
+        .addReg(VGPR2)
         .addMBB(LoopHeadMBB);
   }
 

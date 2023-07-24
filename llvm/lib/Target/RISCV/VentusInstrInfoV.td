@@ -291,10 +291,11 @@ multiclass VALU_IV_V_X<string opcodestr, bits<6> funct6, string vw = "v"> {
                   ReadVIALUX_UpperBound]>;
 }
 
+//  Only VRSUB__VX use this class
 multiclass VALU_IV_X_I<string opcodestr, bits<6> funct6, Operand optype = simm5, string vw = "v"> {
-  def X  : VALUVX<funct6, OPIVX, opcodestr # "." # vw # "x">,
-           Sched<[WriteVIALUV_UpperBound, ReadVIALUV_UpperBound,
-                  ReadVIALUX_UpperBound]>;
+  // def X  : VALUVX<funct6, OPIVX, opcodestr # "." # vw # "x">,
+  //          Sched<[WriteVIALUV_UpperBound, ReadVIALUV_UpperBound,
+  //                 ReadVIALUX_UpperBound]>;
   def I  : VALUVI<funct6, opcodestr # "." # vw # "i", optype>,
            Sched<[WriteVIALUI_UpperBound, ReadVIALUV_UpperBound]>;
 }
@@ -1361,7 +1362,7 @@ defm : PatVXFTer<[DivergentBinFrag<fsub>, DivergentBinFrag<fmul>], f32,
 defm : PatVXFTer<[ReverseDivergentBinFrag<fsub>, DivergentBinFrag<fmul>],
                                    f32, GPRF32, [VFNMSUB_VV, VFNMSUB_VF]>;
 defm : PatVXFTer<[DivergentBinFrag<add>, DivergentBinFrag<mul>], XLenVT,
-                                      GPR, [VMADD_VV, VMADD_VX]>;
+                                     GPR, [VMADD_VV, VMADD_VX]>;
 defm : PatVXFTer<[ReverseDivergentBinFrag<sub>, DivergentBinFrag<mul>],
                                   XLenVT, GPR, [VNMSUB_VV, VNMSUB_VX]>;
 // TODO: vfrec7.v? what is this

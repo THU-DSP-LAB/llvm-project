@@ -270,6 +270,11 @@ def GPRMemZeroOffset : MemOperand<GPR> {
   let PrintMethod = "printZeroOffsetMemOp";
 }
 
+def VGPRMemZeroOffset : MemOperand<VGPR> {
+  let ParserMatchClass = ZeroOffsetMemOpOperand;
+  let PrintMethod = "printZeroOffsetMemOp";
+}
+
 def GPRMem : MemOperand<GPR>;
 // def GPRNoX4Mem : MemOperand<GPRNoX4>;
 def VGPRMem : MemOperand<VGPR>;
@@ -1032,6 +1037,29 @@ def SUBGROUP_BARRIER : BarrierBase<0b0000011, "barriersub"> {
 }
 
 } // hasSideEffects = 1, mayLoad = 0, mayStore = 0
+
+class RVInstRSUBVX<bits<6> funct6, bits<3> Opv, dag outs, dag ins,
+                string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
+  bits<5> vs2;
+  bits<5> rs1;
+  bits<5> vd;
+
+  let Inst{31-26} = funct6;
+  let Inst{25} = 1;
+  let Inst{24-20} = vs2;
+  let Inst{19-15} = rs1;
+  let Inst{14-12} = Opv;
+  let Inst{11-7} = vd;
+  let Opcode = OPC_OP_V.Value;
+
+  let CustomConstraints = "$vd = 0,$rs1 = 1,$vs2 = 2";
+}
+
+def VRSUB_VX : RVInstRSUBVX<0b000011, 0b100, (outs VGPR:$vd),
+                (ins VGPR:$vs2, GPR:$rs1),
+                "vrsub.vx", "$vd, $vs2, $rs1">;
+
 //===----------------------------------------------------------------------===//
 // Privileged instructions
 //===----------------------------------------------------------------------===//
@@ -1420,6 +1448,9 @@ class PatGpr<SDPatternOperator OpNode, RVInst Inst>
     : Pat<(OpNode GPR:$rs1), (Inst GPR:$rs1)>;
 class PatGprGpr<SDPatternOperator OpNode, RVInst Inst>
     : Pat<(OpNode GPR:$rs1, GPR:$rs2), (Inst GPR:$rs1, GPR:$rs2)>;
+class PatVGprVGpr<SDPatternOperator OpNode, RVInst Inst>
+    : Pat<(OpNode (i32 VGPR:$rs1),(i32 VGPR:$rs2)), 
+        (Inst (i32 VGPR:$rs1), (i32 VGPR:$rs2))>;
 
 class PatGprImm<SDPatternOperator OpNode, RVInst Inst, ImmLeaf ImmType>
     : Pat<(XLenVT (OpNode (XLenVT GPR:$rs1), ImmType:$imm)),
