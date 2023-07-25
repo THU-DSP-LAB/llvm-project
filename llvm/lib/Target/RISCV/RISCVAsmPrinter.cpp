@@ -229,9 +229,9 @@ void RISCVAsmPrinter::getVentusProgramInfo(VentusProgramInfo &Out,
                                            const MachineFunction &MF) {
   const RISCVSubtarget &ST = MF.getSubtarget<RISCVSubtarget>();
   const RISCVRegisterInfo *RI = ST.getRegisterInfo();
-  Out.SGPRUsage =
-      RI->getUsedRegistersNum(MF.getRegInfo(), &RISCV::VGPRRegClass, MF);
   Out.VGPRUsage =
+      RI->getUsedRegistersNum(MF.getRegInfo(), &RISCV::VGPRRegClass, MF);
+  Out.SGPRUsage =
       RI->getUsedRegistersNum(MF.getRegInfo(), &RISCV::GPRRegClass, MF);
   // TODO:: Add LDS/PDS calculation
 }
