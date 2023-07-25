@@ -123,7 +123,7 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
                                 const MachineFunction &MF,
                                 bool ReserveHighestVGPR = false) const;
   
-  uint32_t getUnusedRegistersNum(const MachineRegisterInfo &MRI,
+  uint32_t getUsedRegistersNum(const MachineRegisterInfo &MRI,
                                 const TargetRegisterClass *RC,
                                 const MachineFunction &MF) const;
                                 

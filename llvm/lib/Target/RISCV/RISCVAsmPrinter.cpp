@@ -15,8 +15,10 @@
 #include "MCTargetDesc/RISCVMCExpr.h"
 #include "MCTargetDesc/RISCVTargetStreamer.h"
 #include "RISCV.h"
+#include "RISCVMachineFunctionInfo.h"
 #include "RISCVTargetMachine.h"
 #include "TargetInfo/RISCVTargetInfo.h"
+#include "VentusProgramInfo.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/CodeGen/AsmPrinter.h"
@@ -47,6 +49,7 @@ namespace {
 class RISCVAsmPrinter : public AsmPrinter {
   const MCSubtargetInfo *MCSTI;
   const RISCVSubtarget *STI;
+  VentusProgramInfo CurrentProgramInfo;
 
 public:
   explicit RISCVAsmPrinter(TargetMachine &TM,
@@ -65,6 +68,7 @@ public:
                              const char *ExtraCode, raw_ostream &OS) override;
 
   void EmitToStreamer(MCStreamer &S, const MCInst &Inst);
+  void getVentusProgramInfo(VentusProgramInfo &Out, const MachineFunction &MF);
   bool emitPseudoExpansionLowering(MCStreamer &OutStreamer,
                                    const MachineInstr *MI);
 
@@ -194,6 +198,17 @@ bool RISCVAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   NewSTI.setFeatureBits(MF.getSubtarget().getFeatureBits());
   MCSTI = &NewSTI;
   STI = &MF.getSubtarget<RISCVSubtarget>();
+  CurrentProgramInfo = VentusProgramInfo();
+  if (MF.getInfo<RISCVMachineFunctionInfo>()->isEntryFunction()) {
+    getVentusProgramInfo(CurrentProgramInfo, MF);
+    MCSectionELF *ResourceSection = OutContext.getELFSection(
+        ".rodata.ventus.resource", ELF::SHT_PROGBITS, ELF::SHF_WRITE);
+    OutStreamer->switchSection(ResourceSection);
+    OutStreamer->emitInt16(CurrentProgramInfo.VGPRUsage);
+    OutStreamer->emitInt16(CurrentProgramInfo.SGPRUsage);
+    OutStreamer->emitInt16(CurrentProgramInfo.LDSMemory);
+    OutStreamer->emitInt16(CurrentProgramInfo.PDSMemory);
+  }
 
   SetupMachineFunction(MF);
   emitFunctionBody();
@@ -208,6 +223,17 @@ void RISCVAsmPrinter::emitStartOfAsmFile(Module &M) {
     RTS.setTargetABI(RISCVABI::getTargetABI(ModuleTargetABI->getString()));
   if (TM.getTargetTriple().isOSBinFormatELF())
     emitAttributes();
+}
+
+void RISCVAsmPrinter::getVentusProgramInfo(VentusProgramInfo &Out,
+                                           const MachineFunction &MF) {
+  const RISCVSubtarget &ST = MF.getSubtarget<RISCVSubtarget>();
+  const RISCVRegisterInfo *RI = ST.getRegisterInfo();
+  Out.SGPRUsage =
+      RI->getUsedRegistersNum(MF.getRegInfo(), &RISCV::VGPRRegClass, MF);
+  Out.VGPRUsage =
+      RI->getUsedRegistersNum(MF.getRegInfo(), &RISCV::GPRRegClass, MF);
+  // TODO:: Add LDS/PDS calculation
 }
 
 void RISCVAsmPrinter::emitEndOfAsmFile(Module &M) {

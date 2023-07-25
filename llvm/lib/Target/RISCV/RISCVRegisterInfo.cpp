@@ -170,7 +170,7 @@ MCRegister RISCVRegisterInfo::findUnusedRegister(const MachineRegisterInfo &MRI,
   return MCRegister();
 }
 
-uint32_t RISCVRegisterInfo::getUnusedRegistersNum(const MachineRegisterInfo &MRI,
+uint32_t RISCVRegisterInfo::getUsedRegistersNum(const MachineRegisterInfo &MRI,
                               const TargetRegisterClass *RC,
                               const MachineFunction &MF) const {
   auto TotalRegNum = std::distance(RC->begin(), RC->end());
@@ -178,7 +178,8 @@ uint32_t RISCVRegisterInfo::getUnusedRegistersNum(const MachineRegisterInfo &MRI
   for (MCRegister Reg : *RC)
     if (MRI.isPhysRegUsed(Reg))
       UsedRegNum++;
-  return TotalRegNum - UsedRegNum;
+  assert(UsedRegNum <= TotalRegNum && "Register using overflow!");
+  return UsedRegNum;
 }
 
 bool RISCVRegisterInfo::isSGPRReg(const MachineRegisterInfo &MRI,
