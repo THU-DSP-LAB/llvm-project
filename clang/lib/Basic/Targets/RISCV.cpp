@@ -48,9 +48,15 @@ void RISCVTargetInfo::adjust(DiagnosticsEngine &Diags, LangOptions &Opts) {
   TargetInfo::adjust(Diags, Opts);
   llvm::Triple Triple = getTriple();
   bool isRV32 = Triple.isRISCV32();
-  // Only OpenCL language needs special address mapping
-  // FIXME: when meeting C code here is not valid !!
-  if(Opts.OpenCL || Opts.getOpenCLVersionString().size()) {
+	// Not OpenCL language, we no not need special data layout
+ 	if ((Opts.C99 || Opts.C11 || Opts.C17) && !Opts.OpenCL) {
+		 	if(isRV32)
+      	resetDataLayout("e-m:e-p:32:32-i64:64-n32-S128");
+			else
+			 	resetDataLayout("e-m:e-p:64:64-i64:64-i128:128-n32:64-S128");
+   }
+  // Only OpenCL language needs special address mapping 
+  else {
     UseAddrSpaceMapMangling = true;
     AddrSpaceMap = &VentusAddrSpaceMap;
     if(isRV32)
@@ -58,14 +64,7 @@ void RISCVTargetInfo::adjust(DiagnosticsEngine &Diags, LangOptions &Opts) {
     else
       resetDataLayout("e-m:e-p:64:64-i64:64-i128:128-n32:64-S128-A5-G1");
    }
-	 // Not OpenCL language, we no not need special data layout
-   // just follow the official way
-	 else {
-		 	if(isRV32)
-      	resetDataLayout("e-m:e-p:32:32-i64:64-n32-S128");
-			else
-			 	resetDataLayout("e-m:e-p:64:64-i64:64-i128:128-n32:64-S128");
-   }
+
 }
 
 ArrayRef<const char *> RISCVTargetInfo::getGCCRegNames() const {
