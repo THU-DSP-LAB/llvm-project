@@ -16,6 +16,7 @@ for item in $(ls ${LIBCLC_DIR}/generic/lib | grep  ll)
 do
     ${BINARY_DIR}/bin/clang -target riscv32 -mcpu=ventus-gpgpu \
         -cl-std=CL2.0 \
+        -Wno-override-module \
         -ffunction-sections -fdata-sections \
         -c ${LIBCLC_DIR}/generic/lib/${item} \
         -o ${LIBCLC_BUILD_DIR}/${item}.o
