@@ -17,6 +17,7 @@
 #include "RISCVFrameLowering.h"
 #include "RISCVISelLowering.h"
 #include "RISCVInstrInfo.h"
+#include "VentusProgramInfo.h"
 #include "llvm/CodeGen/GlobalISel/CallLowering.h"
 #include "llvm/CodeGen/GlobalISel/InstructionSelector.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
@@ -123,6 +124,7 @@ private:
   RISCVRegisterInfo RegInfo;
   RISCVTargetLowering TLInfo;
   SelectionDAGTargetInfo TSInfo;
+  VentusProgramInfo CurrentProgramInfo = VentusProgramInfo();
 
   /// Initializes using the passed in CPU and feature strings so that we can
   /// use initializer lists for subtarget initialization.
@@ -145,6 +147,9 @@ public:
     return &FrameLowering;
   }
   const RISCVInstrInfo *getInstrInfo() const override { return &InstrInfo; }
+  const VentusProgramInfo *getVentusProgramInfo() const {
+    return &CurrentProgramInfo;
+  }
   const RISCVRegisterInfo *getRegisterInfo() const override { return &RegInfo; }
   const RISCVTargetLowering *getTargetLowering() const override {
     return &TLInfo;

@@ -170,16 +170,19 @@ MCRegister RISCVRegisterInfo::findUnusedRegister(const MachineRegisterInfo &MRI,
   return MCRegister();
 }
 
-uint32_t RISCVRegisterInfo::getUsedRegistersNum(const MachineRegisterInfo &MRI,
-                              const TargetRegisterClass *RC,
-                              const MachineFunction &MF) const {
-  auto TotalRegNum = std::distance(RC->begin(), RC->end());
-  unsigned UsedRegNum = 0;
-  for (MCRegister Reg : *RC)
-    if (MRI.isPhysRegUsed(Reg))
-      UsedRegNum++;
-  assert(UsedRegNum <= TotalRegNum && "Register using overflow!");
-  return UsedRegNum;
+void RISCVRegisterInfo::analyzeRegisterUsage(DenseSet<Register> RewriteRegs,
+                                      MachineFunction *MF) const  {
+  auto CurrentProgramInfo = const_cast<VentusProgramInfo*>(
+                    MF->getSubtarget<RISCVSubtarget>().getVentusProgramInfo());
+  MachineRegisterInfo &MRI = MF->getRegInfo();
+  for(auto Reg : RewriteRegs) {
+      if(!isSGPRReg(MRI, Reg))
+        CurrentProgramInfo->VGPRUsage++;
+      else
+        CurrentProgramInfo->SGPRUsage++;
+  }
+  // FIXME: need to add one more because of ra, how to simplify this?
+  CurrentProgramInfo->SGPRUsage++;
 }
 
 bool RISCVRegisterInfo::isSGPRReg(const MachineRegisterInfo &MRI,
@@ -337,6 +340,10 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   Register FrameReg;
   StackOffset Offset = // FIXME: The FrameReg and Offset should be depended on divergency route.
       getFrameLowering(MF)->getFrameIndexReference(MF, FrameIndex, FrameReg);
+  // TODO: finish
+  // if(!RII->isVGPRMemoryAccess(MI))
+  //   Offset -= StackOffset::getFixed(
+  //             MF.getInfo<RISCVMachineFunctionInfo>()->getVarArgsSaveSize() - 4);
   int64_t Lo11 = Offset.getFixed();
   Offset += StackOffset::getFixed(MI.getOperand(FIOperandNum + 1).getImm());
 
@@ -373,7 +380,7 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   }
 
-  if(RII->isPrivateMemoryAccess(MI)) {
+  if(RII->isVGPRMemoryAccess(MI)) {
     MI.getOperand(FIOperandNum).ChangeToRegister(getPrivateMemoryBaseRegister(MF),
                                             /*IsDef*/false,
                                             /*IsImp*/false,

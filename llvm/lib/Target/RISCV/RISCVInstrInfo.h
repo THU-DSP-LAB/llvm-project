@@ -55,7 +55,7 @@ public:
   MCInst getNop() const override;
   const MCInstrDesc &getBrCond(RISCVCC::CondCode CC) const;
 
-  bool isPrivateMemoryAccess(const MachineInstr &MI) const;
+  bool isVGPRMemoryAccess(const MachineInstr &MI) const;
 
   unsigned isLoadFromStackSlot(const MachineInstr &MI,
                                int &FrameIndex) const override;

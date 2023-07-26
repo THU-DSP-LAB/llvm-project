@@ -98,7 +98,7 @@ unsigned RISCVInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
   return 0;
 }
 
-bool RISCVInstrInfo::isPrivateMemoryAccess(const MachineInstr &MI) const {
+bool RISCVInstrInfo::isVGPRMemoryAccess(const MachineInstr &MI) const {
   switch (MI.getOpcode()) {
     default:
       return false;
@@ -110,6 +110,7 @@ bool RISCVInstrInfo::isPrivateMemoryAccess(const MachineInstr &MI) const {
     case RISCV::VSW:
     case RISCV::VSH:
     case RISCV::VSB:
+    case RISCV::VSWI12:
       return true;
   }
 }

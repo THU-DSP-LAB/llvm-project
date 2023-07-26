@@ -16,6 +16,7 @@
 #define LLVM_CODEGEN_TARGETREGISTERINFO_H
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
@@ -547,6 +548,10 @@ public:
                                       unsigned PhysReg) const {
     return false;
   }
+
+  /// Analyze register usage information
+  virtual void analyzeRegisterUsage(DenseSet<llvm::Register> RewriteRegs,
+                                      MachineFunction *MF) const {}
 
   /// Returns true if PhysReg is unallocatable and constant throughout the
   /// function.  Used by MachineRegisterInfo::isConstantPhysReg().
