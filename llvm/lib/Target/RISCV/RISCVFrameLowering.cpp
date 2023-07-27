@@ -312,6 +312,8 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   MachineFrameInfo &MFI = MF.getFrameInfo();
   auto *RMFI = MF.getInfo<RISCVMachineFunctionInfo>();
   const RISCVRegisterInfo *RI = STI.getRegisterInfo();
+  auto *CurrentProgramInfo = const_cast<VentusProgramInfo *>(
+                                                    STI.getVentusProgramInfo());
   const RISCVInstrInfo *TII = STI.getInstrInfo();
   MachineBasicBlock::iterator MBBI = MBB.begin();
   bool IsEntryFunction = RMFI->isEntryFunction();
@@ -367,10 +369,11 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
     RMFI->setLibCallStackSize(LibCallFrameSize);
   }
 
-  // FIXME: SP stack size calculation need to be later changed
-  // FIXME: TP stack size calculation is also not
   uint64_t SPStackSize = getStackSize(MF, RISCVStackID::SGPRSpill);
   uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
+  CurrentProgramInfo->PDSMemory += TPStackSize;
+  // FIXME: need to add local data declaration calculation
+  CurrentProgramInfo->LDSMemory += SPStackSize;
   //uint64_t RealStackSize = IsEntryFunction ?
   //                                SPStackSize + RMFI->getLibCallStackSize() :
   //                                TPStackSize + RMFI->getLibCallStackSize();
