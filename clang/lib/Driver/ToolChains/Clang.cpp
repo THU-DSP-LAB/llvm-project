@@ -2100,8 +2100,11 @@ void Clang::AddRISCVTargetArgs(const ArgList &Args,
 
   // Disable tail call
   // FIXME: Remove it.
-  if (CPU == "ventus-gpgpu")
+  if (CPU == "ventus-gpgpu") {
     CmdArgs.push_back("-fno-optimize-sibling-calls");
+    CmdArgs.push_back("-Wno-macro-redefined");
+  }
+
 
   SetRISCVSmallDataLimit(getToolChain(), Args, CmdArgs);
 
