@@ -36,6 +36,7 @@ define dso_local ventus_kernel void @func(ptr addrspace(1) nocapture noundef ali
 ; VENTUS-NEXT:    vadd.vv v0, v2, v0
 ; VENTUS-NEXT:    vsw12.v v0, 0(v1)
 ; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    barrier x0, x0, 1
 ; VENTUS-NEXT:    addi sp, sp, -12
 ; VENTUS-NEXT:    addi tp, tp, -4
 ; VENTUS-NEXT:    ret

@@ -32,7 +32,7 @@ define dso_local i32 @printf(ptr noundef %fmt, ...) {
 ; VENTUS-NEXT:    regext zero, zero, 8
 ; VENTUS-NEXT:    vsw.v v1, -36(v32)
 ; VENTUS-NEXT:    addi t1, tp, -32
-; VENTUS-NEXT:    sw t1, -32(tp)
+; VENTUS-NEXT:    sw t1, -36(tp)
 ; VENTUS-NEXT:    vmv.x.s t1, v1
 ; VENTUS-NEXT:    lui t2, %hi(MAX_FORMAT_STR_SIZE)
 ; VENTUS-NEXT:    lui s0, %hi(PRINT_BUFFER_ADDR)

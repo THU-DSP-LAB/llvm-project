@@ -58,8 +58,10 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    vadd.vv v0, v33, v0
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
 ; VENTUS-NEXT:  .LBB0_3: # %if.end
-; VENTUS-NEXT:    join
+; VENTUS-NEXT:    # Label of block must be emitted
+; VENTUS-NEXT:    join zero, zero, 0
 ; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    barrier x0, x0, 1
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    addi tp, tp, -24
 ; VENTUS-NEXT:    ret

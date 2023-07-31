@@ -38,6 +38,7 @@ define dso_local i32 @branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    join zero, zero, 0
 ; VENTUS-NEXT:    vadd.vx v0, v1, zero
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    barrier x0, x0, 1
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    ret
 entry:
@@ -98,6 +99,7 @@ define dso_local ventus_kernel void @loop_branch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
 ; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    barrier x0, x0, 1
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
 entry:
@@ -185,6 +187,7 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    barrier x0, x0, 1
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    addi tp, tp, -4
 ; VENTUS-NEXT:    ret
@@ -269,6 +272,7 @@ define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
 ; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    barrier x0, x0, 1
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
 entry:
@@ -375,6 +379,7 @@ define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
 ; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    barrier x0, x0, 1
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
 entry:
@@ -462,6 +467,7 @@ define dso_local i32 @_Z13get_global_idj(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    barrier x0, x0, 1
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    ret
 entry:

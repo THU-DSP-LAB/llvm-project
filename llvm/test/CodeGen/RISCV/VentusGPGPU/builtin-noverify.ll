@@ -31,6 +31,7 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    vadd.vv v1, v2, v1
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    barrier x0, x0, 1
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    addi tp, tp, -8
 ; VENTUS-NEXT:    ret

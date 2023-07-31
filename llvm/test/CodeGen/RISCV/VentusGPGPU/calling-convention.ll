@@ -37,6 +37,7 @@ define dso_local ventus_kernel void @kernel_calling_convention(ptr addrspace(1) 
 ; VENTUS-NEXT:    vadd.vx v1, v1, t0
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
 ; VENTUS-NEXT:    lw ra, -16(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    barrier x0, x0, 1
 ; VENTUS-NEXT:    addi sp, sp, -16
 ; VENTUS-NEXT:    ret
 entry:
@@ -161,6 +162,7 @@ define dso_local i32 @non_kernel_calling_convention(ptr nocapture noundef readon
 ; VENTUS-NEXT:    vadd.vv v0, v0, v1
 ; VENTUS-NEXT:    vadd.vv v0, v0, v2
 ; VENTUS-NEXT:    vadd.vv v0, v0, v3
+; VENTUS-NEXT:    barrier x0, x0, 1
 ; VENTUS-NEXT:    addi tp, tp, -28
 ; VENTUS-NEXT:    ret
 entry:
@@ -289,6 +291,7 @@ define dso_local i32 @test_add(ptr nocapture noundef readonly %a, ptr nocapture 
 ; VENTUS-NEXT:    vlw.v v1, -8(v32)
 ; VENTUS-NEXT:    vadd.vv v0, v1, v0
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    barrier x0, x0, 1
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    addi tp, tp, -8
 ; VENTUS-NEXT:    ret
