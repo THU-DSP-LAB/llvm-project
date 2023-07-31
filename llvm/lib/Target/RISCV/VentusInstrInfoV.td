@@ -1087,9 +1087,9 @@ defm VMFGE_V : VCMP_FV_F<"vmfge", 0b011111>;
 } // RVVConstraint = NoConstraint, mayRaiseFPException = true
 
 def : InstAlias<"vmsle.vi $vd, $va, !sub($vb, 1)",
-                (VMSLT_VI VGPR:$vd, VGPR:$va, uimm5:$vb), 1>;
+                (VMSLT_VI VGPR:$vd, VGPR:$va, uimm5:$vb), 0>;
 def : InstAlias<"vmsleu.vi $vd, $va, !sub($vb, 1)",
-                (VMSLTU_VI VGPR:$vd, VGPR:$va, uimm5:$vb), 1>;
+                (VMSLTU_VI VGPR:$vd, VGPR:$va, uimm5:$vb), 0>;
 def : InstAlias<"vmfgt.vv $vd, $va, $vb",
                 (VMFLT_VV VGPR:$vd, VGPR:$vb, VGPR:$va), 0>;
 def : InstAlias<"vmfge.vv $vd, $va, $vb",
@@ -1296,9 +1296,9 @@ defm : PatVXIBin<DivergentBinFrag<sdiv>, [VDIV_VV, VDIV_VX]>;
 defm : PatVXIBin<DivergentBinFrag<udiv>, [VDIVU_VV, VDIVU_VX]>;
 defm : PatVXIBin<DivergentBinFrag<srem>, [VREM_VV, VREM_VX]>;
 defm : PatVXIBin<DivergentBinFrag<urem>, [VREMU_VV, VREMU_VX]>;
-defm : PatVXIBin<DivergentBinFrag<setlt>, [VMSLT_VV, VMSLT_VX, VMSLT_VI]>;
+defm : PatVXIBin<DivergentBinFrag<setlt>, [VMSLT_VV, VMSLT_VX]>;
 defm : PatVXIBin<DivergentBinFrag<setult>,
-                        [VMSLTU_VV, VMSLTU_VX, VMSLTU_VI], uimm5>;
+                        [VMSLTU_VV, VMSLTU_VX], uimm5>;
 defm : PatVXIBin<DivergentBinFrag<setne>, [VMSNE_VV, VMSNE_VX, VMSNE_VI]>;
 defm : PatVXIBin<DivergentBinFrag<seteq>, [VMSEQ_VV, VMSEQ_VX, VMSEQ_VI]>;
 // Patterns for vrsub.vx and vrsub.vi
