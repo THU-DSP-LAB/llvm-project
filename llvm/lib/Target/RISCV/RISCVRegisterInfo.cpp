@@ -181,8 +181,8 @@ void RISCVRegisterInfo::analyzeRegisterUsage(DenseSet<Register> RewriteRegs,
       else
         CurrentProgramInfo->SGPRUsage++;
   }
-  // FIXME: need to add one more because of ra, how to simplify this?
-  CurrentProgramInfo->SGPRUsage++;
+  // FIXME: need to add two more because of ra && sp, how to simplify this?
+  CurrentProgramInfo->SGPRUsage += 2;
 }
 
 bool RISCVRegisterInfo::isSGPRReg(const MachineRegisterInfo &MRI,

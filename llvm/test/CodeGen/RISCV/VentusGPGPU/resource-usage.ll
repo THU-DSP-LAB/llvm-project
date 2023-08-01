@@ -1,0 +1,34 @@
+; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs  -asm-verbose < %s \
+; RUN:   | FileCheck -check-prefix=VENTUS %s
+
+; VENTUS: .section	.rodata.ventus.resource,"w",@progbits
+; VENTUS: .half	2
+; VENTUS: .half	5
+; VENTUS: .half	4
+; VENTUS: .half 0
+define dso_local ventus_kernel void @usage(ptr addrspace(1) nocapture noundef align 4 %b, ptr addrspace(3) nocapture noundef readonly align 4 %a) local_unnamed_addr #0 {
+; VENTUS-LABEL: usage:
+; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    addi sp, sp, 4
+; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    lw t0, 4(a0)
+; VENTUS-NEXT:    lw t1, 0(a0)
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vlw12.v v0, 0(v0)
+; VENTUS-NEXT:    lw t0, 0(t1)
+; VENTUS-NEXT:    vadd.vx v0, v0, t0
+; VENTUS-NEXT:    vmv.v.x v1, t1
+; VENTUS-NEXT:    vsw12.v v0, 0(v1)
+; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    barrier x0, x0, 1
+; VENTUS-NEXT:    addi sp, sp, -4
+; VENTUS-NEXT:    ret
+entry:
+  %0 = load i32, ptr addrspace(3) %a, align 4
+  %1 = load i32, ptr addrspace(1) %b, align 4
+  %add = add nsw i32 %1, %0
+  store i32 %add, ptr addrspace(1) %b, align 4
+  ret void
+}
+
+attributes #0 = { mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: readwrite) "frame-pointer"="all"}
