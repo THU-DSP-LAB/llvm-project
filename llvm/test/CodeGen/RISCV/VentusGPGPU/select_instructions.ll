@@ -18,7 +18,7 @@ entry:
 define dso_local i32 @slt_imm(i32 noundef %a) local_unnamed_addr  {
 ; VENTUS-LABEL: slt_imm:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vmslt.vi v0, v0, 12
+; VENTUS-NEXT:    vmsle.vi v0, v0, 11
 ; VENTUS-NEXT:    ret
 entry:
   %cmp = icmp slt i32 %a, 12
@@ -42,7 +42,7 @@ entry:
 define dso_local i32 @sltu_imm(i32 noundef %a) local_unnamed_addr  {
 ; VENTUS-LABEL: sltu_imm:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vmsltu.vi v0, v0, 12
+; VENTUS-NEXT:    vmsleu.vi v0, v0, 11
 ; VENTUS-NEXT:    ret
 entry:
   %cmp = icmp ult i32 %a, 12
@@ -66,7 +66,7 @@ entry:
 define dso_local i32 @sle_imm(i32 noundef %a) local_unnamed_addr  {
 ; VENTUS-LABEL: sle_imm:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vmslt.vi v0, v0, 13
+; VENTUS-NEXT:    vmsle.vi v0, v0, 12
 ; VENTUS-NEXT:    ret
 entry:
   %cmp = icmp slt i32 %a, 13
@@ -90,7 +90,7 @@ entry:
 define dso_local i32 @sleu_imm(i32 noundef %a) local_unnamed_addr  {
 ; VENTUS-LABEL: sleu_imm:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vmsltu.vi v0, v0, 13
+; VENTUS-NEXT:    vmsleu.vi v0, v0, 12
 ; VENTUS-NEXT:    ret
 entry:
   %cmp = icmp ult i32 %a, 13

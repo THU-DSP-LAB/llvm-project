@@ -180,7 +180,7 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   // sGPR -> vGPR move
   if (RISCV::GPRRegClass.contains(SrcReg) &&
       RISCV::VGPRRegClass.contains(DstReg)) {
-    BuildMI(MBB, MBBI, DL, get(RISCV::VMV_S_X), DstReg)
+    BuildMI(MBB, MBBI, DL, get(RISCV::VMV_V_X), DstReg)
         .addReg(DstReg, RegState::Undef)
         .addReg(SrcReg, getKillRegState(KillSrc));
     return;

@@ -86,8 +86,8 @@ bool RISCVExpandAtomicPseudo::expandMBB(MachineBasicBlock &MBB) {
 bool RISCVExpandAtomicPseudo::expandMI(MachineBasicBlock &MBB,
                                        MachineBasicBlock::iterator MBBI,
                                        MachineBasicBlock::iterator &NextMBBI) {
-  // RISCVInstrInfo::getInstSizeInBytes expects that the total size of the       
-  // expanded instructions for each pseudo is correct in the Size field of the   
+  // RISCVInstrInfo::getInstSizeInBytes expects that the total size of the
+  // expanded instructions for each pseudo is correct in the Size field of the
   // tablegen definition for the pseudo.
   switch (MBBI->getOpcode()) {
   case RISCV::PseudoAtomicLoadNand32:
@@ -623,7 +623,7 @@ bool RISCVExpandAtomicPseudo::expandAtomicCmpXchg(
         .addReg(NewValReg);
     MCRegister VGPR1 = RRI->findUnusedRegister(
                                    MF->getRegInfo(), &RISCV::VGPRRegClass, *MF);
-    BuildMI(LoopTailMBB, DL, TII->get(RISCV::VMV_S_X), VGPR1)
+    BuildMI(LoopTailMBB, DL, TII->get(RISCV::VMV_V_X), VGPR1)
         .addReg(VGPR1)
         .addReg(RISCV::X0);
     BuildMI(LoopTailMBB, DL, TII->get(RISCV::VBNE))
@@ -659,7 +659,7 @@ bool RISCVExpandAtomicPseudo::expandAtomicCmpXchg(
         .addReg(ScratchReg);
     MCRegister VGPR2 = RRI->findUnusedRegister(
                                   MF->getRegInfo(), &RISCV::VGPRRegClass, *MF);
-    BuildMI(LoopTailMBB, DL, TII->get(RISCV::VMV_S_X), VGPR2)
+    BuildMI(LoopTailMBB, DL, TII->get(RISCV::VMV_V_X), VGPR2)
         .addReg(VGPR2)
         .addReg(RISCV::X0);
     BuildMI(LoopTailMBB, DL, TII->get(RISCV::VBNE))

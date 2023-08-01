@@ -11144,7 +11144,7 @@ static MachineBasicBlock *emitFROUND(MachineInstr &MI, MachineBasicBlock *MBB,
   if(isDivergent) {
     Register Dummy = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
     Register Dummy1 = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
-    BuildMI(MBB, DL, TII.get(RISCV::VMV_S_X), Dummy)
+    BuildMI(MBB, DL, TII.get(RISCV::VMV_V_X), Dummy)
         .addReg(Dummy, RegState::Undef)
         .addReg(RISCV::X0);
     BuildMI(MBB, DL, TII.get(RISCV::VADD_VX), Dummy1)
@@ -11882,10 +11882,10 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
       VarArgsSaveSize = XLenInBytes * (ArgRegs.size() - Idx);
       VaArgOffset = VarArgsSaveSize;
     }
-
     // Record the frame index of the first variable argument
     // which is a value necessary to VASTART.
     int FI = MFI.CreateFixedObject(XLenInBytes, VaArgOffset, true);
+    MFI.setStackID(FI, RISCVStackID::VGPRSpill);
     RVFI->setVarArgsFrameIndex(FI);
 
     // If saving an odd number of registers then create an extra stack slot to
@@ -11893,6 +11893,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
     // offsets to even-numbered registered remain 2*XLEN-aligned.
     if (Idx % 2) {
       MFI.CreateFixedObject(XLenInBytes, VaArgOffset - (int)XLenInBytes, true);
+      MFI.setStackID(FI, RISCVStackID::VGPRSpill);
       VarArgsSaveSize += XLenInBytes;
     }
 
@@ -11906,6 +11907,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
       RegInfo.addLiveIn(ArgRegs[I], Reg);
       SDValue ArgValue = DAG.getCopyFromReg(Chain, DL, Reg, XLenVT);
       FI = MFI.CreateFixedObject(XLenInBytes, VaArgOffset, true);
+      MFI.setStackID(FI, RISCVStackID::VGPRSpill);
       // MFI.setStackID(FI, RISCVStackID::VGPRSpill);
       SDValue PtrOff = DAG.getFrameIndex(FI, getPointerTy(DAG.getDataLayout()));
       SDValue Store = DAG.getStore(Chain, DL, ArgValue, PtrOff,

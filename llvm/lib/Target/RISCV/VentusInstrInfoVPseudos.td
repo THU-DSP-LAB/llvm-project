@@ -4839,7 +4839,7 @@ let mayLoad = 0, mayStore = 0, hasSideEffects = 0 in {
         Pseudo<(outs GPR:$rd), (ins m.vrclass:$rs2, ixlenimm:$sew), []>,
         Sched<[WriteVIMovVX, ReadVIMovVX]>,
         RISCVVPseudo;
-      let HasVLOp = 1, HasSEWOp = 1, BaseInstr = VMV_S_X,
+      let HasVLOp = 1, HasSEWOp = 1, BaseInstr = VMV_V_X,
           Constraints = "$rd = $rs1" in
       def PseudoVMV_S_X # "_" # m.MX: Pseudo<(outs m.vrclass:$rd),
                                              (ins m.vrclass:$rs1, GPR:$rs2,
