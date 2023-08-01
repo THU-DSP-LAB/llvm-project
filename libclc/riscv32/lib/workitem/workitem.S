@@ -120,7 +120,7 @@ __builtin_riscv_global_linear_id:
   .type __builtin_riscv_workgroup_id_x, @function
 __builtin_riscv_workgroup_id_x:
   csrr a0, CSR_GID_X      # Read group_id_x
-  vmv.s.x v0, a0
+  vmv.v.x v0, a0
   ret
 
 
@@ -129,7 +129,7 @@ __builtin_riscv_workgroup_id_x:
   .type __builtin_riscv_workgroup_id_y, @function
 __builtin_riscv_workgroup_id_y:
   csrr a0, CSR_GID_Y      # Read group_id_y
-  vmv.s.x v0, a0
+  vmv.v.x v0, a0
   ret
 
 
@@ -138,7 +138,7 @@ __builtin_riscv_workgroup_id_y:
   .type __builtin_riscv_workgroup_id_z, @function
 __builtin_riscv_workgroup_id_z:
   csrr a0, CSR_GID_Z      # Read group_id_z
-  vmv.s.x v0, a0
+  vmv.v.x v0, a0
   ret
 
 
@@ -258,7 +258,7 @@ __builtin_riscv_global_id_z:
 __builtin_riscv_local_size_x:
   csrr a0, CSR_KNL          # Get kernel metadata buffer
   lw t0, KNL_LC_SIZE_X(a0)  # Load local_size_x
-  vmv.s.x v0, t0
+  vmv.v.x v0, t0
   ret
 
 
@@ -268,7 +268,7 @@ __builtin_riscv_local_size_x:
 __builtin_riscv_local_size_y:
   csrr a0, CSR_KNL          # Get kernel metadata buffer
   lw t0, KNL_LC_SIZE_Y(a0)  # Load local_size_y
-  vmv.s.x v0, t0
+  vmv.v.x v0, t0
   ret
 
 
@@ -278,7 +278,7 @@ __builtin_riscv_local_size_y:
 __builtin_riscv_local_size_z:
   csrr a0, CSR_KNL          # Get kernel metadata buffer
   lw t0, KNL_LC_SIZE_Z(a0)  # Load local_size_z
-  vmv.s.x v0, t0
+  vmv.v.x v0, t0
   ret
 
 
@@ -288,7 +288,7 @@ __builtin_riscv_local_size_z:
 __builtin_riscv_global_size_x:
   csrr a0, CSR_KNL          # Get kernel metadata buffer
   lw t0, KNL_GL_SIZE_X(a0)  # Get global_size_x
-  vmv.s.x v0, t0
+  vmv.v.x v0, t0
   ret
 
 
@@ -298,7 +298,7 @@ __builtin_riscv_global_size_x:
 __builtin_riscv_global_size_y:
   csrr a0, CSR_KNL          # Get kernel metadata buffer
   lw t0, KNL_GL_SIZE_Y(a0)  # Get global_size_y
-  vmv.s.x v0, t0
+  vmv.v.x v0, t0
   ret
 
 
@@ -308,7 +308,7 @@ __builtin_riscv_global_size_y:
 __builtin_riscv_global_size_z:
   csrr a0, CSR_KNL          # Get kernel metadata buffer
   lw t0, KNL_GL_SIZE_Z(a0)  # Get global_size_z
-  vmv.s.x v0, t0
+  vmv.v.x v0, t0
   ret
 
 
@@ -318,7 +318,7 @@ __builtin_riscv_global_size_z:
 __builtin_riscv_global_offset_x:
   csrr a0, CSR_KNL          # Get kernel metadata buffer
   lw t0, KNL_GL_OFFSET_X(a0)  # Get global_offset_x
-  vmv.s.x v0, t0
+  vmv.v.x v0, t0
   ret
 
 
@@ -328,7 +328,7 @@ __builtin_riscv_global_offset_x:
 __builtin_riscv_global_offset_y:
   csrr a0, CSR_KNL          # Get kernel metadata buffer
   lw t0, KNL_GL_OFFSET_Y(a0)  # Get global_offset_y
-  vmv.s.x v0, t0
+  vmv.v.x v0, t0
   ret
 
 
@@ -338,7 +338,7 @@ __builtin_riscv_global_offset_y:
 __builtin_riscv_global_offset_z:
   csrr a0, CSR_KNL          # Get kernel metadata buffer
   lw t0, KNL_GL_OFFSET_Z(a0)  # Get global_offset_z
-  vmv.s.x v0, t0
+  vmv.v.x v0, t0
   ret
 
 
@@ -350,7 +350,7 @@ __builtin_riscv_num_groups_x:
   lw t1, KNL_GL_SIZE_X(a0)  # Get global_size_x
   lw t0, KNL_LC_SIZE_X(a0)  # Get local_size_x
   divu t1, t1, t0           # global_size_x / local_size_x
-  vmv.s.x v0, t1
+  vmv.v.x v0, t1
   ret
 
 
@@ -362,7 +362,7 @@ __builtin_riscv_num_groups_y:
   lw t1, KNL_GL_SIZE_Y(a0)  # Get global_size_y
   lw t0, KNL_LC_SIZE_Y(a0)  # Get local_size_y
   divu t1, t1, t0           # global_size_y / local_size_y
-  vmv.s.x v0, t1
+  vmv.v.x v0, t1
   ret
 
 
@@ -374,7 +374,7 @@ __builtin_riscv_num_groups_z:
   lw t1, KNL_GL_SIZE_Z(a0)  # Get global_size_z
   lw t2, KNL_LC_SIZE_Z(a0)  # Get local_size_z
   divu t1, t1, t2           # global_size_z / local_size_z
-  vmv.s.x v0, t1
+  vmv.v.x v0, t1
   ret
 
 
@@ -384,5 +384,5 @@ __builtin_riscv_num_groups_z:
 __builtin_riscv_work_dim:
   csrr a0, CSR_KNL          # Get kernel metadata buffer
   lw t0, KNL_WORK_DIM(a0)   # Get work_dim
-  vmv.s.x v0, t0
+  vmv.v.x v0, t0
   ret
