@@ -869,8 +869,8 @@ def : InstAlias<"vncvt.x.x.w $vd, $vs",
 let RVVConstraint = NoConstraint in {
 defm VMSEQ_V : VCMP_IV_V_X_I<"vmseq", 0b011000>;
 defm VMSNE_V : VCMP_IV_V_X_I<"vmsne", 0b011001>;
-defm VMSLTU_V : VCMP_IV_V_X_I<"vmsltu", 0b011010, uimm5>;
-defm VMSLT_V : VCMP_IV_V_X_I<"vmslt", 0b011011>;
+defm VMSLTU_V : VCMP_IV_V_X<"vmsltu", 0b011010>;
+defm VMSLT_V : VCMP_IV_V_X<"vmslt", 0b011011>;
 defm VMSLEU_V : VCMP_IV_V_X_I<"vmsleu", 0b011100, uimm5>;
 defm VMSLE_V : VCMP_IV_V_X_I<"vmsle", 0b011101>;
 defm VMSGTU_V : VCMP_IV_X_I<"vmsgtu", 0b011110, uimm5>;
@@ -887,7 +887,7 @@ def : InstAlias<"vmsge.vv $vd, $va, $vb",
                 (VMSLE_VV VGPR:$vd, VGPR:$vb, VGPR:$va), 0>;
 
 let isCodeGenOnly = 0, isAsmParserOnly = 1, hasSideEffects = 0, mayLoad = 0,
-    mayStore = 0 in {
+    mayStore = 0, CustomConstraints = "$vd = 0,$vs2 = 2" in {
 // For unsigned comparisons we need to special case 0 immediate to maintain
 // the always true/false semantics we would invert if we just decremented the
 // immediate like we do for signed. To match the GNU assembler we will use
@@ -895,18 +895,22 @@ let isCodeGenOnly = 0, isAsmParserOnly = 1, hasSideEffects = 0, mayLoad = 0,
 // from an InstAlias.
 def PseudoVMSGEU_VI : Pseudo<(outs VGPR:$vd),
                              (ins VGPR:$vs2, simm5_plus1:$imm),
-                             [], "vmsgeu.vi", "$vd, $vs2, $imm">;
+      [(set (XLenVT VGPR:$vd), (setuge (XLenVT VGPR:$vs2), simm5_plus1:$imm))],
+      "vmsgeu.vi", "$vd, $vs2, $imm">;
 def PseudoVMSLTU_VI : Pseudo<(outs VGPR:$vd),
-                             (ins VGPR:$vs2, simm5_plus1:$imm),
-                             [], "vmsltu.vi", "$vd, $vs2, $imm">;
+            (ins VGPR:$vs2, uimm5:$imm),
+            [(set (XLenVT VGPR:$vd), (setult (XLenVT VGPR:$vs2), uimm5:$imm))],
+            "vmsltu.vi", "$vd, $vs2, $imm">;
 // Handle signed with pseudos as well for more consistency in the
 // implementation.
 def PseudoVMSGE_VI : Pseudo<(outs VGPR:$vd),
                             (ins VGPR:$vs2, simm5_plus1:$imm),
-                            [], "vmsge.vi", "$vd, $vs2, $imm">;
-def PseudoVMSLT_VI : Pseudo<(outs VGPR:$vd),
-                            (ins VGPR:$vs2, simm5_plus1:$imm),
-                            [], "vmslt.vi", "$vd, $vs2, $imm">;
+        [(set (XLenVT VGPR:$vd), (setge (XLenVT VGPR:$vs2), simm5_plus1:$imm))],
+        "vmsge.vi", "$vd, $vs2, $imm">;
+
+def PseudoVMSLT_VI : Pseudo<(outs VGPR:$vd), (ins VGPR:$vs2, simm5_plus1:$imm),
+        [(set (XLenVT VGPR:$vd), (setlt (XLenVT VGPR:$vs2), simm5_plus1:$imm))],
+        "vmslt.vi", "$vd, $vs2, $imm">;
 }
 
 let isCodeGenOnly = 0, isAsmParserOnly = 1, hasSideEffects = 0, mayLoad = 0,
@@ -1086,10 +1090,10 @@ defm VMFGT_V : VCMP_FV_F<"vmfgt", 0b011101>;
 defm VMFGE_V : VCMP_FV_F<"vmfge", 0b011111>;
 } // RVVConstraint = NoConstraint, mayRaiseFPException = true
 
-def : InstAlias<"vmsle.vi $vd, $va, !sub($vb, 1)",
-                (VMSLT_VI VGPR:$vd, VGPR:$va, uimm5:$vb), 0>;
-def : InstAlias<"vmsleu.vi $vd, $va, !sub($vb, 1)",
-                (VMSLTU_VI VGPR:$vd, VGPR:$va, uimm5:$vb), 0>;
+// def : InstAlias<"vmsle.vi $vd, $va, !sub($vb, 1)",
+//                 (VMSLT_VI VGPR:$vd, VGPR:$va, uimm5:$vb), 0>;
+// def : InstAlias<"vmsleu.vi $vd, $va, !sub($vb, 1)",
+//                 (VMSLTU_VI VGPR:$vd, VGPR:$va, uimm5:$vb), 0>;
 def : InstAlias<"vmfgt.vv $vd, $va, $vb",
                 (VMFLT_VV VGPR:$vd, VGPR:$vb, VGPR:$va), 0>;
 def : InstAlias<"vmfge.vv $vd, $va, $vb",

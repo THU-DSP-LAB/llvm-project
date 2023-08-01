@@ -50,6 +50,9 @@ private:
                   MachineBasicBlock::iterator &NextMBBI);
   bool expandBarrier(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
                      MachineBasicBlock::iterator &NextMBBI);
+  bool expandCompareSelect(MachineBasicBlock &MBB,
+                           MachineBasicBlock::iterator MBBI,
+                           MachineBasicBlock::iterator &NextMBBI);
 };
 
 char RISCVExpandPseudo::ID = 0;
@@ -88,6 +91,11 @@ bool RISCVExpandPseudo::expandMI(MachineBasicBlock &MBB,
   case RISCV::PseudoBarrier:
   case RISCV::PseudoSubGroupBarrier:
     return expandBarrier(MBB, MBBI, NextMBBI);
+  case RISCV::PseudoVMSLTU_VI:
+  case RISCV::PseudoVMSLT_VI:
+  case RISCV::PseudoVMSGE_VI:
+  case RISCV::PseudoVMSGEU_VI:
+    return expandCompareSelect(MBB, MBBI, NextMBBI);
   }
   return false;
 }
@@ -105,6 +113,29 @@ bool RISCVExpandPseudo::expandBarrier(MachineBasicBlock &MBB,
   uint32_t MemScope = isBarrier ? MBBI->getOperand(1).getImm() : 0;
   BuildMI(MBB, MBBI, MBBI->getDebugLoc(), TII->get(BarrierOpcode))
       .addImm((MemScope << 3) + MemFlag);
+  MBBI->eraseFromParent();
+  return true;
+}
+
+bool RISCVExpandPseudo::expandCompareSelect(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
+    MachineBasicBlock::iterator &NextMBBI) {
+  unsigned Opcode = MBBI->getOpcode();
+  if (Opcode == RISCV::PseudoVMSLT_VI) {
+    Opcode = RISCV::VMSLE_VI;
+  } else if (Opcode == RISCV::PseudoVMSLTU_VI) {
+    Opcode = RISCV::VMSLEU_VI;
+  } else if (Opcode == RISCV::PseudoVMSGE_VI) {
+    Opcode = RISCV::VMSGT_VI;
+  } else if (Opcode == RISCV::PseudoVMSGEU_VI) {
+    Opcode = RISCV::VMSGTU_VI;
+  } else {
+    llvm_unreachable("Unexpected Opcode!");
+  }
+  BuildMI(MBB, MBBI, MBBI->getDebugLoc(), TII->get(Opcode),
+          MBBI->getOperand(0).getReg())
+      .addReg(MBBI->getOperand(1).getReg())
+      .addImm(MBBI->getOperand(2).getImm() - 1);
   MBBI->eraseFromParent();
   return true;
 }

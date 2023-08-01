@@ -2716,7 +2716,7 @@ bool RISCVAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     emitToStreamer(Out, MCInstBuilder(Opc)
                             .addOperand(Inst.getOperand(0))
                             .addOperand(Inst.getOperand(1))
-                            .addImm(Imm));
+                            .addImm(Imm - 1));
     return false;
   }
   case RISCV::PseudoVMSGEU_VI:
@@ -2729,7 +2729,7 @@ bool RISCVAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     emitToStreamer(Out, MCInstBuilder(Opc)
                             .addOperand(Inst.getOperand(0))
                             .addOperand(Inst.getOperand(1))
-                            .addImm(Imm));
+                            .addImm(Imm - 1));
 
     return false;
   }
