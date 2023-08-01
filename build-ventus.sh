@@ -4,7 +4,7 @@ DIR=$(cd "$(dirname "${0}")" &> /dev/null && (pwd -W 2> /dev/null || pwd))
 VENTUS_BUILD_DIR=${DIR}/build
 LIBCLC_BUILD_DIR=${DIR}/build-libclc
 VENTUS_INSTALL_PREFIX=${DIR}/install
-PROGRAMS_TOBUILD=(llvm ocl-icd libclc spike driver pocl)
+PROGRAMS_TOBUILD=(llvm ocl-icd libclc spike driver pocl rodinia test-pocl)
 
 # Helper function
 help() {
@@ -101,6 +101,13 @@ fi
 
 check_if_program_exits ${OCL_ICD_DIR} "ocl icd"
 OCL_ICD_BUILD_DIR=${OCL_ICD_DIR}/build
+
+# Need to get the gpu-rodinia folder from enviroment variables
+if [ -z "${RODINIA_DIR}" ]; then
+  RODINIA_DIR=${DIR}/../gpu-rodinia
+fi
+
+check_if_program_exits ${RODINIA_DIR} "gpu-rodinia"
 
 # Build llvm
 build_llvm() {
@@ -204,12 +211,29 @@ build_icd_loader() {
   make && make install
 }
 
+# Test the rodinia test suit
+test_rodinia() {
+   cd ${RODINIA_DIR}
+   make OCL_clean
+   make OPENCL
+}
+
+# TODO : More test cases of the pocl will be added
+test_pocl() {
+   cd ${POCL_BUILD_DIR}/examples
+   ./vecadd/vecadd
+   ./matadd/matadd
+}
+
 # Export needed path and enviroment variables
 export_elements() {
   export PATH=${VENTUS_INSTALL_PREFIX}/bin:$PATH
   export LD_LIBRARY_PATH=${VENTUS_INSTALL_PREFIX}/lib:$LD_LIBRARY_PATH
   export SPIKE_SRC_DIR=${SPIKE_DIR}
   export SPIKE_TARGET_DIR=${VENTUS_INSTALL_PREFIX}
+  export VENTUS_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX}
+  export POCL_DEVICES="ventus"
+  export OCL_ICD_VENDORS=${VENTUS_INSTALL_PREFIX}/lib/libpocl.so
 }
 
 # When no need to build llvm, export needed elements
@@ -266,6 +290,16 @@ do
     check_if_ventus_built
     check_if_ocl_icd_built
     build_pocl
+  elif [ "${program}" == "rodinia" ]; then
+    check_if_ventus_built
+    check_if_ocl_icd_built
+    check_if_spike_built
+    test_rodinia
+  elif [ "${program}" == "test-pocl" ]; then
+    check_if_ventus_built
+    check_if_ocl_icd_built
+    check_if_spike_built
+    test_pocl
   else
     echo "Invalid build options: \"${program}\" , try $0 --help for help"
     exit 1
