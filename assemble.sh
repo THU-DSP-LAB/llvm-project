@@ -9,7 +9,7 @@ export PATH=$script_dir/install/bin:$PATH
 if [[ -f $1.vmem ]];then
   rm $1.vmem
 fi
-llvm-objdump -d --mattr=+v $1.riscv > $1.dump
+llvm-objdump -d --mattr=+v,+zfinx $1.riscv > $1.dump
 
 # Add a flag to mark .text section
 found_text_section=0
