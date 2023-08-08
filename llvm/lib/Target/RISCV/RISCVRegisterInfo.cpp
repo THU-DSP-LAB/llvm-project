@@ -200,7 +200,8 @@ const Register RISCVRegisterInfo::getPrivateMemoryBaseRegister(
   // FIXME: V0-V31 are used for argument registers, so here we use V32 for
   // private memory based register, but V32 is beyond the 5 bits ranges, when
   // this register are used, one more instruction is used
-  return RISCV::V32;
+  // since v0-v7 is used in variadic function arguments
+  return  MF.getFunction().isVarArg() ? RISCV::V8 : RISCV::V32;
 }
 
 const TargetRegisterClass *
