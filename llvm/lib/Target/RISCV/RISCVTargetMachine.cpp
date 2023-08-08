@@ -54,11 +54,6 @@ static cl::opt<bool>
                           cl::desc("Enable the machine combiner pass"),
                           cl::init(true), cl::Hidden);
 
-static cl::opt<bool> EnableCommonDataLayout(
-    "riscv-common-data-layout",
-    cl::desc("Enable the common data layout for other language(not OpenCL)"),
-    cl::init(false), cl::Hidden);
-
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> X(getTheRISCV32Target());
   RegisterTargetMachine<RISCVTargetMachine> Y(getTheRISCV64Target());
@@ -77,12 +72,6 @@ static StringRef computeDataLayout(const Triple &TT, StringRef CPU) {
   //  return "e-m:e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256"
   //         "-v256:256-v512:512-v1024:1024-n32:64-S128-A5-G1";
   bool IsRV32 = TT.isRISCV32();
-  if (EnableCommonDataLayout) {
-    if(IsRV32)
-      return "e-m:e-p:32:32-i64:64-n32-S128";
-    else
-      return "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128";
-  }
   if(!IsRV32)
     return "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128-A5-G1";
   assert(TT.isArch32Bit() && "only RV32 and RV64 are currently supported");

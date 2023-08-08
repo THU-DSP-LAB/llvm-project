@@ -738,8 +738,8 @@ EncompassingIntegerType(ArrayRef<struct WidthAndSignedness> Types) {
 Value *CodeGenFunction::EmitVAStartEnd(Value *ArgValue, bool IsStart) {
   llvm::Type *DestType = Int8PtrTy;
   if (ArgValue->getType() != DestType)
-    ArgValue =
-        Builder.CreateBitCast(ArgValue, DestType, ArgValue->getName().data());
+    ArgValue = Builder.CreatePointerBitCastOrAddrSpaceCast(
+                                ArgValue, DestType, ArgValue->getName().data());
 
   Intrinsic::ID inst = IsStart ? Intrinsic::vastart : Intrinsic::vaend;
   return Builder.CreateCall(CGM.getIntrinsic(inst), ArgValue);

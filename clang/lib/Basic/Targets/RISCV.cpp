@@ -48,22 +48,12 @@ void RISCVTargetInfo::adjust(DiagnosticsEngine &Diags, LangOptions &Opts) {
   TargetInfo::adjust(Diags, Opts);
   llvm::Triple Triple = getTriple();
   bool isRV32 = Triple.isRISCV32();
-	// Not OpenCL language, we no not need special data layout
- 	if ((Opts.C99 || Opts.C11 || Opts.C17) && !Opts.OpenCL) {
-		 	if(isRV32)
-      	resetDataLayout("e-m:e-p:32:32-i64:64-n32-S128");
-			else
-			 	resetDataLayout("e-m:e-p:64:64-i64:64-i128:128-n32:64-S128");
-   }
-  // Only OpenCL language needs special address mapping 
-  else {
-    UseAddrSpaceMapMangling = true;
-    AddrSpaceMap = &VentusAddrSpaceMap;
-    if(isRV32)
-    	resetDataLayout("e-m:e-p:32:32-i64:64-n32-S128-A5-G1");
-    else
-      resetDataLayout("e-m:e-p:64:64-i64:64-i128:128-n32:64-S128-A5-G1");
-   }
+  UseAddrSpaceMapMangling = true;
+  AddrSpaceMap = &VentusAddrSpaceMap;
+  if(isRV32)
+    resetDataLayout("e-m:e-p:32:32-i64:64-n32-S128-A5-G1");
+  else
+    resetDataLayout("e-m:e-p:64:64-i64:64-i128:128-n32:64-S128-A5-G1");
 
 }
 
