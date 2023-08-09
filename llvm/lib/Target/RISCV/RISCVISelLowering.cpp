@@ -4553,13 +4553,14 @@ SDValue RISCVTargetLowering::lowerVASTART(SDValue Op, SelectionDAG &DAG) const {
 
   SDLoc DL(Op);
   SDValue FI = DAG.getFrameIndex(FuncInfo->getVarArgsFrameIndex(),
-                                 getPointerTy(MF.getDataLayout()));
+                      getPointerTy(MF.getDataLayout()));
 
   // vastart just stores the address of the VarArgsFrameIndex slot into the
   // memory location argument.
-  const Value *SV = cast<SrcValueSDNode>(Op.getOperand(2))->getValue();
+  const Value *SV= cast<SrcValueSDNode>(Op.getOperand(2))->getValue();
+  // cast<StoreSDNode>(dd)->getPointerInfo().StackID
   return DAG.getStore(Op.getOperand(0), DL, FI, Op.getOperand(1),
-                      MachinePointerInfo(SV));
+                      MachinePointerInfo(SV, 0, RISCVStackID::VGPRSpill));
 }
 
 SDValue RISCVTargetLowering::lowerFRAMEADDR(SDValue Op,
@@ -13395,7 +13396,8 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
   case ISD::STORE: {
     const StoreSDNode *Store= cast<StoreSDNode>(N);
     return Store->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
-           Store->getAddressSpace() ==  RISCVAS::LOCAL_ADDRESS;
+           Store->getAddressSpace() ==  RISCVAS::LOCAL_ADDRESS ||
+           Store->getPointerInfo().StackID == RISCVStackID::VGPRSpill;
   }
   case ISD::CALLSEQ_END:
     return true;

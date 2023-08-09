@@ -2,101 +2,49 @@
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs < %s \
 ; RUN:   | FileCheck -check-prefix=VENTUS %s
 
-target datalayout = "e-m:e-p:32:32-i64:64-n32-S128"
+target datalayout = "e-m:e-p:32:32-i64:64-n32-S128-A5-G1"
 target triple = "riscv32"
 
 @MAX_FORMAT_STR_SIZE = dso_local global i32 64, align 4
 @PRINT_BUFFER_ADDR = dso_local global ptr inttoptr (i32 -1878900736 to ptr), align 4
 
 ; Function Attrs: noinline nounwind optnone vscale_range(1,2048)
-define dso_local i32 @printf(ptr noundef %fmt, ...) {
+define dso_local i32 @printf(ptr addrspace(2) noundef %fmt, ...) {
 ; VENTUS-LABEL: printf:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi tp, tp, 64
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 64
-; VENTUS-NEXT:    regext zero, zero, 1
-; VENTUS-NEXT:    vmv.v.x v32, tp
-; VENTUS-NEXT:    li t0, 0
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v7, -60(v32)
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v6, -56(v32)
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v5, -52(v32)
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v4, -48(v32)
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v3, -44(v32)
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v2, -40(v32)
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v1, -36(v32)
-; VENTUS-NEXT:    addi t1, tp, -32
-; VENTUS-NEXT:    sw t1, -36(tp)
-; VENTUS-NEXT:    vmv.x.s t1, v1
-; VENTUS-NEXT:    lui t2, %hi(MAX_FORMAT_STR_SIZE)
-; VENTUS-NEXT:    lui s0, %hi(PRINT_BUFFER_ADDR)
-; VENTUS-NEXT:    lw s1, %lo(MAX_FORMAT_STR_SIZE)(t2)
-; VENTUS-NEXT:    bge t0, s1, .LBB0_2
-; VENTUS-NEXT:  .LBB0_1: # %for.body
-; VENTUS-NEXT:    # =>This Inner Loop Header: Depth=1
-; VENTUS-NEXT:    # kill: def $v1 killed $x5
-; VENTUS-NEXT:    vadd.vx v1, v0, t0
-; VENTUS-NEXT:    lw s1, %lo(PRINT_BUFFER_ADDR)(s0)
-; VENTUS-NEXT:    vlb12.v v1, 0(v1)
-; VENTUS-NEXT:    addi a0, s1, 1
-; VENTUS-NEXT:    sw a0, %lo(PRINT_BUFFER_ADDR)(s0)
-; VENTUS-NEXT:    vmv.v.x v2, s1
-; VENTUS-NEXT:    vsb12.v v1, 0(v2)
-; VENTUS-NEXT:    addi t0, t0, 1
-; VENTUS-NEXT:    lw s1, %lo(MAX_FORMAT_STR_SIZE)(t2)
-; VENTUS-NEXT:    blt t0, s1, .LBB0_1
-; VENTUS-NEXT:  .LBB0_2: # %for.end
-; VENTUS-NEXT:    vmv.v.x v0, t1
+; VENTUS-NEXT:    vmv.v.x v8, tp
+; VENTUS-NEXT:    vsw.v v7, -60(v8)
+; VENTUS-NEXT:    vsw.v v6, -56(v8)
+; VENTUS-NEXT:    vsw.v v5, -52(v8)
+; VENTUS-NEXT:    vsw.v v4, -48(v8)
+; VENTUS-NEXT:    vsw.v v3, -44(v8)
+; VENTUS-NEXT:    vsw.v v2, -40(v8)
+; VENTUS-NEXT:    vsw.v v1, -36(v8)
+; VENTUS-NEXT:    addi t0, tp, -36
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vsw.v v0, -36(v8)
+; VENTUS-NEXT:    addi t0, tp, -32
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vsw.v v0, -36(v8)
 ; VENTUS-NEXT:    addi tp, tp, -64
 ; VENTUS-NEXT:    ret
 entry:
-  %fmt.addr = alloca ptr, align 4
-  %va = alloca ptr, align 4
-  %v = alloca i32, align 4
-  %i = alloca i32, align 4
-  store ptr %fmt, ptr %fmt.addr, align 4
-  call void @llvm.va_start(ptr %va)
-  %argp.cur = load ptr, ptr %va, align 4
+  %retval = alloca i32, align 4, addrspace(5)
+  %fmt.addr = alloca ptr addrspace(2), align 4, addrspace(5)
+  %va = alloca ptr, align 4, addrspace(5)
+  store ptr addrspace(2) %fmt, ptr addrspace(5) %fmt.addr, align 4
+  %va1 = addrspacecast ptr addrspace(5) %va to ptr
+  call void @llvm.va_start(ptr %va1)
+  %argp.cur = load ptr, ptr addrspace(5) %va, align 4
   %argp.next = getelementptr inbounds i8, ptr %argp.cur, i32 4
-  store ptr %argp.next, ptr %va, align 4
+  store ptr %argp.next, ptr addrspace(5) %va, align 4
   %0 = load i32, ptr %argp.cur, align 4
-  store i32 %0, ptr %v, align 4
-  store i32 0, ptr %i, align 4
-  br label %for.cond
-
-for.cond:                                         ; preds = %for.inc, %entry
-  %1 = load i32, ptr %i, align 4
-  %2 = load i32, ptr @MAX_FORMAT_STR_SIZE, align 4
-  %cmp = icmp slt i32 %1, %2
-  br i1 %cmp, label %for.body, label %for.end
-
-for.body:                                         ; preds = %for.cond
-  %3 = load ptr, ptr %fmt.addr, align 4
-  %incdec.ptr = getelementptr inbounds i8, ptr %3, i32 1
-  store ptr %incdec.ptr, ptr %fmt.addr, align 4
-  %4 = load i8, ptr %3, align 1
-  %5 = load ptr, ptr @PRINT_BUFFER_ADDR, align 4
-  %incdec.ptr1 = getelementptr inbounds i8, ptr %5, i32 1
-  store ptr %incdec.ptr1, ptr @PRINT_BUFFER_ADDR, align 4
-  store i8 %4, ptr %5, align 1
-  br label %for.inc
-
-for.inc:                                          ; preds = %for.body
-  %6 = load i32, ptr %i, align 4
-  %inc = add nsw i32 %6, 1
-  store i32 %inc, ptr %i, align 4
-  br label %for.cond
-
-for.end:                                          ; preds = %for.cond
-  call void @llvm.va_end(ptr %va)
-  %7 = load i32, ptr %v, align 4
-  ret i32 %7
+  %va2 = addrspacecast ptr addrspace(5) %va to ptr
+  call void @llvm.va_end(ptr %va2)
+  %1 = load i32, ptr addrspace(5) %retval, align 4
+  ret i32 %1
 }
 
 ; Function Attrs: nocallback nofree nosync nounwind willreturn

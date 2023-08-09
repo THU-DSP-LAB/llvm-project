@@ -41,7 +41,9 @@ class DivergentPrivateLoadFrag<SDPatternOperator Op> : PatFrag<
   (Op $src0),
   [{
     return N->isDivergent() &&
-      cast<LoadSDNode>(N)->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS;
+      (cast<LoadSDNode>(N)->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
+      cast<LoadSDNode>(N)->getPointerInfo().StackID == RISCVStackID::VGPRSpill
+      );
   }]>;
 
 class DivergentNonPrivateLoadFrag<SDPatternOperator Op> : PatFrag<
@@ -49,7 +51,9 @@ class DivergentNonPrivateLoadFrag<SDPatternOperator Op> : PatFrag<
   (Op $src0),
   [{
     return N->isDivergent() &&
-      cast<LoadSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS;
+      cast<LoadSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS &&
+      cast<LoadSDNode>(N)->getPointerInfo().StackID != RISCVStackID::VGPRSpill
+      ;
   }]>;
 
 class UniformBinFrag<SDPatternOperator Op> : PatFrag<
@@ -72,7 +76,10 @@ class DivergentPrivateStoreFrag<SDPatternOperator Op> : PatFrag<
   (Op $src0, $src1),
   [{
     return N->isDivergent() &&
-      cast<StoreSDNode>(N)->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS;
+
+      (cast<StoreSDNode>(N)->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
+      cast<StoreSDNode>(N)->getPointerInfo().StackID == RISCVStackID::VGPRSpill
+      );
   }]>;
 
 class UniformStoreFrag<SDPatternOperator Op> : PatFrag<
@@ -88,7 +95,9 @@ class DivergentNonPrivateStoreFrag<SDPatternOperator Op> : PatFrag<
   (Op $src0, $src1),
   [{
     return N->isDivergent() &&
-      cast<StoreSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS;
+      cast<StoreSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS &&
+      cast<StoreSDNode>(N)->getPointerInfo().StackID != RISCVStackID::VGPRSpill
+      ;
   }]>;
 
 // Widen sALU PatFrag for such as ADDW/SUBW to be selected from i64 add/sub
@@ -1449,7 +1458,7 @@ class PatGpr<SDPatternOperator OpNode, RVInst Inst>
 class PatGprGpr<SDPatternOperator OpNode, RVInst Inst>
     : Pat<(OpNode GPR:$rs1, GPR:$rs2), (Inst GPR:$rs1, GPR:$rs2)>;
 class PatVGprVGpr<SDPatternOperator OpNode, RVInst Inst>
-    : Pat<(OpNode (i32 VGPR:$rs1),(i32 VGPR:$rs2)), 
+    : Pat<(OpNode (i32 VGPR:$rs1),(i32 VGPR:$rs2)),
         (Inst (i32 VGPR:$rs1), (i32 VGPR:$rs2))>;
 
 class PatGprImm<SDPatternOperator OpNode, RVInst Inst, ImmLeaf ImmType>
