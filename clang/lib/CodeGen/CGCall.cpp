@@ -5066,7 +5066,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
         // can happen due to trivial type mismatches.
         if (FirstIRArg < IRFuncTy->getNumParams() &&
             V->getType() != IRFuncTy->getParamType(FirstIRArg))
-          V = Builder.CreateBitCast(V, IRFuncTy->getParamType(FirstIRArg));
+          V = Builder.CreatePointerBitCastOrAddrSpaceCast(V, IRFuncTy->getParamType(FirstIRArg));
 
         if (ArgHasMaybeUndefAttr)
           V = Builder.CreateFreeze(V);

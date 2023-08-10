@@ -5,9 +5,10 @@
 target datalayout = "e-m:e-p:32:32-i64:64-n32-S128-A5-G1"
 target triple = "riscv32"
 
-@MAX_FORMAT_STR_SIZE = dso_local global i32 64, align 4
-@PRINT_BUFFER_ADDR = dso_local global ptr inttoptr (i32 -1878900736 to ptr), align 4
-
+; __builtin_va_list va;
+; __builtin_va_start(va, fmt);
+; __builtin_va_arg(va, int);
+; __builtin_va_end(va)
 ; Function Attrs: noinline nounwind optnone vscale_range(1,2048)
 define dso_local i32 @printf(ptr addrspace(2) noundef %fmt, ...) {
 ; VENTUS-LABEL: printf:
