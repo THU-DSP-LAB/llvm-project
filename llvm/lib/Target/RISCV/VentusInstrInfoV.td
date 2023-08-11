@@ -217,11 +217,17 @@ class VALUVV<bits<6> funct6, RISCVVFormat opv, string opcodestr>
                 (ins VGPR:$vs2, VGPR:$vs1),
                 opcodestr, "$vd, $vs2, $vs1">;
 
+// // op vd, vs1, vs2 (reverse the order of vs1 and vs2)
+// class VALUrVV<bits<6> funct6, RISCVVFormat opv, string opcodestr>
+//     : RVInstVV<funct6, opv, (outs VGPR:$vd_wb),
+//                 (ins VGPR:$vd, VGPR:$vs1, VGPR:$vs2),
+//                 opcodestr, "$vd, $vs1, $vs2">;
+
 // op vd, vs1, vs2 (reverse the order of vs1 and vs2)
 class VALUrVV<bits<6> funct6, RISCVVFormat opv, string opcodestr>
     : RVInstVV<funct6, opv, (outs VGPR:$vd_wb),
-                (ins VGPR:$vd, VGPR:$vs1, VGPR:$vs2),
-                opcodestr, "$vd, $vs1, $vs2">;
+                (ins VGPR:$vd, VGPR:$vs2, VGPR:$vs1),
+                opcodestr, "$vd, $vs2, $vs1">;
 
 // op vd, vs2, rs1
 class VALUVX<bits<6> funct6, RISCVVFormat opv, string opcodestr>
@@ -247,11 +253,17 @@ class VALUVF<bits<6> funct6, RISCVVFormat opv, string opcodestr>
                 (ins VGPR:$vs2, GPRF32:$rs1),
                 opcodestr, "$vd, $vs2, $rs1">;
 
+// // op vd, rs1, vs2 (Float) (reverse the order of rs1 and vs2)
+// class VALUrVF<bits<6> funct6, RISCVVFormat opv, string opcodestr>
+//     : RVInstVX<funct6, opv, (outs VGPR:$vd_wb),
+//                 (ins VGPR:$vd, GPRF32:$rs1, VGPR:$vs2),
+//                 opcodestr, "$vd, $rs1, $vs2">;
+      
 // op vd, rs1, vs2 (Float) (reverse the order of rs1 and vs2)
 class VALUrVF<bits<6> funct6, RISCVVFormat opv, string opcodestr>
     : RVInstVX<funct6, opv, (outs VGPR:$vd_wb),
-                (ins VGPR:$vd, GPRF32:$rs1, VGPR:$vs2),
-                opcodestr, "$vd, $rs1, $vs2">;
+                (ins VGPR:$vd, VGPR:$vs2, GPRF32:$rs1),
+                opcodestr, "$vd, $vs2, $rs1">;
 
 // op vd, vs2 (use vs1 as instruction encoding)
 class VALUVs2<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, string opcodestr>
