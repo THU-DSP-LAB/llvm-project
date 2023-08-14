@@ -30,3 +30,5 @@ compiler-rt/floatunsidf.cl
 compiler-rt/floatundisf.cl
 compiler-rt/floatundidf.cl
 compiler-rt/isfinite.cl
+compiler-rt/udivdi3.cl
+compiler-rt/udivmodti4.cl
