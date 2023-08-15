@@ -8,17 +8,17 @@
 
 vfmsac.vv v4, v2, v1
 # CHECK-INST: vfmsac.vv v4, v2, v1
-# CHECK-ENCODING: [0x57,0x92,0x20,0xba]
+# CHECK-ENCODING: [0x57,0x12,0x11,0xba]
 
-vfmsac.vf v4, v2, ra
-# CHECK-INST: vfmsac.vf v4, v2, ra
+vfmsac.vf v4, ra, v2
+# CHECK-INST: vfmsac.vf v4, ra, v2
 # CHECK-ENCODING: [0x57,0xd2,0x20,0xba]
 
 
 vfnmsac.vv v4, v2, v1
 # CHECK-INST: vfnmsac.vv v4, v2, v1
-# CHECK-ENCODING: [0x57,0x92,0x20,0xbe]
+# CHECK-ENCODING: [0x57,0x12,0x11,0xbe]
 
-vfnmsac.vf v4, v2, ra
-# CHECK-INST: vfnmsac.vf v4, v2, ra
+vfnmsac.vf v4, ra, v2
+# CHECK-INST: vfnmsac.vf v4, ra, v2
 # CHECK-ENCODING: [0x57,0xd2,0x20,0xbe]
