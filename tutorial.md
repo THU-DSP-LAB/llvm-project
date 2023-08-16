@@ -75,3 +75,62 @@ Use -mcpu or -mtune to specify the target's processor.
 For example, clang --target=aarch64-unknown-linux-gui -mcpu=cortex-a35
 ```
 
+## 2: 添加ABI信息
+
+初始的[commit](https://github.com/THU-DSP-LAB/llvm-project/commit/9c54c010b2d68c3546aeae942555ad5d3f2d4e30#diff-d5392fbd34fbb607cc468738adce16985f9461c9a3f5bc7c5ed64dba44137d19)
+主要是参考了AMDGPU的ABI设计，针对kernel和non-kernel函数有不同的处理
+
+### 2.1: ventus ABI信息
+
+主要是实例化`VentusRISCVABIInfo`这个类，继承自`DefaultABIInfo`
+
+* 确定参数的传递方式
+  * 约定超过多少个参数往栈上存，其余的参数直接用寄存器传递
+* 确认函数返回值传递方式
+* <font color='red'>确定函数调用约定</font>
+* <font color='red'>管理对齐要求</font>
+
+然后让LLVM针对RISCV平台下的ABI调用使用`VentusRISCVABIInfo`这个类, 这样就算是把ventus ABI信息注册上了
+
+```cpp
+  RISCVTargetCodeGenInfo(CodeGen::CodeGenTypes &CGT, unsigned XLen,
+                         unsigned FLen)
+      : TargetCodeGenInfo(std::make_unique<VentusRISCVABIInfo>(CGT, XLen)) {}
+```
+
+### 2.2: 后端codegen
+
+前端定义好ABI信息后, 后端中跟这个比较相关的接口在`RISCVISelLowering.cpp`这个文件中，这里面有后端中关于怎么处理函数参数，函数返回值的接口， 这两个接口略复杂，需要时间消化，可以后面再学，需要参考承影项目的设计文档
+
+* RISCVTargetLowering::LowerFormalArguments
+* RISCVTargetLowering::LowerReturn
+
+### 2.3: 测试
+
+写一个简单的文件测试一下ABI的函数参数传递
+
+```
+int test_abi(int16 a, int16 b, int c) {
+  return a.x + b.x + c;
+}
+```
+运行命令行`./build/bin/clang -target riscv32 -mcpu=ventus-gpgpu abi.cl -S`,可以得到以下输出
+
+```
+test_abi:
+	addi	sp, sp, 4
+	addi	tp, tp, 16
+	regext	zero, zero, 1
+	vmv.v.x	v32, tp
+	sw	ra, -4(sp)
+	regext	zero, zero, 8
+	vlw.v	v1, -20(v32)
+	vadd.vv	v0, v16, v0
+	vadd.vv	v0, v0, v1
+	lw	ra, -4(sp)
+	addi	sp, sp, -4
+	addi	tp, tp, -16
+	ret
+```
+ventus ABI规定，non-kernel函数传递使用32个向量寄存器，其余的用栈传递，这里的c参数是第33个参数，所以这里是直接从栈上加载过来，其余的参数都是寄存器，感兴趣可以测试一下kernel函数
+
