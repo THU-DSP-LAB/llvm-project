@@ -782,7 +782,6 @@ bool RISCVFrameLowering::restoreCalleeSavedRegisters(
     return true;
 
   MachineFunction *MF = MBB.getParent();
-  auto &ST = MF->getSubtarget<RISCVSubtarget>();
   const TargetInstrInfo &TII = *MF->getSubtarget().getInstrInfo();
   DebugLoc DL;
   if (MI != MBB.end() && !MI->isDebugInstr())
@@ -818,11 +817,7 @@ bool RISCVFrameLowering::restoreCalleeSavedRegisters(
       MI->eraseFromParent();
     }
   }
-  // For ventus arch, need to insert barrier(local_men_fence) ro ensure different
-  // warp get the correct function return address
-  if(ST.getCPU() == "ventus-gpgpu")
-    BuildMI(MBB, MI, DL, TII.get(RISCV::BARRIER))
-        .addImm(1); // local_mem_fence
+
   return true;
 }
 
