@@ -23,3 +23,5 @@ add_custom_command(TARGET ${LIBNAME}
     $<TARGET_OBJECTS:${LIBNAME_OBJ}>
     ${LLVM_LIBRARY_OUTPUT_INTDIR}/crt0.o
 )
+
+add_subdirectory(printf)

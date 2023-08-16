@@ -8,7 +8,9 @@ env:
   RODINIA: gpu-rodinia
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - dev-ventus
   pull_request:
     branches: [ main ]
   schedule:
