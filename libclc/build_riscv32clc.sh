@@ -6,7 +6,7 @@ BINARY_DIR=$3
 
 # Collect all the object files in build directory
 OBJECT_FILE_LIST=""
-for item in $(find ${LIBCLC_BUILD_DIR} -name "*.o")
+for item in $(find ${LIBCLC_BUILD_DIR} -name "*.bc.o" -o -name "*.c.o")
 do
     OBJECT_FILE_LIST="${OBJECT_FILE_LIST} ${item}"
 done
