@@ -2,8 +2,8 @@
 
 # This script will be used by pocl
 
-echo "converting object file:"
-echo $1
+# echo "converting object file:"
+# echo $1
 script_dir=$(cd "$(dirname "$0")" && pwd)
 export PATH=$script_dir/install/bin:$PATH
 if [[ -f $1.vmem ]];then
@@ -37,4 +37,4 @@ while IFS= read -r line; do
     fi
 done < $1.dump
 
-echo "finish converting to vmem file!"
+# echo "finish converting to vmem file!"
