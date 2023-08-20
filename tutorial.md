@@ -134,3 +134,34 @@ test_abi:
 ```
 ventus ABI规定，non-kernel函数传递使用32个向量寄存器，其余的用栈传递，这里的c参数是第33个参数，所以这里是直接从栈上加载过来，其余的参数都是寄存器，感兴趣可以测试一下kernel函数
 
+
+## 3: 寄存器的定义与使用
+
+Ventus架构中使用了64个sGPR与256个vGPR,详细定义请参考[ventus寄存器定义](llvm/lib/Target/RISCV/VentusRegisterInfo.td),扩展寄存器或者自定义寄存器可以参考现有的一些架构的tablegen设计
+
+```
+def GPR : RVRegisterClass<"RISCV", [XLenVT], 32, (add
+    (sequence "X%u", 5, 63),
+    (sequence "X%u", 0, 4)
+  )> {
+  let RegInfos = XLenRI;
+  let IsSGPR = 1;
+}
+```
+以上就是64个sGPR寄存器的完整定义，build完可以参考build/lib/Target/RISCV/RISCVGenRegisterInfo.inc这个文件, 这里面会列出所有的在tablegen里面寄存器信息，关于寄存器定义有几个比较重要的点
+
+* 寄存器的名字(alias)
+* 寄存器支持处理的数据类型
+
+在llvm/lib/Target/RISCV/RISCVISelLowering.cpp这个文件中，会定义每种寄存器原生支持什么类型的数据
+
+```cpp
+  if (Subtarget.hasVInstructions()) {
+    // TODO: add more data type mapping
+    addRegisterClass(MVT::i32, &RISCV::VGPRRegClass);
+
+    addRegisterClass(MVT::f32, &RISCV::VGPRRegClass);
+  }
+```
+
+这个的意思就是表明VGPR寄存器里面支持合法存放i32与f32类型的数据
