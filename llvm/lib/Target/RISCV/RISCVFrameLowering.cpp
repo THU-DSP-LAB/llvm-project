@@ -735,6 +735,9 @@ bool RISCVFrameLowering::spillCalleeSavedRegisters(
     return true;
 
   MachineFunction *MF = MBB.getParent();
+  // For kernel function, no need to spill callee saved register
+  if(MF->getInfo<RISCVMachineFunctionInfo>()->isEntryFunction())
+    return true;
   const TargetInstrInfo &TII = *MF->getSubtarget().getInstrInfo();
   DebugLoc DL;
   if (MI != MBB.end() && !MI->isDebugInstr())
@@ -782,6 +785,9 @@ bool RISCVFrameLowering::restoreCalleeSavedRegisters(
     return true;
 
   MachineFunction *MF = MBB.getParent();
+  // If kernel function, no need to restore CalleeSavedRegisters
+  if(MF->getInfo<RISCVMachineFunctionInfo>()->isEntryFunction())
+    return true;
   const TargetInstrInfo &TII = *MF->getSubtarget().getInstrInfo();
   DebugLoc DL;
   if (MI != MBB.end() && !MI->isDebugInstr())
