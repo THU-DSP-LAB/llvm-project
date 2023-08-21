@@ -8,10 +8,12 @@
 
 #include "RISCVTargetTransformInfo.h"
 #include "MCTargetDesc/RISCVMatInt.h"
+#include "RISCVMachineFunctionInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/BasicTTIImpl.h"
 #include "llvm/CodeGen/CostTable.h"
 #include "llvm/CodeGen/TargetLowering.h"
+#include "llvm/IR/CallingConv.h"
 #include <cmath>
 #include <optional>
 using namespace llvm;
@@ -356,9 +358,13 @@ unsigned RISCVTTIImpl::getRegUsageForType(Type *Ty) {
 }
 
 bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
-  // FIXME: Maybe need to check kernel or kernel function?
-  if (const Argument *A = dyn_cast<Argument>(V))
+  if (const Argument *A = dyn_cast<Argument>(V)) {
+    auto &Func = A->getParent()->getFunction();
+    if (Func.getFunction().getCallingConv() == CallingConv::SPIR_KERNEL ||
+        Func.getFunction().getCallingConv() == CallingConv::VENTUS_KERNEL)
+      return false;
     return true;
+  }
 
   // Loads from the private memory are divergent, because
   // threads can execute the load instruction with the same inputs and get
