@@ -165,3 +165,127 @@ def GPR : RVRegisterClass<"RISCV", [XLenVT], 32, (add
 ```
 
 这个的意思就是表明VGPR寄存器里面支持合法存放i32与f32类型的数据
+
+## 4: 指令定义相关
+
+本章节涉及到承影软件设计部分最重要的部分,指令定义以及指令选择, 指令生成相关, 读者应该先阅读OpenCL的内存模型，GPU SIMT架构设计相关知识, 或者已经拥有相关背景知识
+
+* [OpenCL model](https://www.khronos.org/assets/uploads/developers/library/2012-pan-pacific-road-show-June/OpenCL-Details-Taiwan_June-2012.pdf)
+* [GPGPU architecture](https://link.springer.com/book/10.1007/978-3-031-01759-9)
+
+### 4.1: 指令集以及指令定义
+承影架构绝大多数指令承用了RISCV官方的指令集, 使用的指令集有`IMAZfinxZve32f`
+
+* 使用`zfinx`,是因为硬件中虽然有fpu, 但是架构设计中并没有设计浮点寄存器，所以使用了zfinx这个扩展来支持浮点操作，但是这个支持官方并没有支持完，因为目前只是完成了MC级别的支持, 可以参考[这个文档](https://github.com/riscv/riscv-zfinx/blob/main/Zfinx_ISA_spec_addendum.adoc#overview), 指令定义详见[ventus-zfinx](llvm/lib/Target/RISCV/VentusInstrInfoF.td)这个文件
+
+* V扩展几乎全部沿用了RISCV-V扩展官方指令，取消了mask的概念，同时增加了承影架构中自定义的很多自定义指令, 指令定义详见[ventus-v](llvm/lib/Target/RISCV/VentusInstrInfoV.td)
+
+指令集的信息也可以在定义[ventus ProcessorModel](#1-如何注册ventus架构)里的feature list里面看到
+
+### 4.2: 指令选择以及使用
+
+这个章节的内容会比较复杂，因为涉及到的内容会比较多, 不同于RVV的SIMD(Single instruction multiple data), 承影架构是SIMT(Single instruction multiple thread), 软件层面的汇编码，其实会被多个线程执行，里面涉及到的核心知识点如以下:
+
+* Divergence与Convergence: 分叉点与汇合点
+  * 因为一个warp里面多个线程共用一个PC, 多线程执行同一份汇编码的时候，涉及分支指令必然会导致不同的执行路径, 有些线程会走if分支, 有些线程会走else分支, 如何让多线程执行完代码之后汇合到一个点就是SIMT架构的关键, 否则代码执行起来会有错误
+
+* vALU与sALU: 向量寄存器vGPR里面的操作都在vALU中执行, 标量寄存器sGPR里面的操作都在sALU中执行
+
+* VGPR的宽度是threadNum * 32bit,每一个线程的vGPR都是不同的
+
+* 访存指令: 因为承影目前的架构中没有MMU, 所以目前用访存指令来区分访问的是什么内存的数据，这里需要先补一下OpenCL的内存模型相关知识
+  * Global memory: 与传统的RISCV 访存指令保持一致(lw/sw等)
+  * Local memory: 采用的是承影架构的自定义指令(vlw12.v/vsw12.v)指令
+  * Private memory: 采用的是承影架构的自定义指令(vlw.v/vsw.v)指令
+
+#### 4.2.1: Divergence analysis
+
+大部分功能由[LegacyDivergenceAnalysis](llvm/lib/Analysis/LegacyDivergenceAnalysis.cpp)这个pass提供, 每个Target下面还有一个hook函数`TargetLowering::isSDNodeSourceOfDivergence`, 以RISCV为例, 此函数定义在`RISCVTargetLowering::isSDNodeSourceOfDivergence(const SDNode *N, FunctionLoweringInfo *FLI, LegacyDivergenceAnalysis *KDA)`, 经过分析之后能够得到
+
+* 每一个DAG都会被标记是不是divergent节点
+
+* Divergent操作在vALU中执行, Uniform操作在sALU中执行，或者换句话说, sALU相关的操作都是涉及sGPR, vALU相关的操作都是涉及vGPR.
+
+#### 4.2.2: 指令选择
+
+经由上述Divergence Analysis之后, 后面就是进行指令选择以及代码生成, 以Binary Operation(涉及到两个操作数的指令)为例
+
+```cpp
+class UniformBinFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{ return !N->isDivergent(); }]>;
+
+class DivergentBinFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{ return N->isDivergent(); }]>;
+```
+UniformBinFrag
+这是tablegen的一种语法, 后面的`[{ return !N->isDivergent(); }]>`是一种predicate, 这两个class的意思就是, `DivergentBinFrag`匹配的是Binary Operation DAG节点被标记成Divergent的节点, `UniformBinFrag`意思相反
+
+```
+class PatGprGpr<SDPatternOperator OpNode, RVInst Inst>
+    : Pat<(OpNode GPR:$rs1, GPR:$rs2), (Inst GPR:$rs1, GPR:$rs2)>;
+def : PatGprGpr<UniformBinFrag<add>, ADD>;
+```
+这里就是普通的sGPR操作的add指令匹配的定义, 相当于只有uniform操作的add指令才会被匹配成普通的sGPR add操作
+
+```
+multiclass PatVXIBin<SDPatternOperator Op, list<RVInst> Insts,
+                                        Operand optype = simm5> {
+
+  def : Pat<(Op (XLenVT VGPR:$rs1), (XLenVT VGPR:$rs2)),
+            (XLenVT (Insts[0] VGPR:$rs1, VGPR:$rs2))>;
+                                        }
+defm : PatVXIBin<DivergentBinFrag<add>,  [VADD_VV, VADD_VX, VADD_VI]>;
+
+```
+这里就是向量指令的vGPR操作的add指令匹配的定义, 相当于只有divergent操作的add指令才会被匹配成普通的vGPR add操作
+
+---
+以下是代码示例:
+
+```OpenCL
+kernel void test(__global int *a, __local int *b) {
+  a[2] = a[0] + a[1]; // sALU operation
+  b[2] = b[0] + b[1]; // vALU operation
+}
+```
+
+最后拿到的汇编码如下
+
+```as
+test:
+	addi	sp, sp, 4
+	sw	ra, -4(sp)
+	lw	t0, 0(a0)
+	lw	t1, 0(t0)
+	lw	t2, 4(t0)
+	lw	s1, 4(a0)
+	add	t1, t2, t1 # sALU operation
+	sw	t1, 8(t0)
+	vmv.v.x	v0, s1
+	vlw12.v	v1, 0(v0)
+	vlw12.v	v2, 4(v0)
+	vadd.vv	v1, v2, v1 # vALU operation
+	vsw12.v	v1, 8(v0)
+	lw	ra, -4(sp)
+	addi	sp, sp, -4
+	ret
+```
+
+### 4.3: 总结
+
+以上只是涉及到指令选择以及代码生成的一些核心概念，有些知识必须结合承影架构设计来理解，当然核心都是LLVM的知识点，涉及到的一些文件有
+
+* [RISCVIselLowering.cpp](llvm/lib/Target/RISCV/RISCVISelLowering.cpp)
+* [VentusInstrInfoV.td](llvm/lib/Target/RISCV/VentusInstrInfoV.td)
+
+
+
+
+
+
+
+
