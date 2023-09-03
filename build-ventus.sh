@@ -166,7 +166,6 @@ build_pocl() {
     -DSTATIC_LLVM=OFF \
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_CXX_COMPILER=clang++ \
-    -DCMAKE_CXX_FLAGS="-fuse-ld=lld" \
     -DCMAKE_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX}
   ninja -C ${POCL_BUILD_DIR}
   ninja -C ${POCL_BUILD_DIR} install

@@ -139,16 +139,17 @@ Use [spike](https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator) from THU 
 #### 4.4: Driver using example
 
 Accordingly, after all the building process, you can change directory to `<llvm-ventus-parentFolder>/pocl/build/examples/vecadd` directory, then export variables as what [Bridge icd loader](#3-bridge-icd-loader) does, finally just execute the file `vecadd`
-### 5: TODOs
 
-* Emit `barrier` instruction for all stores to local/global memory except sGPR spill.
-* Stacks for sGPR spilling and per-thread usage is supported by using RISCV::X2 as warp level stack, RISCV::X4 as per-thread level stack. But the 2 stack size calculation are not yet splitted out, so a lot of stack slots are wasted.
-* ~~Pattern match VV and VX optimization. There is only type information in the DAG pattern matching, we can't specify whether to match a DAG to a vop.vv or vop.vx MIR in a tblgen pattern, so a fix pass should be ran after codegen pass~~.
-* Opencl kernel api - get_enqueued_local_size, need to support non-uniform workgroup
-* `mem_fence` builtin support
+### 5: Github actions
 
-### 6: Github actions
+the workflow file is `.github/workflows/ventus-build.yml`, including below jobs
 
-We add a customized action for VENTUS including `Building ventus` and `Building ISA simulator`, later we will add `Test workflow` to make all the process automatable,
-the workflow file is `.github/workflows/ventus-build.yml`
-
+* Build llvm
+* Build ocl-icd
+* Build libclc
+* Build isa-simulator
+* Build sumulator-driver
+* Build pocl
+* Isa simulation test
+* GPU-rodinia testsuite
+* Pocl testing
