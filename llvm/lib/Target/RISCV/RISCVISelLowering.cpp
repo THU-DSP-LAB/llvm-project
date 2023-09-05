@@ -29,6 +29,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/DiagnosticInfo.h"
@@ -36,6 +37,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicsRISCV.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -4554,7 +4556,9 @@ SDValue RISCVTargetLowering::lowerVASTART(SDValue Op, SelectionDAG &DAG) const {
   SDLoc DL(Op);
   SDValue FI = DAG.getFrameIndex(FuncInfo->getVarArgsFrameIndex(),
                       getPointerTy(MF.getDataLayout()));
-
+  auto *FrameIndex = cast<FrameIndexSDNode>(Op.getOperand(1));
+  assert(FrameIndex && "Not frame index node");
+  setVastartStoreFrameIndex(FrameIndex->getIndex());
   // vastart just stores the address of the VarArgsFrameIndex slot into the
   // memory location argument.
   const Value *SV= cast<SrcValueSDNode>(Op.getOperand(2))->getValue();
@@ -13390,13 +13394,16 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
   }
   case ISD::LOAD: {
     const LoadSDNode *L = cast<LoadSDNode>(N);
-    return L->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
-           L->getAddressSpace() ==  RISCVAS::LOCAL_ADDRESS;
+    // If load from varstart store frame index, load action is divergent
+    if( auto *Base = dyn_cast<LoadSDNode>(L->getBasePtr()))
+      if(auto *BaseBase = dyn_cast<FrameIndexSDNode>(Base->getOperand(1)))
+        if(BaseBase->getIndex() == getVastartStoreFrameIndex())
+          return true;
+    return L->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS;
   }
   case ISD::STORE: {
     const StoreSDNode *Store= cast<StoreSDNode>(N);
     return Store->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
-           Store->getAddressSpace() ==  RISCVAS::LOCAL_ADDRESS ||
            Store->getPointerInfo().StackID == RISCVStackID::VGPRSpill;
   }
   case ISD::CALLSEQ_END:

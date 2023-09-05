@@ -1230,6 +1230,19 @@ def VFTTA : RVInstIVI<0b000011, (outs VGPR:$vd_wb),
 // Ventus vALU divergent execution patterns
 //===----------------------------------------------------------------------===//
 
+// ATTENTION: please don't change the pattern order
+// Private memory per-thread load/store
+def : DivergentPriLdPat<load, VLW>;
+def : DivergentPriLdPat<zextloadi16, VLHU>;
+def : DivergentPriLdPat<sextloadi16, VLH>;
+def : DivergentPriLdPat<extloadi16, VLH>;
+def : DivergentPriLdPat<zextloadi8, VLBU>;
+def : DivergentPriLdPat<extloadi8, VLB>;
+def : DivergentPriLdPat<sextloadi8, VLB>;
+def : DivergentPriStPat<store, VSW>;
+def : DivergentPriStPat<truncstorei16, VSH>;
+def : DivergentPriStPat<truncstorei8, VSB>;
+
 // Non-private memory load/store
 // TODO: add store/load test file for testing pattern match
 def : DivergentNonPriLdImmPat<load, VLWI12>;
@@ -1252,18 +1265,6 @@ def : DivergentNonPriLdPat<load, VLUXEI32>;
 def : DivergentNonPriStPat<truncstorei8, VSUXEI8>;
 def : DivergentNonPriStPat<truncstorei16, VSUXEI16>;
 def : DivergentNonPriStPat<store, VSUXEI32>;
-
-// Private memory per-thread load/store
-def : DivergentPriLdPat<load, VLW>;
-def : DivergentPriLdPat<zextloadi16, VLHU>;
-def : DivergentPriLdPat<sextloadi16, VLH>;
-def : DivergentPriLdPat<extloadi16, VLH>;
-def : DivergentPriLdPat<zextloadi8, VLBU>;
-def : DivergentPriLdPat<extloadi8, VLB>;
-def : DivergentPriLdPat<sextloadi8, VLB>;
-def : DivergentPriStPat<store, VSW>;
-def : DivergentPriStPat<truncstorei16, VSH>;
-def : DivergentPriStPat<truncstorei8, VSB>;
 
 // FIXME: check this review: https://reviews.llvm.org/D131729#inline-1269307
 // def : PatIntSetCC<[VGPR, VGPR], SETLE, VMSLE_VV>;

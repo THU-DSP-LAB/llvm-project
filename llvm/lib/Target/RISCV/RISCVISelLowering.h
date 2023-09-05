@@ -334,10 +334,11 @@ enum NodeType : unsigned {
 
 class RISCVTargetLowering : public TargetLowering {
   const RISCVSubtarget &Subtarget;
-
+  int *VastartStoreFrameIndex = new int;
 public:
   explicit RISCVTargetLowering(const TargetMachine &TM,
                                const RISCVSubtarget &STI);
+  ~RISCVTargetLowering() { delete VastartStoreFrameIndex; }
 
   const RISCVSubtarget &getSubtarget() const { return Subtarget; }
 
@@ -477,6 +478,12 @@ public:
 
   ISD::NodeType getExtendForAtomicCmpSwapArg() const override {
     return ISD::SIGN_EXTEND;
+  }
+
+  int getVastartStoreFrameIndex() const { return *VastartStoreFrameIndex; }
+
+  void setVastartStoreFrameIndex(int Index) const {
+    *VastartStoreFrameIndex = Index;
   }
 
   bool shouldExpandShift(SelectionDAG &DAG, SDNode *N) const override {
