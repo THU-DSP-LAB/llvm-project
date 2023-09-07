@@ -22,6 +22,7 @@
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/DiagnosticFrontend.h"
+#include "clang/Basic/TargetInfo.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/ADT/StringExtras.h"
@@ -351,6 +352,10 @@ static Address emitVoidPtrDirectVAArg(CodeGenFunction &CGF,
 
   // Advance the pointer past the argument, then store that back.
   CharUnits FullDirectSize = DirectSize.alignTo(SlotSize);
+  const TargetInfo &Info = CGF.getTarget();
+  // In ventus, the stack grow upwards
+  if(Info.getTargetOpts().CPU == "ventus-gpgpu" && Info.getTriple().isRISCV32())
+    FullDirectSize = -FullDirectSize;
   Address NextPtr =
       CGF.Builder.CreateConstInBoundsByteGEP(Addr, FullDirectSize, "argp.next");
   CGF.Builder.CreateStore(NextPtr.getPointer(), VAListAddr);

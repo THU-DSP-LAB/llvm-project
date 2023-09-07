@@ -13394,16 +13394,13 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
   }
   case ISD::LOAD: {
     const LoadSDNode *L = cast<LoadSDNode>(N);
-    // If load from varstart store frame index, load action is divergent
-    if( auto *Base = dyn_cast<LoadSDNode>(L->getBasePtr()))
-      if(auto *BaseBase = dyn_cast<FrameIndexSDNode>(Base->getOperand(1)))
-        if(BaseBase->getIndex() == getVastartStoreFrameIndex())
-          return true;
-    return L->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS;
+    return L->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
+           L->getAddressSpace() ==  RISCVAS::LOCAL_ADDRESS;
   }
   case ISD::STORE: {
     const StoreSDNode *Store= cast<StoreSDNode>(N);
     return Store->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
+           Store->getAddressSpace() ==  RISCVAS::LOCAL_ADDRESS ||
            Store->getPointerInfo().StackID == RISCVStackID::VGPRSpill;
   }
   case ISD::CALLSEQ_END:
