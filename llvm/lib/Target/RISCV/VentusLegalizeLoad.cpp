@@ -163,6 +163,9 @@ bool VentusLegalizeLoad::checkInstructionUse(MachineBasicBlock &MBB, MachineInst
     LLVM_DEBUG(dbgs() << "Instruction after changed: \n");
     LLVM_DEBUG(MI.dump());
     auto UseList = MR->use_instructions(MI.getOperand(0).getReg());
+    // Recursive check
+    // vlw.v v0, -28(v8) // vararg start frame
+    // vlw.v v0, 0(v0) // should be checked too
     for (auto &Use : UseList) {
       checkInstructionUse(MBB, Use);
     }
