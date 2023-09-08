@@ -292,7 +292,7 @@ void RISCVPassConfig::addPreRegAlloc() {
   if (TM->getOptLevel() != CodeGenOpt::None)
     addPass(createRISCVMergeBaseOffsetOptPass());
   addPass(createVentusVVInstrConversionPass());
-
+  addPass(createVentusLegalizeLoadPass());
 }
 
 void RISCVPassConfig::addPostRegAlloc() {

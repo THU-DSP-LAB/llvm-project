@@ -72,6 +72,9 @@ void initializeVentusRegextInsertionPass(PassRegistry &);
 FunctionPass *createVentusVVInstrConversionPass();
 void initializeVentusVVInstrConversionPass(PassRegistry &);
 
+FunctionPass *createVentusLegalizeLoadPass();
+void initializeVentusLegalizeLoadPass(PassRegistry &);
+
 FunctionPass *createVentusInsertJoinToVBranchPass();
 void initializeVentusInsertJoinToVBranchPass(PassRegistry &);
 
