@@ -1053,6 +1053,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
 
   setLibcallName(RTLIB::FPEXT_F16_F32, "__extendhfsf2");
   setLibcallName(RTLIB::FPROUND_F32_F16, "__truncsfhf2");
+  setOperationAction(ISD::ADD, MVT::i32, Custom);
 }
 
 EVT RISCVTargetLowering::getSetCCResultType(const DataLayout &DL,
@@ -4008,8 +4009,21 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
 
     return lowerFixedLengthVectorSetccToRVV(Op, DAG);
   }
-  case ISD::ADD:
-    return lowerToScalableOp(Op, DAG, RISCVISD::ADD_VL, /*HasMergeOp*/ true);
+  case ISD::ADD: {
+    // If there is any vector type for values.
+    for (const SDValue &V : Op->op_values()) {
+      if (V.getValueType().isVector())
+        return lowerToScalableOp(Op, DAG, RISCVISD::ADD_VL, /*HasMergeOp*/ true);
+    }
+
+    SDValue Op1 = Op.getOperand(1);
+
+    if(const auto *Const = dyn_cast<ConstantSDNode>(Op1)) {
+      if(Const->getAPIntValue().isNegative())
+        return lowerToPositiveImm(Op, DAG);
+    }
+    return Op;
+  }
   case ISD::SUB:
     return lowerToScalableOp(Op, DAG, RISCVISD::SUB_VL, /*HasMergeOp*/ true);
   case ISD::MUL:
@@ -6714,6 +6728,18 @@ SDValue RISCVTargetLowering::lowerFixedLengthVectorSelectToRVV(
       DAG.getNode(RISCVISD::VSELECT_VL, DL, ContainerVT, CC, Op1, Op2, VL);
 
   return convertFromScalableVector(VT, Select, DAG, Subtarget);
+}
+
+// If there is a negative imm in add instruction, the instruction will be
+// transformed to sub and the imm will be positive because of the hardware.
+SDValue RISCVTargetLowering::lowerToPositiveImm(SDValue Op, SelectionDAG &DAG) const {
+  signed Imm = Op->getConstantOperandVal(1);
+
+  SDValue NewConst = DAG.getConstant(-Imm, SDLoc(Op->getOperand(1).getNode()), 
+        Op->getOperand(1).getNode()->getValueType(0));
+  SDValue NewValue = DAG.getNode(ISD::SUB, SDLoc(Op), Op->getVTList(),
+        Op->getOperand(0), NewConst);
+  return NewValue;
 }
 
 SDValue RISCVTargetLowering::lowerToScalableOp(SDValue Op, SelectionDAG &DAG,
