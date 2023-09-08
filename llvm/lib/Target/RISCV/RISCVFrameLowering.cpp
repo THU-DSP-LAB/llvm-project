@@ -526,7 +526,7 @@ StackOffset
 RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
                                            Register &FrameReg) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-
+  auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
   // Callee-saved registers should be referenced relative to the stack
   // pointer (positive offset), otherwise use the frame pointer (negative
   // offset).
@@ -540,10 +540,16 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
           StackID == RISCVStackID::VGPRSpill) &&
          "Unexpected stack ID for the frame object.");
   uint8_t Stack = MFI.getStackID(FI);
-  StackOffset Offset =
-      StackOffset::getFixed(MFI.getObjectOffset(FI) - getOffsetOfLocalArea()
-         -getExtractedStackOffset(MF, FI, RISCVStackID::Value(Stack))
-         + MFI.getOffsetAdjustment());
+  StackOffset Offset;
+  // if(StackID == RISCVStackID::VGPRSpill)
+    Offset =
+        StackOffset::getFixed(MFI.getObjectOffset(FI) - getOffsetOfLocalArea()
+          -getExtractedStackOffset(MF, FI, RISCVStackID::Value(Stack))
+          + MFI.getOffsetAdjustment());
+  // else
+    // Offset = StackOffset::getScalable(MFI.getObjectOffset(FI));
+  
+   Offset -= StackOffset::getFixed(RVFI->getVarArgsSaveSize());
 
   if (CSI.size()) {
     MinCSFI = CSI[0].getFrameIdx();
@@ -556,9 +562,9 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
   // TODO: This only saves sGPR CSRs, as we haven't define vGPR CSRs
   // within getNonLibcallCSI.
   // if (FI >= MinCSFI && FI <= MaxCSFI) {
-  Offset -= StackOffset::getFixed(
-    getStackSize(const_cast<MachineFunction&>(MF),
-                  (RISCVStackID::Value)StackID));
+  // Offset -= StackOffset::getFixed(
+  //   getStackSize(const_cast<MachineFunction&>(MF),
+  //                 (RISCVStackID::Value)StackID));
   return Offset;
 }
 
