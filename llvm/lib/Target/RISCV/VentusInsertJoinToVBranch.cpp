@@ -39,6 +39,7 @@
 // WRANING: Do not use -O(1|2|3) optimization option
 //===----------------------------------------------------------------------===//
 
+#include "MCTargetDesc/RISCVMCTargetDesc.h"
 #include "RISCV.h"
 #include "RISCVInstrInfo.h"
 #include "RISCVTargetMachine.h"
@@ -121,12 +122,16 @@ bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
       // FIXME: There is something wrong when add this operand.
       // VBranch->addOperand(MachineOperand::CreateReg(
       //     RISCV::RPC, false /* isDef */, true /* isImp */));
-
+      auto InsertPosition = PostIDomBB->begin();
       if (!JoinedBB.contains(PostIDomBB)) {
         IsChanged = true;
         JoinedBB.insert(PostIDomBB);
-        BuildMI(*PostIDomBB, PostIDomBB->begin(), DebugLoc(),
-                TII->get(RISCV::JOIN))
+        // Insert join instruction after last vmv.v instruction
+        for (auto &MI : *PostIDomBB) {
+          if (MI.getOpcode() == RISCV::VMV_V_X)
+            InsertPosition = MI.getIterator();
+        }
+        BuildMI(*PostIDomBB, InsertPosition, DebugLoc(), TII->get(RISCV::JOIN))
             .addReg(RISCV::X0)
             .addReg(RISCV::X0)
             .addImm(0);
