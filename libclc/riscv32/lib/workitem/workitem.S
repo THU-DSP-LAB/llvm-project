@@ -81,7 +81,7 @@ __builtin_riscv_workitem_linear_id:
   .type __builtin_riscv_global_linear_id, @function
 __builtin_riscv_global_linear_id:
   addi sp, sp, 4
-  sw ra, -4(sp)
+  sw ra, 0(sp)
   csrr a3, CSR_KNL           # Get kernel metadata buffer
   lw t0, KNL_WORK_DIM(a3)    # Get work_dims
   call __builtin_riscv_global_id_x
@@ -109,7 +109,7 @@ __builtin_riscv_global_linear_id:
   vadd.vv v5, v5, v6      # global_linear_id3 = tmp + global_linear_id2
 .GLR:
   vadd.vx v0, v5, zero    # Return global_linear_id for 1/2/3 dims
-  lw ra, -4(sp)
+  lw ra, 0(sp)
   addi sp, sp, -4
   ret
 
@@ -202,14 +202,14 @@ __builtin_riscv_workitem_id_z:
   .type __builtin_riscv_global_id_x, @function
 __builtin_riscv_global_id_x:
   addi sp, sp, 4
-  sw ra, -4(sp)
+  sw ra, 0(sp)
   call __builtin_riscv_workitem_id_x
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   csrr t1, CSR_GID_X      # Get group_id_x
   lw t3, KNL_LC_SIZE_X(a0) # Get local_size_x
   mul t6, t1, t3          # CSR_GID_X * local_size_x
   vadd.vx v0,v0, t6
-  lw ra, -4(sp)
+  lw ra, 0(sp)
   addi sp, sp, -4
   ret
 
@@ -219,14 +219,14 @@ __builtin_riscv_global_id_x:
   .type __builtin_riscv_global_id_y, @function
 __builtin_riscv_global_id_y:
   addi sp, sp, 4
-  sw ra, -4(sp)
+  sw ra, 0(sp)
   call __builtin_riscv_workitem_id_y
   csrr t1, CSR_GID_Y      # Get group_id_y
   lw t2, KNL_LC_SIZE_Y(a0) # Get local_size_y
   mul t3, t1, t2          # CSR_GID_Y * local_size_y
 
   vadd.vx v0, v0, t3      # global_id_y
-  lw ra, -4(sp)
+  lw ra, 0(sp)
   addi sp, sp, -4
   ret
 
@@ -236,14 +236,14 @@ __builtin_riscv_global_id_y:
   .type __builtin_riscv_global_id_z, @function
 __builtin_riscv_global_id_z:
   addi sp, sp, 4
-  sw ra, -4(sp)
+  sw ra, 0(sp)
   call __builtin_riscv_workitem_id_z
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   csrr t1, CSR_GID_Z      # Get group_id_z
   lw t2, KNL_LC_SIZE_Z(a0) # Get local_size_z
   mul t2, t2, t1          # CSR_GID_Z * local_size_z
   vadd.vx v0, v0, t2      # global_id_z
-  lw ra, -4(sp)
+  lw ra, 0(sp)
   addi sp, sp, -4
   ret
 
