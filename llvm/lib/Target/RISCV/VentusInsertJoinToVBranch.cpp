@@ -39,9 +39,11 @@
 // WRANING: Do not use -O(1|2|3) optimization option
 //===----------------------------------------------------------------------===//
 
+#include "MCTargetDesc/RISCVMCTargetDesc.h"
 #include "RISCV.h"
 #include "RISCVInstrInfo.h"
 #include "RISCVTargetMachine.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachinePostDominators.h"
 #include "llvm/MC/MCContext.h"
 
@@ -70,6 +72,8 @@ public:
     AU.addRequired<MachinePostDominatorTree>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
+
+  bool checkJoinMBB(MachineBasicBlock &MBB) const;
 
   MachineInstr *getDivergentBranchInstr(MachineBasicBlock &MBB);
 
@@ -121,15 +125,15 @@ bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
       // FIXME: There is something wrong when add this operand.
       // VBranch->addOperand(MachineOperand::CreateReg(
       //     RISCV::RPC, false /* isDef */, true /* isImp */));
-
       if (!JoinedBB.contains(PostIDomBB)) {
         IsChanged = true;
         JoinedBB.insert(PostIDomBB);
-        BuildMI(*PostIDomBB, PostIDomBB->begin(), DebugLoc(),
-                TII->get(RISCV::JOIN))
+        // Insert join instruction after last vmv.v instruction
+        BuildMI(*PostIDomBB, PostIDomBB->begin(), DebugLoc(), TII->get(RISCV::JOIN))
             .addReg(RISCV::X0)
             .addReg(RISCV::X0)
             .addImm(0);
+        IsChanged |= checkJoinMBB(*PostIDomBB);
       }
     }
   }
@@ -209,6 +213,41 @@ bool VentusInsertJoinToVBranch::convergeReturnBlock(MachineFunction &MF) {
 
   return true;
 }
+
+  bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
+    MachineFunction *MF = MBB.getParent();
+    MachineRegisterInfo &MR = MBB.getParent()->getRegInfo();
+    bool IsChanged = false;
+    // For some instructions like vmv.v,  if the src register are defined in
+    // all predecessors, then it should not appear after join point
+    for(auto &MI : make_early_inc_range(MBB)) {
+      if(MI.getOpcode() == RISCV::VMV_V_X) {
+        bool NeedToBeErased = false;
+        assert(MI.getOperand(2).isReg() && "unexpected operator");
+        auto Defines = MR.def_instructions(MI.getOperand(2).getReg());
+        for(auto  &Def : Defines) {
+          // Check define instruction is in predecessors or not
+          for(auto *Pre : MBB.predecessors()) {
+            MachineBasicBlock::iterator Insert = Pre->begin();
+            for(auto &MI1 : *Pre) {
+              if(&MI1 == &Def)
+                // Get last register definition
+                Insert = MI1.getIterator();
+            }
+            if(Insert != Pre->begin()) {
+              Pre->insertAfter(Insert, MF->CloneMachineInstr(&MI));
+              NeedToBeErased = true;
+            }
+          }
+        }
+        if(NeedToBeErased) {
+          IsChanged |= true;
+          MI.eraseFromParent();
+        }
+      }
+    }
+    return IsChanged;
+  }
 
 } // end of anonymous namespace
 
