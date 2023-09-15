@@ -201,7 +201,7 @@ bool RISCVAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
                                     STI->getVentusProgramInfo());
   if (MF.getInfo<RISCVMachineFunctionInfo>()->isEntryFunction()) {
     MCSectionELF *ResourceSection = OutContext.getELFSection(
-        ".rodata.ventus.resource", ELF::SHT_PROGBITS, ELF::SHF_WRITE);
+        ".ventus.resource", ELF::SHT_PROGBITS, ELF::SHF_WRITE);
     OutStreamer->switchSection(ResourceSection);
     OutStreamer->emitInt16(CurrentProgramInfo->VGPRUsage);
     OutStreamer->emitInt16(CurrentProgramInfo->SGPRUsage);
