@@ -1811,9 +1811,10 @@ def PseudoZEXT_W : Pseudo<(outs GPR:$rd), (ins GPR:$rs), [], "zext.w", "$rd, $rs
 } // Predicates = [IsRV64], ...
 
 /// Loads
-multiclass UniformLdPat<PatFrag LoadOp, RVInst Inst, ValueType vt = XLenVT> {
-  def : Pat<(vt (UniformLoadFrag<LoadOp> (AddrRegImm GPRNoX4:$rs1, simm12:$imm12))),
-            (Inst GPR:$rs1, simm12:$imm12)>;
+multiclass UniformLdPat<PatFrag LoadOp, RVInst Inst,
+                              ValueType vt = XLenVT, RegisterClass StTy = GPR> {
+  def : Pat<(vt (UniformLoadFrag<LoadOp>
+  (AddrRegImm GPRNoX4:$rs1, simm12:$imm12))), (Inst StTy:$rs1, simm12:$imm12)>;
 }
 
 defm : UniformLdPat<sextloadi8, LB>;
@@ -2007,10 +2008,8 @@ defm : UniformStPat<store, SD, GPR, i64>;
 
 // FIXME: It is still work by omitting 2 of the following bitcast patterns.
 let Predicates = [HasStdExtZfinx] in {
-def : Pat<(i32 (bitconvert f32:$src)), (i32 GPR:$src)>;
-def : Pat<(i32 (bitconvert f32:$src)), (i32 VGPR:$src)>;
-def : Pat<(f32 (bitconvert i32:$src)), (f32 GPRF32:$src)>;
-def : Pat<(f32 (bitconvert i32:$src)), (f32 VGPR:$src)>;
+def : Pat<(i32 (DivergentUnaryFrag<bitconvert> (f32 GPRF32:$src))), (i32 VGPR:$src)>;
+def : Pat<(f32 (DivergentUnaryFrag<bitconvert> i32:$src)), (f32 VGPR:$src)>;
 } // Predicates = [HasStdExtZfinx]
 
 /// readcyclecounter
