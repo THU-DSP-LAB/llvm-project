@@ -218,6 +218,8 @@ bool VentusInsertJoinToVBranch::convergeReturnBlock(MachineFunction &MF) {
     MachineFunction *MF = MBB.getParent();
     MachineRegisterInfo &MR = MBB.getParent()->getRegInfo();
     bool IsChanged = false;
+    if(std::distance(MBB.pred_begin(), MBB.pred_end()) <= 2)
+      return false;
     // For some instructions like vmv.v,  if the src register are defined in
     // all predecessors, then it should not appear after join point
     for(auto &MI : make_early_inc_range(MBB)) {
