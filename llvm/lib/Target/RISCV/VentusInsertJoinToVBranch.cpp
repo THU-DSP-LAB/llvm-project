@@ -223,6 +223,7 @@ bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
   // When MBB has only one predecessor, return directly
   if (std::distance(MBB.pred_begin(), MBB.pred_end()) <= 1)
     return IsChanged;
+
   // For some instructions like vmv.v,  if the src register are defined in
   // all predecessors, then it should not appear after join point
   for (auto &MI : make_early_inc_range(MBB)) {
@@ -243,17 +244,18 @@ bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
           if (&Def.getDesc() == &Iter->getDesc())
             IsInSameBlock = true;
         }
+
         if (IsInSameBlock)
           continue;
+
         // Check define instruction is in predecessors or not
         for (auto *Pre : MBB.predecessors()) {
           // Insert flag
           bool NeedToBeInsert = false;
           MachineBasicBlock::iterator Insert = Pre->begin();
           for (auto &MI1 : *Pre) {
-            if (&MI1 == &Def)
             // Get last register definition
-            {
+            if (&MI1 == &Def) {
               Insert = MI1.getIterator();
               NeedToBeInsert = true;
               NeedToBeErased = true;
