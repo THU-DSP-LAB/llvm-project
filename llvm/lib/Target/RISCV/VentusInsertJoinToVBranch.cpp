@@ -45,6 +45,7 @@
 #include "RISCVTargetMachine.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachinePostDominators.h"
+#include "llvm/CodeGen/Register.h"
 #include "llvm/MC/MCContext.h"
 
 #define VENTUS_INSERT_JOIN_TO_BRANCH "Insert join to VBranch"
@@ -129,7 +130,8 @@ bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
         IsChanged = true;
         JoinedBB.insert(PostIDomBB);
         // Insert join instruction after last vmv.v instruction
-        BuildMI(*PostIDomBB, PostIDomBB->begin(), DebugLoc(), TII->get(RISCV::JOIN))
+        BuildMI(*PostIDomBB, PostIDomBB->begin(), DebugLoc(),
+                TII->get(RISCV::JOIN))
             .addReg(RISCV::X0)
             .addReg(RISCV::X0)
             .addImm(0);
@@ -214,42 +216,63 @@ bool VentusInsertJoinToVBranch::convergeReturnBlock(MachineFunction &MF) {
   return true;
 }
 
-  bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
-    MachineFunction *MF = MBB.getParent();
-    MachineRegisterInfo &MR = MBB.getParent()->getRegInfo();
-    bool IsChanged = false;
-    if(std::distance(MBB.pred_begin(), MBB.pred_end()) <= 2)
-      return false;
-    // For some instructions like vmv.v,  if the src register are defined in
-    // all predecessors, then it should not appear after join point
-    for(auto &MI : make_early_inc_range(MBB)) {
-      if(MI.getOpcode() == RISCV::VMV_V_X) {
-        bool NeedToBeErased = false;
-        assert(MI.getOperand(2).isReg() && "unexpected operator");
-        auto Defines = MR.def_instructions(MI.getOperand(2).getReg());
-        for(auto  &Def : Defines) {
-          // Check define instruction is in predecessors or not
-          for(auto *Pre : MBB.predecessors()) {
-            MachineBasicBlock::iterator Insert = Pre->begin();
-            for(auto &MI1 : *Pre) {
-              if(&MI1 == &Def)
-                // Get last register definition
-                Insert = MI1.getIterator();
-            }
-            if(Insert != Pre->begin()) {
-              Pre->insertAfter(Insert, MF->CloneMachineInstr(&MI));
+bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
+  MachineFunction *MF = MBB.getParent();
+  MachineRegisterInfo &MR = MBB.getParent()->getRegInfo();
+  bool IsChanged = false;
+  // When MBB has only one predecessor, return directly
+  if (std::distance(MBB.pred_begin(), MBB.pred_end()) <= 1)
+    return IsChanged;
+  // For some instructions like vmv.v,  if the src register are defined in
+  // all predecessors, then it should not appear after join point
+  for (auto &MI : make_early_inc_range(MBB)) {
+    if (MI.getOpcode() == RISCV::VMV_V_X) {
+      //  To be removed vmv.v instruction flag
+      bool NeedToBeErased = false;
+      assert(MI.getOperand(2).isReg() && "unexpected operator");
+      auto Defines = MR.def_instructions(MI.getOperand(2).getReg());
+      bool IsInSameBlock = false;
+      for (auto &Def : Defines) {
+        unsigned Opcode = Def.getOpcode();
+        // FIXME: a better way to handle this in tablegen
+        if (Opcode == RISCV::JOIN || Opcode == RISCV::SETRPC ||
+            Opcode == RISCV::REGEXT || Opcode == RISCV::REGEXTI)
+          continue;
+        // When define instruction is in same MBB, no need to change position
+        for (auto Iter = MBB.instr_begin(); Iter != MI.getIterator(); Iter++) {
+          if (&Def.getDesc() == &Iter->getDesc())
+            IsInSameBlock = true;
+        }
+        if (IsInSameBlock)
+          continue;
+        // Check define instruction is in predecessors or not
+        for (auto *Pre : MBB.predecessors()) {
+          // Insert flag
+          bool NeedToBeInsert = false;
+          MachineBasicBlock::iterator Insert = Pre->begin();
+          for (auto &MI1 : *Pre) {
+            if (&MI1 == &Def)
+            // Get last register definition
+            {
+              Insert = MI1.getIterator();
+              NeedToBeInsert = true;
               NeedToBeErased = true;
             }
           }
-        }
-        if(NeedToBeErased) {
-          IsChanged |= true;
-          MI.eraseFromParent();
+          if (NeedToBeInsert) {
+            Pre->insertAfter(Insert, MF->CloneMachineInstr(&MI));
+            NeedToBeInsert = false; // Init other predecessor insert flag
+          }
         }
       }
+      if (NeedToBeErased) {
+        IsChanged |= true;
+        MI.eraseFromParent();
+      }
     }
-    return IsChanged;
   }
+  return IsChanged;
+}
 
 } // end of anonymous namespace
 
