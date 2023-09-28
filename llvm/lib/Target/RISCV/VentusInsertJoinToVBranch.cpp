@@ -227,51 +227,56 @@ bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
   // For some instructions like vmv.v,  if the src register are defined in
   // all predecessors, then it should not appear after join point
   for (auto &MI : make_early_inc_range(MBB)) {
-    if (MI.getOpcode() == RISCV::VMV_V_X) {
-      //  To be removed vmv.v instruction flag
-      bool NeedToBeErased = false;
-      assert(MI.getOperand(2).isReg() && "unexpected operator");
-      auto Defines = MR.def_instructions(MI.getOperand(2).getReg());
-      bool IsInSameBlock = false;
-      for (auto &Def : Defines) {
-        unsigned Opcode = Def.getOpcode();
-        // FIXME: a better way to handle this in tablegen
-        if (Opcode == RISCV::JOIN || Opcode == RISCV::SETRPC ||
-            Opcode == RISCV::REGEXT || Opcode == RISCV::REGEXTI)
-          continue;
-        // When define instruction is in same MBB, no need to change position
-        for (auto Iter = MBB.instr_begin(); Iter != MI.getIterator(); Iter++) {
-          if (&Def.getDesc() == &Iter->getDesc())
-            IsInSameBlock = true;
-        }
+    if (MI.getOpcode() != RISCV::VMV_V_X)
+      continue;
 
-        if (IsInSameBlock)
-          continue;
+    // To be removed vmv.v instruction flag
+    bool NeedToBeErased = false;
+    assert(MI.getOperand(2).isReg() && "unexpected operator");
+    auto Defines = MR.def_instructions(MI.getOperand(2).getReg());
+    bool IsInSameBlock = false;
 
-        // Check define instruction is in predecessors or not
-        for (auto *Pre : MBB.predecessors()) {
-          // Insert flag
-          bool NeedToBeInsert = false;
-          MachineBasicBlock::iterator Insert = Pre->begin();
-          for (auto &MI1 : *Pre) {
-            // Get last register definition
-            if (&MI1 == &Def) {
-              Insert = MI1.getIterator();
-              NeedToBeInsert = true;
-              NeedToBeErased = true;
-            }
-          }
-          if (NeedToBeInsert) {
-            Pre->insertAfter(Insert, MF->CloneMachineInstr(&MI));
-            NeedToBeInsert = false; // Init other predecessor insert flag
-          }
+    for (auto &Def : Defines) {
+      unsigned Opcode = Def.getOpcode();
+      // FIXME: Find a better way to handle this in tablegen
+      if (Opcode == RISCV::JOIN || Opcode == RISCV::SETRPC ||
+          Opcode == RISCV::REGEXT || Opcode == RISCV::REGEXTI)
+        continue;
+
+      // When define instruction is in the same MBB, no need to change position
+      for (auto Iter = MBB.instr_begin(); Iter != MI.getIterator(); Iter++) {
+        if (&Def.getDesc() == &Iter->getDesc()) {
+          IsInSameBlock = true;
+          break;
         }
       }
-      if (NeedToBeErased) {
-        IsChanged |= true;
-        MBB.addLiveIn(MCRegister(MI.getOperand(0).getReg()));
-        MI.eraseFromParent();
+
+      if (IsInSameBlock)
+        continue;
+
+      // Check if define instruction is in the predecessors or not
+      for (auto *Pre : MBB.predecessors()) {
+        bool NeedToBeInsert = false;
+        MachineBasicBlock::iterator Insert = Pre->begin();
+        for (auto &MI1 : *Pre) {
+          // Get last register definition
+          if (&MI1 == &Def) {
+            Insert = MI1.getIterator();
+            NeedToBeInsert = true;
+            NeedToBeErased = true;
+          }
+        }
+        if (NeedToBeInsert) {
+          Pre->insertAfter(Insert, MF->CloneMachineInstr(&MI));
+          NeedToBeInsert = false; // Init other predecessor insert flag
+        }
       }
+    }
+
+    if (NeedToBeErased) {
+      IsChanged |= true;
+      MBB.addLiveIn(MCRegister(MI.getOperand(0).getReg()));
+      MI.eraseFromParent();
     }
   }
   return IsChanged;
