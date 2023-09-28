@@ -269,6 +269,7 @@ bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
       }
       if (NeedToBeErased) {
         IsChanged |= true;
+        MBB.addLiveIn(MCRegister(MI.getOperand(0).getReg()));
         MI.eraseFromParent();
       }
     }
