@@ -722,13 +722,6 @@ private:
   SDValue expandUnalignedRVVStore(SDValue Op, SelectionDAG &DAG) const;
  SDValue lowerKernArgParameterPtr(SelectionDAG &DAG, const SDLoc &SL,
                                    SDValue Chain, uint64_t Offset) const;
-  SDValue getFPExtOrFPRound(SelectionDAG &DAG, SDValue Op,
-                                            const SDLoc &DL,
-                                            EVT VT) const;
-  SDValue convertArgType(SelectionDAG &DAG, EVT VT, EVT MemVT,
-                                         const SDLoc &SL, SDValue Val,
-                                         bool Signed,
-                                         const ISD::InputArg *Arg) const;
   SDValue lowerKernargMemParameter(SelectionDAG &DAG, EVT VT, EVT MemVT,
                                    const SDLoc &SL, SDValue Chain,
                                    uint64_t Offset, Align Alignment,
