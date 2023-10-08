@@ -21,7 +21,7 @@
 namespace llvm {
 
 // This needs to be kept in sync with the field bits in VentusRegisterClass.
-enum RISCVRCFlags { IsVGPR = 1 << 0, IsSGPR = 1 << 1 }; // enum RISCVRCFlags
+enum RISCVRCFlags { IsVGPR = 1 << 0, IsSGPR = 1 << 1, IsFGPR = 1 << 2 }; // enum RISCVRCFlags
 
 struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
 
@@ -35,6 +35,10 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
   /// \returns true if this class contains SGPR registers.
   static bool hasSGPRs(const TargetRegisterClass *RC) {
     return RC->TSFlags & RISCVRCFlags::IsSGPR;
+  }
+
+  static bool hasFGPRs(const TargetRegisterClass *RC) {
+    return RC->TSFlags & RISCVRCFlags::IsFGPR;
   }
 
   /// Return the 'base' register class for this register.
