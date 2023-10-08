@@ -11621,24 +11621,19 @@ void RISCVTargetLowering::analyzeFormalArgumentsCompute(MachineFunction &MF,
 
   unsigned InIndex = 0;
 
-  for (size_t i = 0; i < Ins.size(); i++) {
-    Argument *Arg = MF.getFunction().getArg(i);
-    const bool IsByRef = Arg->hasByRefAttr();
-    Type *BaseArgTy = Arg->getType();
-    Type *MemArgTy = IsByRef ? Arg->getParamByRefType() : BaseArgTy;
-    IntegerType *ty = IntegerType::get(Ctx, 32);
-    // bool IsSmall = (Arg->getType()->getIntegerBitWidth() < 32);
-    bool IsSmall = (Arg->getType()->isIntegerTy() ? (Arg->getType()->getIntegerBitWidth() < 32) : false);
+  for (const Argument &Arg : Fn.args()) {
+    const bool IsByRef = Arg.hasByRefAttr();
+    Type *BaseArgTy = Arg.getType();
+    Type *MemArgTy = IsByRef ? Arg.getParamByRefType() : BaseArgTy;
     Align Alignment = DL.getValueOrABITypeAlignment(
-        IsByRef ? Arg->getParamAlign() : std::nullopt, IsSmall ? ty : MemArgTy);
+        IsByRef ? Arg.getParamAlign() : std::nullopt, MemArgTy);
     ArgOffset = alignTo(ArgOffset, Alignment);
 
     SmallVector<EVT, 16> ValueVTs;
     SmallVector<uint64_t, 16> Offsets;
     ComputeValueVTs(*this, DL, BaseArgTy, ValueVTs, &Offsets, ArgOffset);
 
-    // ArgOffset += DL.getTypeAllocSize(MemArgTy);
-    ArgOffset += DL.getTypeAllocSize(IsSmall ? ty : MemArgTy);
+    ArgOffset += DL.getTypeAllocSize(MemArgTy);
 
     for (unsigned Value = 0, NumValues = ValueVTs.size();
          Value != NumValues; ++Value) {
@@ -11713,116 +11708,6 @@ void RISCVTargetLowering::analyzeFormalArgumentsCompute(MachineFunction &MF,
       }
     }
   }
-
-  
-
-  // for (const Argument &Arg : Fn.args()) {
-  //   const bool IsByRef = Arg.hasByRefAttr();
-  //   Type *BaseArgTy = Arg.getType();
-  //   Type *MemArgTy = IsByRef ? Arg.getParamByRefType() : BaseArgTy;
-  //   IntegerType *ty = IntegerType::get(Ctx, 32);
-  //   // bool IsSmall = (MemArgTy->getIntegerBitWidth() < 32);
-  //   // bool IsSmall = (Arg.getType()->getIntegerBitWidth() < 32);
-  //   // auto au = dyn_cast<IntegerType>(MemArgTy);
-  //   // MemArgTy->getIntegerBitWidth();
-  //   // Arg.getType()->getIntegerBitWidth();
-  //   // if(au->getBitWidth() < 32)
-  //   // {
-  //   //   ;
-  //   // }
-  //   // if(MemArgTy->getIntegerBitWidth() < 32)
-  //   // {
-  //   //   ty = IntegerType::get(Ctx, 32);
-  //   //   // MemArgTy = cast<Type >(ty);
-  //   //   MemArgTy = ty;
-  //   // }
-  //   // MemArgTy->mysetSubclassData(32);
-  //   // Align Alignment = DL.getValueOrABITypeAlignment(
-  //   //     IsByRef ? Arg.getParamAlign() : std::nullopt, MemArgTy);
-  //   Align Alignment = DL.getValueOrABITypeAlignment(
-  //       IsByRef ? Arg.getParamAlign() : std::nullopt, true ? ty : MemArgTy);
-  //   ArgOffset = alignTo(ArgOffset, Alignment);
-
-  //   SmallVector<EVT, 16> ValueVTs;
-  //   SmallVector<uint64_t, 16> Offsets;
-  //   ComputeValueVTs(*this, DL, BaseArgTy, ValueVTs, &Offsets, ArgOffset);
-
-  //   // ArgOffset += DL.getTypeAllocSize(MemArgTy);
-  //   ArgOffset += DL.getTypeAllocSize(true ? ty : MemArgTy);
-
-  //   for (unsigned Value = 0, NumValues = ValueVTs.size();
-  //        Value != NumValues; ++Value) {
-  //     uint64_t BasePartOffset = Offsets[Value];
-
-  //     EVT ArgVT = ValueVTs[Value];
-  //     EVT MemVT = ArgVT;
-  //     MVT RegisterVT = getRegisterTypeForCallingConv(Ctx, CC, ArgVT);
-  //     unsigned NumRegs = getNumRegistersForCallingConv(Ctx, CC, ArgVT);
-
-  //     if (NumRegs == 1) {
-  //       // The argument is not split, so the IR type is the memory type.
-  //       if (ArgVT.isExtended()) {
-  //         // We have an extended type, like i24, so we should just use
-  //         // the register type.
-  //         MemVT = RegisterVT;
-  //       } else {
-  //         MemVT = ArgVT;
-  //       }
-  //     } else if (ArgVT.isVector() && RegisterVT.isVector() &&
-  //                ArgVT.getScalarType() == RegisterVT.getScalarType()) {
-  //       assert(ArgVT.getVectorNumElements() > RegisterVT.getVectorNumElements());
-  //       // We have a vector value which has been split into a vector with
-  //       // the same scalar type, but fewer elements. This should handle
-  //       // all the floating-point vector types.
-  //       MemVT = RegisterVT;
-  //     } else if (ArgVT.isVector() &&
-  //                ArgVT.getVectorNumElements() == NumRegs) {
-  //       // This arg has been split so that each element is stored in a separate
-  //       // register.
-  //       MemVT = ArgVT.getScalarType();
-  //     } else if (ArgVT.isExtended()) {
-  //       // We have an extended type, like i65.
-  //       MemVT = RegisterVT;
-  //     } else {
-  //       unsigned MemoryBits = ArgVT.getStoreSizeInBits() / NumRegs;
-  //       assert(ArgVT.getStoreSizeInBits() % NumRegs == 0);
-  //       if (RegisterVT.isInteger()) {
-  //         MemVT = EVT::getIntegerVT(State.getContext(), MemoryBits);
-  //       } else if (RegisterVT.isVector()) {
-  //         assert(!RegisterVT.getScalarType().isFloatingPoint());
-  //         unsigned NumElements = RegisterVT.getVectorNumElements();
-  //         assert(MemoryBits % NumElements == 0);
-  //         // This vector type has been split into another vector type with
-  //         // a different elements size.
-  //         EVT ScalarVT = EVT::getIntegerVT(State.getContext(),
-  //                                          MemoryBits / NumElements);
-  //         MemVT = EVT::getVectorVT(State.getContext(), ScalarVT, NumElements);
-  //       } else {
-  //         llvm_unreachable("Cannot deduce memory type.");
-  //       }
-  //     }
-
-  //     // Convert on element vectors to scalar.
-  //     if (MemVT.isVector() && MemVT.getVectorNumElements() == 1)
-  //       MemVT = MemVT.getScalarType();
-
-  //     // Round up vec3/vec5 argument
-  //     if (MemVT.isVector() && !MemVT.isPow2VectorType()) {
-  //       MemVT = MemVT.getPow2VectorType(State.getContext());
-  //     } else if (!MemVT.isSimple() && !MemVT.isVector()) {
-  //       MemVT = MemVT.getRoundIntegerType(State.getContext());
-  //     }
-
-  //     unsigned PartOffset = 0;
-  //     for (unsigned i = 0; i != NumRegs; ++i) {
-  //       State.addLoc(CCValAssign::getCustomMem(InIndex++, RegisterVT,
-  //                                              BasePartOffset + PartOffset,
-  //                                              MemVT.getSimpleVT(),
-  //                                              CCValAssign::Full));
-  //       PartOffset += MemVT.getStoreSize();
-  //     }
-  //   }
-  // }
 }
 
 // The caller is responsible for loading the full value if the argument is

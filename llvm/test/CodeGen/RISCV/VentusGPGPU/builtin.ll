@@ -7,7 +7,7 @@ define ventus_kernel void @foo_ker(ptr addrspace(1) nocapture noundef align 4 %A
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 12
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 12
-; VENTUS-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    lw t0, 0(a0)
 ; VENTUS-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
@@ -24,7 +24,7 @@ define ventus_kernel void @foo_ker(ptr addrspace(1) nocapture noundef align 4 %A
 ; VENTUS-NEXT:    vlw12.v v2, 0(v0)
 ; VENTUS-NEXT:    vadd.vv v1, v2, v1
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
-; VENTUS-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -12
 ; VENTUS-NEXT:    ret
 entry:
@@ -47,7 +47,7 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 8
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
-; VENTUS-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 8
 ; VENTUS-NEXT:    .cfi_offset v33.l, 4
 ; VENTUS-NEXT:    .cfi_offset v34.l, 0
@@ -66,7 +66,7 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    vlw12.v v2, 0(v0)
 ; VENTUS-NEXT:    vadd.vv v1, v2, v1
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
-; VENTUS-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    addi tp, tp, -8
 ; VENTUS-NEXT:    ret
