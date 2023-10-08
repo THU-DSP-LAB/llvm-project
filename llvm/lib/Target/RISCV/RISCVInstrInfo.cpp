@@ -24,7 +24,6 @@
 #include "llvm/CodeGen/MachineCombinerPattern.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -146,12 +145,8 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MBBI,
                                  const DebugLoc &DL, MCRegister DstReg,
                                  MCRegister SrcReg, bool KillSrc) const {
-  const RISCVRegisterInfo *RRI = STI.getRegisterInfo();
-
   // sGPR -> sGPR move
-  if (RISCV::GPRRegClass.contains(DstReg, SrcReg) && 
-      RISCVRegisterInfo::hasSGPRs(RRI->getPhysRegClass(DstReg)) && 
-      RISCVRegisterInfo::hasSGPRs(RRI->getPhysRegClass(SrcReg))) {
+  if (RISCV::GPRRegClass.contains(DstReg, SrcReg)) {
     BuildMI(MBB, MBBI, DL, get(RISCV::ADDI), DstReg)
         .addReg(SrcReg, getKillRegState(KillSrc))
         .addImm(0);
@@ -159,9 +154,7 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   }
 
   // vGPR -> vGPR move
-  if (RISCV::VGPRRegClass.contains(DstReg, SrcReg) && 
-      RISCVRegisterInfo::hasVGPRs(RRI->getPhysRegClass(DstReg)) && 
-      RISCVRegisterInfo::hasVGPRs(RRI->getPhysRegClass(SrcReg))) {
+  if (RISCV::VGPRRegClass.contains(DstReg, SrcReg)) {
     BuildMI(MBB, MBBI, DL, get(RISCV::VADD_VX), DstReg)
         .addReg(SrcReg, getKillRegState(KillSrc))
         .addReg(RISCV::X0);
@@ -170,9 +163,7 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 
   // vGPR -> sGPR move
   if (RISCV::GPRRegClass.contains(DstReg) &&
-      RISCVRegisterInfo::hasSGPRs(RRI->getPhysRegClass(DstReg)) && 
-      RISCV::VGPRRegClass.contains(SrcReg) && 
-      RISCVRegisterInfo::hasVGPRs(RRI->getPhysRegClass(SrcReg))) {
+      RISCV::VGPRRegClass.contains(SrcReg)) {
     BuildMI(MBB, MBBI, DL, get(RISCV::VMV_X_S), DstReg)
         .addReg(SrcReg, getKillRegState(KillSrc));
     return;
@@ -180,9 +171,7 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 
   // vGPR -> sGPRF32 move
   if (RISCV::GPRF32RegClass.contains(DstReg) &&
-      RISCVRegisterInfo::hasFGPRs(RRI->getPhysRegClass(DstReg)) && 
-      RISCV::VGPRRegClass.contains(SrcReg) && 
-      RISCVRegisterInfo::hasVGPRs(RRI->getPhysRegClass(SrcReg))) {
+      RISCV::VGPRRegClass.contains(SrcReg)) {
     BuildMI(MBB, MBBI, DL, get(RISCV::VFMV_F_S), DstReg)
         .addReg(SrcReg, getKillRegState(KillSrc));
     return;
@@ -190,9 +179,7 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 
   // sGPR -> vGPR move
   if (RISCV::GPRRegClass.contains(SrcReg) &&
-      RISCVRegisterInfo::hasSGPRs(RRI->getPhysRegClass(SrcReg)) &&
-      RISCV::VGPRRegClass.contains(DstReg) && 
-      RISCVRegisterInfo::hasVGPRs(RRI->getPhysRegClass(DstReg))) {
+      RISCV::VGPRRegClass.contains(DstReg)) {
     BuildMI(MBB, MBBI, DL, get(RISCV::VMV_V_X), DstReg)
         .addReg(DstReg, RegState::Undef)
         .addReg(SrcReg, getKillRegState(KillSrc));
@@ -200,10 +187,8 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   }
 
   // sGPRF32 -> vGPR move
-  if (RISCV::GPRF32RegClass.contains(SrcReg) && 
-      RISCVRegisterInfo::hasFGPRs(RRI->getPhysRegClass(SrcReg)) && 
-      RISCV::VGPRRegClass.contains(DstReg) && 
-      RISCVRegisterInfo::hasVGPRs(RRI->getPhysRegClass(DstReg))) {
+  if (RISCV::GPRF32RegClass.contains(SrcReg) &&
+      RISCV::VGPRRegClass.contains(DstReg)) {
     BuildMI(MBB, MBBI, DL, get(RISCV::VFMV_S_F), DstReg)
         .addReg(DstReg, RegState::Undef)
         .addReg(SrcReg, getKillRegState(KillSrc));

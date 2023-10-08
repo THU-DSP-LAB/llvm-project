@@ -32,11 +32,9 @@ class RVRegisterClass <string n, list<ValueType> rTypes, int Align, dag rList>
   // vALU and sALU registers
   field bit IsVGPR = 0;
   field bit IsSGPR = 0;
-  field bit IsFGPR = 0;
 
   let TSFlags{0} = IsVGPR;
   let TSFlags{1} = IsSGPR;
-  let TSFlags{2} = IsFGPR;
 }
 
 class RISCVReg<bits<8> Enc, string n, list<string> alt = []> : Register<n> {
@@ -417,10 +415,10 @@ def VCSR : RegisterClass<"RISCV", [XLenVT], 32,
   let RegInfos = XLenRI;
 }
 
-let RegInfos = XLenRI, IsFGPR = 1 in {
-def GPRF16  : RVRegisterClass<"RISCV", [f16], 16, (add GPR)>;
-def GPRF32  : RVRegisterClass<"RISCV", [f32], 32, (add GPR)>;
-def GPRF64  : RVRegisterClass<"RISCV", [f64], 64, (add GPR)>;
+let RegInfos = XLenRI in {
+def GPRF16  : RegisterClass<"RISCV", [f16], 16, (add GPR)>;
+def GPRF32  : RegisterClass<"RISCV", [f32], 32, (add GPR)>;
+def GPRF64  : RegisterClass<"RISCV", [f64], 64, (add GPR)>;
 } // RegInfos = XLenRI
 
 let RegAltNameIndices = [ABIRegAltName] in {
