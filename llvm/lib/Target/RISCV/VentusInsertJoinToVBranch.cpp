@@ -227,13 +227,14 @@ bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
   // For some instructions like vmv.v,  if the src register are defined in
   // all predecessors, then it should not appear after join point
   for (auto &MI : make_early_inc_range(MBB)) {
+    // FIXME: Maybe vfmv.v.f instruction need to be checked too
     if (MI.getOpcode() != RISCV::VMV_V_X)
       continue;
 
     // To be removed vmv.v instruction flag
     bool NeedToBeErased = false;
-    assert(MI.getOperand(2).isReg() && "unexpected operator");
-    auto Defines = MR.def_instructions(MI.getOperand(2).getReg());
+    assert(MI.getOperand(1).isReg() && "unexpected operator");
+    auto Defines = MR.def_instructions(MI.getOperand(1).getReg());
     bool IsInSameBlock = false;
 
     for (auto &Def : Defines) {

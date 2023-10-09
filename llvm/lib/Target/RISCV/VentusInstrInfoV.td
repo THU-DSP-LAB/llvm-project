@@ -1171,9 +1171,9 @@ let RVVConstraint = NoConstraint in {
 def VMV_X_S : RVInstV<0b010000, 0b00000, OPMVV, (outs GPR:$vd),
                       (ins VGPR:$vs2), "vmv.x.s", "$vd, $vs2">,
               Sched<[WriteVIMovVX, ReadVIMovVX]>;
-let Constraints = "$vd = $vd_rb" in
+
 def VMV_V_X : RVInstV2<0b010111, 0b00000, OPIVX, (outs VGPR:$vd),
-                      (ins VGPR:$vd_rb, GPR:$rs1), "vmv.v.x", "$vd, $rs1">,
+                      (ins GPR:$rs1), "vmv.v.x", "$vd, $rs1">,
               Sched<[WriteVIMovXV, ReadVIMovXV, ReadVIMovXX]>;
 } // RVVConstraint = NoConstraint
 
@@ -1187,9 +1187,8 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
 def VFMV_F_S : RVInstV<0b010000, 0b00000, OPFVV, (outs GPRF32:$vd),
                       (ins VGPR:$vs2), "vfmv.f.s", "$vd, $vs2">,
                Sched<[WriteVFMovVF, ReadVFMovVF]>;
-let Constraints = "$vd = $vd_wb" in
-def VFMV_S_F : RVInstV2<0b010000, 0b00000, OPFVF, (outs VGPR:$vd_wb),
-                       (ins VGPR:$vd, GPRF32:$rs1), "vfmv.s.f", "$vd, $rs1">,
+def VFMV_S_F : RVInstV2<0b010000, 0b00000, OPFVF, (outs VGPR:$vd),
+                       (ins GPRF32:$rs1), "vfmv.s.f", "$vd, $rs1">,
                Sched<[WriteVFMovFV, ReadVFMovFV, ReadVFMovFX]>;
 
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
@@ -1484,3 +1483,9 @@ def : Pat<(XLenVT (DivergentBinFrag<sub> (XLenVT VGPR:$rs1), uimm12:$imm)),
               (XLenVT (VSUBIMM12 VGPR:$rs1, uimm12:$imm))>;
 def : Pat<(XLenVT (DivergentBinFrag<add> (XLenVT VGPR:$rs1), uimm12:$imm)),
               (XLenVT (VADDIMM12 VGPR:$rs1, uimm12:$imm))>;
+
+// There already has patterns defined in VentusInstrInfo.td
+let Predicates = [HasStdExtZfinx] in {
+def : Pat<(f32 (bitconvert (i32 GPR:$src))), (VMV_V_X GPR:$src)>;
+def : Pat<(i32 (bitconvert GPRF32:$src)), (VFMV_V_F GPRF32:$src)>;
+} // Predicates = [HasStdExtZfinx]

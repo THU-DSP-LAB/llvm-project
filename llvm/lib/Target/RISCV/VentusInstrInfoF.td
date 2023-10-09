@@ -426,8 +426,8 @@ defm FCVT_S_WU : FPUnaryOp_r_frm_m<0b1101000, 0b00001, FXINX, "fcvt.s.wu">,
 defm           : FPUnaryOpDynFrmAlias_m<FCVT_S_WU, "fcvt.s.wu", FXINX>;
 
 let Predicates = [HasStdExtZfinx], mayRaiseFPException = 0 in
-def FMV_W_X : FPUnaryOp_r<0b1111000, 0b00000, 0b000, GPRF32, GPR, "fmv.w.x">,
-              Sched<[WriteFMovI32ToF32, ReadFMovI32ToF32]>;
+// def FMV_W_X : FPUnaryOp_r<0b1111000, 0b00000, 0b000, GPRF32, GPR, "fmv.w.x">,
+//               Sched<[WriteFMovI32ToF32, ReadFMovI32ToF32]>;
 
 defm FCVT_L_S  : FPUnaryOp_r_frm_m<0b1100000, 0b00010, XFIN64X, "fcvt.l.s">,
                  Sched<[WriteFCvtF32ToI64, ReadFCvtF32ToI64]>;
@@ -535,8 +535,8 @@ class PatFprFprDynFrm<SDPatternOperator OpNode, RVInstRFrm Inst,
 let Predicates = [HasStdExtZfinx] in {
 
 /// Float constants
-def : Pat<(f32 (fpimm0)), (FMV_W_X X0)>;
-def : Pat<(f32 (fpimmneg0)), (FSGNJN_S (FMV_W_X X0), (FMV_W_X X0))>;
+// def : Pat<(f32 (fpimm0)), (FMV_W_X X0)>;
+// def : Pat<(f32 (fpimmneg0)), (FSGNJN_S (FMV_W_X X0), (FMV_W_X X0))>;
 
 /// Float conversion operations
 
@@ -648,8 +648,8 @@ defm : UniformStPat<store, FSW, GPRF32, f32>;
 
 let Predicates = [HasStdExtZfinx, IsRV32] in {
 // Moves (no conversion)
-def : Pat<(bitconvert (i32 GPR:$rs1)), (FMV_W_X GPR:$rs1)>;
-def : Pat<(i32 (bitconvert GPRF32:$rs1)), (FMV_X_W GPRF32:$rs1)>;
+// def : Pat<(bitconvert (i32 GPR:$rs1)), (FMV_W_X GPR:$rs1)>;
+// def : Pat<(i32 (bitconvert GPRF32:$rs1)), (FMV_X_W GPRF32:$rs1)>;
 
 // float->[u]int. Round-to-zero must be used.
 def : Pat<(i32 (UniformUnaryFrag<any_fp_to_sint> GPRF32:$rs1)), (FCVT_W_S $rs1, 0b001)>;
@@ -674,7 +674,7 @@ def : Pat<(UniformUnaryFrag<any_uint_to_fp> (i32 GPR:$rs1)), (FCVT_S_WU $rs1, 0b
 
 let Predicates = [HasStdExtZfinx, IsRV64] in {
 // Moves (no conversion)
-def : Pat<(riscv_fmv_w_x_rv64 GPR:$src), (FMV_W_X GPR:$src)>;
+// def : Pat<(riscv_fmv_w_x_rv64 GPR:$src), (FMV_W_X GPR:$src)>;
 def : Pat<(riscv_fmv_x_anyextw_rv64 GPRF32:$src), (FMV_X_W GPRF32:$src)>;
 def : Pat<(sext_inreg (riscv_fmv_x_anyextw_rv64 GPRF32:$src), i32),
           (FMV_X_W GPRF32:$src)>;

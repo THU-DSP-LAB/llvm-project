@@ -24,6 +24,7 @@
 #include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
+#include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -37,11 +38,13 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicsRISCV.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/Support/Alignment.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/KnownBits.h"
+#include "llvm/Support/MachineValueType.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include <optional>
@@ -3930,10 +3933,6 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
     return Vec;
   }
   case ISD::LOAD: {
-    EVT VT = Op.getValueType();
-    if(VT == MVT::i16) {
-      errs() << "jjjjj\n";
-    }
     if (auto V = expandUnalignedRVVLoad(Op, DAG))
       return V;
     if (Op.getValueType().isFixedLengthVector())
@@ -6735,7 +6734,7 @@ SDValue RISCVTargetLowering::lowerFixedLengthVectorSelectToRVV(
 SDValue RISCVTargetLowering::lowerToPositiveImm(SDValue Op, SelectionDAG &DAG) const {
   signed Imm = Op->getConstantOperandVal(1);
 
-  SDValue NewConst = DAG.getConstant(-Imm, SDLoc(Op->getOperand(1).getNode()), 
+  SDValue NewConst = DAG.getConstant(-Imm, SDLoc(Op->getOperand(1).getNode()),
         Op->getOperand(1).getNode()->getValueType(0));
   SDValue NewValue = DAG.getNode(ISD::SUB, SDLoc(Op), Op->getVTList(),
         Op->getOperand(0), NewConst);
@@ -7481,7 +7480,7 @@ SDValue RISCVTargetLowering::lowerKernargMemParameter(
     // alignment than 4, but we don't really need it.
     SDValue Ptr = lowerKernArgParameterPtr(DAG, SL, Chain, AlignDownOffset);
     SDValue Load = DAG.getLoad(MVT::i32, SL, Chain, Ptr, PtrInfo, Align(4),
-                               MachineMemOperand::MODereferenceable |
+                          MachineMemOperand::MODereferenceable |
                                    MachineMemOperand::MOInvariant);
 
     SDValue ShiftAmt = DAG.getConstant(OffsetDiff * 8, SL, MVT::i32);
@@ -7492,7 +7491,7 @@ SDValue RISCVTargetLowering::lowerKernargMemParameter(
     // TODO: Support vector and half type.
     //ArgVal = convertArgType(DAG, VT, MemVT, SL, ArgVal, Signed, Arg);
 
-    return DAG.getMergeValues({ ArgVal, Load.getValue(1) }, SL);
+   return DAG.getMergeValues({ ArgVal, Load.getValue(1) }, SL);
   }
 
   SDValue Ptr = lowerKernArgParameterPtr(DAG, SL, Chain, Offset);
@@ -11176,7 +11175,6 @@ static MachineBasicBlock *emitFROUND(MachineInstr &MI, MachineBasicBlock *MBB,
     Register Dummy = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
     Register Dummy1 = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
     BuildMI(MBB, DL, TII.get(RISCV::VMV_V_X), Dummy)
-        .addReg(Dummy, RegState::Undef)
         .addReg(RISCV::X0);
     BuildMI(MBB, DL, TII.get(RISCV::VADD_VX), Dummy1)
         .addReg(Dummy)

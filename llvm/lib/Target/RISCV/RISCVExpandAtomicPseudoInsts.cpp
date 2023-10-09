@@ -624,7 +624,6 @@ bool RISCVExpandAtomicPseudo::expandAtomicCmpXchg(
     MCRegister VGPR1 = RRI->findUnusedRegister(
                                    MF->getRegInfo(), &RISCV::VGPRRegClass, *MF);
     BuildMI(LoopTailMBB, DL, TII->get(RISCV::VMV_V_X), VGPR1)
-        .addReg(VGPR1)
         .addReg(RISCV::X0);
     BuildMI(LoopTailMBB, DL, TII->get(RISCV::VBNE))
         .addReg(ScratchReg)
@@ -660,7 +659,6 @@ bool RISCVExpandAtomicPseudo::expandAtomicCmpXchg(
     MCRegister VGPR2 = RRI->findUnusedRegister(
                                   MF->getRegInfo(), &RISCV::VGPRRegClass, *MF);
     BuildMI(LoopTailMBB, DL, TII->get(RISCV::VMV_V_X), VGPR2)
-        .addReg(VGPR2)
         .addReg(RISCV::X0);
     BuildMI(LoopTailMBB, DL, TII->get(RISCV::VBNE))
         .addReg(ScratchReg)

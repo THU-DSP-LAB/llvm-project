@@ -419,7 +419,6 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
         .setMIFlag(MachineInstr::FrameSetup);
     BuildMI(MBB, MBBI, DL, TII->get(RISCV::VMV_V_X),
         RI->getPrivateMemoryBaseRegister(MF))
-      .addReg(RI->getPrivateMemoryBaseRegister(MF))
       .addReg(TPReg);
   }
 
