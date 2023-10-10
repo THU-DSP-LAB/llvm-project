@@ -359,10 +359,10 @@ unsigned RISCVTTIImpl::getRegUsageForType(Type *Ty) {
 
 bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
   if (const Argument *A = dyn_cast<Argument>(V)) {
-    auto &Func = A->getParent()->getFunction();
-    if (Func.getFunction().getCallingConv() == CallingConv::SPIR_KERNEL ||
-        Func.getFunction().getCallingConv() == CallingConv::VENTUS_KERNEL)
-      return false;
+    // auto &Func = A->getParent()->getFunction();
+    // if (Func.getFunction().getCallingConv() == CallingConv::SPIR_KERNEL ||
+    //     Func.getFunction().getCallingConv() == CallingConv::VENTUS_KERNEL)
+    //   return false;
     return true;
   }
 

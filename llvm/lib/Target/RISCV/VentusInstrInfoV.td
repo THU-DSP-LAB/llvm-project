@@ -45,35 +45,50 @@ multiclass PatVFRBin<SDPatternOperator Op, list<RVInst> Insts> {
               (Insts[2] GPRF32:$rs2, VGPR:$rs1)>;
 }
 
-class DivergentPriLdPat<PatFrag LoadOp, RVInst Inst>
- : Pat<(XLenVT (DivergentPrivateLoadFrag<LoadOp>
+multiclass DivergentPriLdPat<PatFrag LoadOp, RVInst Inst,
+                                  list<ValueType> ValueTypes = [XLenVT, f32]> {
+  foreach val = ValueTypes in {
+    def : Pat<(val (DivergentPrivateLoadFrag<LoadOp>
                 (PriAddrRegImm (XLenVT VGPR:$rs1), (simm11:$imm11)))),
                 (Inst VGPR:$rs1, simm11:$imm11)>;
+  }
+}
 
-class DivergentPriStPat<PatFrag StoreOp, RVInst Inst>
-  : Pat<(DivergentPrivateStoreFrag<StoreOp>
-         (XLenVT VGPR:$vs3), (PriAddrRegImm (XLenVT VGPR:$rs1), (simm11:$imm11))),
+multiclass DivergentPriStPat<PatFrag StoreOp, RVInst Inst,
+                                  list<ValueType> ValueTypes = [XLenVT, f32]> {
+  foreach val = ValueTypes in {
+    def : Pat<(DivergentPrivateStoreFrag<StoreOp>
+         (val VGPR:$vs3), (PriAddrRegImm (XLenVT VGPR:$rs1), (simm11:$imm11))),
          (Inst VGPR:$vs3, VGPR:$rs1, simm11:$imm11)>;
-
+  }
+}
 class DivergentNonPriLdPat<PatFrag LoadOp, RVInst Inst>
  : Pat<(XLenVT (DivergentNonPrivateLoadFrag<LoadOp>
                 (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2)))),
                 (Inst GPR:$rs1, VGPR:$vs2)>;
 
-class DivergentNonPriLdImmPat<PatFrag LoadOp, RVInst Inst>
- : Pat<(XLenVT (DivergentNonPrivateLoadFrag<LoadOp>
+multiclass DivergentNonPriLdImmPat<PatFrag LoadOp, RVInst Inst,
+                                list<ValueType> ValueTypes = [XLenVT, f32]> {
+    foreach val = ValueTypes in {
+      def : Pat<(val (DivergentNonPrivateLoadFrag<LoadOp>
                 (AddrRegImm (XLenVT VGPR:$vs1), simm12:$imm12))),
                 (Inst VGPR:$vs1, simm12:$imm12)>;
+    }
+}
 
 class DivergentNonPriStPat<PatFrag StoreOp, RVInst Inst>
   : Pat<(DivergentNonPrivateStoreFrag<StoreOp>
          (XLenVT VGPR:$vs3), (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2))),
          (Inst VGPR:$vs3, GPR:$rs1, VGPR:$vs2)>;
-class DivergentNonPriStImmPat<PatFrag StoreOp, RVInst Inst>
-  : Pat<(DivergentNonPrivateStoreFrag<StoreOp>
-         (XLenVT VGPR:$vs3), (AddrRegImm (XLenVT VGPR:$vs1), simm12:$imm12)),
-         (Inst VGPR:$vs3, VGPR:$vs1, simm12:$imm12)>;
 
+multiclass DivergentNonPriStImmPat<PatFrag StoreOp, RVInst Inst,
+                                list<ValueType> ValueTypes = [XLenVT, f32]> {
+  foreach val = ValueTypes in {
+    def : Pat<(DivergentNonPrivateStoreFrag<StoreOp>
+         (val VGPR:$vs3), (AddrRegImm (XLenVT VGPR:$vs1), simm12:$imm12)),
+         (Inst VGPR:$vs3, VGPR:$vs1, simm12:$imm12)>;
+  }
+ }
 // RVV instruction pattern class for float/interger ternary operations
 // Dst is used to identify vx and vf
 multiclass PatVXFTer<list<SDPatternOperator> Ops, ValueType Ty, DAGOperand Dst,
@@ -1168,9 +1183,6 @@ def VID_V : RVInstV<0b010100, 0b10001, OPMVV, (outs VGPR:$vd),
 
 // Integer Scalar Move Instructions
 let RVVConstraint = NoConstraint in {
-def VMV_X_S : RVInstV<0b010000, 0b00000, OPMVV, (outs GPR:$vd),
-                      (ins VGPR:$vs2), "vmv.x.s", "$vd, $vs2">,
-              Sched<[WriteVIMovVX, ReadVIMovVX]>;
 
 def VMV_V_X : RVInstV2<0b010111, 0b00000, OPIVX, (outs VGPR:$vd),
                       (ins GPR:$rs1), "vmv.v.x", "$vd, $rs1">,
@@ -1184,9 +1196,6 @@ let Predicates = [HasVInstructionsAnyF] in {
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
     RVVConstraint = NoConstraint  in {
 // Floating-Point Scalar Move Instructions
-def VFMV_F_S : RVInstV<0b010000, 0b00000, OPFVV, (outs GPRF32:$vd),
-                      (ins VGPR:$vs2), "vfmv.f.s", "$vd, $vs2">,
-               Sched<[WriteVFMovVF, ReadVFMovVF]>;
 def VFMV_S_F : RVInstV2<0b010000, 0b00000, OPFVF, (outs VGPR:$vd),
                        (ins GPRF32:$rs1), "vfmv.s.f", "$vd, $rs1">,
                Sched<[WriteVFMovFV, ReadVFMovFV, ReadVFMovFX]>;
@@ -1231,29 +1240,29 @@ def VFTTA : RVInstIVI<0b000011, (outs VGPR:$vd_wb),
 
 // ATTENTION: please don't change the pattern order
 // Private memory per-thread load/store
-def : DivergentPriLdPat<load, VLW>;
-def : DivergentPriLdPat<zextloadi16, VLHU>;
-def : DivergentPriLdPat<sextloadi16, VLH>;
-def : DivergentPriLdPat<extloadi16, VLH>;
-def : DivergentPriLdPat<zextloadi8, VLBU>;
-def : DivergentPriLdPat<extloadi8, VLB>;
-def : DivergentPriLdPat<sextloadi8, VLB>;
-def : DivergentPriStPat<store, VSW>;
-def : DivergentPriStPat<truncstorei16, VSH>;
-def : DivergentPriStPat<truncstorei8, VSB>;
+defm : DivergentPriLdPat<load, VLW>;
+defm : DivergentPriLdPat<zextloadi16, VLHU>;
+defm : DivergentPriLdPat<sextloadi16, VLH>;
+defm : DivergentPriLdPat<extloadi16, VLH>;
+defm : DivergentPriLdPat<zextloadi8, VLBU>;
+defm : DivergentPriLdPat<extloadi8, VLB>;
+defm : DivergentPriLdPat<sextloadi8, VLB>;
+defm : DivergentPriStPat<store, VSW>;
+defm : DivergentPriStPat<truncstorei16, VSH>;
+defm : DivergentPriStPat<truncstorei8, VSB>;
 
 // Non-private memory load/store
 // TODO: add store/load test file for testing pattern match
-def : DivergentNonPriLdImmPat<load, VLWI12>;
-def : DivergentNonPriLdImmPat<sextloadi16, VLHI12>;
-def : DivergentNonPriLdImmPat<extloadi16, VLHI12>;
-def : DivergentNonPriLdImmPat<sextloadi8, VLBI12>;
-def : DivergentNonPriLdImmPat<extloadi8, VLBI12>;
-def : DivergentNonPriLdImmPat<zextloadi8, VLBUI12>;
-def : DivergentNonPriLdImmPat<zextloadi16, VLHUI12>;
-def : DivergentNonPriStImmPat<store, VSWI12>;
-def : DivergentNonPriStImmPat<truncstorei16, VSHI12>;
-def : DivergentNonPriStImmPat<truncstorei8, VSBI12>;
+defm : DivergentNonPriLdImmPat<load, VLWI12>;
+defm : DivergentNonPriLdImmPat<sextloadi16, VLHI12>;
+defm : DivergentNonPriLdImmPat<extloadi16, VLHI12>;
+defm : DivergentNonPriLdImmPat<sextloadi8, VLBI12>;
+defm : DivergentNonPriLdImmPat<extloadi8, VLBI12>;
+defm : DivergentNonPriLdImmPat<zextloadi8, VLBUI12>;
+defm : DivergentNonPriLdImmPat<zextloadi16, VLHUI12>;
+defm : DivergentNonPriStImmPat<store, VSWI12>;
+defm : DivergentNonPriStImmPat<truncstorei16, VSHI12>;
+defm : DivergentNonPriStImmPat<truncstorei8, VSBI12>;
 def : DivergentNonPriLdPat<sextloadi8, VLUXEI8>;
 def : DivergentNonPriLdPat<extloadi8, VLUXEI8>;
 def : DivergentNonPriLdPat<sextloadi16, VLUXEI16>;
@@ -1486,6 +1495,6 @@ def : Pat<(XLenVT (DivergentBinFrag<add> (XLenVT VGPR:$rs1), uimm12:$imm)),
 
 // There already has patterns defined in VentusInstrInfo.td
 let Predicates = [HasStdExtZfinx] in {
-def : Pat<(f32 (bitconvert (i32 GPR:$src))), (VMV_V_X GPR:$src)>;
+// def : Pat<(f32 (bitconvert (i32 GPR:$src))), (VMV_V_X GPR:$src)>;
 def : Pat<(i32 (bitconvert GPRF32:$src)), (VFMV_V_F GPRF32:$src)>;
 } // Predicates = [HasStdExtZfinx]

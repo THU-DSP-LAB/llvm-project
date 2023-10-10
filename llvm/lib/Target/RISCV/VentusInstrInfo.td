@@ -40,17 +40,8 @@ class DivergentPrivateLoadFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0),
   (Op $src0),
   [{
-    const LoadSDNode *L = cast<LoadSDNode>(N);
-    bool IsDivergent = false;
-    if( auto *Base = dyn_cast<LoadSDNode>(L->getBasePtr()))
-      if(auto *BaseBase = dyn_cast<FrameIndexSDNode>(Base->getOperand(1)))
-        if(BaseBase->getIndex() == CurDAG->getMachineFunction().
-getSubtarget<RISCVSubtarget>().getTargetLowering()->getVastartStoreFrameIndex())
-          IsDivergent = true;
-    return N->isDivergent() &&
-      (cast<LoadSDNode>(N)->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
-      cast<LoadSDNode>(N)->getPointerInfo().StackID == RISCVStackID::VGPRSpill
-      || IsDivergent);
+    return (cast<LoadSDNode>(N)->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
+      cast<LoadSDNode>(N)->getPointerInfo().StackID == RISCVStackID::VGPRSpill);
   }]>;
 
 class DivergentNonPrivateLoadFrag<SDPatternOperator Op> : PatFrag<

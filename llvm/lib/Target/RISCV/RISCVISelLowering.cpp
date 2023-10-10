@@ -215,10 +215,10 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     // setOperationAction(ISD::LOAD, MVT::i16, Promote);
     // AddPromotedToType(ISD::LOAD, MVT::i16, MVT::i32);
     setTargetDAGCombine({ISD::FP_TO_SINT,ISD::FP_TO_UINT});
-    setOperationAction(ISD::LOAD, MVT::f32, Promote);
-    AddPromotedToType(ISD::LOAD, MVT::f32, MVT::i32);
-    setOperationAction(ISD::STORE, MVT::f32, Promote);
-    AddPromotedToType(ISD::STORE, MVT::f32, MVT::i32);
+    // setOperationAction(ISD::LOAD, MVT::f32, Promote);
+    // AddPromotedToType(ISD::LOAD, MVT::f32, MVT::i32);
+    // setOperationAction(ISD::STORE, MVT::f32, Promote);
+    // AddPromotedToType(ISD::STORE, MVT::f32, MVT::i32);
   }
 
   if (!Subtarget.hasStdExtZbb())
@@ -13479,7 +13479,7 @@ RISCVTargetLowering::getRegClassFor(MVT VT, bool isDivergent) const {
   const TargetRegisterClass *RC = TargetLoweringBase::getRegClassFor(VT, false);
   const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
   if (!TRI->isSGPRClass(RC) && !isDivergent)
-    return &RISCV::GPRRegClass;
+    return VT == MVT::i32 ? &RISCV::GPRRegClass : &RISCV::GPRF32RegClass;
   // FIXME: cause we set defalut register class for XlenVT is GPR class
   else if (TRI->isSGPRClass(RC) && isDivergent)
     return &RISCV::VGPRRegClass;
