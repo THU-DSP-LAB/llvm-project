@@ -450,8 +450,8 @@ defm           : FPUnaryOpDynFrmAlias_m<FCVT_S_LU, "fcvt.s.lu", FXIN64X>;
 //===----------------------------------------------------------------------===//
 
 let Predicates = [HasStdExtZfinx] in {
-def : InstAlias<"flw $rd, (${rs1})",  (FLW GPRF32:$rd,  GPRF32:$rs1, 0), 0>;
-def : InstAlias<"fsw $rs2, (${rs1})", (FSW GPRF32:$rs2, GPRF32:$rs1, 0), 0>;
+def : InstAlias<"flw $rd, (${rs1})",  (FLW GPRF32:$rd,  GPR:$rs1, 0), 0>;
+def : InstAlias<"fsw $rs2, (${rs1})", (FSW GPRF32:$rs2, GPR:$rs1, 0), 0>;
 
 def : InstAlias<"fmv.s $rd, $rs",  (FSGNJ_S  GPRF32:$rd, GPRF32:$rs, GPRF32:$rs)>;
 def : InstAlias<"fabs.s $rd, $rs", (FSGNJX_S GPRF32:$rd, GPRF32:$rs, GPRF32:$rs)>;
@@ -638,7 +638,7 @@ def PseudoFROUND_S : PseudoFROUND<GPRF32>;
 
 /// Loads
 
-defm : UniformLdPat<load, FLW, f32, GPRF32>;
+defm : UniformLdPat<load, FLW, f32>;
 
 /// Stores
 
