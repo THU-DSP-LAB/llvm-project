@@ -97,7 +97,7 @@ namespace RISCVAS {
 
     FLAT_ADDRESS = 0,     ///< Address space for flat memory.
     GLOBAL_ADDRESS = 1,   ///< Address space for global memory
-    CONSTANT_ADDRESS = 1, ///< Address space for constant memory
+    CONSTANT_ADDRESS = 4, ///< Address space for constant memory
     LOCAL_ADDRESS = 3,    ///< Address space for local memory.
     PRIVATE_ADDRESS = 5,  ///< Address space for private memory.
 
