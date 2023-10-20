@@ -7458,7 +7458,46 @@ SDValue RISCVTargetLowering::lowerKernArgParameterPtr(SelectionDAG &DAG,
 
   return DAG.getObjectPtrOffset(SL, BasePtr, TypeSize::Fixed(Offset));
 }
+SDValue RISCVTargetLowering::getFPExtOrFPRound(SelectionDAG &DAG,
+                                            SDValue Op,
+                                            const SDLoc &DL,
+                                            EVT VT) const {
+  return Op.getValueType().bitsLE(VT) ?
+      DAG.getNode(ISD::FP_EXTEND, DL, VT, Op) :
+    DAG.getNode(ISD::FP_ROUND, DL, VT, Op,
+                DAG.getTargetConstant(0, DL, MVT::i32));
+}
 
+SDValue RISCVTargetLowering::convertArgType(SelectionDAG &DAG, EVT VT, EVT MemVT,
+                                         const SDLoc &SL, SDValue Val,
+                                         bool Signed,
+                                         const ISD::InputArg *Arg) const {
+  // First, if it is a widened vector, narrow it.
+  if (VT.isVector() &&
+      VT.getVectorNumElements() != MemVT.getVectorNumElements()) {
+    EVT NarrowedVT =
+        EVT::getVectorVT(*DAG.getContext(), MemVT.getVectorElementType(),
+                         VT.getVectorNumElements());
+    Val = DAG.getNode(ISD::EXTRACT_SUBVECTOR, SL, NarrowedVT, Val,
+                      DAG.getConstant(0, SL, MVT::i32));
+  }
+
+  // Then convert the vector elements or scalar value.
+  if (Arg && (Arg->Flags.isSExt() || Arg->Flags.isZExt()) &&
+      VT.bitsLT(MemVT)) {
+    unsigned Opc = Arg->Flags.isZExt() ? ISD::AssertZext : ISD::AssertSext;
+    Val = DAG.getNode(Opc, SL, MemVT, Val, DAG.getValueType(VT));
+  }
+
+  if (MemVT.isFloatingPoint())
+    Val = getFPExtOrFPRound(DAG, Val, SL, VT);
+  else if (Signed)
+    Val = DAG.getSExtOrTrunc(Val, SL, VT);
+  else
+    Val = DAG.getZExtOrTrunc(Val, SL, VT);
+
+  return Val;
+}
 
 SDValue RISCVTargetLowering::lowerKernargMemParameter(
     SelectionDAG &DAG, EVT VT, EVT MemVT, const SDLoc &SL, SDValue Chain,
@@ -7488,8 +7527,8 @@ SDValue RISCVTargetLowering::lowerKernargMemParameter(
 
     SDValue ArgVal = DAG.getNode(ISD::TRUNCATE, SL, IntVT, Extract);
     ArgVal = DAG.getNode(ISD::BITCAST, SL, MemVT, ArgVal);
-    // TODO: Support vector and half type.
-    //ArgVal = convertArgType(DAG, VT, MemVT, SL, ArgVal, Signed, Arg);
+    // TODO: Support vector type.
+    ArgVal = convertArgType(DAG, VT, MemVT, SL, ArgVal, Signed, Arg);
 
    return DAG.getMergeValues({ ArgVal, Load.getValue(1) }, SL);
   }
@@ -7499,8 +7538,8 @@ SDValue RISCVTargetLowering::lowerKernargMemParameter(
                              MachineMemOperand::MODereferenceable |
                                  MachineMemOperand::MOInvariant);
 
-  // SDValue Val = convertArgType(DAG, VT, MemVT, SL, Load, Signed, Arg);
-  return DAG.getMergeValues({ Load, Load.getValue(1) }, SL);
+  SDValue Val = convertArgType(DAG, VT, MemVT, SL, Load, Signed, Arg);
+  return DAG.getMergeValues({ Val, Load.getValue(1) }, SL);
 }
 
 // Returns the opcode of the target-specific SDNode that implements the 32-bit
@@ -11582,15 +11621,19 @@ void RISCVTargetLowering::analyzeFormalArgumentsCompute(MachineFunction &MF,
     const bool IsByRef = Arg.hasByRefAttr();
     Type *BaseArgTy = Arg.getType();
     Type *MemArgTy = IsByRef ? Arg.getParamByRefType() : BaseArgTy;
+
+    IntegerType *IntTy = IntegerType::get(Ctx, 32);
+    bool IsSmall = Arg.getType()->getScalarSizeInBits() < 32;
+
     Align Alignment = DL.getValueOrABITypeAlignment(
-        IsByRef ? Arg.getParamAlign() : std::nullopt, MemArgTy);
+        IsByRef ? Arg.getParamAlign() : std::nullopt, IsSmall ? IntTy : MemArgTy);
     ArgOffset = alignTo(ArgOffset, Alignment);
 
     SmallVector<EVT, 16> ValueVTs;
     SmallVector<uint64_t, 16> Offsets;
     ComputeValueVTs(*this, DL, BaseArgTy, ValueVTs, &Offsets, ArgOffset);
 
-    ArgOffset += DL.getTypeAllocSize(MemArgTy);
+    ArgOffset += DL.getTypeAllocSize(IsSmall ? IntTy : MemArgTy);
 
     for (unsigned Value = 0, NumValues = ValueVTs.size();
          Value != NumValues; ++Value) {
