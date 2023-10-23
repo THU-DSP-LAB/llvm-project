@@ -14,7 +14,8 @@ define i32 @foo(i32 noundef %cond, i32 noundef %a, i32 noundef %b, i32 noundef %
 ; VENTUS-NEXT:  # %bb.1:
 ; VENTUS-NEXT:    vrsub.vi v3, v3, 0
 ; VENTUS-NEXT:  .LBB0_2: # %entry
-; VENTUS-NEXT:    join
+; VENTUS-NEXT:    # Label of block must be emitted
+; VENTUS-NEXT:    join zero, zero, 0
 ; VENTUS-NEXT:    vmadd.vv v2, v1, v3
 ; VENTUS-NEXT:    vadd.vx v0, v2, zero
 ; VENTUS-NEXT:    ret
