@@ -341,11 +341,13 @@ class PseudoVFROUND<RegisterClass Ty>
 //===----------------------------------------------------------------------===//
 
 let Predicates = [HasStdExtZfinx] in {
-def FLW : FPLoad_r<0b010, "flw", GPRF32, WriteFLD32>;
-// Operands for stores are in the order srcreg, base, offset rather than
-// reflecting the order these fields are specified in the instruction
-// encoding.
-def FSW : FPStore_r<0b010, "fsw", GPRF32, WriteFST32>;
+/// Loads
+def : Pat<(f32 (load (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12))),
+          (COPY_TO_REGCLASS (LW GPR:$rs1, simm12:$imm12), GPRF32)>;
+
+/// Stores
+def : Pat<(store (f32 FPR32INX:$rs2), (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12)),
+          (SW (COPY_TO_REGCLASS FPR32INX:$rs2, GPR), GPR:$rs1, simm12:$imm12)>;
 } // Predicates = [HasStdExtZfinx]
 
 let SchedRW = [WriteFMA32, ReadFMA32, ReadFMA32, ReadFMA32] in {
@@ -450,8 +452,8 @@ defm           : FPUnaryOpDynFrmAlias_m<FCVT_S_LU, "fcvt.s.lu", FXIN64X>;
 //===----------------------------------------------------------------------===//
 
 let Predicates = [HasStdExtZfinx] in {
-def : InstAlias<"flw $rd, (${rs1})",  (FLW GPRF32:$rd,  GPR:$rs1, 0), 0>;
-def : InstAlias<"fsw $rs2, (${rs1})", (FSW GPRF32:$rs2, GPR:$rs1, 0), 0>;
+// def : InstAlias<"flw $rd, (${rs1})",  (FLW GPRF32:$rd,  GPR:$rs1, 0), 0>;
+// def : InstAlias<"fsw $rs2, (${rs1})", (FSW GPRF32:$rs2, GPR:$rs1, 0), 0>;
 
 def : InstAlias<"fmv.s $rd, $rs",  (FSGNJ_S  GPRF32:$rd, GPRF32:$rs, GPRF32:$rs)>;
 def : InstAlias<"fabs.s $rd, $rs", (FSGNJX_S GPRF32:$rd, GPRF32:$rs, GPRF32:$rs)>;
@@ -636,13 +638,13 @@ defm Select_FPR32 : SelectCC_GPR_rrirr<GPRF32>;
 def PseudoVFROUND_S : PseudoVFROUND<VGPR>;
 def PseudoFROUND_S : PseudoFROUND<GPRF32>;
 
-/// Loads
+// /// Loads
 
-defm : UniformLdPat<load, FLW, f32>;
+// defm : UniformLdPat<load, FLW, f32>;
 
-/// Stores
+// /// Stores
 
-defm : UniformStPat<store, FSW, GPRF32, f32>;
+// defm : UniformStPat<store, FSW, GPRF32, f32>;
 
 } // Predicates = [HasStdExtZfinx]
 
