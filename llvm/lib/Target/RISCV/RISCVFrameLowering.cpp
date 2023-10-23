@@ -23,7 +23,6 @@
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/MC/MCDwarf.h"
 #include <algorithm>
-#include <cassert>
 
 
 using namespace llvm;
