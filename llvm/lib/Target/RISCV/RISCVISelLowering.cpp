@@ -11622,18 +11622,19 @@ void RISCVTargetLowering::analyzeFormalArgumentsCompute(MachineFunction &MF,
     Type *BaseArgTy = Arg.getType();
     Type *MemArgTy = IsByRef ? Arg.getParamByRefType() : BaseArgTy;
 
-    IntegerType *IntTy = IntegerType::get(Ctx, 32);
-    bool IsSmall = Arg.getType()->getScalarSizeInBits() < 32;
+    IntegerType *ArgIntTy = IntegerType::get(Ctx, 32);
+    bool IsSmall = BaseArgTy->isVectorTy() ? false : 
+                  (BaseArgTy->getScalarSizeInBits() < 32);
 
     Align Alignment = DL.getValueOrABITypeAlignment(
-        IsByRef ? Arg.getParamAlign() : std::nullopt, IsSmall ? IntTy : MemArgTy);
+        IsByRef ? Arg.getParamAlign() : std::nullopt, IsSmall ? ArgIntTy : MemArgTy);
     ArgOffset = alignTo(ArgOffset, Alignment);
 
     SmallVector<EVT, 16> ValueVTs;
     SmallVector<uint64_t, 16> Offsets;
     ComputeValueVTs(*this, DL, BaseArgTy, ValueVTs, &Offsets, ArgOffset);
 
-    ArgOffset += DL.getTypeAllocSize(IsSmall ? IntTy : MemArgTy);
+    ArgOffset += DL.getTypeAllocSize(IsSmall ? ArgIntTy : MemArgTy);
 
     for (unsigned Value = 0, NumValues = ValueVTs.size();
          Value != NumValues; ++Value) {
