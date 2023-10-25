@@ -513,8 +513,9 @@ uint64_t RISCVFrameLowering::getStackOffset(const MachineFunction &MF,
   for(int I = MFI.getObjectIndexBegin(); I != (int)FI+1; I++) {
     if(static_cast<unsigned>(MFI.getStackID(I)) == Stack) {
       // Need to consider the alignment for different frame index
-      uint64_t Size = MFI.getObjectSize(I);
-      StackSize +=  Size;
+      StackSize += ((MFI.getObjectSize(I) + 3) >> 2) * 4;
+      Align Alignment = MFI.getObjectAlign(I);
+      StackSize = alignTo(StackSize, Alignment);
     }
   }
   return StackSize;
@@ -686,10 +687,12 @@ uint64_t RISCVFrameLowering::getStackSize(MachineFunction &MF,
   for(int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
     if(static_cast<unsigned>(MFI.getStackID(I)) == ID) {
       // Need to consider the alignment for different frame index
-      uint64_t Size = ((MFI.getObjectSize(I) + 3) >> 2) * 4;
-      StackSize += Size;
+      // FIXME: this code logic maybe not that correct?
+      StackSize += ((MFI.getObjectSize(I) + 3) >> 2) * 4;
+      Align Alignment = MFI.getObjectAlign(I);
+      // Adjust to alignment boundary
+      StackSize = alignTo(StackSize, Alignment);
     }
-
   }
   return StackSize;
 }
