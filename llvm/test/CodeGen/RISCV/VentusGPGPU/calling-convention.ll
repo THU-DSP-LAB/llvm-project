@@ -82,13 +82,13 @@ define dso_local i32 @non_kernel_calling_convention(ptr nocapture noundef readon
 ; VENTUS-LABEL: non_kernel_calling_convention:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v33, -12(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v33, -20(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v34, -16(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v34, -24(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 9
 ; VENTUS-NEXT:    vlw.v v33, -4(v32)
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v34, -8(v32)
+; VENTUS-NEXT:    vlw.v v34, -16(v32)
 ; VENTUS-NEXT:    vlw12.v v0, 0(v0)
 ; VENTUS-NEXT:    vlw12.v v1, 0(v1)
 ; VENTUS-NEXT:    vlw12.v v2, 0(v2)
@@ -159,10 +159,10 @@ define dso_local i32 @non_kernel_calling_convention(ptr nocapture noundef readon
 ; VENTUS-NEXT:    vadd.vv v0, v0, v2
 ; VENTUS-NEXT:    vadd.vv v0, v0, v3
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v33, -12(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v33, -20(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v34, -16(v32) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi tp, tp, -16
+; VENTUS-NEXT:    vlw.v v34, -24(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi tp, tp, -24
 ; VENTUS-NEXT:    ret
 entry:
   %0 = load i32, ptr %a1, align 4
