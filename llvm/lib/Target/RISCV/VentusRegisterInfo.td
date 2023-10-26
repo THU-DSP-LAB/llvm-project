@@ -32,9 +32,11 @@ class RVRegisterClass <string n, list<ValueType> rTypes, int Align, dag rList>
   // vALU and sALU registers
   field bit IsVGPR = 0;
   field bit IsSGPR = 0;
+  field bit IsFGPR = 0;
 
   let TSFlags{0} = IsVGPR;
   let TSFlags{1} = IsSGPR;
+  let TSFlags{2} = IsFGPR;
 }
 
 class RISCVReg<bits<8> Enc, string n, list<string> alt = []> : Register<n> {
@@ -240,6 +242,29 @@ let RegAltNameIndices = [ABIRegAltName] in {
   }
 }
 
+// Float registers
+let RegAltNameIndices = [ABIRegAltName] in {
+  let CostPerUse = [0, 1] in {
+    foreach Index = {5, 6, 7, 16...63} in {
+      defvar Reg = !cast<Register>("X"#Index);
+      def F#Index#SUB : RISCVRegWithSubRegs<Index, Reg.AsmName,
+                                            [!cast<Register>("X"#Index)],
+                                            Reg.AltNames> {
+        let SubRegIndices = [lo32];
+      }
+    }
+  }
+
+  foreach Index = [8, 9, 11, 12, 13, 14, 15] in {
+    defvar Reg = !cast<Register>("X"#Index);
+    def F#Index#SUB : RISCVRegWithSubRegs<Index, Reg.AsmName,
+                                          [!cast<Register>("X"#Index)],
+                                          Reg.AltNames> {
+      let SubRegIndices = [lo32];
+    }
+  }
+}
+
 def XLenVT : ValueTypeByHwMode<[RV32, RV64],
                                [i32,  i64]>;
 def XLenRI : RegInfoByHwMode<
@@ -254,6 +279,14 @@ def GPR : RVRegisterClass<"RISCV", [XLenVT], 32, (add
   )> {
   let RegInfos = XLenRI;
   let IsSGPR = 1;
+}
+
+def FPRSUB : RVRegisterClass<"RISCV", [f32], 32, (add
+    (sequence "F%uSUB", 5, 9),
+    (sequence "F%uSUB", 11, 63)
+  )> {
+  let RegInfos = XLenRI;
+  let IsFGPR = 1;
 }
 
 def GPRX0 : RVRegisterClass<"RISCV", [XLenVT], 32, (add X0)> {
@@ -416,9 +449,9 @@ def VCSR : RegisterClass<"RISCV", [XLenVT], 32,
 }
 
 let RegInfos = XLenRI in {
-def GPRF16  : RegisterClass<"RISCV", [f16], 16, (add GPR)>;
-def GPRF32  : RegisterClass<"RISCV", [f32], 32, (add GPR)>;
-def GPRF64  : RegisterClass<"RISCV", [f64], 64, (add GPR)>;
+def GPRF16  : RegisterClass<"RISCV", [f16], 16, (add FPRSUB)>;
+def GPRF32  : RegisterClass<"RISCV", [f32], 32, (add FPRSUB)>;
+def GPRF64  : RegisterClass<"RISCV", [f64], 64, (add FPRSUB)>;
 } // RegInfos = XLenRI
 
 let RegAltNameIndices = [ABIRegAltName] in {
