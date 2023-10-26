@@ -450,7 +450,7 @@ def VCSR : RegisterClass<"RISCV", [XLenVT], 32,
 
 let RegInfos = XLenRI in {
 def GPRF16  : RegisterClass<"RISCV", [f16], 16, (add FPRSUB)>;
-def GPRF32  : RegisterClass<"RISCV", [f32], 32, (add FPRSUB)>;
+def GPRF32  : RegisterClass<"RISCV", [f32], 32, (add GPR)>;
 def GPRF64  : RegisterClass<"RISCV", [f64], 64, (add FPRSUB)>;
 } // RegInfos = XLenRI
 

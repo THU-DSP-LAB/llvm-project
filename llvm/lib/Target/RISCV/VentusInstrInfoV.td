@@ -1496,5 +1496,5 @@ def : Pat<(XLenVT (DivergentBinFrag<add> (XLenVT VGPR:$rs1), uimm12:$imm)),
 // There already has patterns defined in VentusInstrInfo.td
 let Predicates = [HasStdExtZfinx] in {
 // def : Pat<(f32 (bitconvert (i32 GPR:$src))), (VMV_V_X GPR:$src)>;
-def : Pat<(i32 (bitconvert GPRF32:$src)), (VFMV_V_F GPRF32:$src)>;
+// def : Pat<(i32 (bitconvert GPRF32:$src)), (VFMV_V_F GPRF32:$src)>;
 } // Predicates = [HasStdExtZfinx]

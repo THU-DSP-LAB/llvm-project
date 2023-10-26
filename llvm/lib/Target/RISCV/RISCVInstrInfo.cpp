@@ -146,7 +146,7 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
         .addImm(0);
     return;
   }
-
+  
   // vGPR -> vGPR move
   if (RISCV::VGPRRegClass.contains(DstReg, SrcReg)) {
     BuildMI(MBB, MBBI, DL, get(RISCV::VADD_VX), DstReg)
@@ -178,9 +178,7 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   // sGPRF32 -> vGPR move
   if (RISCV::GPRF32RegClass.contains(SrcReg) &&
       RISCV::VGPRRegClass.contains(DstReg)) {
-    BuildMI(MBB, MBBI, DL, get(RISCV::VFMV_S_F), DstReg)
-        .addReg(SrcReg, getKillRegState(KillSrc));
-    return;
+    llvm_unreachable("Not supported by HW, use vmv.v.x instead.");
   }
 
   // Handle copy from csr
@@ -231,16 +229,6 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   if (RISCV::GPRRegClass.hasSubClassEq(RC)) {
     Opcode = TRI->getRegSizeInBits(RISCV::GPRRegClass) == 32 ?
              RISCV::SW : RISCV::SD;
-  } else if (RISCV::FPR16RegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::FSH;
-  } else if (RISCV::FPR32RegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::FSW;
-  } else if (RISCV::FPR64RegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::FSD;
-  } else if (RISCV::GPRF32RegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::FSW;
-  } else if (RISCV::GPRF64RegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::FSD;
   } else if (RISCV::VGPRRegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::VSW;
   } else
@@ -278,16 +266,6 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   if (RISCV::GPRRegClass.hasSubClassEq(RC)) {
     Opcode = TRI->getRegSizeInBits(RISCV::GPRRegClass) == 32 ?
              RISCV::LW : RISCV::LD;
-  } else if (RISCV::FPR16RegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::FLH;
-  } else if (RISCV::FPR32RegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::FLW;
-  } else if (RISCV::FPR64RegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::FLD;
-  } else if (RISCV::GPRF32RegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::FLW;
-  } else if (RISCV::GPRF64RegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::FLD;
   } else if (RISCV::VGPRRegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::VLW;
   } else
