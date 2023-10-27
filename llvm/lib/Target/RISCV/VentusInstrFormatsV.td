@@ -62,6 +62,16 @@ class RVInstSetVLi<dag outs, dag ins, string opcodestr, string argstr>
   let Opcode = OPC_OP_V.Value;
 }
 
+// VENTUS VOP VI instructions with 11 bits immediate number
+class PseudoVOPVIIMM11<SDPatternOperator Op> :
+        Pseudo<(outs VGPR:$vd), (ins VGPR:$vs2, simm11:$imm11),
+        [(set (XLenVT VGPR:$vd), (Op (XLenVT VGPR:$vs2), simm11:$imm11))]> {
+  // let usesCustomInserter = 1;
+  let hasSideEffects = 1;
+  let mayLoad = 0;
+  let mayStore = 0;
+}
+
 class RVInstVV<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
                string opcodestr, string argstr>
     : RVInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
