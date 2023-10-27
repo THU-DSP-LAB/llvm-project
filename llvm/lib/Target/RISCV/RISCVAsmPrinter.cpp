@@ -117,7 +117,8 @@ void RISCVAsmPrinter::emitInstruction(const MachineInstr *MI) {
     LowerHWASAN_CHECK_MEMACCESS(*MI);
     return;
   }
-
+  if (MI->getOpcode() == RISCV::PseudoVXOR_VI_IMM11)
+    return;
   if (!lowerRISCVMachineInstrToMCInst(MI, TmpInst, *this))
     EmitToStreamer(*OutStreamer, TmpInst);
 }
@@ -197,8 +198,8 @@ bool RISCVAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   NewSTI.setFeatureBits(MF.getSubtarget().getFeatureBits());
   MCSTI = &NewSTI;
   STI = &MF.getSubtarget<RISCVSubtarget>();
-  auto *CurrentProgramInfo = const_cast<VentusProgramInfo*>(
-                                    STI->getVentusProgramInfo());
+  auto *CurrentProgramInfo =
+      const_cast<VentusProgramInfo *>(STI->getVentusProgramInfo());
   if (MF.getInfo<RISCVMachineFunctionInfo>()->isEntryFunction()) {
     MCSectionELF *ResourceSection = OutContext.getELFSection(
         ".ventus.resource", ELF::SHT_PROGBITS, ELF::SHF_WRITE);

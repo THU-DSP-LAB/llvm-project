@@ -20,7 +20,7 @@
 //===----------------------------------------------------------------------===//
 
 // Barrier function builtins
-TARGET_BUILTIN(barrier, "vi", "n", "32bit")
+TARGET_BUILTIN(barrier, "vi.", "n", "32bit")
 TARGET_BUILTIN(work_group_barrier, "vi.", "n", "32bit")
 // WORKAROUND: Disabled for now.
 /*
