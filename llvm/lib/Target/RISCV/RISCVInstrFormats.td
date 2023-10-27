@@ -208,6 +208,9 @@ class RVInst<dag outs, dag ins, string opcodestr, string argstr,
 
   bit IsVVALUInstr = 0;
   let TSFlags{19} = IsVVALUInstr;
+
+  bit IsVOPIMM11 = 0;
+  let TSFlags{20} = IsVOPIMM11;
 }
 
 // Pseudo instructions
