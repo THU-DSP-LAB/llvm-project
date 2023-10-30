@@ -22,32 +22,32 @@ double __floatdidf(di_int a) {
   const unsigned N = sizeof(di_int) * 8;
   const di_int s = a >> (N - 1);
   a = (a ^ s) - s;
-  int sd = N - __builtin_clzll(a);
+  int sd = N - clz64(a);
   int e = sd - 1;
-  if (sd > 53) {
+  if (sd > DBL_MANT_DIG) {
 
     switch (sd) {
-    case 53 + 1:
+    case DBL_MANT_DIG + 1:
       a <<= 1;
       break;
-    case 53 + 2:
+    case DBL_MANT_DIG + 2:
       break;
     default:
-      a = ((du_int)a >> (sd - (53 + 2))) |
-          ((a & ((du_int)(-1) >> ((N + 53 + 2) - sd))) != 0);
+      a = ((du_int)a >> (sd - (DBL_MANT_DIG + 2))) |
+          ((a & ((du_int)(-1) >> ((N + DBL_MANT_DIG + 2) - sd))) != 0);
     };
 
     a |= (a & 4) != 0;
     ++a;
     a >>= 2;
 
-    if (a & ((du_int)1 << 53)) {
+    if (a & ((du_int)1 << DBL_MANT_DIG)) {
       a >>= 1;
       ++e;
     }
 
   } else {
-    a <<= (53 - sd);
+    a <<= (DBL_MANT_DIG - sd);
   }
   double_bits fb;
   fb.u.s.high = ((su_int)s & 0x80000000) | ((su_int)(e + 1023) << 20) |
