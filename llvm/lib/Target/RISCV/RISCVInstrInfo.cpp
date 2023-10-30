@@ -185,7 +185,6 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   if (RISCV::GPRF32RegClass.contains(SrcReg) &&
       RISCV::VGPRRegClass.contains(DstReg)) {
     BuildMI(MBB, MBBI, DL, get(RISCV::VFMV_S_F), DstReg)
-        .addReg(DstReg, RegState::Undef)
         .addReg(SrcReg, getKillRegState(KillSrc));
     return;
   }
@@ -207,6 +206,10 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   } else if (RISCV::FPR32RegClass.contains(DstReg, SrcReg)) {
     Opc = RISCV::FSGNJ_S;
   } else if (RISCV::FPR64RegClass.contains(DstReg, SrcReg)) {
+    Opc = RISCV::FSGNJ_D;
+  } else if (RISCV::GPRF32RegClass.contains(DstReg, SrcReg)) {
+    Opc = RISCV::FSGNJ_S;
+  } else if (RISCV::GPRF64RegClass.contains(DstReg, SrcReg)) {
     Opc = RISCV::FSGNJ_D;
   } else {
     llvm_unreachable("Impossible reg-to-reg copy");
@@ -239,6 +242,10 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   } else if (RISCV::FPR32RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FSW;
   } else if (RISCV::FPR64RegClass.hasSubClassEq(RC)) {
+    Opcode = RISCV::FSD;
+  } else if (RISCV::GPRF32RegClass.hasSubClassEq(RC)) {
+    Opcode = RISCV::FSW;
+  } else if (RISCV::GPRF64RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FSD;
   } else if (RISCV::VGPRRegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::VSW;
@@ -282,6 +289,10 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   } else if (RISCV::FPR32RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FLW;
   } else if (RISCV::FPR64RegClass.hasSubClassEq(RC)) {
+    Opcode = RISCV::FLD;
+  } else if (RISCV::GPRF32RegClass.hasSubClassEq(RC)) {
+    Opcode = RISCV::FLW;
+  } else if (RISCV::GPRF64RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FLD;
   } else if (RISCV::VGPRRegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::VLW;
