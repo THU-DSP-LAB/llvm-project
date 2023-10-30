@@ -22,32 +22,32 @@ float __floatdisf(di_int a) {
   const unsigned N = sizeof(di_int) * 8;
   const di_int s = a >> (N - 1);
   a = (a ^ s) - s;
-  int sd = N - __builtin_clzll(a);
+  int sd = N - clz64(a);
   si_int e = sd - 1;
-  if (sd > 24) {
+  if (sd > FLT_MANT_DIG) {
 
     switch (sd) {
-    case 24 + 1:
+    case FLT_MANT_DIG + 1:
       a <<= 1;
       break;
-    case 24 + 2:
+    case FLT_MANT_DIG + 2:
       break;
     default:
-      a = ((du_int)a >> (sd - (24 + 2))) |
-          ((a & ((du_int)(-1) >> ((N + 24 + 2) - sd))) != 0);
+      a = ((du_int)a >> (sd - (FLT_MANT_DIG + 2))) |
+          ((a & ((du_int)(-1) >> ((N + FLT_MANT_DIG + 2) - sd))) != 0);
     };
 
     a |= (a & 4) != 0;
     ++a;
     a >>= 2;
 
-    if (a & ((du_int)1 << 24)) {
+    if (a & ((du_int)1 << FLT_MANT_DIG)) {
       a >>= 1;
       ++e;
     }
 
   } else {
-    a <<= (24 - sd);
+    a <<= (FLT_MANT_DIG - sd);
   }
   float_bits fb;
   fb.u =
