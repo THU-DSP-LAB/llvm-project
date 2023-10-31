@@ -1486,7 +1486,12 @@ foreach n = [1] in {
 // include "VentusInstrInfoVPseudos.td"
 
 // TODO: add other instructions
-def PseudoVXOR_VI_IMM11 : PseudoVOPVIIMM11<or>;
+def PseudoVOR_VI_IMM11    : PseudoVOPVIIMM11<or>;
+def PseudoVXOR_VI_IMM11   : PseudoVOPVIIMM11<xor>;
+def PseudoVRSUB_VI_IMM11  : PseudoVOPIVIMM11<sub>;
+def PseudoVAND_VI_IMM11   : PseudoVOPVIIMM11<and>;
+def PseudoVMSNE_VI_IMM11  : PseudoVOPVIIMM11<setne>;
+def PseudoVMSEQ_VI_IMM11  : PseudoVOPVIIMM11<seteq>;
 
 //===----------------------------------------------------------------------===//
 // Ventus vALU divergent extended execution patterns

@@ -53,6 +53,8 @@ private:
   bool expandCompareSelect(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator MBBI,
                            MachineBasicBlock::iterator &NextMBBI);
+  bool expandVIIMM11(MachineBasicBlock &MBB,
+                     MachineBasicBlock::iterator MBBI);
 };
 
 char RISCVExpandPseudo::ID = 0;
@@ -96,8 +98,94 @@ bool RISCVExpandPseudo::expandMI(MachineBasicBlock &MBB,
   case RISCV::PseudoVMSGE_VI:
   case RISCV::PseudoVMSGEU_VI:
     return expandCompareSelect(MBB, MBBI, NextMBBI);
+  case RISCV::PseudoVOR_VI_IMM11:
+  case RISCV::PseudoVXOR_VI_IMM11:
+  case RISCV::PseudoVRSUB_VI_IMM11:
+  case RISCV::PseudoVAND_VI_IMM11:
+  case RISCV::PseudoVMSNE_VI_IMM11:
+  case RISCV::PseudoVMSEQ_VI_IMM11:
+    return expandVIIMM11(MBB, MBBI);
   }
   return false;
+}
+
+bool RISCVExpandPseudo::expandVIIMM11(MachineBasicBlock &MBB,
+                                      MachineBasicBlock::iterator MBBI) {
+  const TargetRegisterInfo *TRI = MBB.getParent()->getSubtarget().getRegisterInfo();
+  const MCInstrDesc *MCID = nullptr;
+
+  switch (MBBI->getOpcode()) {
+    default:
+      llvm_unreachable("add Pseudo case here!");
+    case RISCV::PseudoVOR_VI_IMM11:
+      MCID = &TII->get(RISCV::VOR_VI);
+      break;
+    case RISCV::PseudoVXOR_VI_IMM11:
+      MCID = &TII->get(RISCV::VXOR_VI);
+      break;
+    case RISCV::PseudoVRSUB_VI_IMM11:
+      MCID = &TII->get(RISCV::VRSUB_VI);
+      break;
+    case RISCV::PseudoVAND_VI_IMM11:
+      MCID = &TII->get(RISCV::VAND_VI);
+      break;
+    case RISCV::PseudoVMSNE_VI_IMM11:
+      MCID = &TII->get(RISCV::VMSNE_VI);
+      break;
+    case RISCV::PseudoVMSEQ_VI_IMM11:
+      MCID = &TII->get(RISCV::VMSEQ_VI);
+      break;
+  }
+
+  assert(MCID != nullptr && "Unexpected opcode");
+  MBBI->setDesc(*MCID);
+
+  int64_t Imm = 0;
+  signed LowImm = 0;
+  signed Offsets = 0;
+
+  for (unsigned i = 0; i < MBBI->getNumOperands(); ++i) {
+    MachineOperand &MO = MBBI->getOperand(i);
+
+    // deal with 4 ext reg.
+    if (MO.isReg() && 
+        MBBI->getDesc().getOperandConstraint(i, MCOI::TIED_TO) == -1) {
+      uint16_t RegEncodingValue = TRI->getEncodingValue(MO.getReg());
+      if (RegEncodingValue > 31) {
+        int Pos = MBBI->getDesc().getOperandConstraint(i, MCOI::CUSTOM);
+        assert(Pos != -1 && "Out of range[0, 31] register operand custom "
+                            "constraint that must be present.");
+        Offsets |= (RegEncodingValue >> 5 & 0x7) << (3 * Pos);
+      }
+    }
+
+    if (MO.isImm()) {
+      Imm = MO.getImm();
+
+      if (Imm >= 0) {
+        Imm &= 0b01111111111;
+      }
+      else {
+        Imm  = -Imm;
+        Imm &= 0b01111111111;
+        Imm |= 0b10000000000;
+      }
+      
+      LowImm   = (Imm & 0b00000011111);
+      Offsets |= (Imm & 0b11111100000);
+
+      MO.ChangeToImmediate(LowImm);
+    }
+    // how to guarantee that the statement execute only once.
+  }
+
+  DebugLoc DL = MBBI->getDebugLoc();
+  // Create instruction to expand imm5 or register basic offset as imm * 32. 
+  BuildMI(MBB, MBBI, DL, TII->get(RISCV::REGEXTI), RISCV::X0)
+      .addReg(RISCV::X0)
+      .addImm(Offsets);
+
+  return true;
 }
 
 bool RISCVExpandPseudo::expandBarrier(MachineBasicBlock &MBB,
