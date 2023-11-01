@@ -110,3 +110,24 @@ entry:
   ret i1 %res
 }
 
+define dso_local ventus_kernel void @regexti13(ptr addrspace(1) nocapture noundef align 4 %A
+                                              ,ptr addrspace(3) nocapture noundef align 4 %B) {
+entry:
+  ; CHECK-LABEL: regexti13:
+  ; CHECK: call	_Z13get_global_idj
+  ; CHECK-NEXT: regexti	zero, zero, 385
+  ; CHECK-NEXT: vand.vi	v33, v0, 15
+  %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
+  %calland = and i32 %call, 399
+  %call1 = tail call i32 @_Z12get_local_idj(i32 noundef 0)
+  %arrayidx = getelementptr inbounds i32, ptr addrspace(3) %B, i32 %call1
+  %0 = load i32, ptr addrspace(3) %arrayidx, align 4
+  %arrayidx2 = getelementptr inbounds i32, ptr addrspace(1) %A, i32 %calland
+  %1 = load i32, ptr addrspace(1) %arrayidx2, align 4
+  %add = add nsw i32 %1, %0
+  store i32 %add, ptr addrspace(1) %arrayidx2, align 4
+  ret void
+}
+
+declare dso_local i32 @_Z13get_global_idj(i32 noundef)
+declare dso_local i32 @_Z12get_local_idj(i32 noundef)
