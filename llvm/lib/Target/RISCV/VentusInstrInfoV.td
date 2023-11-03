@@ -1486,6 +1486,9 @@ foreach n = [1] in {
 // TODO: Will enable this after non divergent execution path are implemented.
 // include "VentusInstrInfoVPseudos.td"
 
+// TODO: add other instructions
+def PseudoVXOR_VI_IMM11 : PseudoVOPVIIMM11<or>;
+
 //===----------------------------------------------------------------------===//
 // Ventus vALU divergent extended execution patterns
 //===----------------------------------------------------------------------===//
