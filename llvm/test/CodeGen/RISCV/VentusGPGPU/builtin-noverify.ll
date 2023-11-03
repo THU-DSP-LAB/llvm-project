@@ -12,8 +12,12 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    .cfi_offset ra, 8
-; VENTUS-NEXT:    .cfi_offset v33.l, 4
+; VENTUS-NEXT:    regext zero, zero, 72
+; VENTUS-NEXT:    vsw.v v33, -4(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    regext zero, zero, 72
+; VENTUS-NEXT:    vsw.v v34, -8(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset ra, 0
+; VENTUS-NEXT:    .cfi_offset v33.l, 0
 ; VENTUS-NEXT:    .cfi_offset v34.l, 0
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vadd.vx v33, v1, zero
@@ -31,6 +35,10 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    vadd.vv v1, v2, v1
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    regext zero, zero, 9
+; VENTUS-NEXT:    vlw.v v33, -4(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    regext zero, zero, 9
+; VENTUS-NEXT:    vlw.v v34, -8(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    addi tp, tp, -8
 ; VENTUS-NEXT:    ret

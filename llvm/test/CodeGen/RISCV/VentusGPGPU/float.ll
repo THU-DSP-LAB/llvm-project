@@ -16,7 +16,7 @@ define float @fadd_f(float noundef %a) {
 ; VENTUS-LABEL: fadd_f:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui t0, %hi(global_val)
-; VENTUS-NEXT:    lw t0, %lo(global_val)(t0)
+; VENTUS-NEXT:    flw t0, %lo(global_val)(t0)
 ; VENTUS-NEXT:    vmv.v.x v1, t0
 ; VENTUS-NEXT:    vfadd.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
@@ -40,7 +40,7 @@ define float @fsub_f(float noundef %a) {
 ; VENTUS-LABEL: fsub_f:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui t0, %hi(global_val)
-; VENTUS-NEXT:    lw t0, %lo(global_val)(t0)
+; VENTUS-NEXT:    flw t0, %lo(global_val)(t0)
 ; VENTUS-NEXT:    vmv.v.x v1, t0
 ; VENTUS-NEXT:    vfsub.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
@@ -64,7 +64,7 @@ define float @fmul_f(float noundef %a) {
 ; VENTUS-LABEL: fmul_f:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui t0, %hi(global_val)
-; VENTUS-NEXT:    lw t0, %lo(global_val)(t0)
+; VENTUS-NEXT:    flw t0, %lo(global_val)(t0)
 ; VENTUS-NEXT:    vmv.v.x v1, t0
 ; VENTUS-NEXT:    vfmul.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
@@ -88,7 +88,7 @@ define float @fdiv_f(float noundef %a, float noundef %b) {
 ; VENTUS-LABEL: fdiv_f:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui t0, %hi(global_val)
-; VENTUS-NEXT:    lw t0, %lo(global_val)(t0)
+; VENTUS-NEXT:    flw t0, %lo(global_val)(t0)
 ; VENTUS-NEXT:    vmv.v.x v1, t0
 ; VENTUS-NEXT:    vfdiv.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
@@ -102,7 +102,7 @@ define float @foo_constant(float noundef %a) {
 ; VENTUS-LABEL: foo_constant:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui t0, %hi(.LCPI8_0)
-; VENTUS-NEXT:    lw t0, %lo(.LCPI8_0)(t0)
+; VENTUS-NEXT:    flw t0, %lo(.LCPI8_0)(t0)
 ; VENTUS-NEXT:    vmv.v.x v1, t0
 ; VENTUS-NEXT:    vfmul.vv v0, v0, v1
 ; VENTUS-NEXT:    ret
@@ -193,7 +193,7 @@ define dso_local float @fgt(float noundef %a)  {
 ; VENTUS-LABEL: fgt:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui t0, %hi(.LCPI14_0)
-; VENTUS-NEXT:    lw t0, %lo(.LCPI14_0)(t0)
+; VENTUS-NEXT:    flw t0, %lo(.LCPI14_0)(t0)
 ; VENTUS-NEXT:    vmv.v.x v1, t0
 ; VENTUS-NEXT:    vmflt.vv v0, v1, v0
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
@@ -217,7 +217,7 @@ define dso_local float @fge(float noundef %a)  {
 ; VENTUS-LABEL: fge:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui t0, %hi(.LCPI15_0)
-; VENTUS-NEXT:    lw t0, %lo(.LCPI15_0)(t0)
+; VENTUS-NEXT:    flw t0, %lo(.LCPI15_0)(t0)
 ; VENTUS-NEXT:    vmv.v.x v1, t0
 ; VENTUS-NEXT:    vmfle.vv v0, v1, v0
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
@@ -332,7 +332,7 @@ define dso_local float @fmadd_f(float noundef %a, float noundef %b, float nounde
 ; VENTUS-LABEL: fmadd_f:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui t0, %hi(.LCPI24_0)
-; VENTUS-NEXT:    lw t0, %lo(.LCPI24_0)(t0)
+; VENTUS-NEXT:    flw t0, %lo(.LCPI24_0)(t0)
 ; VENTUS-NEXT:    vadd.vx v0, v1, zero
 ; VENTUS-NEXT:    vmv.v.x v1, t0
 ; VENTUS-NEXT:    vfmadd.vv v0, v1, v2
@@ -360,7 +360,7 @@ define dso_local float @fnmadd_f(float noundef %a, float noundef %b, float nound
 ; VENTUS-LABEL: fnmadd_f:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui t0, %hi(.LCPI26_0)
-; VENTUS-NEXT:    lw t0, %lo(.LCPI26_0)(t0)
+; VENTUS-NEXT:    flw t0, %lo(.LCPI26_0)(t0)
 ; VENTUS-NEXT:    vadd.vx v0, v1, zero
 ; VENTUS-NEXT:    vmv.v.x v1, t0
 ; VENTUS-NEXT:    vfmsub.vv v0, v1, v2
@@ -388,7 +388,7 @@ define dso_local float @fmsub_f(float noundef %a, float noundef %b) local_unname
 ; VENTUS-LABEL: fmsub_f:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui t0, %hi(.LCPI28_0)
-; VENTUS-NEXT:    lw t0, %lo(.LCPI28_0)(t0)
+; VENTUS-NEXT:    flw t0, %lo(.LCPI28_0)(t0)
 ; VENTUS-NEXT:    vmv.v.x v2, t0
 ; VENTUS-NEXT:    vfmsub.vv v0, v2, v1
 ; VENTUS-NEXT:    ret
@@ -415,7 +415,7 @@ define dso_local float @fnmsub_f(float noundef %a, float noundef %b, float nound
 ; VENTUS-LABEL: fnmsub_f:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lui t0, %hi(.LCPI30_0)
-; VENTUS-NEXT:    lw t0, %lo(.LCPI30_0)(t0)
+; VENTUS-NEXT:    flw t0, %lo(.LCPI30_0)(t0)
 ; VENTUS-NEXT:    vadd.vx v0, v1, zero
 ; VENTUS-NEXT:    vmv.v.x v1, t0
 ; VENTUS-NEXT:    vfmadd.vv v0, v1, v2
