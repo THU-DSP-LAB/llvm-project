@@ -195,6 +195,16 @@ bool RISCVRegisterInfo::isSGPRReg(const MachineRegisterInfo &MRI,
   return RC ? isSGPRClass(RC) : false;
 }
 
+bool RISCVRegisterInfo::isFPRReg(const MachineRegisterInfo &MRI,
+                                  Register Reg) const {
+  const TargetRegisterClass *RC;
+  if (Reg.isVirtual())
+    RC = MRI.getRegClass(Reg);
+  else
+    RC = getPhysRegClass(Reg);
+  return RC ? isFPRClass(RC) : false;
+}
+
 const Register RISCVRegisterInfo::getPrivateMemoryBaseRegister(
                         const MachineFunction &MF) const {
   // FIXME: V0-V31 are used for argument registers, so here we use V32 for

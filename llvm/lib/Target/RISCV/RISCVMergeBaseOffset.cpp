@@ -355,16 +355,10 @@ bool RISCVMergeBaseOffsetOpt::foldIntoMemoryOps(MachineInstr &Hi,
     case RISCV::LHU:
     case RISCV::LWU:
     case RISCV::LD:
-    case RISCV::FLH:
-    case RISCV::FLW:
-    case RISCV::FLD:
     case RISCV::SB:
     case RISCV::SH:
     case RISCV::SW:
-    case RISCV::SD:
-    case RISCV::FSH:
-    case RISCV::FSW:
-    case RISCV::FSD: {
+    case RISCV::SD: {
       if (UseMI.getOperand(1).isFI())
         return false;
       // Register defined by Lo should not be the value register.
