@@ -1,6 +1,8 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include <float.h>
+
 typedef char char2  __attribute__((__ext_vector_type__(2)));
 typedef char char3  __attribute__((__ext_vector_type__(3)));
 typedef char char4  __attribute__((__ext_vector_type__(4)));
@@ -524,5 +526,44 @@ do {                                                            \
   __u.bits = ((uint64_t)(hi) << 32) | (uint32_t)(lo);           \
   (d) = __u.value;                                              \
 } while (0)
+
+
+static int __attribute__((noinline)) clzl(unsigned long x)
+//static int inline clzl(unsigned long x)
+{
+    for (int i = 0; i != 64; ++i)
+         if ((x >> (63 - i)) & 1)
+             return i;
+
+    return 0;
+}
+
+static int ctz64(unsigned long x)
+{
+  int r = 63;
+
+  x &= ~x + 1;
+  if (x & 0x00000000FFFFFFFF) r -= 32;
+  if (x & 0x0000FFFF0000FFFF) r -= 16;
+  if (x & 0x00FF00FF00FF00FF) r -= 8;
+  if (x & 0x0F0F0F0F0F0F0F0F) r -= 4;
+  if (x & 0x3333333333333333) r -= 2;
+  if (x & 0x5555555555555555) r -= 1;
+
+  return r;
+}
+
+static int clz64(unsigned long x) {
+  int r = 0;
+
+  if ((x & 0xFFFFFFFF00000000) == 0) r += 32, x <<= 32;
+  if ((x & 0xFFFF000000000000) == 0) r += 16, x <<= 16;
+  if ((x & 0xFF00000000000000) == 0) r += 8,  x <<= 8;
+  if ((x & 0xF000000000000000) == 0) r += 4,  x <<= 4;
+  if ((x & 0xC000000000000000) == 0) r += 2,  x <<= 2;
+  if ((x & 0x8000000000000000) == 0) r += 1,  x <<= 1;
+
+  return r;
+}
 
 #endif // TYPES_H
