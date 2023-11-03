@@ -231,12 +231,13 @@ bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
     if (MI.getOpcode() != RISCV::VMV_V_X)
       continue;
 
-    // To be removed vmv.v instruction flag
-    bool NeedToBeErased = false;
+    // The number of MBB needed to be inserted VMV instruction
+    unsigned NeedToBeInsertMBBNum = 0;
     assert(MI.getOperand(1).isReg() && "unexpected operator");
     auto Defines = MR.def_instructions(MI.getOperand(1).getReg());
     bool IsInSameBlock = false;
-
+    SmallVector<std::pair<MachineBasicBlock *, MachineBasicBlock::iterator>>
+        MBBMaybeInsertedInstr;
     for (auto &Def : Defines) {
       unsigned Opcode = Def.getOpcode();
       // FIXME: Find a better way to handle this in tablegen
@@ -257,26 +258,25 @@ bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
 
       // Check if define instruction is in the predecessors or not
       for (auto *Pre : MBB.predecessors()) {
-        bool NeedToBeInsert = false;
         MachineBasicBlock::iterator Insert = Pre->begin();
         for (auto &MI1 : *Pre) {
           // Get last register definition
-          if (&MI1 == &Def) {
+          if (&MI1 == &Def)
             Insert = MI1.getIterator();
-            NeedToBeInsert = true;
-            NeedToBeErased = true;
-          }
         }
-        if (NeedToBeInsert) {
-          Pre->insertAfter(Insert, MF->CloneMachineInstr(&MI));
-          NeedToBeInsert = false; // Init other predecessor insert flag
+        if (Insert != Pre->begin()) {
+          // Last instruction define in Pre MBB
+          NeedToBeInsertMBBNum++;
+          MBBMaybeInsertedInstr.push_back({Pre, Insert});
         }
       }
     }
-
-    if (NeedToBeErased) {
+    if (NeedToBeInsertMBBNum >= 2) {
+      // Means there are more than two blocks need to insert vmv instruction
       IsChanged |= true;
       MBB.addLiveIn(MCRegister(MI.getOperand(0).getReg()));
+      for (auto Pair : MBBMaybeInsertedInstr)
+        Pair.first->insertAfter(Pair.second, MF->CloneMachineInstr(&MI));
       MI.eraseFromParent();
     }
   }
