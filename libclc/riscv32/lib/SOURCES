@@ -8,6 +8,7 @@ workitem/get_local_linear_id.cl
 workitem/get_local_size.cl
 workitem/get_num_groups.cl
 workitem/get_work_dim.cl
+workitem/get_enqueued_local_size.cl
 
 compiler-rt/nextafterf.cl
 compiler-rt/adddf3.cl

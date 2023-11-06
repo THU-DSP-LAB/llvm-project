@@ -23,9 +23,9 @@
  *
  *
  * global_id (uniform methods in 1/2/3 dims):
- * get_global_id(0) = CSR_GID_X * local_size_x + local_id_x
- * get_global_id(1) = CSR_GID_Y * local_size_y + local_id_y
- * get_global_id(2) = CSR_GID_Z * local_size_z + local_id_z
+ * get_global_id(0) = _global_offset_x + CSR_GID_X * local_size_x + local_id_x
+ * get_global_id(1) = _global_offset_y + CSR_GID_Y * local_size_y + local_id_y
+ * get_global_id(2) = _global_offset_z + CSR_GID_Z * local_size_z + local_id_z
  *
  *
  * global_linear_id:
@@ -66,22 +66,11 @@ _local_id_z:
   // End workaround for pocl driver
 
   .text
-  .global __builtin_riscv_workitem_linear_id
-  .type __builtin_riscv_workitem_linear_id, @function
-__builtin_riscv_workitem_linear_id:
-  csrr a0, CSR_KNL        # Get kernel metadata buffer
-  csrr t1, CSR_TID        # tid base offset for current warp
-  vid.v v2                # current thread offset
-  vadd.vx v0, v2, t1      # local_linear_id
-  ret
-
-
-  .text
   .global __builtin_riscv_global_linear_id
   .type __builtin_riscv_global_linear_id, @function
 __builtin_riscv_global_linear_id:
   addi sp, sp, 4
-  sw ra, 0(sp)
+  sw ra, -4(sp)
   csrr a3, CSR_KNL           # Get kernel metadata buffer
   lw t0, KNL_WORK_DIM(a3)    # Get work_dims
   call __builtin_riscv_global_id_x
@@ -109,7 +98,7 @@ __builtin_riscv_global_linear_id:
   vadd.vv v5, v5, v6      # global_linear_id3 = tmp + global_linear_id2
 .GLR:
   vadd.vx v0, v5, zero    # Return global_linear_id for 1/2/3 dims
-  lw ra, 0(sp)
+  lw ra, -4(sp)
   addi sp, sp, -4
   ret
 
@@ -145,16 +134,17 @@ __builtin_riscv_workgroup_id_z:
   .global __builtin_riscv_workitem_id_x
   .type __builtin_riscv_workitem_id_x, @function
 __builtin_riscv_workitem_id_x:
+  addi sp, sp, 4
+  sw ra, -4(sp)
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   lw t0, KNL_WORK_DIM(a0) # Get work_dim
   csrr t1, CSR_TID        # tid base offset for current warp
   vid.v v2                # current thread offset
   vadd.vx v0, v2, t1      # local_id_x in 1 dim (local_linear_id)
-  li t2, 1
-  beq t0, t2, .WIXR
   lw t3, KNL_LC_SIZE_X(a0) # local_size_x
   vremu.vx v0, v0, t3      # local_id_x = local_liner_id % local_size_x
-.WIXR:
+  lw ra, -4(sp)    
+  addi sp, sp, -4
   ret
 
 
@@ -162,22 +152,20 @@ __builtin_riscv_workitem_id_x:
   .global __builtin_riscv_workitem_id_y
   .type __builtin_riscv_workitem_id_y, @function
 __builtin_riscv_workitem_id_y:
+  addi sp, sp, 4
+  sw ra, -4(sp)
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   lw t0, KNL_WORK_DIM(a0) # Get work_dim
   csrr t1, CSR_TID        # tid base offset for current warp
   vid.v v2                # current thread offset
   vadd.vx v0, v2, t1      # local_linear_id
   lw t3, KNL_LC_SIZE_X(a0)  # local_size_x offset in 2 work_dims
-  li t2, 3
-  beq t0, t2, .WIY3
-.WIY2:                    # 2 dims
-  vdivu.vx v0, v0, t3     # local_id_y = local_liner_id / local_size_x
-  ret
-.WIY3:                    # 3 dims
-  lw t4, KNL_LC_SIZE_Y(a0) # local_size_y
+  lw t4, KNL_LC_SIZE_Y(a0)  # local_size_y offset in 2 work_dims
   mul t4, t4, t3          # local_size_x * local_size_y
   vremu.vx v0, v0, t4     # x = local_linear_id % (local_size_x * local_size_y)
   vdivu.vx v0, v0, t3     # x / local_size_x
+  lw ra, -4(sp)    
+  addi sp, sp, -4
   ret
 
 
@@ -185,6 +173,8 @@ __builtin_riscv_workitem_id_y:
   .global __builtin_riscv_workitem_id_z
   .type __builtin_riscv_workitem_id_z, @function
 __builtin_riscv_workitem_id_z:
+  addi sp, sp, 4
+  sw ra, -4(sp)
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   csrr t1, CSR_TID        # tid base offset for current warp
   vid.v v2                # current thread offset
@@ -193,6 +183,8 @@ __builtin_riscv_workitem_id_z:
   lw t4, KNL_LC_SIZE_Y(a0) # local_size_y
   mul t4, t4, t3          # local_size_x * local_size_y
   vdivu.vx v0, v0, t4     # local_linear_id / (local_size_x * local_size_y)
+  lw ra, -4(sp)    
+  addi sp, sp, -4
 7:
   ret
 
@@ -202,7 +194,7 @@ __builtin_riscv_workitem_id_z:
   .type __builtin_riscv_global_id_x, @function
 __builtin_riscv_global_id_x:
   addi sp, sp, 4
-  sw ra, 0(sp)
+  sw ra, -4(sp)
   call __builtin_riscv_workitem_id_x
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   csrr t1, CSR_GID_X      # Get group_id_x
@@ -211,7 +203,7 @@ __builtin_riscv_global_id_x:
   mul t6, t1, t3          # CSR_GID_X * local_size_x
   add t6, t6, t4          # Get global_offset_x + CSR_GID_X * local_size_x
   vadd.vx v0,v0, t6
-  lw ra, 0(sp)
+  lw ra, -4(sp)
   addi sp, sp, -4
   ret
 
@@ -221,7 +213,7 @@ __builtin_riscv_global_id_x:
   .type __builtin_riscv_global_id_y, @function
 __builtin_riscv_global_id_y:
   addi sp, sp, 4
-  sw ra, 0(sp)
+  sw ra, -4(sp)
   call __builtin_riscv_workitem_id_y
   csrr t1, CSR_GID_Y      # Get group_id_y
   lw t2, KNL_LC_SIZE_Y(a0) # Get local_size_y
@@ -229,7 +221,7 @@ __builtin_riscv_global_id_y:
   mul t3, t1, t2          # CSR_GID_Y * local_size_y
   add t3, t3, t4          # global_offset_y  + (CSR_GID_Y * local_size_y)
   vadd.vx v0, v0, t3      # global_id_y
-  lw ra, 0(sp)
+  lw ra, -4(sp)
   addi sp, sp, -4
   ret
 
@@ -239,7 +231,7 @@ __builtin_riscv_global_id_y:
   .type __builtin_riscv_global_id_z, @function
 __builtin_riscv_global_id_z:
   addi sp, sp, 4
-  sw ra, 0(sp)
+  sw ra, -4(sp)
   call __builtin_riscv_workitem_id_z
   csrr a0, CSR_KNL        # Get kernel metadata buffer
   csrr t1, CSR_GID_Z      # Get group_id_z
@@ -248,7 +240,7 @@ __builtin_riscv_global_id_z:
   mul t2, t2, t1          # CSR_GID_Z * local_size_z
   add t2, t2, t3          # global_offset_z + (CSR_GID_Z * local_size_z)
   vadd.vx v0, v0, t2      # global_id_z
-  lw ra, 0(sp)
+  lw ra, -4(sp)
   addi sp, sp, -4
   ret
 
