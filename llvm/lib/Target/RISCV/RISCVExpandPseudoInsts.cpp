@@ -155,7 +155,8 @@ bool RISCVExpandPseudo::expandVIIMM11(MachineBasicBlock &MBB,
         Imm |= 0b10000000000;
       }
       
-      LowImm   = (Imm & 0b00000011111);
+      LowImm   = (Imm & 0b00000001111);
+      LowImm   = (Imm & 0b00000010000) ? -LowImm : LowImm;
       Offsets |= (Imm & 0b11111100000);
 
       Op.ChangeToImmediate(LowImm);
