@@ -19,6 +19,7 @@
 #include "RISCVSubtarget.h"
 #include "RISCVTargetMachine.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/LegacyDivergenceAnalysis.h"
 #include "llvm/Analysis/MemoryLocation.h"
@@ -35,6 +36,7 @@
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicsRISCV.h"
 #include "llvm/IR/PatternMatch.h"
@@ -4296,7 +4298,34 @@ SDValue RISCVTargetLowering::lowerGlobalAddress(SDValue Op,
                                                 SelectionDAG &DAG) const {
   GlobalAddressSDNode *N = cast<GlobalAddressSDNode>(Op);
   assert(N->getOffset() == 0 && "unexpected offset in global node");
+  // FIXME: Add private address dealing
+  if (N->getAddressSpace() == RISCVAS::LOCAL_ADDRESS ||
+      N->getAddressSpace() == RISCVAS::GLOBAL_ADDRESS)
+    return lowerGlobalLocalAddress(N, DAG);
   return getAddr(N, DAG, N->getGlobal()->isDSOLocal());
+}
+
+/// For local variables, we need to store variables into SP stack, rather than
+/// put it into '.sbss' section
+/// TODO: Remove the address allocating in '.sbss' section
+SDValue RISCVTargetLowering::lowerGlobalLocalAddress(GlobalAddressSDNode *Op,
+                                                     SelectionDAG &DAG) const {
+  MachineFunction &MF = DAG.getMachineFunction();
+  static SmallVector<std::pair<const GlobalVariable *, int>> LoweredVariables;
+
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  const DataLayout &DL = DAG.getDataLayout();
+  auto *GV = cast<GlobalVariable>(Op->getGlobal());
+  for(auto &VA : LoweredVariables) {
+    if(VA.first == GV)
+      return DAG.getFrameIndex(VA.second, MVT::i32);
+  }
+  int FI = MFI.CreateStackObject(DL.getTypeAllocSize(GV->getValueType())
+      /*Offset need to be modified too*/,
+      Align(GV->getAlign()->value()), true, nullptr, RISCVStackID::SGPRSpill);
+  MFI.setStackID(FI, RISCVStackID::SGPRSpill);
+  LoweredVariables.push_back(std::make_pair(GV, FI));
+  return DAG.getFrameIndex(FI, MVT::i32);
 }
 
 SDValue RISCVTargetLowering::lowerBlockAddress(SDValue Op,
@@ -13471,6 +13500,10 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
   }
   case ISD::STORE: {
     const StoreSDNode *Store= cast<StoreSDNode>(N);
+    auto &MFI = FLI->MF->getFrameInfo();
+    if(auto *BaseBase = dyn_cast<FrameIndexSDNode>(Store->getOperand(1)))
+      if(MFI.getStackID(BaseBase->getIndex()) == RISCVStackID::SGPRSpill)
+        return false;
     return Store->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
            Store->getPointerInfo().StackID == RISCVStackID::VGPRSpill;
   }
