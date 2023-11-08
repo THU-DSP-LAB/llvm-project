@@ -163,10 +163,8 @@ bool RISCVExpandPseudo::expandVIIMM11(MachineBasicBlock &MBB,
       TmpImm &= 0b01111;
       LowImm  = (LowImm & 0b10000) ? -TmpImm : LowImm;
 
-
       HighImm = (Imm & 0b11111100000) >> 5;
       TmpImm  = ~HighImm + 1;
-      TmpImm  &= 0b111111;
       TmpImm  &= 0b011111;
       HighImm = (HighImm & 0b100000) ? -TmpImm : HighImm;
 
