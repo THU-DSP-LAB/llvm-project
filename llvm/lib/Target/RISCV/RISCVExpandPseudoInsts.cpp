@@ -138,7 +138,9 @@ bool RISCVExpandPseudo::expandVIIMM11(MachineBasicBlock &MBB,
 
   int64_t Imm = 0;
   signed LowImm = 0;
+  signed HighImm = 0;
   signed Offsets = 0;
+  signed TmpImm = 0;
 
   for (unsigned i = 0; i < MBBI->getNumOperands(); ++i) {
     MachineOperand &Op = MBBI->getOperand(i);
@@ -151,13 +153,22 @@ bool RISCVExpandPseudo::expandVIIMM11(MachineBasicBlock &MBB,
       }
       else {
         Imm  = -Imm;
+        Imm  = ~Imm + 1;
         Imm &= 0b01111111111;
         Imm |= 0b10000000000;
       }
-      
-      LowImm   = (Imm & 0b00000001111);
-      LowImm   = (Imm & 0b00000010000) ? -LowImm : LowImm;
-      Offsets |= (Imm & 0b11111100000);
+
+      LowImm  = Imm & 0b00000011111;
+      TmpImm  = ~LowImm + 1;
+      TmpImm &= 0b01111;
+      LowImm  = (LowImm & 0b10000) ? -TmpImm : LowImm;
+
+
+      HighImm = (Imm & 0b11111100000) >> 5;
+      TmpImm  = ~HighImm + 1;
+      TmpImm  &= 0b111111;
+      TmpImm  &= 0b011111;
+      HighImm = (HighImm & 0b100000) ? -TmpImm : HighImm;
 
       Op.ChangeToImmediate(LowImm);
 
@@ -184,7 +195,7 @@ bool RISCVExpandPseudo::expandVIIMM11(MachineBasicBlock &MBB,
   // Create instruction to expand imm5 or register basic offset as imm * 32. 
   BuildMI(MBB, MBBI, DL, TII->get(RISCV::REGEXTI), RISCV::X0)
       .addReg(RISCV::X0)
-      .addImm(Offsets);
+      .addImm((HighImm << 6) | Offsets);
 
   return true;
 }
