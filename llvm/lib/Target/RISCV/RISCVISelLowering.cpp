@@ -11629,7 +11629,7 @@ void RISCVTargetLowering::analyzeFormalArgumentsCompute(MachineFunction &MF,
     bool IsSmall = (AllocSize < 4);
 
     Align Alignment = DL.getValueOrABITypeAlignment(
-        IsByRef ? Arg.getParamAlign() : std::nullopt, MemArgTy);
+        IsByRef ? Arg.getParamAlign() : std::nullopt, IsSmall ? ArgIntTy : MemArgTy);
     ArgOffset = alignTo(ArgOffset, Alignment);
 
     SmallVector<EVT, 16> ValueVTs;
