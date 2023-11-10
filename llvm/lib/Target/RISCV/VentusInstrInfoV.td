@@ -1314,8 +1314,8 @@ defm : PatVXIBin<DivergentBinFrag<setne>, [VMSNE_VV, VMSNE_VX, VMSNE_VI]>;
 defm : PatVXIBin<DivergentBinFrag<seteq>, [VMSEQ_VV, VMSEQ_VX, VMSEQ_VI]>;
 // Patterns for vrsub.vx and vrsub.vi
 def : Pat<(sub GPR:$rs1, VGPR:$rs2), (VRSUB_VX VGPR:$rs2, GPR:$rs1)>;
-def : Pat<(XLenVT (sub simm5:$imm, (XLenVT VGPR:$rs1))),
-              (VRSUB_VI VGPR:$rs1, simm5:$imm)>;
+def : Pat<(XLenVT (DivergentBinFrag<sub> simm5:$imm, (XLenVT VGPR:$rs1))),
+              (XLenVT (VRSUB_VI VGPR:$rs1, simm5:$imm))>;
 
 
 defm : PatFloatSetCC<[VGPR, VGPR], [SETOEQ, SETEQ], VMFEQ_VV>;
@@ -1481,7 +1481,12 @@ foreach n = [1] in {
 // include "VentusInstrInfoVPseudos.td"
 
 // TODO: add other instructions
-// def PseudoVXOR_VI_IMM11 : PseudoVOPVIIMM11<or>;
+def PseudoVOR_VI_IMM11    : PseudoVOPVIIMM11<or>;
+def PseudoVXOR_VI_IMM11   : PseudoVOPVIIMM11<xor>;
+def PseudoVRSUB_VI_IMM11  : PseudoVOPIVIMM11<sub>;
+def PseudoVAND_VI_IMM11   : PseudoVOPVIIMM11<and>;
+def PseudoVMSNE_VI_IMM11  : PseudoVOPVIIMM11<setne>;
+def PseudoVMSEQ_VI_IMM11  : PseudoVOPVIIMM11<seteq>;
 
 //===----------------------------------------------------------------------===//
 // Ventus vALU divergent extended execution patterns

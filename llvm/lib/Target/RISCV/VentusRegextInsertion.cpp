@@ -75,6 +75,9 @@ bool VentusRegextInsertion::insertRegext(MachineBasicBlock &MBB,
                                          MachineInstr &MI) {
   bool hasOverflow = false;
 
+  if (MI.isPseudo())
+    return false;
+
   // 3 bits encoding for each rd, rs1, rs2, rs3, total 12 bits.
   // Each 3 bit can encode 0~7 which stands for base register offset 0~7 * 32.
   unsigned Offsets = 0;

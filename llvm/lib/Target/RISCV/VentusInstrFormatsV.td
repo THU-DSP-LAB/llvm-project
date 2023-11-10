@@ -70,6 +70,17 @@ class PseudoVOPVIIMM11<SDPatternOperator Op> :
   let hasSideEffects = 1;
   let mayLoad = 0;
   let mayStore = 0;
+  let IsVOPIMM11 = 1;
+}
+
+class PseudoVOPIVIMM11<SDPatternOperator Op> :
+        Pseudo<(outs VGPR:$vd), (ins VGPR:$vs2, simm11:$imm11),
+        [(set (XLenVT VGPR:$vd), (Op simm11:$imm11, (XLenVT VGPR:$vs2)))]> {
+  // let usesCustomInserter = 1;
+  let hasSideEffects = 1;
+  let mayLoad = 0;
+  let mayStore = 0;
+  let IsVOPIMM11 = 1;
 }
 
 class RVInstVV<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
