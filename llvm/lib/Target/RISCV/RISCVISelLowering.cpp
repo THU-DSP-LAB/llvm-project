@@ -4320,9 +4320,10 @@ SDValue RISCVTargetLowering::lowerGlobalLocalAddress(GlobalAddressSDNode *Op,
     if(VA.first == GV)
       return DAG.getFrameIndex(VA.second, MVT::i32);
   }
+  unsigned AlignValue = DL.getABITypeAlignment(GV->getValueType());
   int FI = MFI.CreateStackObject(DL.getTypeAllocSize(GV->getValueType())
       /*Offset need to be modified too*/,
-      Align(GV->getAlign()->value()), true, nullptr, RISCVStackID::SGPRSpill);
+      Align(AlignValue), false, nullptr, RISCVStackID::SGPRSpill);
   MFI.setStackID(FI, RISCVStackID::SGPRSpill);
   LoweredVariables.push_back(std::make_pair(GV, FI));
   return DAG.getFrameIndex(FI, MVT::i32);
@@ -13515,6 +13516,8 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
   case ISD::INTRINSIC_W_CHAIN:
     return RISCVII::isIntrinsicSourceOfDivergence(
         cast<ConstantSDNode>(N->getOperand(1))->getZExtValue());
+  case Intrinsic::vastart:
+    return true;
   /*
   case AMDGPUISD::ATOMIC_CMP_SWAP:
   case AMDGPUISD::ATOMIC_INC:
