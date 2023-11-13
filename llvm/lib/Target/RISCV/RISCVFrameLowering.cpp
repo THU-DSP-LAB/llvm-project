@@ -513,9 +513,9 @@ uint64_t RISCVFrameLowering::getStackOffset(const MachineFunction &MF,
   for(int I = MFI.getObjectIndexBegin(); I != (int)FI+1; I++) {
     if(static_cast<unsigned>(MFI.getStackID(I)) == Stack) {
       // Need to consider the alignment for different frame index
-      StackSize += ((MFI.getObjectSize(I) + 3) >> 2) * 4;
       Align Alignment = MFI.getObjectAlign(I);
-      StackSize = alignTo(StackSize, Alignment);
+      uint64_t AlignedSize = alignTo(MFI.getObjectSize(I), Alignment);
+      StackSize += AlignedSize;
     }
   }
   return StackSize;
@@ -683,18 +683,17 @@ uint64_t RISCVFrameLowering::getStackSize(MachineFunction &MF,
                                           RISCVStackID::Value ID) const {
   MachineFrameInfo &MFI = MF.getFrameInfo();
   uint64_t StackSize = 0;
-
+  Align Alignment = Align(4);
   for(int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
     if(static_cast<unsigned>(MFI.getStackID(I)) == ID) {
-      // Need to consider the alignment for different frame index
       // FIXME: this code logic maybe not that correct?
       StackSize += ((MFI.getObjectSize(I) + 3) >> 2) * 4;
-      Align Alignment = MFI.getObjectAlign(I);
-      // Adjust to alignment boundary
-      StackSize = alignTo(StackSize, Alignment);
+      // Get frame object largest alignment
+      Alignment = std::max(MFI.getObjectAlign(I), Alignment);
     }
   }
-  return StackSize;
+  // FIXME: maybe this alignment is too simple?
+  return alignTo(StackSize, Alignment);
 }
 
 void RISCVFrameLowering::determineStackID(MachineFunction &MF) const {
