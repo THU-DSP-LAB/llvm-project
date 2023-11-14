@@ -834,7 +834,8 @@ bool RISCVDAGToDAGISel::SelectAddrRegImm(SDValue Addr, SDValue &Base,
                            Offset)) {
       // Insert an ADD instruction with the materialized Hi52 bits.
       Base = SDValue(
-          CurDAG->getMachineNode(RISCV::ADD, DL, VT, Addr.getOperand(0), Base),
+          CurDAG->getMachineNode(Addr.getNode()->isDivergent() ? 
+            RISCV::VADD_VV : RISCV::ADD, DL, VT, Addr.getOperand(0), Base),
           0);
       return true;
     }
