@@ -98,7 +98,7 @@ unsigned RISCVInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
   return 0;
 }
 
-bool RISCVInstrInfo::isVGPRMemoryAccess(const MachineInstr &MI) const {
+bool RISCVInstrInfo::isPrivateMemoryAccess(const MachineInstr &MI) const {
   switch (MI.getOpcode()) {
     default:
       return false;
@@ -110,8 +110,99 @@ bool RISCVInstrInfo::isVGPRMemoryAccess(const MachineInstr &MI) const {
     case RISCV::VSW:
     case RISCV::VSH:
     case RISCV::VSB:
-    case RISCV::VSWI12:
       return true;
+  }
+}
+
+bool RISCVInstrInfo::isUniformMemoryAccess(const MachineInstr &MI) const {
+  switch (MI.getOpcode()) {
+    default:
+      return false;
+    case RISCV::LW:
+    case RISCV::LB:
+    case RISCV::LBU:
+    case RISCV::LH:
+    case RISCV::LHU:
+    case RISCV::SW:
+    case RISCV::SH:
+    case RISCV::SB:
+      return true;
+  }
+}
+
+bool RISCVInstrInfo::isLocalMemoryAccess(const MachineInstr &MI) const {
+  switch (MI.getOpcode()) {
+    default:
+      return false;
+    case RISCV::VLWI12:
+    case RISCV::VLBI12: 
+    case RISCV::VLBUI12:
+    case RISCV::VLHI12:
+    case RISCV::VLHUI12:
+    case RISCV::VSWI12:
+    case RISCV::VSHI12:
+    case RISCV::VSBI12:
+      return true;
+  }
+}
+
+
+
+unsigned RISCVInstrInfo::getPrivateMemoryOpcode(MachineInstr &MI) const {
+  switch (MI.getOpcode()) {
+    case RISCV::LW:
+    case RISCV::VLWI12:
+      return RISCV::VLW;
+    case RISCV::LB:
+    case RISCV::VLBI12:
+      return RISCV::VLB;
+    case RISCV::LBU:    
+    case RISCV::VLBUI12:
+      return RISCV::VLBU;
+    case RISCV::LH:
+    case RISCV::VLHI12:
+      return RISCV::VLH;
+    case RISCV::LHU:
+    case RISCV::VLHUI12:
+      return RISCV::VLHU;   
+    case RISCV::SW:
+    case RISCV::VSWI12:
+      return RISCV::VSW;
+    case RISCV::SH:
+    case RISCV::VSHI12:
+      return RISCV::VSH;   
+    case RISCV::SB:
+    case RISCV::VSBI12:
+      return RISCV::VSB;
+    default:
+      // MI.dump();
+      assert(0 && "TODO");
+      return RISCV::VLW;    
+  }
+}
+
+unsigned RISCVInstrInfo::getUniformMemoryOpcode(MachineInstr &MI) const {
+  switch (MI.getOpcode()) {
+    case RISCV::VLW:
+      return RISCV::VLWI12;
+    case RISCV::VLB:
+      return RISCV::VLBI12;
+    case RISCV::VLBU:
+      return RISCV::VLBUI12;
+    case RISCV::VLH:
+      return RISCV::VLHI12;
+    case RISCV::VLHU:
+      return RISCV::VLHUI12;
+    case RISCV::VSW:
+      return RISCV::VSWI12;
+    case RISCV::VSH:
+      return RISCV::VSHI12;
+    case RISCV::VSB:
+      return RISCV::VSBI12;
+    default:
+      // MI.dump();
+      assert(0 && "TODO");
+      return RISCV::VLW;    
   }
 }
 
