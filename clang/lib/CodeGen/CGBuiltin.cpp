@@ -19491,8 +19491,6 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
 
   // Ventus GPGPU workitem
   case RISCV::BIbarrier:
-    ID = Intrinsic::riscv_ventus_barrier;
-    break;
   case RISCV::BIwork_group_barrier: {
       unsigned NumArgs = E->getNumArgs();
       switch (NumArgs) {
