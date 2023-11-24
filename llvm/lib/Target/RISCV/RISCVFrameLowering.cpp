@@ -507,18 +507,22 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
 }
 
 uint64_t RISCVFrameLowering::getStackOffset(const MachineFunction &MF,
-  unsigned FI, RISCVStackID::Value Stack) const {
+                                            unsigned FI,
+                                            RISCVStackID::Value Stack) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   uint64_t StackSize = 0;
-  for(int I = MFI.getObjectIndexBegin(); I != (int)FI+1; I++) {
-    if(static_cast<unsigned>(MFI.getStackID(I)) == Stack) {
+  for (int I = MFI.getObjectIndexBegin(); I != (int)FI + 1; I++) {
+    if (static_cast<unsigned>(MFI.getStackID(I)) == Stack) {
       // Need to consider the alignment for different frame index
-      Align Alignment = MFI.getObjectAlign(I);
+      Align Alignment =
+          MFI.getObjectAlign(I).value() <= 4 ? Align(4) : MFI.getObjectAlign(I);
       uint64_t AlignedSize = alignTo(MFI.getObjectSize(I), Alignment);
       StackSize += AlignedSize;
     }
   }
-  return StackSize;
+  return alignTo(StackSize, MFI.getObjectAlign(FI).value() <= 4
+                                ? Align(4)
+                                : MFI.getObjectAlign(FI));
 }
 
 StackOffset
@@ -541,7 +545,7 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
 
   // Different stacks for sALU and vALU threads.
   FrameReg = StackID == RISCVStackID::VGPRSpill ? RISCV::X4 : RISCV::X2;
-
+  errs() <<  getStackOffset(MF, FI, (RISCVStackID::Value)StackID) << "--\n";
   return -StackOffset::getFixed(
                           getStackOffset(MF, FI, (RISCVStackID::Value)StackID));
 }
