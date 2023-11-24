@@ -216,8 +216,6 @@ RISCVRegisterInfo::getPhysRegClass(MCRegister Reg) const {
     */
     &RISCV::VGPRRegClass,
     &RISCV::GPRRegClass,
-    &RISCV::GPRF32RegClass,
-    &RISCV::GPRF64RegClass,
   };
 
   for (const TargetRegisterClass *BaseClass : BaseClasses) {
