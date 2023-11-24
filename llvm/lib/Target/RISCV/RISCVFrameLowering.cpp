@@ -300,7 +300,8 @@ getNonLibcallCSI(const MachineFunction &MF,
     // TODO: For now, we don't define VGPR callee saved registers, when we later
     // add VGPR callee saved register, remember to modify here
     if (FI >= 0 && (MFI.getStackID(FI) == RISCVStackID::Default ||
-                    MFI.getStackID(FI) == RISCVStackID::SGPRSpill))
+                    MFI.getStackID(FI) == RISCVStackID::SGPRSpill ||
+                    MFI.getStackID(FI) == RISCVStackID::VGPRSpill))
       NonLibcallCSI.push_back(CS);
   }
 
@@ -505,18 +506,23 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
   emitSCSEpilogue(MF, MBB, MBBI, DL);
 }
 
-uint64_t RISCVFrameLowering::getExtractedStackOffset(const MachineFunction &MF,
-  unsigned FI, RISCVStackID::Value Stack) const {
+uint64_t RISCVFrameLowering::getStackOffset(const MachineFunction &MF,
+                                            unsigned FI,
+                                            RISCVStackID::Value Stack) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   uint64_t StackSize = 0;
-  for(int I = FI + 1; I != MFI.getObjectIndexEnd(); I++) {
-    if(static_cast<unsigned>(MFI.getStackID(I)) != Stack) {
+  for (int I = MFI.getObjectIndexBegin(); I != (int)FI + 1; I++) {
+    if (static_cast<unsigned>(MFI.getStackID(I)) == Stack) {
       // Need to consider the alignment for different frame index
-      uint64_t Size = MFI.getObjectSize(I);
-      StackSize +=  Size;
+      Align Alignment =
+          MFI.getObjectAlign(I).value() <= 4 ? Align(4) : MFI.getObjectAlign(I);
+      uint64_t AlignedSize = alignTo(MFI.getObjectSize(I), Alignment);
+      StackSize += AlignedSize;
     }
   }
-  return StackSize;
+  return alignTo(StackSize, MFI.getObjectAlign(FI).value() <= 4
+                                ? Align(4)
+                                : MFI.getObjectAlign(FI));
 }
 
 StackOffset
@@ -536,33 +542,11 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
           StackID == RISCVStackID::SGPRSpill ||
           StackID == RISCVStackID::VGPRSpill) &&
          "Unexpected stack ID for the frame object.");
-  uint8_t Stack = MFI.getStackID(FI);
-  StackOffset Offset =
-      StackOffset::getFixed(MFI.getObjectOffset(FI) - getOffsetOfLocalArea()
-         -getExtractedStackOffset(MF, FI, RISCVStackID::Value(Stack))
-         + MFI.getOffsetAdjustment());
-
-
 
   // Different stacks for sALU and vALU threads.
-  FrameReg = StackID == RISCVStackID::SGPRSpill ? RISCV::X2 : RISCV::X4;
-
-  if (CSI.size()) {
-    // For callee saved registers
-    MinCSFI = CSI[0].getFrameIdx();
-    MaxCSFI = CSI[CSI.size() - 1].getFrameIdx();
-    if (FI >= MinCSFI && FI <= MaxCSFI) {
-      Offset -= StackOffset::getFixed(RVFI->getVarArgsSaveSize());
-      return Offset;
-    }
-  }
-  // TODO: This only saves sGPR CSRs, as we haven't define vGPR CSRs
-  // within getNonLibcallCSI.
-  // if (FI >= MinCSFI && FI <= MaxCSFI) {
-  Offset -= StackOffset::getFixed(
-    getStackSize(const_cast<MachineFunction&>(MF),
-                  (RISCVStackID::Value)StackID));
-  return Offset;
+  FrameReg = StackID == RISCVStackID::VGPRSpill ? RISCV::X4 : RISCV::X2;
+  return -StackOffset::getFixed(
+                          getStackOffset(MF, FI, (RISCVStackID::Value)StackID));
 }
 
 void RISCVFrameLowering::determineCalleeSaves(MachineFunction &MF,
@@ -702,16 +686,17 @@ uint64_t RISCVFrameLowering::getStackSize(MachineFunction &MF,
                                           RISCVStackID::Value ID) const {
   MachineFrameInfo &MFI = MF.getFrameInfo();
   uint64_t StackSize = 0;
-
+  Align Alignment = Align(4);
   for(int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
     if(static_cast<unsigned>(MFI.getStackID(I)) == ID) {
-      // Need to consider the alignment for different frame index
-      uint64_t Size = ((MFI.getObjectSize(I) + 3) >> 2) * 4;
-      StackSize += Size;
+      // FIXME: this code logic maybe not that correct?
+      StackSize += ((MFI.getObjectSize(I) + 3) >> 2) * 4;
+      // Get frame object largest alignment
+      Alignment = std::max(MFI.getObjectAlign(I), Alignment);
     }
-
   }
-  return StackSize;
+  // FIXME: maybe this alignment is too simple?
+  return alignTo(StackSize, Alignment);
 }
 
 void RISCVFrameLowering::determineStackID(MachineFunction &MF) const {
@@ -760,17 +745,17 @@ bool RISCVFrameLowering::spillCalleeSavedRegisters(
     Register Reg = CS.getReg();
 
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
-    // TODO: Have we allocated stack for vGPR spilling?
     if(Reg.id() < RISCV::V0 || Reg.id() > RISCV::V255) {
       MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::SGPRSpill);
       // FIXME: Right now, no vgpr callee saved register, maybe later needed
       TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
                             RC, TRI);
+    } else {
+      assert(Reg.id() >= RISCV::V32 && Reg.id() <= RISCV::V255 && "TODO");
+      MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::VGPRSpill);
+      TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
+                            RC, TRI);
     }
-    // else {
-      // FIXME: Right now, no callee saved register for VGPR
-      // MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::VGPRSpill);
-    // }
   }
 
   return true;
@@ -798,8 +783,7 @@ bool RISCVFrameLowering::restoreCalleeSavedRegisters(
   for (auto &CS : NonLibcallCSI) {
     Register Reg = CS.getReg();
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
-    if(Reg.id() < RISCV::V0 || Reg.id() > RISCV::V255 )
-        TII.loadRegFromStackSlot(MBB, MI, Reg, CS.getFrameIdx(), RC, TRI);
+    TII.loadRegFromStackSlot(MBB, MI, Reg, CS.getFrameIdx(), RC, TRI);
     assert(MI != MBB.begin() && "loadRegFromStackSlot didn't insert any code!");
   }
 
