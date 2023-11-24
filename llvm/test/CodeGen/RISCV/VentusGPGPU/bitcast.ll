@@ -6,12 +6,12 @@ define dso_local ventus_kernel void @bitcast(float noundef %a, ptr addrspace(5) 
 ; VENTUS-LABEL: bitcast:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lw t0, 8(a0)
-; VENTUS-NEXT:    flw t1, 0(a0)
+; VENTUS-NEXT:    lw t1, 0(a0)
 ; VENTUS-NEXT:    lw t2, 4(a0)
-; VENTUS-NEXT:    vfmv.s.f v0, t1
+; VENTUS-NEXT:    vmv.v.x v0, t1
 ; VENTUS-NEXT:    vmv.v.x v1, t2
 ; VENTUS-NEXT:    vsw.v v0, 0(v1)
-; VENTUS-NEXT:    fsw t1, 0(t0)
+; VENTUS-NEXT:    sw t1, 0(t0)
 ; VENTUS-NEXT:    ret
 entry:
   %conv = bitcast float %a to i32
