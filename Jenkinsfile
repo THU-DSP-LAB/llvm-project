@@ -44,11 +44,11 @@ pipeline {
                         steps {
                             check_ventus_other_dependency(
                 ['zcc-test-suit', 'ocl-icd']
-                ["${GIT_BRANCH}", 'master'],
+                ['master', 'master'],
                 ['git@git.tpt.com:/git/zcc-test-suit.git', 'https://github.com/OCL-dev/ocl-icd.git'])
                             check_ventus_THU_dependency(
                 ['llvm-project', 'ventus-gpgpu-isa-simulator', 'pocl']
-                ['main', 'main', 'main'])
+                ['master', 'master', 'master'])
                             build_ventus_llvm("${AGENT}")
                             build_ventus_spike("${AGENT}")
                         }
