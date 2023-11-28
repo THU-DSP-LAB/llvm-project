@@ -172,17 +172,16 @@ MCRegister RISCVRegisterInfo::findUnusedRegister(const MachineRegisterInfo &MRI,
 
 void RISCVRegisterInfo::analyzeRegisterUsage(DenseSet<Register> RewriteRegs,
                                       MachineFunction *MF) const  {
-  auto CurrentProgramInfo = const_cast<VentusProgramInfo*>(
+  auto *CurrentProgramInfo = const_cast<VentusProgramInfo*>(
                     MF->getSubtarget<RISCVSubtarget>().getVentusProgramInfo());
-  MachineRegisterInfo &MRI = MF->getRegInfo();
-  for(auto Reg : RewriteRegs) {
-      if(!isSGPRReg(MRI, Reg))
-        CurrentProgramInfo->VGPRUsage++;
-      else
-        CurrentProgramInfo->SGPRUsage++;
-  }
-  // FIXME: need to add two more because of ra && sp, how to simplify this?
-  CurrentProgramInfo->SGPRUsage += 2;
+  auto *CurrentRegUsageSet = const_cast<DenseSet<unsigned>*>(
+                    MF->getSubtarget<RISCVSubtarget>().getVentusRegUsageSet());
+  const MachineRegisterInfo &MRI = MF->getRegInfo();
+
+  for(auto Reg : RewriteRegs) 
+    insertRegToSet(MRI, CurrentRegUsageSet, CurrentProgramInfo, Reg);
+  
+  insertRegToSet(MRI, CurrentRegUsageSet, CurrentProgramInfo, RISCV::X1);
 }
 
 bool RISCVRegisterInfo::isSGPRReg(const MachineRegisterInfo &MRI,
@@ -203,6 +202,20 @@ bool RISCVRegisterInfo::isFPRReg(const MachineRegisterInfo &MRI,
   else
     RC = getPhysRegClass(Reg);
   return RC ? isFPRClass(RC) : false;
+}
+
+void RISCVRegisterInfo::insertRegToSet(const MachineRegisterInfo &MRI, 
+                    DenseSet<unsigned int> *CurrentRegUsageSet, 
+                    VentusProgramInfo *CurrentProgramInfo, Register Reg) const {
+  if (CurrentRegUsageSet->contains(Reg))
+    return;
+
+  CurrentRegUsageSet->insert(Reg);
+
+  if (!isSGPRReg(MRI, Reg))
+    CurrentProgramInfo->VGPRUsage++;
+  else
+    CurrentProgramInfo->SGPRUsage++;
 }
 
 const Register RISCVRegisterInfo::getPrivateMemoryBaseRegister(
