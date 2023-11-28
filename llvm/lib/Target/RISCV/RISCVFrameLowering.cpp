@@ -551,7 +551,6 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
 
   // Different stacks for sALU and vALU threads.
   FrameReg = StackID == RISCVStackID::VGPRSpill ? RISCV::X4 : RISCV::X2;
-  errs() <<  getStackOffset(MF, FI, (RISCVStackID::Value)StackID) << "--\n";
   return -StackOffset::getFixed(
                           getStackOffset(MF, FI, (RISCVStackID::Value)StackID));
 }
