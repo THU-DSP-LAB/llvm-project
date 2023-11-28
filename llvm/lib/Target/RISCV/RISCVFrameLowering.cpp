@@ -458,6 +458,7 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
                                       MachineBasicBlock &MBB) const {
   const RISCVRegisterInfo *RI = STI.getRegisterInfo();
   MachineFrameInfo &MFI = MF.getFrameInfo();
+  const RISCVInstrInfo *TII = STI.getInstrInfo();
   Register SPReg = getSPReg(STI);
   Register TPReg = getTPReg(STI);
 
@@ -497,10 +498,15 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
                   StackOffset::getFixed(-SPStackSize),
                   MachineInstr::FrameDestroy, getStackAlign());
-  if(TPStackSize)
+  if(TPStackSize) {
     RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
-                  StackOffset::getFixed(-TPStackSize),
-                  MachineInstr::FrameDestroy, getStackAlign());
+              StackOffset::getFixed(-TPStackSize),
+              MachineInstr::FrameDestroy, getStackAlign());
+    BuildMI(MBB, MBBI, DL, TII->get(RISCV::VMV_V_X),
+            RI->getPrivateMemoryBaseRegister(MF))
+        .addReg(TPReg);
+  }
+
 
   // Emit epilogue for shadow call stack.
   emitSCSEpilogue(MF, MBB, MBBI, DL);
