@@ -312,8 +312,11 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   MachineFrameInfo &MFI = MF.getFrameInfo();
   auto *RMFI = MF.getInfo<RISCVMachineFunctionInfo>();
   const RISCVRegisterInfo *RI = STI.getRegisterInfo();
+  const MachineRegisterInfo &MRI = MF.getRegInfo();
   auto *CurrentProgramInfo = const_cast<VentusProgramInfo *>(
                                                     STI.getVentusProgramInfo());
+  auto *CurrentRegUsageSet = const_cast<DenseSet<unsigned>*>(
+                                                    STI.getVentusRegUsageSet());
   const RISCVInstrInfo *TII = STI.getInstrInfo();
   MachineBasicBlock::iterator MBBI = MBB.begin();
   bool IsEntryFunction = RMFI->isEntryFunction();
@@ -394,6 +397,7 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
 
   // Allocate space on the local-mem stack and private-mem stack if necessary.
   if(SPStackSize) {
+    RI->insertRegToSet(MRI, CurrentRegUsageSet, CurrentProgramInfo, SPReg);
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
                   StackOffset::getFixed(SPStackSize),
                   MachineInstr::FrameSetup, getStackAlign());
@@ -407,6 +411,9 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   if(TPStackSize) {
+    RI->insertRegToSet(MRI, CurrentRegUsageSet, CurrentProgramInfo, TPReg);
+    RI->insertRegToSet(MRI, CurrentRegUsageSet, CurrentProgramInfo, 
+                        RI->getPrivateMemoryBaseRegister(MF));
     RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
                   StackOffset::getFixed(TPStackSize),
                   MachineInstr::FrameSetup, getStackAlign());
