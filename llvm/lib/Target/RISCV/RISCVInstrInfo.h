@@ -55,7 +55,18 @@ public:
   MCInst getNop() const override;
   const MCInstrDesc &getBrCond(RISCVCC::CondCode CC) const;
 
-  bool isVGPRMemoryAccess(const MachineInstr &MI) const;
+  /// Check the memory access instruction is private memory access 
+  bool isPrivateMemoryAccess(const MachineInstr &MI) const;
+
+  /// Check the memory access instruction is uniform memory access 
+  bool isUniformMemoryAccess(const MachineInstr &MI) const;
+
+  /// Check the memory access instruction is uniform memory access 
+  bool isLocalMemoryAccess(const MachineInstr &MI) const;
+
+  unsigned getPrivateMemoryOpcode(MachineInstr &MI) const;
+
+  unsigned getUniformMemoryOpcode(MachineInstr &MI) const;
 
   unsigned isLoadFromStackSlot(const MachineInstr &MI,
                                int &FrameIndex) const override;
