@@ -4298,9 +4298,8 @@ SDValue RISCVTargetLowering::lowerGlobalAddress(SDValue Op,
                                                 SelectionDAG &DAG) const {
   GlobalAddressSDNode *N = cast<GlobalAddressSDNode>(Op);
   assert(N->getOffset() == 0 && "unexpected offset in global node");
-  // FIXME: Add private address dealing
-  if (N->getAddressSpace() == RISCVAS::LOCAL_ADDRESS ||
-      N->getAddressSpace() == RISCVAS::GLOBAL_ADDRESS)
+  // FIXME: Only support local address?
+  if (N->getAddressSpace() == RISCVAS::LOCAL_ADDRESS)
     return lowerGlobalLocalAddress(N, DAG);
   return getAddr(N, DAG, N->getGlobal()->isDSOLocal());
 }
