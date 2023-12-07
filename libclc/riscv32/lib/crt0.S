@@ -39,15 +39,18 @@ _start:
   li t4,32
   vsetvli t4,t4,e32,m1,ta,ma
   li t4,0x2000
-  csrrs t4,mstatus,t4
+  csrrs t4, mstatus, t4
   li t4, 0
   csrr t1, CSR_WID
   csrr t2, CSR_LDS
   li t3, 1024           # 1M size for single warp
   mul t1, t1, t3        # sp wid * warp_size
-  mul t1, t1, t3        # sp = lds + wid * warp_size * warp_size
   add sp, t1, t2        # sp points to baseaddr of local memory of each SM
   li tp, 0              # tp points to baseaddr for lower bound of private memory(1K) of each thread
+  csrr t5, CSR_NUMW
+  li t3, 1024
+  mul t5, t5, t3
+  add s0, t2, t5        # s0 points to local memory base addr in a workgroup
 
   # clear BSS segment
   la      a0, _edata

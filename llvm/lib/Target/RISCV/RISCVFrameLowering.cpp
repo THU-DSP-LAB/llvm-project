@@ -372,6 +372,7 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
 
   uint64_t SPStackSize = getStackSize(MF, RISCVStackID::SGPRSpill);
   uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
+  uint64_t LocalStackSize = getStackSize(MF, RISCVStackID::LocalMemSpill);
   CurrentProgramInfo->PDSMemory += TPStackSize;
   // FIXME: need to add local data declaration calculation
   CurrentProgramInfo->LDSMemory += SPStackSize;
@@ -394,10 +395,10 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
         MF.getFunction(), "Thread pointer required, but has been reserved."});
 
   // Allocate space on the local-mem stack and private-mem stack if necessary.
-  if(SPStackSize) {
+  if (SPStackSize) {
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
-                  StackOffset::getFixed(SPStackSize),
-                  MachineInstr::FrameSetup, getStackAlign());
+                  StackOffset::getFixed(SPStackSize), MachineInstr::FrameSetup,
+                  getStackAlign());
 
     // Emit ".cfi_def_cfa_offset SPStackSize"
     unsigned CFIIndex = MF.addFrameInst(
@@ -406,11 +407,22 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
         .addCFIIndex(CFIIndex)
         .setMIFlag(MachineInstr::FrameSetup);
   }
-
-  if(TPStackSize) {
-    RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
-                  StackOffset::getFixed(TPStackSize),
+  if (LocalStackSize) {
+    RI->adjustReg(MBB, MBBI, DL, RISCV::X8, RISCV::X8,
+                  StackOffset::getFixed(LocalStackSize),
                   MachineInstr::FrameSetup, getStackAlign());
+
+    // Emit ".cfi_def_cfa_offset Local memory StackSize"
+    unsigned CFIIndex = MF.addFrameInst(
+        MCCFIInstruction::cfiDefCfaOffset(nullptr, SPStackSize));
+    BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
+        .addCFIIndex(CFIIndex)
+        .setMIFlag(MachineInstr::FrameSetup);
+  }
+  if (TPStackSize) {
+    RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
+                  StackOffset::getFixed(TPStackSize), MachineInstr::FrameSetup,
+                  getStackAlign());
 
     // Emit ".cfi_def_cfa_offset TPStackSize"
     unsigned CFIIndex = MF.addFrameInst(
@@ -492,11 +504,16 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
   // Get 2 stack size for TP and SP
   uint64_t SPStackSize = getStackSize(MF, RISCVStackID::SGPRSpill);
   uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
-
+  uint64_t LocalStackSize = getStackSize(MF, RISCVStackID::LocalMemSpill);
   // Deallocate stack
   if(SPStackSize)
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
                   StackOffset::getFixed(-SPStackSize),
+                  MachineInstr::FrameDestroy, getStackAlign());
+
+  if(LocalStackSize)
+    RI->adjustReg(MBB, MBBI, DL, RISCV::X8, RISCV::X8,
+                  StackOffset::getFixed(-LocalStackSize),
                   MachineInstr::FrameDestroy, getStackAlign());
   if(TPStackSize) {
     RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
@@ -546,11 +563,17 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
 
   assert((StackID == RISCVStackID::Default ||
           StackID == RISCVStackID::SGPRSpill ||
-          StackID == RISCVStackID::VGPRSpill) &&
+          StackID == RISCVStackID::VGPRSpill ||
+          StackID == RISCVStackID::LocalMemSpill) &&
          "Unexpected stack ID for the frame object.");
 
   // Different stacks for sALU and vALU threads.
-  FrameReg = StackID == RISCVStackID::VGPRSpill ? RISCV::X4 : RISCV::X2;
+  if (StackID == RISCVStackID::VGPRSpill)
+    FrameReg = RISCV::X4;
+  else if (StackID == RISCVStackID::SGPRSpill)
+    FrameReg = RISCV::X2;
+  else
+    FrameReg = RISCV::X8;
   return -StackOffset::getFixed(
                           getStackOffset(MF, FI, (RISCVStackID::Value)StackID));
 }
@@ -707,16 +730,19 @@ uint64_t RISCVFrameLowering::getStackSize(MachineFunction &MF,
 
 void RISCVFrameLowering::determineStackID(MachineFunction &MF) const {
   MachineFrameInfo &MFI = MF.getFrameInfo();
-  for(int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
+  for (int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
     // FIXME: There is no sGPR spill stack!
     // MFI.setStackID(I, RISCVStackID::VGPRSpill);
 
-    MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF,I);
-    if(MFI.getStackID(I) != RISCVStackID::SGPRSpill &&
-       PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
+    MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF, I);
+    if (MFI.getStackID(I) == RISCVStackID::VGPRSpill &&
+        PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
       MFI.setStackID(I, RISCVStackID::VGPRSpill);
+    else if (MFI.getStackID(I) == RISCVStackID::LocalMemSpill ||
+             PtrInfo.getAddrSpace() == RISCVAS::LOCAL_ADDRESS)
+      MFI.setStackID(I, RISCVStackID::LocalMemSpill);
     else
-     MFI.setStackID(I, RISCVStackID::SGPRSpill);
+      MFI.setStackID(I, RISCVStackID::SGPRSpill);
   }
 }
 

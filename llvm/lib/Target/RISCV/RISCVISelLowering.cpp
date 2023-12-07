@@ -4304,8 +4304,8 @@ SDValue RISCVTargetLowering::lowerGlobalAddress(SDValue Op,
   return getAddr(N, DAG, N->getGlobal()->isDSOLocal());
 }
 
-/// For local variables, we need to store variables into SP stack, rather than
-/// put it into '.sbss' section
+/// For local variables, we need to store variables into local memory,
+/// rather than put it into '.sbss' section
 /// TODO: Remove the address allocating in '.sbss' section
 SDValue RISCVTargetLowering::lowerGlobalLocalAddress(GlobalAddressSDNode *Op,
                                                      SelectionDAG &DAG) const {
@@ -4322,8 +4322,7 @@ SDValue RISCVTargetLowering::lowerGlobalLocalAddress(GlobalAddressSDNode *Op,
   unsigned AlignValue = DL.getABITypeAlignment(GV->getValueType());
   int FI = MFI.CreateStackObject(DL.getTypeAllocSize(GV->getValueType())
       /*Offset need to be modified too*/,
-      Align(AlignValue), false, nullptr, RISCVStackID::SGPRSpill);
-  MFI.setStackID(FI, RISCVStackID::SGPRSpill);
+      Align(AlignValue), false, nullptr, RISCVStackID::LocalMemSpill);
   LoweredVariables.push_back(std::make_pair(GV, FI));
   return DAG.getFrameIndex(FI, MVT::i32);
 }
@@ -11507,7 +11506,7 @@ static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
 
   // Allocate stack for arguments which can not use register
   unsigned StackOffset =
-      Reg ? 0 : State.AllocateStack(StoreSizeBytes, StackAlign);
+      Reg ? 0 : -State.AllocateStack(StoreSizeBytes, StackAlign);
 
   // If we reach this point and PendingLocs is non-empty, we must be at the
   // end of a split argument that must be passed indirectly.
@@ -11814,8 +11813,8 @@ static SDValue unpackFromMemLoc(SelectionDAG &DAG, SDValue Chain,
     // type, instead of the scalable vector type.
     ValVT = LocVT;
   }
-  int FI = MFI.CreateFixedObject(ValVT.getStoreSize(), VA.getLocMemOffset(),
-                                 /*IsImmutable=*/true);
+  int FI = MFI.CreateStackObject(ValVT.getStoreSize(), Align(4),
+                                 false, nullptr, RISCVStackID::VGPRSpill);
   // This is essential for calculating stack size for VGPRSpill
   MFI.setStackID(FI, RISCVStackID::VGPRSpill);
   SDValue FIN = DAG.getFrameIndex(FI, PtrVT);
