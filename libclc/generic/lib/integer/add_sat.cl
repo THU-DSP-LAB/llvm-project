@@ -13,12 +13,20 @@ _CLC_DECL ulong  __clc_add_sat_u64(ulong, ulong);
 
 _CLC_OVERLOAD _CLC_DEF char add_sat(char x, char y) {
   short r = x + y;
-  return convert_char_sat(r);
+  if(r >= CHAR_MAX)
+    return CHAR_MAX;
+  else if(r <= CHAR_MIN)
+    return CHAR_MIN;
+  return (char)r;
 }
 
 _CLC_OVERLOAD _CLC_DEF uchar add_sat(uchar x, uchar y) {
   ushort r = x + y;
-  return convert_uchar_sat(r);
+  if(r >= UCHAR_MAX)
+    return UCHAR_MAX;
+  else if(r <= 0)
+    return 0;
+  return (uchar)r;
 }
 
 _CLC_OVERLOAD _CLC_DEF short add_sat(short x, short y) {
