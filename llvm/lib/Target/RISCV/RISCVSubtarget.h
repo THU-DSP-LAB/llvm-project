@@ -126,7 +126,6 @@ private:
   RISCVTargetLowering TLInfo;
   SelectionDAGTargetInfo TSInfo;
   VentusProgramInfo CurrentProgramInfo = VentusProgramInfo();
-  DenseSet<unsigned> CurrentRegUsageSet;
 
   /// Initializes using the passed in CPU and feature strings so that we can
   /// use initializer lists for subtarget initialization.
@@ -152,8 +151,11 @@ public:
   const VentusProgramInfo *getVentusProgramInfo() const {
     return &CurrentProgramInfo;
   }
-  const DenseSet<unsigned> *getVentusRegUsageSet() const { 
-    return &CurrentRegUsageSet;
+  const DenseSet<unsigned> *getCurrentRegisterAddedSet() const { 
+    return &CurrentProgramInfo.RegisterAddedSetVec[CurrentProgramInfo.RegisterAddedSetVec.size() - 1];
+  }
+  const SubVentusProgramInfo *getCurrentSubProgramInfo() const {
+    return &CurrentProgramInfo.SubProgramInfoVec[CurrentProgramInfo.SubProgramInfoVec.size() - 1];
   }
   const RISCVRegisterInfo *getRegisterInfo() const override { return &RegInfo; }
   const RISCVTargetLowering *getTargetLowering() const override {
@@ -310,6 +312,8 @@ public:
   void getPostRAMutations(std::vector<std::unique_ptr<ScheduleDAGMutation>>
                               &Mutations) const override;
 };
+
+// VentusProgramInfo RISCVSubtarget::CurrentProgramInfo = VentusProgramInfo();
 } // namespace llvm
 
 #endif

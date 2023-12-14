@@ -313,10 +313,10 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   auto *RMFI = MF.getInfo<RISCVMachineFunctionInfo>();
   const RISCVRegisterInfo *RI = STI.getRegisterInfo();
   const MachineRegisterInfo &MRI = MF.getRegInfo();
-  auto *CurrentProgramInfo = const_cast<VentusProgramInfo *>(
-                                                    STI.getVentusProgramInfo());
-  auto *CurrentRegUsageSet = const_cast<DenseSet<unsigned>*>(
-                                                    STI.getVentusRegUsageSet());
+  auto *CurrentRegisterAddedSet = const_cast<DenseSet<unsigned>*>(
+                                              STI.getCurrentRegisterAddedSet());
+  auto *CurrentSubProgramInfo = const_cast<SubVentusProgramInfo*>(
+                                              STI.getCurrentSubProgramInfo());
   const RISCVInstrInfo *TII = STI.getInstrInfo();
   MachineBasicBlock::iterator MBBI = MBB.begin();
   bool IsEntryFunction = RMFI->isEntryFunction();
@@ -374,9 +374,9 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
 
   uint64_t SPStackSize = getStackSize(MF, RISCVStackID::SGPRSpill);
   uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
-  CurrentProgramInfo->PDSMemory += TPStackSize;
   // FIXME: need to add local data declaration calculation
-  CurrentProgramInfo->LDSMemory += SPStackSize;
+  CurrentSubProgramInfo->LDSMemory += SPStackSize;
+  CurrentSubProgramInfo->PDSMemory += TPStackSize;
   //uint64_t RealStackSize = IsEntryFunction ?
   //                                SPStackSize + RMFI->getLibCallStackSize() :
   //                                TPStackSize + RMFI->getLibCallStackSize();
@@ -397,7 +397,8 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
 
   // Allocate space on the local-mem stack and private-mem stack if necessary.
   if(SPStackSize) {
-    RI->insertRegToSet(MRI, CurrentRegUsageSet, CurrentProgramInfo, SPReg);
+    RI->insertRegToSet(MRI, CurrentRegisterAddedSet, CurrentSubProgramInfo, 
+                        SPReg);
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
                   StackOffset::getFixed(SPStackSize),
                   MachineInstr::FrameSetup, getStackAlign());
@@ -411,8 +412,9 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   if(TPStackSize) {
-    RI->insertRegToSet(MRI, CurrentRegUsageSet, CurrentProgramInfo, TPReg);
-    RI->insertRegToSet(MRI, CurrentRegUsageSet, CurrentProgramInfo, 
+    RI->insertRegToSet(MRI, CurrentRegisterAddedSet, CurrentSubProgramInfo, 
+                        TPReg);
+    RI->insertRegToSet(MRI, CurrentRegisterAddedSet, CurrentSubProgramInfo, 
                         RI->getPrivateMemoryBaseRegister(MF));
     RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
                   StackOffset::getFixed(TPStackSize),

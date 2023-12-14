@@ -65,7 +65,7 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
 
   void insertRegToSet(const MachineRegisterInfo &MRI, 
                       DenseSet<unsigned int> *CurrentRegUsageSet, 
-                      VentusProgramInfo *CurrentProgramInfo, 
+                      SubVentusProgramInfo *CurrentSubProgramInfo, 
                       Register Reg) const;
 
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
