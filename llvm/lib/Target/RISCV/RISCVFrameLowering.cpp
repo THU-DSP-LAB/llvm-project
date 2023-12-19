@@ -728,7 +728,7 @@ void RISCVFrameLowering::determineStackID(MachineFunction &MF) const {
     // MFI.setStackID(I, RISCVStackID::VGPRSpill);
 
     MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF, I);
-    if (MFI.getStackID(I) == RISCVStackID::VGPRSpill &&
+    if (MFI.getStackID(I) == RISCVStackID::VGPRSpill ||
         PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
       MFI.setStackID(I, RISCVStackID::VGPRSpill);
     else if (MFI.getStackID(I) == RISCVStackID::LocalMemSpill ||
