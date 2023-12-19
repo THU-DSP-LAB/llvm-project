@@ -728,11 +728,11 @@ void RISCVFrameLowering::determineStackID(MachineFunction &MF) const {
     // MFI.setStackID(I, RISCVStackID::VGPRSpill);
 
     MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF, I);
-    if (MFI.getStackID(I) == RISCVStackID::VGPRSpill ||
-        PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
+    if (MFI.getStackID(I) != RISCVStackID::Default)
+      continue;
+    if (PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
       MFI.setStackID(I, RISCVStackID::VGPRSpill);
-    else if (MFI.getStackID(I) == RISCVStackID::LocalMemSpill ||
-             PtrInfo.getAddrSpace() == RISCVAS::LOCAL_ADDRESS)
+    else if (PtrInfo.getAddrSpace() == RISCVAS::LOCAL_ADDRESS)
       MFI.setStackID(I, RISCVStackID::LocalMemSpill);
     else
       MFI.setStackID(I, RISCVStackID::SGPRSpill);
@@ -892,6 +892,7 @@ bool RISCVFrameLowering::isSupportedStackID(TargetStackID::Value ID) const {
   case RISCVStackID::Default:
   case RISCVStackID::SGPRSpill:
   case RISCVStackID::VGPRSpill:
+  case RISCVStackID::LocalMemSpill:
     return true;
   case RISCVStackID::ScalableVector:
   case RISCVStackID::NoAlloc:
