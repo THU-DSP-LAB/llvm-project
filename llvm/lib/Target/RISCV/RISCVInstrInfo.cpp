@@ -240,8 +240,6 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
              RISCV::SW : RISCV::SD;
   } else if (RISCV::FPR16RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FSH;
-  } else if (RISCV::FPR32RegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::FSW;
   } else if (RISCV::FPR64RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FSD;
   } else if (RISCV::VGPRRegClass.hasSubClassEq(RC)) {
@@ -283,8 +281,6 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
              RISCV::LW : RISCV::LD;
   } else if (RISCV::FPR16RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FLH;
-  } else if (RISCV::FPR32RegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::FLW;
   } else if (RISCV::FPR64RegClass.hasSubClassEq(RC)) {
     Opcode = RISCV::FLD;
   } else if (RISCV::VGPRRegClass.hasSubClassEq(RC)) {
@@ -1482,6 +1478,12 @@ std::string RISCVInstrInfo::createMIROperandComment(
 
   OS.flush();
   return Comment;
+}
+
+int RISCVInstrInfo::getSPAdjust(const MachineInstr &MI) const {
+  // FIXME: Don't need this value now, but we can add relevant modifications 
+  // here when we optimize the PrologueInsert stage in the future.
+  return 0;
 }
 
 // Returns true if this is the sext.w pattern, addiw rd, rs1, 0.

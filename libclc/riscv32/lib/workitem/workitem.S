@@ -387,3 +387,4 @@ __builtin_riscv_work_dim:
   lw t0, KNL_WORK_DIM(a0)   # Get work_dim
   vmv.v.x v0, t0
   ret
+

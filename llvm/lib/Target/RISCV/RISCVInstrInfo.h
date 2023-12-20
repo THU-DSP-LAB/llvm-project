@@ -202,6 +202,8 @@ public:
 
   bool isAssociativeAndCommutative(const MachineInstr &Inst) const override;
 
+  int getSPAdjust(const MachineInstr &MI) const;
+
 protected:
   const RISCVSubtarget &STI;
 };

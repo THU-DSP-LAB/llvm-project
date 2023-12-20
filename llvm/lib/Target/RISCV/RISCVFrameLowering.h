@@ -68,7 +68,7 @@ public:
   bool canUseAsEpilogue(const MachineBasicBlock &MBB) const override;
 
   /// Get stack size for different stack ID
-  uint64_t getStackSize(MachineFunction &MF, RISCVStackID::Value ID) const;
+  uint64_t getStackSize(const MachineFunction &MF, RISCVStackID::Value ID) const;
 
   /// Frame Objects:
   /// fi#0: id=4 size=48, align=4, at location [SP+8]
@@ -77,8 +77,8 @@ public:
   /// As we can see, if we split the stack, different frame offset calculation
   /// need to be modified too, when calculate the TP stack offset, we need to
   /// extract the stack offset of 'SP' in machine function frame
-  uint64_t getExtractedStackOffset(const MachineFunction &MF, unsigned FI,
-                                    RISCVStackID::Value Stack) const;
+  uint64_t getStackOffset(const MachineFunction &MF, int FI,
+                          RISCVStackID::Value Stack) const;
 
   /// Before insert prolog/epilog information, set stack ID for each frame index
   void determineStackID(MachineFunction &MF) const;

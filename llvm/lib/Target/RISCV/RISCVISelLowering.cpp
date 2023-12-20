@@ -11741,8 +11741,12 @@ static SDValue unpackFromMemLoc(SelectionDAG &DAG, SDValue Chain,
     // type, instead of the scalable vector type.
     ValVT = LocVT;
   }
-  int FI = MFI.CreateFixedObject(ValVT.getStoreSize(), VA.getLocMemOffset(),
+
+  // Just align to 4 bytes, because parameters more than 4 bytes will be split 
+  // into 4-byte parameters
+  int FI = MFI.CreateFixedObject(ValVT.getStoreSize(), 0,
                                  /*IsImmutable=*/true);
+  MFI.setObjectAlignment(FI, Align(4));
   // This is essential for calculating stack size for VGPRSpill
   MFI.setStackID(FI, RISCVStackID::VGPRSpill);
   SDValue FIN = DAG.getFrameIndex(FI, PtrVT);
@@ -11828,6 +11832,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
   else
     analyzeInputArgs(MF, CCInfo, Ins, /*IsRet=*/false, CC_Ventus);
 
+  SmallVector<SDValue> MemVec;
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
     SDValue ArgValue;
@@ -11854,8 +11859,15 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
         ArgValue = unpackF64OnRV32DSoftABI(DAG, Chain, VA, DL);
       else if (VA.isRegLoc())
         ArgValue = unpackFromRegLoc(DAG, Chain, VA, DL, *this, Ins[i]);
-      else
+      else {
+        // Temporarily put the created parameter node to MemVec instead of to 
+        // InVals directly because it will be reversed later and then put to 
+        // InVals.
         ArgValue = unpackFromMemLoc(DAG, Chain, VA, DL);
+        MemVec.push_back(ArgValue);
+        continue;
+      }
+        
 
       if (VA.getLocInfo() == CCValAssign::Indirect) {
         // If the original argument was split and passed by reference (e.g. i128
@@ -11884,6 +11896,12 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
       InVals.push_back(ArgValue);
     }
   }
+
+  // Reverse MemVec and fill in InVals to ensure that the order in which the 
+  // callee functions are fetched is the same as the order in which it was 
+  // processed here.
+  while (MemVec.size())
+    InVals.push_back(MemVec.pop_back_val());
 
   if (IsVarArg) {
     // When it come to vardic arguments, the vardic function also need to follow
@@ -11936,6 +11954,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
       RegInfo.addLiveIn(ArgRegs[I], Reg);
       SDValue ArgValue = DAG.getCopyFromReg(Chain, DL, Reg, XLenVT);
       FI = MFI.CreateFixedObject(XLenInBytes, VaArgOffset, true);
+      MFI.setObjectAlignment(FI, Align(4));
       MFI.setStackID(FI, RISCVStackID::VGPRSpill);
       // MFI.setStackID(FI, RISCVStackID::VGPRSpill);
       SDValue PtrOff = DAG.getFrameIndex(FI, getPointerTy(DAG.getDataLayout()));
@@ -12210,11 +12229,13 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
         StackPtr = DAG.getCopyFromReg(Chain, DL, RISCV::X4, PtrVT);
       SDValue Address =
           DAG.getNode(ISD::ADD, DL, PtrVT, StackPtr,
-                      DAG.getIntPtrConstant(VA.getLocMemOffset(), DL));
+                      DAG.getIntPtrConstant((int)VA.getLocMemOffset() > 0 ? 
+                      (-VA.getLocMemOffset()) : VA.getLocMemOffset(), DL));
 
       // Emit the store.
       MemOpChains.push_back(
-          DAG.getStore(Chain, DL, ArgValue, Address, MachinePointerInfo()));
+          DAG.getStore(Chain, DL, ArgValue, Address, 
+                            MachinePointerInfo(RISCVAS::PRIVATE_ADDRESS)));
     }
   }
 
