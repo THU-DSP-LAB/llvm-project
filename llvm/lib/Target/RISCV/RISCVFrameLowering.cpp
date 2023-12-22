@@ -521,13 +521,13 @@ uint64_t RISCVFrameLowering::getStackOffset(const MachineFunction &MF,
   // because the parameters spilling to the stack are not in the current TP 
   // stack, the offset in the current stack should not be calculated from a 
   // negative FI.
-  for (int I = FI < 0 ? MFI.getObjectIndexBegin() : 0; I != FI; I++) {
+  for (int I = FI < 0 ? MFI.getObjectIndexBegin() : 0; I != FI + 1; I++) {
     if (static_cast<unsigned>(MFI.getStackID(I)) == Stack) {
       // Need to consider the alignment for different frame index
       Align Alignment =
           MFI.getObjectAlign(I).value() <= 4 ? Align(4) : MFI.getObjectAlign(I);
-      uint64_t AlignedSize = alignTo(MFI.getObjectSize(I), Alignment);
-      StackSize += AlignedSize;
+      StackSize += MFI.getObjectSize(I);
+      StackSize = alignTo(StackSize, Alignment);
     }
   }
 
@@ -537,7 +537,7 @@ uint64_t RISCVFrameLowering::getStackOffset(const MachineFunction &MF,
   if (FI < 0 && !MF.getFunction().isVarArg())
     StackSize += getStackSize(MF, RISCVStackID::VGPRSpill);
   
-  return alignTo(StackSize, Align(4));
+  return StackSize;
 }
 
 StackOffset

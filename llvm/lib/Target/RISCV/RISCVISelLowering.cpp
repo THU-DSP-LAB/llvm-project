@@ -11832,7 +11832,6 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
   else
     analyzeInputArgs(MF, CCInfo, Ins, /*IsRet=*/false, CC_Ventus);
 
-  SmallVector<SDValue> MemVec;
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
     SDValue ArgValue;
@@ -11859,15 +11858,8 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
         ArgValue = unpackF64OnRV32DSoftABI(DAG, Chain, VA, DL);
       else if (VA.isRegLoc())
         ArgValue = unpackFromRegLoc(DAG, Chain, VA, DL, *this, Ins[i]);
-      else {
-        // Temporarily put the created parameter node to MemVec instead of to 
-        // InVals directly because it will be reversed later and then put to 
-        // InVals.
+      else 
         ArgValue = unpackFromMemLoc(DAG, Chain, VA, DL);
-        MemVec.push_back(ArgValue);
-        continue;
-      }
-        
 
       if (VA.getLocInfo() == CCValAssign::Indirect) {
         // If the original argument was split and passed by reference (e.g. i128
@@ -11896,12 +11888,6 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
       InVals.push_back(ArgValue);
     }
   }
-
-  // Reverse MemVec and fill in InVals to ensure that the order in which the 
-  // callee functions are fetched is the same as the order in which it was 
-  // processed here.
-  while (MemVec.size())
-    InVals.push_back(MemVec.pop_back_val());
 
   if (IsVarArg) {
     // When it come to vardic arguments, the vardic function also need to follow
@@ -12124,6 +12110,9 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
   SmallVector<std::pair<Register, SDValue>, 8> RegsToPass;
   SmallVector<SDValue, 8> MemOpChains;
   SDValue StackPtr;
+
+  // Get the value of adjusting the stack frame before the Call.
+  uint64_t CurrentFrameSize = Chain->getConstantOperandVal(1);
   for (unsigned i = 0, j = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
     SDValue ArgValue = OutVals[i];
@@ -12229,8 +12218,8 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
         StackPtr = DAG.getCopyFromReg(Chain, DL, RISCV::X4, PtrVT);
       SDValue Address =
           DAG.getNode(ISD::ADD, DL, PtrVT, StackPtr,
-                      DAG.getIntPtrConstant((int)VA.getLocMemOffset() > 0 ? 
-                      (-VA.getLocMemOffset()) : VA.getLocMemOffset(), DL));
+                      DAG.getIntPtrConstant(-((int)VA.getLocMemOffset() 
+                      + CurrentFrameSize), DL));
 
       // Emit the store.
       MemOpChains.push_back(
