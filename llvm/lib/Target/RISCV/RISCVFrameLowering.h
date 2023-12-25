@@ -68,7 +68,7 @@ public:
   bool canUseAsEpilogue(const MachineBasicBlock &MBB) const override;
 
   /// Get stack size for different stack ID
-  uint64_t getStackSize(MachineFunction &MF, RISCVStackID::Value ID) const;
+  uint64_t getStackSize(const MachineFunction &MF, RISCVStackID::Value ID) const;
 
 
   /// Calculate frame object's stack offset
@@ -78,15 +78,10 @@ public:
   /// fi#2: id=1 size=4, align=4, at location [SP] \
   /// fi#3: id=4 size=4, align=4, at location [SP+16] \
   /// As we can see, if we split the stack, different frame offset calculation
-  /// need to be modified too, basic routine follows belows:
-  /// 1st: Mark all the frame object, and give them unique identifier id, in
-  ///      ventus, they will be: Default, VGPR, SGPR
-  ///
-  /// 2st: Calculate frame offset for different stack identifier, unlike
-  ///      traditional riscv stack frame offset calculation, we simply this
-  ///      procedure, we do not have to care about RVV .etc
-  uint64_t getStackOffset(const MachineFunction &MF, unsigned FI,
-                                    RISCVStackID::Value Stack) const;
+  /// need to be modified too, when calculate the TP stack offset, we need to
+  /// extract the stack offset of 'SP' in machine function frame
+  uint64_t getStackOffset(const MachineFunction &MF, int FI,
+                          RISCVStackID::Value Stack) const;
 
   /// Before insert prolog/epilog information, set stack ID for each frame index
   void determineStackID(MachineFunction &MF) const;

@@ -11813,8 +11813,12 @@ static SDValue unpackFromMemLoc(SelectionDAG &DAG, SDValue Chain,
     // type, instead of the scalable vector type.
     ValVT = LocVT;
   }
-  int FI = MFI.CreateStackObject(ValVT.getStoreSize(), Align(4),
-                                 false, nullptr, RISCVStackID::VGPRSpill);
+
+  // Just align to 4 bytes, because parameters more than 4 bytes will be split 
+  // into 4-byte parameters
+  int FI = MFI.CreateFixedObject(ValVT.getStoreSize(), 0,
+                                 /*IsImmutable=*/true);
+  MFI.setObjectAlignment(FI, Align(4));
   // This is essential for calculating stack size for VGPRSpill
   MFI.setStackID(FI, RISCVStackID::VGPRSpill);
   SDValue FIN = DAG.getFrameIndex(FI, PtrVT);
@@ -11926,7 +11930,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
         ArgValue = unpackF64OnRV32DSoftABI(DAG, Chain, VA, DL);
       else if (VA.isRegLoc())
         ArgValue = unpackFromRegLoc(DAG, Chain, VA, DL, *this, Ins[i]);
-      else
+      else 
         ArgValue = unpackFromMemLoc(DAG, Chain, VA, DL);
 
       if (VA.getLocInfo() == CCValAssign::Indirect) {
@@ -12008,6 +12012,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
       RegInfo.addLiveIn(ArgRegs[I], Reg);
       SDValue ArgValue = DAG.getCopyFromReg(Chain, DL, Reg, XLenVT);
       FI = MFI.CreateFixedObject(XLenInBytes, VaArgOffset, true);
+      MFI.setObjectAlignment(FI, Align(4));
       MFI.setStackID(FI, RISCVStackID::VGPRSpill);
       // MFI.setStackID(FI, RISCVStackID::VGPRSpill);
       SDValue PtrOff = DAG.getFrameIndex(FI, getPointerTy(DAG.getDataLayout()));
@@ -12177,6 +12182,9 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
   SmallVector<std::pair<Register, SDValue>, 8> RegsToPass;
   SmallVector<SDValue, 8> MemOpChains;
   SDValue StackPtr;
+
+  // Get the value of adjusting the stack frame before the Call.
+  uint64_t CurrentFrameSize = Chain->getConstantOperandVal(1);
   for (unsigned i = 0, j = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
     SDValue ArgValue = OutVals[i];
@@ -12282,11 +12290,13 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
         StackPtr = DAG.getCopyFromReg(Chain, DL, RISCV::X4, PtrVT);
       SDValue Address =
           DAG.getNode(ISD::ADD, DL, PtrVT, StackPtr,
-                      DAG.getIntPtrConstant(VA.getLocMemOffset(), DL));
+                      DAG.getIntPtrConstant(-((int)VA.getLocMemOffset() 
+                      + CurrentFrameSize), DL));
 
       // Emit the store.
       MemOpChains.push_back(
-          DAG.getStore(Chain, DL, ArgValue, Address, MachinePointerInfo()));
+          DAG.getStore(Chain, DL, ArgValue, Address, 
+                            MachinePointerInfo(RISCVAS::PRIVATE_ADDRESS)));
     }
   }
 
