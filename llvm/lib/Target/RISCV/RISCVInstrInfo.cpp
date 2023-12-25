@@ -269,7 +269,10 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   // sGPRF32 -> vGPR move
   if (RISCV::GPRF32RegClass.contains(SrcReg) &&
       RISCV::VGPRRegClass.contains(DstReg)) {
-    llvm_unreachable("Not supported by HW, use vmv.v.x instead.");
+    BuildMI(MBB, MBBI, DL, get(RISCV::VFMV_S_F), DstReg)
+        .addReg(DstReg, RegState::Undef)
+        .addReg(SrcReg, getKillRegState(KillSrc));
+    return;
   }
 
   // Handle copy from csr

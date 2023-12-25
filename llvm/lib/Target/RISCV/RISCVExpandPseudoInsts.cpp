@@ -147,6 +147,7 @@ bool RISCVExpandPseudo::expandVIIMM11(MachineBasicBlock &MBB,
 
     if (Op.isImm()) {
       Imm = Op.getImm();
+      assert((Imm <= 1023 && Imm >= -1024) && "imm not in Imm11 range!");
 
       if (Imm >= 0) {
         Imm &= 0b01111111111;
@@ -161,12 +162,12 @@ bool RISCVExpandPseudo::expandVIIMM11(MachineBasicBlock &MBB,
       LowImm  = Imm & 0b00000011111;
       TmpImm  = ~LowImm + 1;
       TmpImm &= 0b01111;
-      LowImm  = (LowImm & 0b10000) ? -TmpImm : LowImm;
+      LowImm  = (LowImm & 0b10000) ? (TmpImm ? -TmpImm : -15) : LowImm;
 
       HighImm = (Imm & 0b11111100000) >> 5;
       TmpImm  = ~HighImm + 1;
       TmpImm  &= 0b011111;
-      HighImm = (HighImm & 0b100000) ? -TmpImm : HighImm;
+      HighImm = (HighImm & 0b100000) ? (TmpImm ? -TmpImm : -31) : HighImm;
 
       Op.ChangeToImmediate(LowImm);
 
