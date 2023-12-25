@@ -719,17 +719,17 @@ uint64_t RISCVFrameLowering::getStackSize(const MachineFunction &MF,
                                           RISCVStackID::Value ID) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   uint64_t StackSize = 0;
-  Align Alignment = Align(4);
+  
   for(int I = 0; I != MFI.getObjectIndexEnd(); I++) {
     if(static_cast<unsigned>(MFI.getStackID(I)) == ID) {
-      // FIXME: this code logic maybe not that correct?
-      StackSize += ((MFI.getObjectSize(I) + 3) >> 2) * 4;
-      // Get frame object largest alignment
-      Alignment = std::max(MFI.getObjectAlign(I), Alignment);
+      Align Alignment = MFI.getObjectAlign(I).value() <= 4 ? 
+                        Align(4) : MFI.getObjectAlign(I);
+      StackSize += MFI.getObjectSize(I);
+      StackSize = alignTo(StackSize, Alignment);
     }
   }
-  // Align to 4
-  return alignTo(StackSize, Alignment);
+
+  return StackSize;
 }
 
 void RISCVFrameLowering::determineStackID(MachineFunction &MF) const {
