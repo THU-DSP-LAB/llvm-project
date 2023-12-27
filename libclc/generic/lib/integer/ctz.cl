@@ -29,7 +29,7 @@ _CLC_OVERLOAD _CLC_DEF long ctz(long x) {
 }
 
 _CLC_OVERLOAD _CLC_DEF ulong ctz(ulong ux) {
-  return x ? __builtin_ctzl(x) : 64;
+  return ux ? __builtin_ctzl(ux) : 64;
 }
 
 _CLC_UNARY_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, char, ctz, char)
