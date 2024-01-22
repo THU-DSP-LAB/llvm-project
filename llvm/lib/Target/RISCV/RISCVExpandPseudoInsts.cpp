@@ -185,7 +185,8 @@ bool RISCVExpandPseudo::expandVIIMM11(MachineBasicBlock &MBB,
         int Pos = MBBI->getDesc().getOperandConstraint(i, MCOI::CUSTOM);
         assert(Pos != -1 && "Out of range[0, 31] register operand custom "
                             "constraint that must be present.");
-        Offsets |= (RegEncodingValue >> 5 & 0x7) << (3 * Pos);
+        assert(Pos != 1 && Pos != 3 && "Unexpected Pos!");
+        Offsets |= (RegEncodingValue >> 5 & 0x7) << (3 * (Pos == 2 ? 1 : Pos));
       }
     }
   }
