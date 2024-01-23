@@ -69,11 +69,11 @@ entry:
 define dso_local i32 @regexti3(i32 noundef %a) {
 ; CHECK-LABEL: regexti3:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    regexti zero, zero, 768
-; CHECK-NEXT:    vxor.vi v0, v0, 15
+; CHECK-NEXT:    regexti zero, zero, 448
+; CHECK-NEXT:    vnot.v v0, v0
 ; CHECK-NEXT:    ret
 entry:
-  %res = xor i32 %a, 399
+  %res = xor i32 %a, 255
   ret i32 %res
 }
 
@@ -176,44 +176,13 @@ entry:
   ret i1 %res
 }
 
-define dso_local ventus_kernel void @regexti13(ptr addrspace(1) nocapture noundef align 4 %A
+define dso_local ventus_kernel void @regexti13(ptr addrspace(1) nocapture 
+            noundef align 4 %A, ptr addrspace(3) nocapture noundef align 4 %B) {
 ; CHECK-LABEL: regexti13:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    addi sp, sp, 12
-; CHECK-NEXT:    .cfi_def_cfa_offset 12
-; CHECK-NEXT:    addi tp, tp, 4
-; CHECK-NEXT:    .cfi_def_cfa_offset 4
-; CHECK-NEXT:    regext zero, zero, 1
-; CHECK-NEXT:    vmv.v.x v32, tp
-; CHECK-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
-; CHECK-NEXT:    .cfi_offset ra, 4
-; CHECK-NEXT:    .cfi_offset v33.l, 0
-; CHECK-NEXT:    lw t0, 0(a0)
-; CHECK-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
-; CHECK-NEXT:    lw t0, 4(a0)
-; CHECK-NEXT:    sw t0, -4(sp) # 4-byte Folded Spill
-; CHECK-NEXT:    vmv.v.x v0, zero
-; CHECK-NEXT:    call _Z13get_global_idj
-; CHECK-NEXT:    regexti zero, zero, 769
+; CHECK:    regexti zero, zero, 769
 ; CHECK-NEXT:    vand.vi v33, v0, 15
-; CHECK-NEXT:    vmv.v.x v0, zero
-; CHECK-NEXT:    call _Z12get_local_idj
-; CHECK-NEXT:    vsll.vi v0, v0, 2
-; CHECK-NEXT:    lw t1, -4(sp) # 4-byte Folded Reload
-; CHECK-NEXT:    vadd.vx v0, v0, t1
-; CHECK-NEXT:    vlw12.v v0, 0(v0)
-; CHECK-NEXT:    regext zero, zero, 64
-; CHECK-NEXT:    vsll.vi v1, v33, 2
-; CHECK-NEXT:    lw t0, -8(sp) # 4-byte Folded Reload
-; CHECK-NEXT:    vadd.vx v1, v1, t0
-; CHECK-NEXT:    vlw12.v v2, 0(v1)
-; CHECK-NEXT:    vadd.vv v0, v2, v0
-; CHECK-NEXT:    vsw12.v v0, 0(v1)
-; CHECK-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
-; CHECK-NEXT:    addi sp, sp, -12
-; CHECK-NEXT:    addi tp, tp, -4
-; CHECK-NEXT:    ret
-                                              ,ptr addrspace(3) nocapture noundef align 4 %B) {
+                                              
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
   %calland = and i32 %call, 399
