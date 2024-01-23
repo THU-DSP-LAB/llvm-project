@@ -99,6 +99,9 @@ enum {
   // Check if this instruction meets the format of RVInstVV
   IsVVALUInstrShift = UsesMaskPolicyShift + 1,
   IsVVALUInstrMask = 1 << IsVVALUInstrShift,
+
+  IsVOPIMM11Shift = IsVVALUInstrShift + 1,
+  IsVOPIMM11Mask = 1 << IsVOPIMM11Shift,
 };
 
 // Match with the definitions in RISCVInstrFormats.td
@@ -140,6 +143,10 @@ static inline bool hasDummyMaskOp(uint64_t TSFlags) {
 /// \returns true if the instruction meets the format of RVInstVV
 static inline bool isVVALUInstr(uint64_t TSFlags) {
   return TSFlags & IsVVALUInstrMask;
+}
+
+static inline bool isVOPIMM11(uint64_t TSFlags) {
+  return TSFlags & IsVOPIMM11Mask;
 }
 
 /// \returns true if tail agnostic is enforced for the instruction.
