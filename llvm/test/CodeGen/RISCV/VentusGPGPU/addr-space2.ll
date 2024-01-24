@@ -13,7 +13,7 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 24
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
-; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 4
 ; VENTUS-NEXT:    .cfi_offset v33.l, 0
 ; VENTUS-NEXT:    lw t0, 0(a0)
@@ -58,8 +58,9 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    vadd.vv v0, v33, v0
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
 ; VENTUS-NEXT:  .LBB0_3: # %if.end
-; VENTUS-NEXT:    join
-; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    # Label of block must be emitted
+; VENTUS-NEXT:    join zero, zero, 0
+; VENTUS-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    addi tp, tp, -24
 ; VENTUS-NEXT:    ret
@@ -241,10 +242,9 @@ define dso_local ventus_kernel void @local_memmory1(ptr addrspace(3) nocapture n
 ; VENTUS-LABEL: local_memmory1:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lw t0, 0(a0)
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    vlw12.v v1, 0(v0)
-; VENTUS-NEXT:    vadd.vi v1, v1, 1
-; VENTUS-NEXT:    vsw12.v v1, 0(v0)
+; VENTUS-NEXT:    lw t1, 0(t0)
+; VENTUS-NEXT:    addi t1, t1, 1
+; VENTUS-NEXT:    sw t1, 0(t0)
 ; VENTUS-NEXT:    ret
 entry:
   %0 = load i32, ptr addrspace(3) %b, align 4

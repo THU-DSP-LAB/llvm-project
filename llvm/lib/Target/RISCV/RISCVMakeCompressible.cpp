@@ -103,12 +103,9 @@ static unsigned log2LdstWidth(unsigned Opcode) {
     llvm_unreachable("Unexpected opcode");
   case RISCV::LW:
   case RISCV::SW:
-  case RISCV::FLW:
-  case RISCV::FSW:
     return 2;
   case RISCV::LD:
   case RISCV::SD:
-  case RISCV::FLD:
   case RISCV::FSD:
     return 3;
   }
@@ -147,8 +144,7 @@ static bool isCompressibleLoad(const MachineInstr &MI) {
   const RISCVSubtarget &STI = MI.getMF()->getSubtarget<RISCVSubtarget>();
   const unsigned Opcode = MI.getOpcode();
 
-  return Opcode == RISCV::LW || (!STI.is64Bit() && Opcode == RISCV::FLW) ||
-         Opcode == RISCV::LD || Opcode == RISCV::FLD;
+  return Opcode == RISCV::LW || Opcode == RISCV::LD;
 }
 
 // Return true if MI is a store for which there exists a compressed version.
@@ -156,8 +152,7 @@ static bool isCompressibleStore(const MachineInstr &MI) {
   const RISCVSubtarget &STI = MI.getMF()->getSubtarget<RISCVSubtarget>();
   const unsigned Opcode = MI.getOpcode();
 
-  return Opcode == RISCV::SW || (!STI.is64Bit() && Opcode == RISCV::FSW) ||
-         Opcode == RISCV::SD || Opcode == RISCV::FSD;
+  return Opcode == RISCV::SW || Opcode == RISCV::SD;
 }
 
 // Find a single register and/or large offset which, if compressible, would

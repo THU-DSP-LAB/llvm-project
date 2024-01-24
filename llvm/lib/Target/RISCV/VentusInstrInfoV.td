@@ -1134,8 +1134,9 @@ defm VFCVT_XU_F_V : VCVTI_FV_VS2<"vfcvt.xu.f.v", 0b010010, 0b00000>;
 defm VFCVT_X_F_V : VCVTI_FV_VS2<"vfcvt.x.f.v", 0b010010, 0b00001>;
 }
 // Follow the way by RISCVInstrInfoF
-defm VFCVT_RTZ_XU_F_V : VCVTI_FV_VS2_FRM<"vfcvt.rtz.xu.f.v", 0b010010, 0b00110>;
-defm VFCVT_RTZ_X_F_V : VCVTI_FV_VS2_FRM<"vfcvt.rtz.x.f.v", 0b010010, 0b00111>;
+// TODO: later support
+// defm VFCVT_RTZ_XU_F_V : VCVTI_FV_VS2_FRM<"vfcvt.rtz.xu.f.v", 0b010010, 0b00110>;
+// defm VFCVT_RTZ_X_F_V : VCVTI_FV_VS2_FRM<"vfcvt.rtz.x.f.v", 0b010010, 0b00111>;
 let Uses = [FRM] in {
 defm VFCVT_F_XU_V : VCVTF_IV_VS2<"vfcvt.f.xu.v", 0b010010, 0b00010>;
 defm VFCVT_F_X_V : VCVTF_IV_VS2<"vfcvt.f.x.v", 0b010010, 0b00011>;
@@ -1330,10 +1331,10 @@ defm : PatFloatSetCC<[VGPR, GPRF32], [SETOLE, SETLE], VMFLE_VV>;
 defm : PatFloatSetCC<[VGPR, GPRF32], [SETOGT, SETGT], VMFGT_VF>;
 defm : PatFloatSetCC<[VGPR, GPRF32], [SETOGE, SETGE], VMFGE_VF>;
 
-def : Pat<(i32 (DivergentBinFrag<riscv_fcvt_x> (f32 VGPR:$rs1), timm:$frm)),
-                (VFCVT_RTZ_X_F_V (f32 VGPR:$rs1), $frm)>;
-def : Pat<(i32 (DivergentBinFrag<riscv_fcvt_xu> (f32 VGPR:$rs1), timm:$frm)),
-                (VFCVT_RTZ_XU_F_V (f32 VGPR:$rs1), $frm)>;
+// def : Pat<(i32 (DivergentBinFrag<riscv_fcvt_x> (f32 VGPR:$rs1), timm:$frm)),
+//                 (VFCVT_RTZ_X_F_V (f32 VGPR:$rs1), $frm)>;
+// def : Pat<(i32 (DivergentBinFrag<riscv_fcvt_xu> (f32 VGPR:$rs1), timm:$frm)),
+//                 (VFCVT_RTZ_XU_F_V (f32 VGPR:$rs1), $frm)>;
 def : PatFXConvert<DivergentUnaryFrag<any_fp_to_sint>,
                           [XLenVT, f32], VFCVT_X_F_V>;
 def : PatFXConvert<DivergentUnaryFrag<any_fp_to_uint>,
@@ -1497,6 +1498,6 @@ def : Pat<(XLenVT (DivergentBinFrag<add> (XLenVT VGPR:$rs1), uimm12:$imm)),
 
 // There already has patterns defined in VentusInstrInfo.td
 let Predicates = [HasStdExtZfinx] in {
-// def : Pat<(f32 (bitconvert (i32 GPR:$src))), (VMV_V_X GPR:$src)>;
-def : Pat<(i32 (bitconvert GPRF32:$src)), (VFMV_V_F GPRF32:$src)>;
+def : Pat<(f32 (bitconvert (i32 GPR:$src))), (VMV_V_X GPR:$src)>;
+// def : Pat<(i32 (bitconvert GPRF32:$src)), (VFMV_V_F GPRF32:$src)>;
 } // Predicates = [HasStdExtZfinx]

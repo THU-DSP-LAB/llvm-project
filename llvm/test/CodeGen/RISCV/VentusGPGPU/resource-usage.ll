@@ -11,17 +11,14 @@ define dso_local ventus_kernel void @usage(ptr addrspace(1) nocapture noundef al
 ; VENTUS-LABEL: usage:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 4
-; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    lw t0, 4(a0)
 ; VENTUS-NEXT:    lw t1, 0(a0)
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    vlw12.v v0, 0(v0)
-; VENTUS-NEXT:    lw t0, 0(t1)
-; VENTUS-NEXT:    vadd.vx v0, v0, t0
-; VENTUS-NEXT:    vmv.v.x v1, t1
-; VENTUS-NEXT:    vsw12.v v0, 0(v1)
-; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    barrier x0, x0, 1
+; VENTUS-NEXT:    lw t0, 0(t0)
+; VENTUS-NEXT:    lw t2, 0(t1)
+; VENTUS-NEXT:    add t0, t2, t0
+; VENTUS-NEXT:    sw t0, 0(t1)
+; VENTUS-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    ret
 entry:
