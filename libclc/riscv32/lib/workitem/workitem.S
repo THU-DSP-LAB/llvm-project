@@ -190,7 +190,7 @@ __builtin_riscv_workitem_id_z:
   vadd.vx v0, v2, t1      # local_linear_id
   lw t3, KNL_LC_SIZE_X(a0) # local_size_x
   lw t4, KNL_LC_SIZE_Y(a0) # local_size_y
-  lw t5, KNL_LC_SIZE_Z(a0) # local_size_y
+  lw t5, KNL_LC_SIZE_Z(a0) # local_size_z
   mul t4, t4, t3          # local_size_x * local_size_y
   vdivu.vx v0, v0, t4     # local_linear_id / (local_size_x * local_size_y)
   vmv.v.x v1, t5
