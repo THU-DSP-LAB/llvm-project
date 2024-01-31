@@ -7496,6 +7496,16 @@ SDValue RISCVTargetLowering::getFPExtOrFPRound(SelectionDAG &DAG,
                 DAG.getTargetConstant(0, DL, MVT::i32));
 }
 
+SDValue RISCVTargetLowering::getFPExtOrFPRound(SelectionDAG &DAG,
+                                            SDValue Op,
+                                            const SDLoc &DL,
+                                            EVT VT) const {
+  return Op.getValueType().bitsLE(VT) ?
+      DAG.getNode(ISD::FP_EXTEND, DL, VT, Op) :
+    DAG.getNode(ISD::FP_ROUND, DL, VT, Op,
+                DAG.getTargetConstant(0, DL, MVT::i32));
+}
+
 SDValue RISCVTargetLowering::convertArgType(SelectionDAG &DAG, EVT VT, EVT MemVT,
                                          const SDLoc &SL, SDValue Val,
                                          bool Signed,
@@ -7555,7 +7565,7 @@ SDValue RISCVTargetLowering::lowerKernargMemParameter(
 
     SDValue ArgVal = DAG.getNode(ISD::TRUNCATE, SL, IntVT, Extract);
     ArgVal = DAG.getNode(ISD::BITCAST, SL, MemVT, ArgVal);
-    // TODO: Support vector type.
+    // TODO: Support vector and half type.
     ArgVal = convertArgType(DAG, VT, MemVT, SL, ArgVal, Signed, Arg);
 
    return DAG.getMergeValues({ ArgVal, Load.getValue(1) }, SL);
@@ -7567,6 +7577,7 @@ SDValue RISCVTargetLowering::lowerKernargMemParameter(
                                  MachineMemOperand::MOInvariant);
 
   SDValue Val = convertArgType(DAG, VT, MemVT, SL, Load, Signed, Arg);
+  // return DAG.getMergeValues({ Load, Load.getValue(1) }, SL);
   return DAG.getMergeValues({ Val, Load.getValue(1) }, SL);
 }
 
