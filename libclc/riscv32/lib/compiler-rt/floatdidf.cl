@@ -22,7 +22,7 @@ double __floatdidf(di_int a) {
   const unsigned N = sizeof(di_int) * 8;
   const di_int s = a >> (N - 1);
   a = (a ^ s) - s;
-  int sd = N - clz64(a);
+  int sd = N - clzl(a);
   int e = sd - 1;
   if (sd > DBL_MANT_DIG) {
 
