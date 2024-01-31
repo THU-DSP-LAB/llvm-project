@@ -143,15 +143,6 @@ __builtin_riscv_workitem_id_x:
   vadd.vx v0, v2, t1      # local_id_x in 1 dim (local_linear_id)
   lw t3, KNL_LC_SIZE_X(a0) # local_size_x
   vremu.vx v0, v0, t3      # local_id_x = local_liner_id % local_size_x
-  vmv.v.x v1, t3
-.hi1:
-	auipc	t1, %pcrel_hi(.end1)
-	setrpc	zero, t1, %pcrel_lo(.hi1)
-  vblt v0, v1, .end1
-  li t5, -1
-  vadd.vx v0, v1, t5
-.end1:
-  join	zero, zero, 0
   lw ra, -4(sp)
   addi sp, sp, -4
   ret
@@ -170,7 +161,7 @@ __builtin_riscv_workitem_id_y:
   vadd.vx v0, v2, t1      # local_linear_id
   lw t3, KNL_LC_SIZE_X(a0)  # local_size_x offset in 2 work_dims
   lw t4, KNL_LC_SIZE_Y(a0)  # local_size_y offset in 2 work_dims
-  mul t5, t5, t3          # local_size_x * local_size_y
+  mul t5, t4, t3          # local_size_x * local_size_y
   vremu.vx v0, v0, t5     # x = local_linear_id % (local_size_x * local_size_y)
   vdivu.vx v0, v0, t3     # x / local_size_x
   vmv.v.x v1, t4
