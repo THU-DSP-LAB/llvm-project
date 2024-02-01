@@ -8,7 +8,7 @@ define dso_local i32 @branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 4
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 4
-; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
@@ -37,7 +37,7 @@ define dso_local i32 @branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
 ; VENTUS-NEXT:    vadd.vx v0, v1, zero
-; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    ret
 entry:
@@ -63,7 +63,7 @@ define dso_local ventus_kernel void @loop_branch(ptr addrspace(1) nocapture noun
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 8
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 8
-; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    sw a0, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    vmv.v.x v0, zero
@@ -88,7 +88,7 @@ define dso_local ventus_kernel void @loop_branch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    # =>This Inner Loop Header: Depth=1
 ; VENTUS-NEXT:    vlw12.v v4, 0(v3)
 ; VENTUS-NEXT:    vadd.vv v2, v2, v4
-; VENTUS-NEXT:    vadd.vi v0, v0, -1
+; VENTUS-NEXT:    vsub12.vi v0, v0, 1
 ; VENTUS-NEXT:    vsw12.v v2, 0(v1)
 ; VENTUS-NEXT:  .Lpcrel_hi3:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB1_3)
@@ -97,7 +97,7 @@ define dso_local ventus_kernel void @loop_branch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:  .LBB1_3: # %for.cond.cleanup
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
-; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
 entry:
@@ -134,7 +134,7 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 4
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
-; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 4
 ; VENTUS-NEXT:    .cfi_offset v33.l, 0
 ; VENTUS-NEXT:    vmv.v.x v0, zero
@@ -169,6 +169,7 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    vblt v0, v33, .LBB2_5
 ; VENTUS-NEXT:  # %bb.3: # %if.then2
 ; VENTUS-NEXT:    li t0, 23
+; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:    j .LBB2_6
 ; VENTUS-NEXT:  .LBB2_4: # %if.end7
 ; VENTUS-NEXT:    li t0, 4
@@ -177,14 +178,14 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    j .LBB2_7
 ; VENTUS-NEXT:  .LBB2_5:
 ; VENTUS-NEXT:    li t0, 12
+; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:  .LBB2_6: # %cleanup9
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
-; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:  .LBB2_7: # %cleanup9
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
-; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    addi tp, tp, -4
 ; VENTUS-NEXT:    ret
@@ -218,7 +219,7 @@ define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noun
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 8
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 8
-; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    sw a0, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    vmv.v.x v0, zero
@@ -249,7 +250,7 @@ define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    # => This Inner Loop Header: Depth=2
 ; VENTUS-NEXT:    vlw12.v v5, 0(v3)
 ; VENTUS-NEXT:    vadd.vv v2, v2, v5
-; VENTUS-NEXT:    vadd.vi v4, v4, -1
+; VENTUS-NEXT:    vsub12.vi v4, v4, 1
 ; VENTUS-NEXT:    vsw12.v v2, 0(v1)
 ; VENTUS-NEXT:  .Lpcrel_hi8:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB3_4)
@@ -268,7 +269,7 @@ define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:  .LBB3_5: # %for.cond.cleanup
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
-; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
 entry:
@@ -312,7 +313,7 @@ define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noun
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 8
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 8
-; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    sw a0, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    vmv.v.x v0, zero
@@ -374,7 +375,7 @@ define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:  .LBB4_9: # %for.cond.cleanup
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
-; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
 entry:
@@ -426,7 +427,7 @@ define dso_local i32 @_Z13get_global_idj(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 4
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 4
-; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    li t0, 2
 ; VENTUS-NEXT:    vmv.v.x v1, t0
@@ -461,7 +462,7 @@ define dso_local i32 @_Z13get_global_idj(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:  .LBB5_7: # %return
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
-; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    ret
 entry:

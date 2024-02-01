@@ -466,25 +466,6 @@ define float @fsgnjnx_v(float %a) nounwind {
   ret float %1
 }
 
-define i32 @fcvt_rtz_x_f_v(float %a) nounwind {
-; VENTUS-LABEL: fcvt_rtz_x_f_v:
-; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vfcvt.rtz.x.f.v v0, v0
-; VENTUS-NEXT:    ret
-  %1 = call float @llvm.trunc.f32(float %a)
-  %conv = fptosi float %1 to i32
-  ret i32 %conv
-}
-
-define i32 @fcvt_rtz_xu_f_v(float %x) {
-; VENTUS-LABEL: fcvt_rtz_xu_f_v:
-; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    vfcvt.rtz.xu.f.v v0, v0
-; VENTUS-NEXT:    ret
-  %a = call float @llvm.trunc.f32(float %x)
-  %b = fptoui float %a to i32
-  ret i32 %b
-}
 
 @global_val = dso_local global float 0x3FF547AE20000000, align 4
 declare float @llvm.sqrt.f32(float %Val)
