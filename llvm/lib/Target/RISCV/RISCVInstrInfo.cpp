@@ -1463,6 +1463,12 @@ std::string RISCVInstrInfo::createMIROperandComment(
   return Comment;
 }
 
+int RISCVInstrInfo::getSPAdjust(const MachineInstr &MI) const {
+  // FIXME: Don't need this value now, but we can add relevant modifications 
+  // here when we optimize the PrologueInsert stage in the future.
+  return 0;
+}
+
 // Returns true if this is the sext.w pattern, addiw rd, rs1, 0.
 bool RISCV::isSEXT_W(const MachineInstr &MI) {
   return MI.getOpcode() == RISCV::ADDIW && MI.getOperand(1).isReg() &&

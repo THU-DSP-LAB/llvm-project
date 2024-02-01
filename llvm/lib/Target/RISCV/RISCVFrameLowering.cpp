@@ -466,6 +466,7 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
                                       MachineBasicBlock &MBB) const {
   const RISCVRegisterInfo *RI = STI.getRegisterInfo();
   MachineFrameInfo &MFI = MF.getFrameInfo();
+  const RISCVInstrInfo *TII = STI.getInstrInfo();
   Register SPReg = getSPReg(STI);
   Register TPReg = getTPReg(STI);
 
@@ -505,26 +506,46 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
                   StackOffset::getFixed(-SPStackSize),
                   MachineInstr::FrameDestroy, getStackAlign());
-  if(TPStackSize)
+  if(TPStackSize) {
     RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
                   StackOffset::getFixed(-TPStackSize),
                   MachineInstr::FrameDestroy, getStackAlign());
-
+    
+    // Restore V32
+    BuildMI(MBB, MBBI, DL, TII->get(RISCV::VMV_V_X),
+            RI->getPrivateMemoryBaseRegister(MF))
+        .addReg(TPReg);
+  }
+    
   // Emit epilogue for shadow call stack.
   emitSCSEpilogue(MF, MBB, MBBI, DL);
 }
 
-uint64_t RISCVFrameLowering::getExtractedStackOffset(const MachineFunction &MF,
-  unsigned FI, RISCVStackID::Value Stack) const {
+uint64_t RISCVFrameLowering::getStackOffset(const MachineFunction &MF,
+                                            int FI,
+                                            RISCVStackID::Value Stack) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   uint64_t StackSize = 0;
-  for(int I = FI + 1; I != MFI.getObjectIndexEnd(); I++) {
-    if(static_cast<unsigned>(MFI.getStackID(I)) != Stack) {
+
+  // because the parameters spilling to the stack are not in the current TP 
+  // stack, the offset in the current stack should not be calculated from a 
+  // negative FI.
+  for (int I = FI < 0 ? MFI.getObjectIndexBegin() : 0; I != FI + 1; I++) {
+    if (static_cast<unsigned>(MFI.getStackID(I)) == Stack) {
       // Need to consider the alignment for different frame index
-      uint64_t Size = MFI.getObjectSize(I);
-      StackSize +=  Size;
+      Align Alignment =
+          MFI.getObjectAlign(I).value() <= 4 ? Align(4) : MFI.getObjectAlign(I);
+      StackSize += MFI.getObjectSize(I);
+      StackSize = alignTo(StackSize, Alignment);
     }
   }
+
+  // In the case of parameters spilling to the stack, needing to add the size of
+  // the current TP stack because the parameters are on the caller's TP stack
+  // instead of current stack.
+  if (FI < 0 && !MF.getFunction().isVarArg())
+    StackSize += getStackSize(MF, RISCVStackID::VGPRSpill);
+  
   return StackSize;
 }
 
@@ -545,33 +566,16 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
           StackID == RISCVStackID::SGPRSpill ||
           StackID == RISCVStackID::VGPRSpill) &&
          "Unexpected stack ID for the frame object.");
-  uint8_t Stack = MFI.getStackID(FI);
-  StackOffset Offset =
-      StackOffset::getFixed(MFI.getObjectOffset(FI) - getOffsetOfLocalArea()
-         -getExtractedStackOffset(MF, FI, RISCVStackID::Value(Stack))
-         + MFI.getOffsetAdjustment());
-
-
 
   // Different stacks for sALU and vALU threads.
-  FrameReg = StackID == RISCVStackID::SGPRSpill ? RISCV::X2 : RISCV::X4;
-
-  if (CSI.size()) {
-    // For callee saved registers
-    MinCSFI = CSI[0].getFrameIdx();
-    MaxCSFI = CSI[CSI.size() - 1].getFrameIdx();
-    if (FI >= MinCSFI && FI <= MaxCSFI) {
-      Offset -= StackOffset::getFixed(RVFI->getVarArgsSaveSize());
-      return Offset;
-    }
-  }
-  // TODO: This only saves sGPR CSRs, as we haven't define vGPR CSRs
-  // within getNonLibcallCSI.
-  // if (FI >= MinCSFI && FI <= MaxCSFI) {
-  Offset -= StackOffset::getFixed(
-    getStackSize(const_cast<MachineFunction&>(MF),
-                  (RISCVStackID::Value)StackID));
-  return Offset;
+  if (StackID == RISCVStackID::VGPRSpill)
+    FrameReg = RISCV::X4;
+  else if (StackID == RISCVStackID::SGPRSpill)
+    FrameReg = RISCV::X2;
+  else
+    FrameReg = RISCV::X8;
+  return -StackOffset::getFixed(
+                          getStackOffset(MF, FI, (RISCVStackID::Value)StackID));
 }
 
 void RISCVFrameLowering::determineCalleeSaves(MachineFunction &MF,
@@ -632,7 +636,7 @@ static unsigned estimateFunctionSizeInBytes(const MachineFunction &MF,
 // by the frame pointer.
 // Let eliminateCallFramePseudoInstr preserve stack space for it.
 bool RISCVFrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
-  return !MF.getFrameInfo().hasVarSizedObjects();
+  return false;
 }
 
 // Eliminate ADJCALLSTACKDOWN, ADJCALLSTACKUP pseudo instructions.
@@ -644,6 +648,9 @@ MachineBasicBlock::iterator RISCVFrameLowering::eliminateCallFramePseudoInstr(
   // Kernel and normal function has different stack pointer for Ventus GPGPU.
   Register SPReg = RISCV::X4; // MFI->isEntryFunction() ? RISCV::X2 : RISCV::X4;
   DebugLoc DL = MI->getDebugLoc();
+  Register TPReg = getTPReg(STI);
+  const RISCVInstrInfo *TII = STI.getInstrInfo();
+  const RISCVRegisterInfo &RI = *STI.getRegisterInfo();
 
   if (!hasReservedCallFrame(MF)) {
     // If space has not been reserved for a call frame, ADJCALLSTACKDOWN and
@@ -660,9 +667,19 @@ MachineBasicBlock::iterator RISCVFrameLowering::eliminateCallFramePseudoInstr(
       if (MI->getOpcode() == RISCV::ADJCALLSTACKDOWN)
         Amount = -Amount;
 
-      const RISCVRegisterInfo &RI = *STI.getRegisterInfo();
       RI.adjustReg(MBB, MI, DL, SPReg, SPReg, StackOffset::getFixed(Amount),
                    MachineInstr::NoFlags, getStackAlign());
+      
+      // The value of TP will be re-assigned to V32 at the end of the callee
+      // function, which is actually the TP value after ADJCALLSTACKUP, so the 
+      // tp value after ADJCALLSTACKDOWN should be reassigned to V32 to ensure 
+      // that it is consistent with the TP value that has not been internally 
+      // adjusted (that is, excluding the initial TP adjustment) within the 
+      // current function.
+      if (MI->getOpcode() == RISCV::ADJCALLSTACKDOWN) 
+        BuildMI(MBB, MI, DL, TII->get(RISCV::VMV_V_X),
+            RI.getPrivateMemoryBaseRegister(MF))
+            .addReg(TPReg);
     }
   }
 
@@ -707,19 +724,20 @@ RISCVFrameLowering::getFirstSPAdjustAmount(const MachineFunction &MF) const {
   return 0;
 }
 
-uint64_t RISCVFrameLowering::getStackSize(MachineFunction &MF,
+uint64_t RISCVFrameLowering::getStackSize(const MachineFunction &MF,
                                           RISCVStackID::Value ID) const {
-  MachineFrameInfo &MFI = MF.getFrameInfo();
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
   uint64_t StackSize = 0;
-
-  for(int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
+  
+  for(int I = 0; I != MFI.getObjectIndexEnd(); I++) {
     if(static_cast<unsigned>(MFI.getStackID(I)) == ID) {
-      // Need to consider the alignment for different frame index
-      uint64_t Size = ((MFI.getObjectSize(I) + 3) >> 2) * 4;
-      StackSize += Size;
+      Align Alignment = MFI.getObjectAlign(I).value() <= 4 ? 
+                        Align(4) : MFI.getObjectAlign(I);
+      StackSize += MFI.getObjectSize(I);
+      StackSize = alignTo(StackSize, Alignment);
     }
-
   }
+
   return StackSize;
 }
 
