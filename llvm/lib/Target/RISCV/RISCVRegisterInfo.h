@@ -13,6 +13,7 @@
 #ifndef LLVM_LIB_TARGET_RISCV_RISCVREGISTERINFO_H
 #define LLVM_LIB_TARGET_RISCV_RISCVREGISTERINFO_H
 
+#include "VentusProgramInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 
 #define GET_REGINFO_HEADER
@@ -61,6 +62,11 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
   }
 
   bool isSGPRReg(const MachineRegisterInfo &MRI, Register Reg) const;
+
+  void insertRegToSet(const MachineRegisterInfo &MRI, 
+                      DenseSet<unsigned int> *CurrentRegUsageSet, 
+                      SubVentusProgramInfo *CurrentSubProgramInfo, 
+                      Register Reg) const;
 
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;
