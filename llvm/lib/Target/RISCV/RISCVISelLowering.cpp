@@ -7496,16 +7496,6 @@ SDValue RISCVTargetLowering::getFPExtOrFPRound(SelectionDAG &DAG,
                 DAG.getTargetConstant(0, DL, MVT::i32));
 }
 
-SDValue RISCVTargetLowering::getFPExtOrFPRound(SelectionDAG &DAG,
-                                            SDValue Op,
-                                            const SDLoc &DL,
-                                            EVT VT) const {
-  return Op.getValueType().bitsLE(VT) ?
-      DAG.getNode(ISD::FP_EXTEND, DL, VT, Op) :
-    DAG.getNode(ISD::FP_ROUND, DL, VT, Op,
-                DAG.getTargetConstant(0, DL, MVT::i32));
-}
-
 SDValue RISCVTargetLowering::convertArgType(SelectionDAG &DAG, EVT VT, EVT MemVT,
                                          const SDLoc &SL, SDValue Val,
                                          bool Signed,
