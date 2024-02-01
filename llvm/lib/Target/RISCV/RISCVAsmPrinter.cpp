@@ -86,6 +86,7 @@ public:
 
 private:
   void emitAttributes();
+  int FuncCount = 0;
 };
 } // namespace
 
@@ -202,14 +203,19 @@ bool RISCVAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
       const_cast<VentusProgramInfo *>(STI->getVentusProgramInfo());
   if (MF.getInfo<RISCVMachineFunctionInfo>()->isEntryFunction()) {
     MCSectionELF *ResourceSection = OutContext.getELFSection(
-        ".ventus.resource", ELF::SHT_PROGBITS, ELF::SHF_WRITE);
+        ".ventus.resource." + MF.getName(), ELF::SHT_PROGBITS, ELF::SHF_WRITE);
     OutStreamer->switchSection(ResourceSection);
-    OutStreamer->emitInt16(CurrentProgramInfo->VGPRUsage);
-    OutStreamer->emitInt16(CurrentProgramInfo->SGPRUsage);
-    OutStreamer->emitInt16(CurrentProgramInfo->LDSMemory);
-    OutStreamer->emitInt16(CurrentProgramInfo->PDSMemory);
+    OutStreamer->emitInt16(
+                    CurrentProgramInfo->SubProgramInfoVec[FuncCount].VGPRUsage);
+    OutStreamer->emitInt16(
+                    CurrentProgramInfo->SubProgramInfoVec[FuncCount].SGPRUsage);
+    OutStreamer->emitInt16(
+                    CurrentProgramInfo->SubProgramInfoVec[FuncCount].LDSMemory);
+    OutStreamer->emitInt16(
+                    CurrentProgramInfo->SubProgramInfoVec[FuncCount].PDSMemory);
   }
 
+  FuncCount++;
   SetupMachineFunction(MF);
   emitFunctionBody();
   return false;

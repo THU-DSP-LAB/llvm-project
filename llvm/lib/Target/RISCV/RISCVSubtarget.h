@@ -18,6 +18,7 @@
 #include "RISCVISelLowering.h"
 #include "RISCVInstrInfo.h"
 #include "VentusProgramInfo.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/CodeGen/GlobalISel/CallLowering.h"
 #include "llvm/CodeGen/GlobalISel/InstructionSelector.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
@@ -149,6 +150,12 @@ public:
   const RISCVInstrInfo *getInstrInfo() const override { return &InstrInfo; }
   const VentusProgramInfo *getVentusProgramInfo() const {
     return &CurrentProgramInfo;
+  }
+  const DenseSet<unsigned> *getCurrentRegisterAddedSet() const { 
+    return &CurrentProgramInfo.RegisterAddedSetVec[CurrentProgramInfo.RegisterAddedSetVec.size() - 1];
+  }
+  const SubVentusProgramInfo *getCurrentSubProgramInfo() const {
+    return &CurrentProgramInfo.SubProgramInfoVec[CurrentProgramInfo.SubProgramInfoVec.size() - 1];
   }
   const RISCVRegisterInfo *getRegisterInfo() const override { return &RegInfo; }
   const RISCVTargetLowering *getTargetLowering() const override {
@@ -305,6 +312,8 @@ public:
   void getPostRAMutations(std::vector<std::unique_ptr<ScheduleDAGMutation>>
                               &Mutations) const override;
 };
+
+// VentusProgramInfo RISCVSubtarget::CurrentProgramInfo = VentusProgramInfo();
 } // namespace llvm
 
 #endif

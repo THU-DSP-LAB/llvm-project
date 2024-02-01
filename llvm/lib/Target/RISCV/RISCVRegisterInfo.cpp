@@ -171,17 +171,29 @@ MCRegister RISCVRegisterInfo::findUnusedRegister(const MachineRegisterInfo &MRI,
 
 void RISCVRegisterInfo::analyzeRegisterUsage(DenseSet<Register> RewriteRegs,
                                       MachineFunction *MF) const  {
-  auto CurrentProgramInfo = const_cast<VentusProgramInfo*>(
+  auto *CurrentProgramInfo = const_cast<VentusProgramInfo*>(
                     MF->getSubtarget<RISCVSubtarget>().getVentusProgramInfo());
-  MachineRegisterInfo &MRI = MF->getRegInfo();
-  for(auto Reg : RewriteRegs) {
-      if(!isSGPRReg(MRI, Reg))
-        CurrentProgramInfo->VGPRUsage++;
-      else
-        CurrentProgramInfo->SGPRUsage++;
-  }
-  // FIXME: need to add two more because of ra && sp, how to simplify this?
-  CurrentProgramInfo->SGPRUsage += 2;
+
+  // When accessing a new function, we need to add a new container to calculate
+  // its resource usage.
+  CurrentProgramInfo->RegisterAddedSetVec.push_back(DenseSet<unsigned>());
+  CurrentProgramInfo->SubProgramInfoVec.push_back(SubVentusProgramInfo());
+
+  // Gets the container for the resource calculation of the current function.
+  auto *CurrentRegisterAddedSet = const_cast<DenseSet<unsigned>*>(
+                    MF->getSubtarget<RISCVSubtarget>().getCurrentRegisterAddedSet());
+  auto *CurrentSubProgramInfo = const_cast<SubVentusProgramInfo*>(
+                    MF->getSubtarget<RISCVSubtarget>().getCurrentSubProgramInfo());
+
+  const MachineRegisterInfo &MRI = MF->getRegInfo();
+
+  for(auto Reg : RewriteRegs)
+    insertRegToSet(MRI, CurrentRegisterAddedSet,
+                    CurrentSubProgramInfo, Reg);
+
+  // ra register is a special register.
+  insertRegToSet(MRI, CurrentRegisterAddedSet,
+                    CurrentSubProgramInfo, RISCV::X1);
 }
 
 bool RISCVRegisterInfo::isSGPRReg(const MachineRegisterInfo &MRI,
@@ -194,14 +206,19 @@ bool RISCVRegisterInfo::isSGPRReg(const MachineRegisterInfo &MRI,
   return RC ? isSGPRClass(RC) : false;
 }
 
-bool RISCVRegisterInfo::isFPRReg(const MachineRegisterInfo &MRI,
-                                  Register Reg) const {
-  const TargetRegisterClass *RC;
-  if (Reg.isVirtual())
-    RC = MRI.getRegClass(Reg);
+void RISCVRegisterInfo::insertRegToSet(const MachineRegisterInfo &MRI,
+                    DenseSet<unsigned int> *CurrentRegisterAddedSet,
+                    SubVentusProgramInfo *CurrentSubProgramInfo,
+                    Register Reg) const {
+  if (CurrentRegisterAddedSet->contains(Reg))
+    return;
+
+  CurrentRegisterAddedSet->insert(Reg);
+
+  if (!isSGPRReg(MRI, Reg))
+    CurrentSubProgramInfo->VGPRUsage++;
   else
-    RC = getPhysRegClass(Reg);
-  return RC ? isFPRClass(RC) : false;
+    CurrentSubProgramInfo->SGPRUsage++;
 }
 
 const Register RISCVRegisterInfo::getPrivateMemoryBaseRegister(
