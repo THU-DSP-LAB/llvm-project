@@ -375,6 +375,8 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
 
   uint64_t SPStackSize = getStackSize(MF, RISCVStackID::SGPRSpill);
   uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
+  uint64_t LocalStackSize = getStackSize(MF, RISCVStackID::LocalMemSpill);
+
   // FIXME: need to add local data declaration calculation
   CurrentSubProgramInfo->LDSMemory += SPStackSize;
   CurrentSubProgramInfo->PDSMemory += TPStackSize;
@@ -412,15 +414,10 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
         .setMIFlag(MachineInstr::FrameSetup);
   }
 
-  if(TPStackSize) {
-    RI->insertRegToSet(MRI, CurrentRegisterAddedSet, CurrentSubProgramInfo,
-                        TPReg);
-    RI->insertRegToSet(MRI, CurrentRegisterAddedSet, CurrentSubProgramInfo,
-                        RI->getPrivateMemoryBaseRegister(MF));
-    RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
-                  StackOffset::getFixed(TPStackSize),
+  if (LocalStackSize) {
+    RI->adjustReg(MBB, MBBI, DL, RISCV::X8, RISCV::X8,
+                  StackOffset::getFixed(LocalStackSize),
                   MachineInstr::FrameSetup, getStackAlign());
-
     // Emit ".cfi_def_cfa_offset Local memory StackSize"
     unsigned CFIIndex = MF.addFrameInst(
         MCCFIInstruction::cfiDefCfaOffset(nullptr, SPStackSize));
