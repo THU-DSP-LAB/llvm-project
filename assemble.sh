@@ -2,10 +2,7 @@
 
 # This script will be used by pocl
 
-# echo "converting object file:"
-# echo $1
-script_dir=$(cd "$(dirname "$0")" && pwd)
-export PATH=$script_dir/install/bin:$PATH
+export PATH=${VENTUS_INSTALL_PREFIX}/bin:$PATH
 if [[ -f $1.vmem ]];then
   rm $1.vmem
 fi
