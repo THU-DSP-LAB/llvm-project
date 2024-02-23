@@ -1370,3 +1370,11 @@ endif()
 if (LLVM_INCLUDE_UTILS AND LLVM_INCLUDE_TOOLS)
   add_subdirectory(utils/llvm-locstats)
 endif()
+
+install(DIRECTORY ../utils/ldscripts
+  DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
+)
+
+install(FILES ../assemble.sh
+  DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/scripts"
+)
