@@ -49,9 +49,11 @@ You can dive into `build-ventus.sh` file to see the detailed information about b
 
 ### 3: Bridge icd loader
 
-Run `export LD_LIBRARY_PATH=<path_to>/ventus-llvm/install/lib` to tell OpenCL application to use your own built `libOpenCL.so`, also to correctly locate LLVM shared libraries
+Run `export VENTUS_INSTALL_PREFIX=<path_to_install>` to set `VENTUS_INSTALL_PREFIX` environment variable(system environment variable recommended)
 
-Run `export OCL_ICD_VENDORS=<path_to>/libpocl.so` to tell ocl icd loader where the icd driver is.
+Run `export LD_LIBRARY_PATH=${VENTUS_INSTALL_PREFIX}/lib` to tell OpenCL application to use your own built `libOpenCL.so`, also to correctly locate LLVM shared libraries
+
+Run `export OCL_ICD_VENDORS=${VENTUS_INSTALL_PREFIX}/lib/libpocl.so` to tell ocl icd loader where the icd driver is.
 
 Finally, run `export POCL_DEVICES="ventus"` to tell pocl driver which device is available(should we set ventus as default device?).
 
