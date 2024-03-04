@@ -549,10 +549,6 @@ public:
     return false;
   }
 
-  /// Analyze register usage information
-  virtual void analyzeRegisterUsage(DenseSet<llvm::Register> RewriteRegs,
-                                      MachineFunction *MF) const {}
-
   /// Returns true if PhysReg is unallocatable and constant throughout the
   /// function.  Used by MachineRegisterInfo::isConstantPhysReg().
   virtual bool isConstantPhysReg(MCRegister PhysReg) const { return false; }

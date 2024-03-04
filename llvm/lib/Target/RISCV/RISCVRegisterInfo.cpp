@@ -169,33 +169,6 @@ MCRegister RISCVRegisterInfo::findUnusedRegister(const MachineRegisterInfo &MRI,
   return MCRegister();
 }
 
-void RISCVRegisterInfo::analyzeRegisterUsage(DenseSet<Register> RewriteRegs,
-                                      MachineFunction *MF) const  {
-  auto *CurrentProgramInfo = const_cast<VentusProgramInfo*>(
-                    MF->getSubtarget<RISCVSubtarget>().getVentusProgramInfo());
-
-  // When accessing a new function, we need to add a new container to calculate
-  // its resource usage.
-  CurrentProgramInfo->RegisterAddedSetVec.push_back(DenseSet<unsigned>());
-  CurrentProgramInfo->SubProgramInfoVec.push_back(SubVentusProgramInfo());
-
-  // Gets the container for the resource calculation of the current function.
-  auto *CurrentRegisterAddedSet = const_cast<DenseSet<unsigned>*>(
-                    MF->getSubtarget<RISCVSubtarget>().getCurrentRegisterAddedSet());
-  auto *CurrentSubProgramInfo = const_cast<SubVentusProgramInfo*>(
-                    MF->getSubtarget<RISCVSubtarget>().getCurrentSubProgramInfo());
-
-  const MachineRegisterInfo &MRI = MF->getRegInfo();
-
-  for(auto Reg : RewriteRegs)
-    insertRegToSet(MRI, CurrentRegisterAddedSet,
-                    CurrentSubProgramInfo, Reg);
-
-  // ra register is a special register.
-  insertRegToSet(MRI, CurrentRegisterAddedSet,
-                    CurrentSubProgramInfo, RISCV::X1);
-}
-
 bool RISCVRegisterInfo::isSGPRReg(const MachineRegisterInfo &MRI,
                                   Register Reg) const {
   const TargetRegisterClass *RC;
@@ -211,6 +184,10 @@ void RISCVRegisterInfo::insertRegToSet(const MachineRegisterInfo &MRI,
                     SubVentusProgramInfo *CurrentSubProgramInfo,
                     Register Reg) const {
   if (CurrentRegisterAddedSet->contains(Reg))
+    return;
+
+  // Beyond the limits of SGPR and VGPR
+  if (Reg.id() < 9 || Reg.id() > 328)
     return;
 
   CurrentRegisterAddedSet->insert(Reg);

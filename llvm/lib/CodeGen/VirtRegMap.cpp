@@ -639,7 +639,7 @@ void VirtRegRewriter::rewrite() {
       }
     }
   }
-  TRI->analyzeRegisterUsage(RewriteRegs, MF);
+
   RewriteRegs.clear();
 }
 

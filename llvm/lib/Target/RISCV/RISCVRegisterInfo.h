@@ -142,8 +142,6 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
                                 const MachineFunction &MF,
                                 bool ReserveHighestVGPR = false) const;
 
-  void analyzeRegisterUsage(DenseSet<llvm::Register> RewriteRegs,
-                                      MachineFunction *MF) const override;
   unsigned getRegisterCostTableIndex(const MachineFunction &MF) const override;
 
   bool getRegAllocationHints(Register VirtReg, ArrayRef<MCPhysReg> Order,
