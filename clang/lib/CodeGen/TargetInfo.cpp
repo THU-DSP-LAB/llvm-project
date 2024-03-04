@@ -11313,9 +11313,11 @@ private:
 
   // Ventus GPGPU only support OpenCL C where non-kernel function passes
   // non-private address space arguments in V0-V31, private address space in
-  // a0-a7, return value is passed back in V0-v15.
+  // a0-a7.
   static const int NumArgGPRs = 32; // 32 VGPRS
-  static const int NumRetVGPRs = 16;
+
+  /// Estimate number of registers the type will use when passed in registers.
+  unsigned numRegsForType(QualType Ty) const;
 
 public:
   VentusRISCVABIInfo(CodeGen::CodeGenTypes &CGT, unsigned XLen)
@@ -11328,9 +11330,6 @@ public:
   ABIArgInfo classifyReturnType(QualType RetTy) const;
   ABIArgInfo classifyKernelArgumentType(QualType Ty) const;
   ABIArgInfo classifyArgumentType(QualType Ty, unsigned &NumRegsLeft) const;
-
-  /// Estimate number of registers the type will use when passed in registers.
-  unsigned numRegsForType(QualType Ty) const;
 };
 
 void VentusRISCVABIInfo::computeInfo(CGFunctionInfo &FI) const {
