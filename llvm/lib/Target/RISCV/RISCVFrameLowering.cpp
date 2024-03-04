@@ -578,6 +578,43 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
                           getStackOffset(MF, FI, (RISCVStackID::Value)StackID));
 }
 
+void RISCVFrameLowering::processFunctionBeforeFrameFinalized(
+  MachineFunction &MF,
+  RegScavenger *RS) const {
+  const MachineRegisterInfo &MRI = MF.getRegInfo();
+  const RISCVRegisterInfo *RI = STI.getRegisterInfo();
+  auto *CurrentProgramInfo = const_cast<VentusProgramInfo*>(
+                    MF.getSubtarget<RISCVSubtarget>().getVentusProgramInfo());
+
+  // When accessing a new function, we need to add a new container to calculate 
+  // its resource usage.
+  CurrentProgramInfo->RegisterAddedSetVec.push_back(DenseSet<unsigned>());
+  CurrentProgramInfo->SubProgramInfoVec.push_back(SubVentusProgramInfo());
+
+  // Gets the container for the resource calculation of the current function.
+  auto *CurrentRegisterAddedSet = const_cast<DenseSet<unsigned>*>(
+                    MF.getSubtarget<RISCVSubtarget>().getCurrentRegisterAddedSet());
+  auto *CurrentSubProgramInfo = const_cast<SubVentusProgramInfo*>(
+                    MF.getSubtarget<RISCVSubtarget>().getCurrentSubProgramInfo());
+
+  for (auto &MBB : MF) {
+    for (auto &MI : MBB) {
+      for (unsigned i = 0; i < MI.getNumOperands(); ++i) {
+        MachineOperand &Op = MI.getOperand(i);
+        if (!Op.isReg())
+          continue;
+
+        RI->insertRegToSet(MRI, CurrentRegisterAddedSet, 
+                    CurrentSubProgramInfo, Op.getReg());
+      }
+    }
+  }
+
+  // ra register is a special register.
+  RI->insertRegToSet(MRI, CurrentRegisterAddedSet, 
+                    CurrentSubProgramInfo, RISCV::X1);
+}
+
 void RISCVFrameLowering::determineCalleeSaves(MachineFunction &MF,
                                               BitVector &SavedRegs,
                                               RegScavenger *RS) const {
