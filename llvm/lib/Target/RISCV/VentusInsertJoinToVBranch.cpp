@@ -6,37 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// In Ventus, if VBranch instructions are generated, we need to insert join
-// instructions in both `else` and `then` branch to tell hardware where these
-// two branches need to join together
+// In ventus, if VBranch instructions are generated, we need to insert setrpc
+// and join instructions to tell hardware where branches need to join
 //
-// we follow the following rules to insert join block and join instruction
-//
-// 1: Legalize all the return block
-//    when there are one more return blocks in machine function, there must be
-//    branches, we need to reduce return blocks number down to 1
-// 1.1: If two return blocks have common nearest parent branch, this two blocks
-//    need to be joined, and we add a hasBeenJoined marker for this parent
-//    branch
-// 1.2: after we complete 1.1 process, there maybe one more return blocks, we
-//    need to further add join block, we recursively build dominator tree for
-//    these return blocks, first we find the nearest common dominator branch for
-//    two return blocks, and then get dominator tree path between dominator
-//    and each return block, we need to check this path in which whether any
-//    other branch blocks exists, ideally, the branch block in path should have
-//    been joined and marked, if not, this path is illegal, these two block can
-//    not be joined
-//
-// 2: Insert join instructions
-// 2.1: we scan through the MachineBasic blocks and check what blocks to insert
-//    join instruction, below MBB represents MachineBasic Block
-// 2.2: The MBB must have one more predecessors and its nearest dominator must
-//     be a VBranch
-// 2.3: Then we analyze the the predecessor of MBB, if the predecessor
-//    has single successor, we add a join instruction to the predecessor end,
-//    other wise, we need to insert a join block between predecessor and MBB
-//
-// WRANING: Do not use -O(1|2|3) optimization option
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/RISCVMCTargetDesc.h"
@@ -231,12 +203,13 @@ bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
     if (MI.getOpcode() != RISCV::VMV_V_X)
       continue;
 
-    // To be removed vmv.v instruction flag
-    bool NeedToBeErased = false;
+    // The number of MBB needed to be inserted VMV instruction
+    unsigned NeedToBeInsertMBBNum = 0;
     assert(MI.getOperand(1).isReg() && "unexpected operator");
     auto Defines = MR.def_instructions(MI.getOperand(1).getReg());
     bool IsInSameBlock = false;
-
+    SmallVector<std::pair<MachineBasicBlock *, MachineBasicBlock::iterator>>
+        MBBMaybeInsertedInstr;
     for (auto &Def : Defines) {
       unsigned Opcode = Def.getOpcode();
       // FIXME: Find a better way to handle this in tablegen
@@ -257,26 +230,25 @@ bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
 
       // Check if define instruction is in the predecessors or not
       for (auto *Pre : MBB.predecessors()) {
-        bool NeedToBeInsert = false;
         MachineBasicBlock::iterator Insert = Pre->begin();
         for (auto &MI1 : *Pre) {
           // Get last register definition
-          if (&MI1 == &Def) {
+          if (&MI1 == &Def)
             Insert = MI1.getIterator();
-            NeedToBeInsert = true;
-            NeedToBeErased = true;
-          }
         }
-        if (NeedToBeInsert) {
-          Pre->insertAfter(Insert, MF->CloneMachineInstr(&MI));
-          NeedToBeInsert = false; // Init other predecessor insert flag
+        if (Insert != Pre->begin()) {
+          // Last instruction define in Pre MBB
+          NeedToBeInsertMBBNum++;
+          MBBMaybeInsertedInstr.push_back({Pre, Insert});
         }
       }
     }
-
-    if (NeedToBeErased) {
+    if (NeedToBeInsertMBBNum >= 2) {
+      // Means there are more than two blocks need to insert vmv instruction
       IsChanged |= true;
       MBB.addLiveIn(MCRegister(MI.getOperand(0).getReg()));
+      for (auto Pair : MBBMaybeInsertedInstr)
+        Pair.first->insertAfter(Pair.second, MF->CloneMachineInstr(&MI));
       MI.eraseFromParent();
     }
   }
