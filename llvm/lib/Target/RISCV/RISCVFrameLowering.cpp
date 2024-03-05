@@ -300,7 +300,8 @@ getNonLibcallCSI(const MachineFunction &MF,
     // TODO: For now, we don't define VGPR callee saved registers, when we later
     // add VGPR callee saved register, remember to modify here
     if (FI >= 0 && (MFI.getStackID(FI) == RISCVStackID::Default ||
-                    MFI.getStackID(FI) == RISCVStackID::SGPRSpill))
+                    MFI.getStackID(FI) == RISCVStackID::SGPRSpill ||
+                    MFI.getStackID(FI) == RISCVStackID::VGPRSpill))
       NonLibcallCSI.push_back(CS);
   }
 
@@ -374,6 +375,8 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
 
   uint64_t SPStackSize = getStackSize(MF, RISCVStackID::SGPRSpill);
   uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
+  uint64_t LocalStackSize = getStackSize(MF, RISCVStackID::LocalMemSpill);
+
   // FIXME: need to add local data declaration calculation
   CurrentSubProgramInfo->LDSMemory += SPStackSize;
   CurrentSubProgramInfo->PDSMemory += TPStackSize;
@@ -397,11 +400,11 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
 
   // Allocate space on the local-mem stack and private-mem stack if necessary.
   if(SPStackSize) {
-    RI->insertRegToSet(MRI, CurrentRegisterAddedSet, CurrentSubProgramInfo, 
+    RI->insertRegToSet(MRI, CurrentRegisterAddedSet, CurrentSubProgramInfo,
                         SPReg);
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
-                  StackOffset::getFixed(SPStackSize),
-                  MachineInstr::FrameSetup, getStackAlign());
+                  StackOffset::getFixed(SPStackSize), MachineInstr::FrameSetup,
+                  getStackAlign());
 
     // Emit ".cfi_def_cfa_offset SPStackSize"
     unsigned CFIIndex = MF.addFrameInst(
@@ -411,14 +414,21 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
         .setMIFlag(MachineInstr::FrameSetup);
   }
 
-  if(TPStackSize) {
-    RI->insertRegToSet(MRI, CurrentRegisterAddedSet, CurrentSubProgramInfo, 
-                        TPReg);
-    RI->insertRegToSet(MRI, CurrentRegisterAddedSet, CurrentSubProgramInfo, 
-                        RI->getPrivateMemoryBaseRegister(MF));
-    RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
-                  StackOffset::getFixed(TPStackSize),
+  if (LocalStackSize) {
+    RI->adjustReg(MBB, MBBI, DL, RISCV::X8, RISCV::X8,
+                  StackOffset::getFixed(LocalStackSize),
                   MachineInstr::FrameSetup, getStackAlign());
+    // Emit ".cfi_def_cfa_offset Local memory StackSize"
+    unsigned CFIIndex = MF.addFrameInst(
+        MCCFIInstruction::cfiDefCfaOffset(nullptr, SPStackSize));
+    BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
+        .addCFIIndex(CFIIndex)
+        .setMIFlag(MachineInstr::FrameSetup);
+  }
+  if (TPStackSize) {
+    RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
+                  StackOffset::getFixed(TPStackSize), MachineInstr::FrameSetup,
+                  getStackAlign());
 
     // Emit ".cfi_def_cfa_offset TPStackSize"
     unsigned CFIIndex = MF.addFrameInst(
@@ -500,23 +510,27 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
   // Get 2 stack size for TP and SP
   uint64_t SPStackSize = getStackSize(MF, RISCVStackID::SGPRSpill);
   uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
-
+  uint64_t LocalStackSize = getStackSize(MF, RISCVStackID::LocalMemSpill);
   // Deallocate stack
   if(SPStackSize)
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
                   StackOffset::getFixed(-SPStackSize),
                   MachineInstr::FrameDestroy, getStackAlign());
+  if(LocalStackSize)
+    RI->adjustReg(MBB, MBBI, DL, RISCV::X8, RISCV::X8,
+                  StackOffset::getFixed(-LocalStackSize),
+                  MachineInstr::FrameDestroy, getStackAlign());
   if(TPStackSize) {
     RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
                   StackOffset::getFixed(-TPStackSize),
                   MachineInstr::FrameDestroy, getStackAlign());
-    
+
     // Restore V32
     BuildMI(MBB, MBBI, DL, TII->get(RISCV::VMV_V_X),
             RI->getPrivateMemoryBaseRegister(MF))
         .addReg(TPReg);
   }
-    
+
   // Emit epilogue for shadow call stack.
   emitSCSEpilogue(MF, MBB, MBBI, DL);
 }
@@ -527,8 +541,8 @@ uint64_t RISCVFrameLowering::getStackOffset(const MachineFunction &MF,
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   uint64_t StackSize = 0;
 
-  // because the parameters spilling to the stack are not in the current TP 
-  // stack, the offset in the current stack should not be calculated from a 
+  // because the parameters spilling to the stack are not in the current TP
+  // stack, the offset in the current stack should not be calculated from a
   // negative FI.
   for (int I = FI < 0 ? MFI.getObjectIndexBegin() : 0; I != FI + 1; I++) {
     if (static_cast<unsigned>(MFI.getStackID(I)) == Stack) {
@@ -545,7 +559,7 @@ uint64_t RISCVFrameLowering::getStackOffset(const MachineFunction &MF,
   // instead of current stack.
   if (FI < 0 && !MF.getFunction().isVarArg())
     StackSize += getStackSize(MF, RISCVStackID::VGPRSpill);
-  
+
   return StackSize;
 }
 
@@ -564,7 +578,8 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
 
   assert((StackID == RISCVStackID::Default ||
           StackID == RISCVStackID::SGPRSpill ||
-          StackID == RISCVStackID::VGPRSpill) &&
+          StackID == RISCVStackID::VGPRSpill ||
+          StackID == RISCVStackID::LocalMemSpill) &&
          "Unexpected stack ID for the frame object.");
 
   // Different stacks for sALU and vALU threads.
@@ -586,7 +601,7 @@ void RISCVFrameLowering::processFunctionBeforeFrameFinalized(
   auto *CurrentProgramInfo = const_cast<VentusProgramInfo*>(
                     MF.getSubtarget<RISCVSubtarget>().getVentusProgramInfo());
 
-  // When accessing a new function, we need to add a new container to calculate 
+  // When accessing a new function, we need to add a new container to calculate
   // its resource usage.
   CurrentProgramInfo->RegisterAddedSetVec.push_back(DenseSet<unsigned>());
   CurrentProgramInfo->SubProgramInfoVec.push_back(SubVentusProgramInfo());
@@ -604,14 +619,14 @@ void RISCVFrameLowering::processFunctionBeforeFrameFinalized(
         if (!Op.isReg())
           continue;
 
-        RI->insertRegToSet(MRI, CurrentRegisterAddedSet, 
+        RI->insertRegToSet(MRI, CurrentRegisterAddedSet,
                     CurrentSubProgramInfo, Op.getReg());
       }
     }
   }
 
   // ra register is a special register.
-  RI->insertRegToSet(MRI, CurrentRegisterAddedSet, 
+  RI->insertRegToSet(MRI, CurrentRegisterAddedSet,
                     CurrentSubProgramInfo, RISCV::X1);
 }
 
@@ -706,14 +721,14 @@ MachineBasicBlock::iterator RISCVFrameLowering::eliminateCallFramePseudoInstr(
 
       RI.adjustReg(MBB, MI, DL, SPReg, SPReg, StackOffset::getFixed(Amount),
                    MachineInstr::NoFlags, getStackAlign());
-      
+
       // The value of TP will be re-assigned to V32 at the end of the callee
-      // function, which is actually the TP value after ADJCALLSTACKUP, so the 
-      // tp value after ADJCALLSTACKDOWN should be reassigned to V32 to ensure 
-      // that it is consistent with the TP value that has not been internally 
-      // adjusted (that is, excluding the initial TP adjustment) within the 
+      // function, which is actually the TP value after ADJCALLSTACKUP, so the
+      // tp value after ADJCALLSTACKDOWN should be reassigned to V32 to ensure
+      // that it is consistent with the TP value that has not been internally
+      // adjusted (that is, excluding the initial TP adjustment) within the
       // current function.
-      if (MI->getOpcode() == RISCV::ADJCALLSTACKDOWN) 
+      if (MI->getOpcode() == RISCV::ADJCALLSTACKDOWN)
         BuildMI(MBB, MI, DL, TII->get(RISCV::VMV_V_X),
             RI.getPrivateMemoryBaseRegister(MF))
             .addReg(TPReg);
@@ -765,10 +780,10 @@ uint64_t RISCVFrameLowering::getStackSize(const MachineFunction &MF,
                                           RISCVStackID::Value ID) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   uint64_t StackSize = 0;
-  
+
   for(int I = 0; I != MFI.getObjectIndexEnd(); I++) {
     if(static_cast<unsigned>(MFI.getStackID(I)) == ID) {
-      Align Alignment = MFI.getObjectAlign(I).value() <= 4 ? 
+      Align Alignment = MFI.getObjectAlign(I).value() <= 4 ?
                         Align(4) : MFI.getObjectAlign(I);
       StackSize += MFI.getObjectSize(I);
       StackSize = alignTo(StackSize, Alignment);
@@ -780,16 +795,19 @@ uint64_t RISCVFrameLowering::getStackSize(const MachineFunction &MF,
 
 void RISCVFrameLowering::determineStackID(MachineFunction &MF) const {
   MachineFrameInfo &MFI = MF.getFrameInfo();
-  for(int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
+  for (int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
     // FIXME: There is no sGPR spill stack!
     // MFI.setStackID(I, RISCVStackID::VGPRSpill);
 
-    MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF,I);
-    if(MFI.getStackID(I) != RISCVStackID::SGPRSpill &&
-       PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
+    MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF, I);
+    if (MFI.getStackID(I) != RISCVStackID::Default)
+      continue;
+    if (PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)
       MFI.setStackID(I, RISCVStackID::VGPRSpill);
+    else if (PtrInfo.getAddrSpace() == RISCVAS::LOCAL_ADDRESS)
+      MFI.setStackID(I, RISCVStackID::LocalMemSpill);
     else
-     MFI.setStackID(I, RISCVStackID::SGPRSpill);
+      MFI.setStackID(I, RISCVStackID::SGPRSpill);
   }
 }
 
@@ -824,17 +842,17 @@ bool RISCVFrameLowering::spillCalleeSavedRegisters(
     Register Reg = CS.getReg();
 
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
-    // TODO: Have we allocated stack for vGPR spilling?
     if(Reg.id() < RISCV::V0 || Reg.id() > RISCV::V255) {
       MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::SGPRSpill);
       // FIXME: Right now, no vgpr callee saved register, maybe later needed
       TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
                             RC, TRI);
+    } else {
+      assert(Reg.id() >= RISCV::V32 && Reg.id() <= RISCV::V255 && "TODO");
+      MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::VGPRSpill);
+      TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
+                            RC, TRI);
     }
-    // else {
-      // FIXME: Right now, no callee saved register for VGPR
-      // MF->getFrameInfo().setStackID(CS.getFrameIdx(), RISCVStackID::VGPRSpill);
-    // }
   }
 
   return true;
@@ -862,8 +880,7 @@ bool RISCVFrameLowering::restoreCalleeSavedRegisters(
   for (auto &CS : NonLibcallCSI) {
     Register Reg = CS.getReg();
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
-    if(Reg.id() < RISCV::V0 || Reg.id() > RISCV::V255 )
-        TII.loadRegFromStackSlot(MBB, MI, Reg, CS.getFrameIdx(), RC, TRI);
+    TII.loadRegFromStackSlot(MBB, MI, Reg, CS.getFrameIdx(), RC, TRI);
     assert(MI != MBB.begin() && "loadRegFromStackSlot didn't insert any code!");
   }
 
@@ -946,6 +963,7 @@ bool RISCVFrameLowering::isSupportedStackID(TargetStackID::Value ID) const {
   case RISCVStackID::Default:
   case RISCVStackID::SGPRSpill:
   case RISCVStackID::VGPRSpill:
+  case RISCVStackID::LocalMemSpill:
     return true;
   case RISCVStackID::ScalableVector:
   case RISCVStackID::NoAlloc:

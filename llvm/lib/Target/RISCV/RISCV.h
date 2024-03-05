@@ -116,6 +116,7 @@ enum Value {
   ScalableVector = 2,
   WasmLocal = 3,
   VGPRSpill = 4,
+  LocalMemSpill = 5,
   NoAlloc = 255
 };
 }
