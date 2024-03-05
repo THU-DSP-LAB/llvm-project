@@ -85,7 +85,8 @@ bool VentusRegextInsertion::insertRegext(MachineBasicBlock &MBB,
   for (unsigned i = 0; i < MI.getNumOperands(); ++i) {
     MachineOperand &Op = MI.getOperand(i);
     if (!Op.isReg() ||
-        MI.getDesc().getOperandConstraint(i, MCOI::TIED_TO) != -1)
+        MI.getDesc().getOperandConstraint(i, MCOI::TIED_TO) != -1 ||
+        MI.isDebugInstr() || MI.isPseudo())
       continue;
 
     uint16_t RegEncodingValue = TRI->getEncodingValue(Op.getReg());
