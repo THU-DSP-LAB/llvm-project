@@ -87,10 +87,9 @@ BitVector RISCVRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   // Use markSuperRegs to ensure any register aliases are also reserved
   markSuperRegs(Reserved, RISCV::X0); // zero
   markSuperRegs(Reserved, RISCV::X2); // sp
+  markSuperRegs(Reserved, RISCV::X8); // s0
   markSuperRegs(Reserved, RISCV::X3); // gp
   markSuperRegs(Reserved, RISCV::X4); // tp
-  if (TFI->hasFP(MF))
-    markSuperRegs(Reserved, RISCV::X8); // fp
   // Reserve the base register if we need to realign the stack and allocate
   // variable-sized objects at runtime.
   if (TFI->hasBP(MF))
@@ -333,9 +332,11 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   assert(SPAdj == 0 && "Unexpected non-zero SPAdj value");
 
   MachineInstr &MI = *II;
+  MachineBasicBlock *MBB = MI.getParent();
   MachineFunction &MF = *MI.getParent()->getParent();
+  MachineRegisterInfo &MRI = MF.getRegInfo();
   const RISCVSubtarget &ST = MF.getSubtarget<RISCVSubtarget>();
-  const RISCVRegisterInfo * RI = ST.getRegisterInfo();
+  const RISCVRegisterInfo *RI = ST.getRegisterInfo();
   const RISCVInstrInfo *RII = ST.getInstrInfo();
   DebugLoc DL = MI.getDebugLoc();
 
@@ -343,12 +344,14 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   auto FrameIndexID = MF.getFrameInfo().getStackID(FrameIndex);
 
   Register FrameReg;
-  StackOffset Offset = // FIXME: The FrameReg and Offset should be depended on divergency route.
+  StackOffset Offset = // FIXME: The FrameReg and Offset should be depended on
+                       // divergency route.
       getFrameLowering(MF)->getFrameIndexReference(MF, FrameIndex, FrameReg);
   // TODO: finish
   // if(!RII->isVGPRMemoryAccess(MI))
   //   Offset -= StackOffset::getFixed(
-  //             MF.getInfo<RISCVMachineFunctionInfo>()->getVarArgsSaveSize() - 4);
+  //             MF.getInfo<RISCVMachineFunctionInfo>()->getVarArgsSaveSize() -
+  //             4);
   int64_t Lo11 = Offset.getFixed();
   Offset += StackOffset::getFixed(MI.getOperand(FIOperandNum + 1).getImm());
 
@@ -356,7 +359,7 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     report_fatal_error(
         "Frame offsets outside of the signed 32-bit range not supported");
   }
-
+  // FIXME: vsw/vlw has 11 bits immediates
   if (MI.getOpcode() == RISCV::ADDI && !isInt<11>(Offset.getFixed())) {
     // We chose to emit the canonical immediate sequence rather than folding
     // the offset into the using add under the theory that doing so doesn't
@@ -369,38 +372,119 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     // operand of our user instruction.  As a result, the remaining
     // offset can by construction, at worst, a LUI and a ADD.
     int64_t Val = Offset.getFixed();
-    Lo11 = SignExtend64<11>(Val);
-
+    Lo11 = SignExtend64<12>(Val);
 
     MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Lo11);
-    Offset = StackOffset::get((uint64_t)Val - (uint64_t)Lo11,
-                              Offset.getScalable());
+    Offset =
+        StackOffset::get((uint64_t)Val - (uint64_t)Lo11, Offset.getScalable());
+    // adjustReg(*II->getParent(), II, DL, DestReg, FrameReg, Offset,
+    //   MachineInstr::NoFlags, std::nullopt);
   }
-  if(MI.getOpcode() == RISCV::ADDI &&
-        static_cast<unsigned>(FrameIndexID) == RISCVStackID::VGPRSpill) {
-    MI.getOperand(FIOperandNum).ChangeToRegister(FrameReg,
-                                                /*IsDef*/false,
-                                                /*IsImp*/false,
-                                                /*IsKill*/false);
+  Register DestReg = MI.getOperand(0).getReg();
+  if (Offset.getScalable() || Offset.getFixed()) {
 
+    if (MI.getOpcode() == RISCV::ADDI)
+      DestReg = MI.getOperand(0).getReg();
+    else
+      DestReg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
+    // !!!Very importtant for adjust
+    adjustReg(*II->getParent(), II, DL, DestReg, FrameReg, Offset,
+              MachineInstr::NoFlags, std::nullopt);
+  }
+  if (MI.getOpcode() == RISCV::ADDI &&
+      static_cast<unsigned>(FrameIndexID) == RISCVStackID::VGPRSpill) {
+    MI.getOperand(FIOperandNum)
+        .ChangeToRegister(FrameReg,
+                          /*IsDef*/ false,
+                          /*IsImp*/ false,
+                          /*IsKill*/ false);
   }
 
-  if(RII->isVGPRMemoryAccess(MI)) {
-    MI.getOperand(FIOperandNum).ChangeToRegister(getPrivateMemoryBaseRegister(MF),
-                                            /*IsDef*/false,
-                                            /*IsImp*/false,
-                                            /*IsKill*/false);
+  if (RII->isPrivateMemoryAccess(MI) && FrameReg == RISCV::X4) {
+    MI.getOperand(FIOperandNum)
+        .ChangeToRegister(getPrivateMemoryBaseRegister(MF),
+                          /*IsDef*/ false,
+                          /*IsImp*/ false,
+                          /*IsKill*/ false);
     // simm11 locates in range [-1024, 1023], if offset not in this range, then
     // we legalize the offset
-    if(!isInt<11>(Lo11))
+    if (!isInt<12>(Lo11))
       adjustPriMemRegOffset(MF, *MI.getParent(), MI, Lo11,
-                                getPrivateMemoryBaseRegister(MF), FIOperandNum);
+                            getPrivateMemoryBaseRegister(MF), FIOperandNum);
   }
 
+  if (RII->isPrivateMemoryAccess(MI) && FrameReg == RISCV::X2) {
+    MI.getOperand(FIOperandNum)
+        .ChangeToRegister(getPrivateMemoryBaseRegister(MF),
+                          /*IsDef*/ false,
+                          /*IsImp*/ false,
+                          /*IsKill*/ false);
+    // simm11 locates in range [-1024, 1023], if offset not in this range, then
+    // we legalize the offset
+    MI.setDesc(RII->get(RII->getUniformMemoryOpcode(MI)));
+    if (!isInt<12>(Lo11))
+      adjustPriMemRegOffset(MF, *MI.getParent(), MI, Lo11,
+                            getPrivateMemoryBaseRegister(MF), FIOperandNum);
+  }
+
+  // else
+  //   MI.getOperand(FIOperandNum)
+  //       .ChangeToRegister(FrameReg, /*IsDef*/ false,
+  //                         /*IsImp*/ false,
+  //                         /*IsKill*/ false);
+  if (RII->isUniformMemoryAccess(MI) && FrameReg == RISCV::X4) {
+    Register DestReg =
+        MF.getRegInfo().createVirtualRegister(&RISCV::VGPRRegClass);
+    MI.setDesc(RII->get(RII->getPrivateMemoryOpcode(MI)));
+    BuildMI(*MBB, II, DL, RII->get(RISCV::VMV_V_X), DestReg)
+        .addReg(MI.getOperand(FIOperandNum - 1).getReg());
+    MI.getOperand(FIOperandNum)
+        .ChangeToRegister(getPrivateMemoryBaseRegister(MF), /*IsDef*/ false,
+                          /*IsImp*/ false,
+                          /*IsKill*/ false);
+    MI.getOperand(FIOperandNum - 1)
+        .ChangeToRegister(DestReg, /*IsDef*/ false,
+                          /*IsImp*/ false,
+                          /*IsKill*/ false);
+
+    return false;
+  }
+
+  if (RII->isLocalMemoryAccess(MI) && FrameReg == RISCV::X4) {
+    Register DestReg =
+        MF.getRegInfo().createVirtualRegister(&RISCV::VGPRRegClass);
+    BuildMI(*MBB, II, DL, RII->get(RISCV::VMV_V_X), DestReg).addReg(FrameReg);
+    MI.getOperand(FIOperandNum)
+        .ChangeToRegister(getFrameRegister(MF), /*IsDef*/ false,
+                          /*IsImp*/ false,
+                          /*IsKill*/ false);
+    MI.setDesc(RII->get(RII->getPrivateMemoryOpcode(MI)));
+    return false;
+  }
+
+  if (RII->isLocalMemoryAccess(MI) && FrameReg == RISCV::X2) {
+    Register DestReg =
+        MF.getRegInfo().createVirtualRegister(&RISCV::VGPRRegClass);
+    BuildMI(*MBB, II, DL, RII->get(RISCV::VMV_V_X), DestReg).addReg(FrameReg);
+    MI.getOperand(FIOperandNum)
+        .ChangeToRegister(DestReg, /*IsDef*/ false,
+                          /*IsImp*/ false,
+                          /*IsKill*/ false);
+    return false;
+  }
+
+  if (RII->isPrivateMemoryAccess(MI))
+    MI.getOperand(FIOperandNum)
+        .ChangeToRegister(getPrivateMemoryBaseRegister(MF), /*IsDef*/ false,
+                          /*IsImp*/ false,
+                          /*IsKill*/ false);
   else
-    MI.getOperand(FIOperandNum).ChangeToRegister(FrameReg, /*IsDef*/false,
-                                                /*IsImp*/false,
-                                                /*IsKill*/false);
+    MI.getOperand(FIOperandNum)
+        .ChangeToRegister(DestReg == MI.getOperand(0).getReg() ? FrameReg
+                                                               : DestReg,
+                          /*IsDef*/ false,
+                          /*IsImp*/ false,
+                          /*IsKill*/ false);
 
   // If after materializing the adjustment, we have a pointless ADDI, remove it
   if (MI.getOpcode() == RISCV::ADDI &&

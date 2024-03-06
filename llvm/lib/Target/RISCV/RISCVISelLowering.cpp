@@ -19,6 +19,7 @@
 #include "RISCVSubtarget.h"
 #include "RISCVTargetMachine.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/LegacyDivergenceAnalysis.h"
 #include "llvm/Analysis/MemoryLocation.h"
@@ -35,6 +36,7 @@
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicsRISCV.h"
 #include "llvm/IR/PatternMatch.h"
@@ -4296,7 +4298,33 @@ SDValue RISCVTargetLowering::lowerGlobalAddress(SDValue Op,
                                                 SelectionDAG &DAG) const {
   GlobalAddressSDNode *N = cast<GlobalAddressSDNode>(Op);
   assert(N->getOffset() == 0 && "unexpected offset in global node");
+  // FIXME: Only support local address?
+  if (N->getAddressSpace() == RISCVAS::LOCAL_ADDRESS)
+    return lowerGlobalLocalAddress(N, DAG);
   return getAddr(N, DAG, N->getGlobal()->isDSOLocal());
+}
+
+/// For local variables, we need to store variables into local memory,
+/// rather than put it into '.sbss' section
+/// TODO: Remove the address allocating in '.sbss' section
+SDValue RISCVTargetLowering::lowerGlobalLocalAddress(GlobalAddressSDNode *Op,
+                                                     SelectionDAG &DAG) const {
+  MachineFunction &MF = DAG.getMachineFunction();
+  static SmallVector<std::pair<const GlobalVariable *, int>> LoweredVariables;
+
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  const DataLayout &DL = DAG.getDataLayout();
+  auto *GV = cast<GlobalVariable>(Op->getGlobal());
+  for(auto &VA : LoweredVariables) {
+    if(VA.first == GV)
+      return DAG.getFrameIndex(VA.second, MVT::i32);
+  }
+  unsigned AlignValue = DL.getABITypeAlignment(GV->getValueType());
+  int FI = MFI.CreateStackObject(DL.getTypeAllocSize(GV->getValueType())
+      /*Offset need to be modified too*/,
+      Align(AlignValue), false, nullptr, RISCVStackID::LocalMemSpill);
+  LoweredVariables.push_back(std::make_pair(GV, FI));
+  return DAG.getFrameIndex(FI, MVT::i32);
 }
 
 SDValue RISCVTargetLowering::lowerBlockAddress(SDValue Op,
@@ -7458,7 +7486,6 @@ SDValue RISCVTargetLowering::lowerKernArgParameterPtr(SelectionDAG &DAG,
 
   return DAG.getObjectPtrOffset(SL, BasePtr, TypeSize::Fixed(Offset));
 }
-
 SDValue RISCVTargetLowering::getFPExtOrFPRound(SelectionDAG &DAG,
                                             SDValue Op,
                                             const SDLoc &DL,
@@ -11480,7 +11507,7 @@ static bool CC_Ventus(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
 
   // Allocate stack for arguments which can not use register
   unsigned StackOffset =
-      Reg ? 0 : State.AllocateStack(StoreSizeBytes, StackAlign);
+      Reg ? 0 : -State.AllocateStack(StoreSizeBytes, StackAlign);
 
   // If we reach this point and PendingLocs is non-empty, we must be at the
   // end of a split argument that must be passed indirectly.
@@ -11788,7 +11815,7 @@ static SDValue unpackFromMemLoc(SelectionDAG &DAG, SDValue Chain,
     ValVT = LocVT;
   }
 
-  // Just align to 4 bytes, because parameters more than 4 bytes will be split 
+  // Just align to 4 bytes, because parameters more than 4 bytes will be split
   // into 4-byte parameters
   int FI = MFI.CreateFixedObject(ValVT.getStoreSize(), 0,
                                  /*IsImmutable=*/true);
@@ -11904,7 +11931,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
         ArgValue = unpackF64OnRV32DSoftABI(DAG, Chain, VA, DL);
       else if (VA.isRegLoc())
         ArgValue = unpackFromRegLoc(DAG, Chain, VA, DL, *this, Ins[i]);
-      else 
+      else
         ArgValue = unpackFromMemLoc(DAG, Chain, VA, DL);
 
       if (VA.getLocInfo() == CCValAssign::Indirect) {
@@ -12264,12 +12291,12 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
         StackPtr = DAG.getCopyFromReg(Chain, DL, RISCV::X4, PtrVT);
       SDValue Address =
           DAG.getNode(ISD::ADD, DL, PtrVT, StackPtr,
-                      DAG.getIntPtrConstant(-((int)VA.getLocMemOffset() 
+                      DAG.getIntPtrConstant(-((int)VA.getLocMemOffset()
                       + CurrentFrameSize), DL));
 
       // Emit the store.
       MemOpChains.push_back(
-          DAG.getStore(Chain, DL, ArgValue, Address, 
+          DAG.getStore(Chain, DL, ArgValue, Address,
                             MachinePointerInfo(RISCVAS::PRIVATE_ADDRESS)));
     }
   }
@@ -13483,6 +13510,10 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
   }
   case ISD::STORE: {
     const StoreSDNode *Store= cast<StoreSDNode>(N);
+    auto &MFI = FLI->MF->getFrameInfo();
+    if(auto *BaseBase = dyn_cast<FrameIndexSDNode>(Store->getOperand(1)))
+      if(MFI.getStackID(BaseBase->getIndex()) == RISCVStackID::SGPRSpill)
+        return false;
     return Store->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
            Store->getPointerInfo().StackID == RISCVStackID::VGPRSpill;
   }
@@ -13494,6 +13525,8 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
   case ISD::INTRINSIC_W_CHAIN:
     return RISCVII::isIntrinsicSourceOfDivergence(
         cast<ConstantSDNode>(N->getOperand(1))->getZExtValue());
+  case Intrinsic::vastart:
+    return true;
   /*
   case AMDGPUISD::ATOMIC_CMP_SWAP:
   case AMDGPUISD::ATOMIC_INC:
