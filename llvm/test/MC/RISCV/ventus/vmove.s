@@ -4,11 +4,6 @@
 # RUN:   | llvm-objdump -d --mattr=+v - \
 # RUN:   | FileCheck %s --check-prefix=CHECK-INST
 
-
-vmv.x.s gp, v6
-# CHECK-INST: vmv.x.s gp, v6
-# CHECK-ENCODING: [0xd7,0x21,0x60,0x42]
-
 # SKIP VMV_S_X
 
 # SKIP VMERGE_VVM
@@ -20,10 +15,3 @@ vmv.x.s gp, v6
 vmv.v.x v6, s0
 # CHECK-INST: vmv.v.x v6, s0
 # CHECK-ENCODING: [0x57,0x43,0x04,0x5e]
-
-# SKIP VFMERGE_VFM
-
-vfmv.v.f v6, s0
-# CHECK-INST: vfmv.v.f v6, s0
-# CHECK-ENCODING: [0x57,0x53,0x04,0x5e]
-

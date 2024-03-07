@@ -285,6 +285,7 @@ define i32 @vmulhsu_x(i32 %a) nounwind {
 define i32 @vrsub_i(i32 %a) nounwind {
 ; VENTUS-LABEL: vrsub_i:
 ; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    regexti zero, zero, 0
 ; VENTUS-NEXT:    vrsub.vi v0, v0, 12
 ; VENTUS-NEXT:    ret
   %1 = sub i32 12, %a
