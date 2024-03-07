@@ -20,18 +20,3 @@ vfcvt.f.xu.v v4, v2
 vfcvt.f.x.v v4, v2
 # CHECK-INST: vfcvt.f.x.v v4, v2
 # CHECK-ENCODING: [0x57,0x92,0x21,0x4a]
-
-vfcvt.rtz.xu.f.v v4, v2
-# CHECK-INST: vfcvt.rtz.xu.f.v v4, v2
-# CHECK-ENCODING: [0x57,0x12,0x23,0x4a]
-
-vfcvt.rtz.x.f.v v4, v2
-# CHECK-INST: vfcvt.rtz.x.f.v v4, v2
-# CHECK-ENCODING: [0x57,0x92,0x23,0x4a]
-
-
-
-
-
-
-

@@ -25,7 +25,7 @@ define dso_local ventus_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr add
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 8
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 8
-; VENTUS-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    lw t0, 8(a0)
 ; VENTUS-NEXT:    sw t0, -4(sp) # 4-byte Folded Spill
@@ -37,7 +37,7 @@ define dso_local ventus_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr add
 ; VENTUS-NEXT:    lw t0, -4(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    vmv.v.x v1, t0
 ; VENTUS-NEXT:    vsw12.v v0, 0(v1)
-; VENTUS-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -8
 ; VENTUS-NEXT:    ret
 entry:

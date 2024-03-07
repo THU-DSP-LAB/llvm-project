@@ -1,4 +1,4 @@
-// RUN: clang -no-opaque-pointers -triple riscv32-unknown-unknown -S -emit-llvm -o - %s | FileCheck %s
+// RUN: %clang_cc1 -no-opaque-pointers -triple riscv32-unknown-unknown -S -emit-llvm -o - %s | FileCheck %s
 
 void test() {
     // CHECK: call void @llvm.riscv.ventus.barrier(i32 1)

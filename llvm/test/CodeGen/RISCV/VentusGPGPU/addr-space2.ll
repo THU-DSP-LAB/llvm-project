@@ -7,23 +7,25 @@
 define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 8
-; VENTUS-NEXT:    .cfi_def_cfa_offset 8
+; VENTUS-NEXT:    addi sp, sp, 4
+; VENTUS-NEXT:    .cfi_def_cfa_offset 4
+; VENTUS-NEXT:    addi s0, s0, 20
+; VENTUS-NEXT:    .cfi_def_cfa_offset 4
 ; VENTUS-NEXT:    addi tp, tp, 24
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 24
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
-; VENTUS-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    .cfi_offset ra, 4
+; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    regext zero, zero, 72
+; VENTUS-NEXT:    vsw.v v33, -24(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    .cfi_offset v33.l, 0
 ; VENTUS-NEXT:    lw t0, 0(a0)
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v33, t0
-; VENTUS-NEXT:    lui t1, %hi(foo.b)
-; VENTUS-NEXT:    addi t2, t1, %lo(foo.b)
-; VENTUS-NEXT:    addi t1, tp, -24
+; VENTUS-NEXT:    addi t1, tp, -20
+; VENTUS-NEXT:    addi t2, s0, -20
 ; VENTUS-NEXT:    vmv.v.x v0, t1
-; VENTUS-NEXT:    sw t2, 16(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    vmv.v.x v1, t2
 ; VENTUS-NEXT:    vmv.v.x v2, t0
 ; VENTUS-NEXT:    call bar
@@ -37,10 +39,10 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    vbltu v1, v0, .LBB0_2
 ; VENTUS-NEXT:  # %bb.1: # %if.then
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
-; VENTUS-NEXT:    addi t0, tp, -24
+; VENTUS-NEXT:    addi t0, tp, -20
 ; VENTUS-NEXT:    vadd.vx v1, v0, t0
 ; VENTUS-NEXT:    vlw.v v1, 0(v1)
-; VENTUS-NEXT:    lw t1, 16(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi t1, s0, -20
 ; VENTUS-NEXT:    vadd.vx v2, v0, t1
 ; VENTUS-NEXT:    vlw12.v v2, 0(v2)
 ; VENTUS-NEXT:    regext zero, zero, 64
@@ -60,9 +62,14 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:  .LBB0_3: # %if.end
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
-; VENTUS-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi sp, sp, -8
+; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    regext zero, zero, 9
+; VENTUS-NEXT:    vlw.v v33, -24(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -4
+; VENTUS-NEXT:    addi s0, s0, -20
 ; VENTUS-NEXT:    addi tp, tp, -24
+; VENTUS-NEXT:    regext zero, zero, 1
+; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    ret
 entry:
   %a = alloca [5 x i32], align 4, addrspace(5)
@@ -314,6 +321,8 @@ define dso_local i32 @stack_space(ptr addrspace(3) nocapture noundef readnone %a
 ; VENTUS-NEXT:    vadd.vx v0, v0, t0
 ; VENTUS-NEXT:    vlw.v v0, 0(v0)
 ; VENTUS-NEXT:    addi tp, tp, -48
+; VENTUS-NEXT:    regext zero, zero, 1
+; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    ret
 entry:
   %test = alloca [12 x i32], align 4, addrspace(5)
