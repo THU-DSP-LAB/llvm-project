@@ -74,10 +74,12 @@ public:
   /// Get stack size for different stack ID
   uint64_t getStackSize(const MachineFunction &MF, RISCVStackID::Value ID) const;
 
+  /// Calculate frame object's stack offset
   /// Frame Objects:
   /// fi#0: id=4 size=48, align=4, at location [SP+8]
   /// fi#1: id=1 size=4, align=4, at location [SP+4] \
   /// fi#2: id=1 size=4, align=4, at location [SP] \
+  /// fi#3: id=4 size=4, align=4, at location [SP+16] \
   /// As we can see, if we split the stack, different frame offset calculation
   /// need to be modified too, when calculate the TP stack offset, we need to
   /// extract the stack offset of 'SP' in machine function frame

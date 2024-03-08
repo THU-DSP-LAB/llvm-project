@@ -638,7 +638,13 @@ private:
                          const SmallVectorImpl<ISD::OutputArg> &Outs,
                          bool IsRet, CallLoweringInfo *CLI,
                          RISCVCCAssignFn Fn) const;
-
+  SDValue getFPExtOrFPRound(SelectionDAG &DAG, SDValue Op,
+                                            const SDLoc &DL,
+                                            EVT VT) const;
+  SDValue convertArgType(SelectionDAG &DAG, EVT VT, EVT MemVT,
+                                         const SDLoc &SL, SDValue Val,
+                                         bool Signed,
+                                         const ISD::InputArg *Arg) const;
   template <class NodeTy>
   SDValue getAddr(NodeTy *N, SelectionDAG &DAG, bool IsLocal = true) const;
   SDValue getStaticTLSAddr(GlobalAddressSDNode *N, SelectionDAG &DAG,
@@ -725,13 +731,6 @@ private:
   SDValue expandUnalignedRVVStore(SDValue Op, SelectionDAG &DAG) const;
  SDValue lowerKernArgParameterPtr(SelectionDAG &DAG, const SDLoc &SL,
                                    SDValue Chain, uint64_t Offset) const;
-  SDValue getFPExtOrFPRound(SelectionDAG &DAG, SDValue Op,
-                                            const SDLoc &DL,
-                                            EVT VT) const;
-  SDValue convertArgType(SelectionDAG &DAG, EVT VT, EVT MemVT,
-                                         const SDLoc &SL, SDValue Val,
-                                         bool Signed,
-                                         const ISD::InputArg *Arg) const;
   SDValue lowerKernargMemParameter(SelectionDAG &DAG, EVT VT, EVT MemVT,
                                    const SDLoc &SL, SDValue Chain,
                                    uint64_t Offset, Align Alignment,

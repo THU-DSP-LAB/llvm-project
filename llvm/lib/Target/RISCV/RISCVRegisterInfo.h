@@ -22,9 +22,9 @@
 namespace llvm {
 
 // This needs to be kept in sync with the field bits in VentusRegisterClass.
-enum RISCVRCFlags { 
-  IsVGPR = 1 << 0, 
-  IsSGPR = 1 << 1, 
+enum RISCVRCFlags {
+  IsVGPR = 1 << 0,
+  IsSGPR = 1 << 1,
   IsFGPR = 1 << 2
 }; // enum RISCVRCFlags
 
@@ -56,6 +56,10 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
     return hasSGPRs(RC) && !hasVGPRs(RC) && !hasFGPRs(RC);
   }
 
+  static bool isFPRClass(const TargetRegisterClass *RC) {
+    return hasFGPRs(RC) && !hasVGPRs(RC) && !hasSGPRs(RC);
+  }
+
   /// \returns true if this class ID contains only SGPR registers
   bool isSGPRClassID(unsigned RCID) const {
     return isSGPRClass(getRegClass(RCID));
@@ -63,9 +67,9 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
 
   bool isSGPRReg(const MachineRegisterInfo &MRI, Register Reg) const;
 
-  void insertRegToSet(const MachineRegisterInfo &MRI, 
-                      DenseSet<unsigned int> *CurrentRegUsageSet, 
-                      SubVentusProgramInfo *CurrentSubProgramInfo, 
+  void insertRegToSet(const MachineRegisterInfo &MRI,
+                      DenseSet<unsigned int> *CurrentRegUsageSet,
+                      SubVentusProgramInfo *CurrentSubProgramInfo,
                       Register Reg) const;
 
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,

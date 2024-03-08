@@ -401,5 +401,10 @@ bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
   if (isa<InvokeInst>(V))
     return true;
 
+  if (dyn_cast<PHINode>(V) && 
+      dyn_cast<Instruction>(V)->getParent()->getParent()->getCallingConv() !=
+      CallingConv::VENTUS_KERNEL) 
+    return true;
+
   return false;
 }
