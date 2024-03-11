@@ -86,7 +86,7 @@ define dso_local i32 @non_kernel_calling_convention(ptr nocapture noundef readon
 ; VENTUS-NEXT:    regext zero, zero, 72
 ; VENTUS-NEXT:    vsw.v v34, -8(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v33, -12(v32)
+; VENTUS-NEXT:    vlw.v v33, -4(v32)
 ; VENTUS-NEXT:    regext zero, zero, 9
 ; VENTUS-NEXT:    vlw.v v34, -16(v32)
 ; VENTUS-NEXT:    vlw12.v v0, 0(v0)

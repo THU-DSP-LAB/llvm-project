@@ -69,11 +69,11 @@ entry:
 define dso_local i32 @regexti3(i32 noundef %a) {
 ; CHECK-LABEL: regexti3:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    regexti zero, zero, 448
-; CHECK-NEXT:    vnot.v v0, v0
+; CHECK-NEXT:    regexti zero, zero, 768
+; CHECK-NEXT:    vxor.vi v0, v0, 15
 ; CHECK-NEXT:    ret
 entry:
-  %res = xor i32 %a, 255
+  %res = xor i32 %a, 399
   ret i32 %res
 }
 
