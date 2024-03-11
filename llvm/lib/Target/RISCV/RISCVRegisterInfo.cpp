@@ -187,7 +187,7 @@ void RISCVRegisterInfo::insertRegToSet(const MachineRegisterInfo &MRI,
     return;
 
   // Beyond the limits of SGPR and VGPR
-  if (Reg.id() < 9 || Reg.id() > 328)
+  if (Reg.id() < RISCV::V0 || Reg.id() > RISCV::X63)
     return;
 
   CurrentRegisterAddedSet->insert(Reg);

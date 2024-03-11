@@ -176,7 +176,7 @@ entry:
   ret i1 %res
 }
 
-define dso_local ventus_kernel void @regexti13(ptr addrspace(1) nocapture noundef align 4 %A
+define dso_local ventus_kernel void @regexti13(ptr addrspace(1) nocapture
 ; CHECK-LABEL: regexti13:
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    addi sp, sp, 12
@@ -185,13 +185,15 @@ define dso_local ventus_kernel void @regexti13(ptr addrspace(1) nocapture nounde
 ; CHECK-NEXT:    .cfi_def_cfa_offset 4
 ; CHECK-NEXT:    regext zero, zero, 1
 ; CHECK-NEXT:    vmv.v.x v32, tp
-; CHECK-NEXT:    sw ra, 0(sp) # 4-byte Folded Spill
-; CHECK-NEXT:    .cfi_offset ra, 4
+; CHECK-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
+; CHECK-NEXT:    regext zero, zero, 72
+; CHECK-NEXT:    vsw.v v33, -4(v32) # 4-byte Folded Spill
+; CHECK-NEXT:    .cfi_offset ra, 0
 ; CHECK-NEXT:    .cfi_offset v33.l, 0
 ; CHECK-NEXT:    lw t0, 0(a0)
-; CHECK-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
-; CHECK-NEXT:    lw t0, 4(a0)
 ; CHECK-NEXT:    sw t0, -4(sp) # 4-byte Folded Spill
+; CHECK-NEXT:    lw t0, 4(a0)
+; CHECK-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
 ; CHECK-NEXT:    vmv.v.x v0, zero
 ; CHECK-NEXT:    call _Z13get_global_idj
 ; CHECK-NEXT:    regexti zero, zero, 769
@@ -199,21 +201,26 @@ define dso_local ventus_kernel void @regexti13(ptr addrspace(1) nocapture nounde
 ; CHECK-NEXT:    vmv.v.x v0, zero
 ; CHECK-NEXT:    call _Z12get_local_idj
 ; CHECK-NEXT:    vsll.vi v0, v0, 2
-; CHECK-NEXT:    lw t1, -4(sp) # 4-byte Folded Reload
+; CHECK-NEXT:    lw t1, -8(sp) # 4-byte Folded Reload
 ; CHECK-NEXT:    vadd.vx v0, v0, t1
 ; CHECK-NEXT:    vlw12.v v0, 0(v0)
 ; CHECK-NEXT:    regext zero, zero, 64
 ; CHECK-NEXT:    vsll.vi v1, v33, 2
-; CHECK-NEXT:    lw t0, -8(sp) # 4-byte Folded Reload
+; CHECK-NEXT:    lw t0, -4(sp) # 4-byte Folded Reload
 ; CHECK-NEXT:    vadd.vx v1, v1, t0
 ; CHECK-NEXT:    vlw12.v v2, 0(v1)
 ; CHECK-NEXT:    vadd.vv v0, v2, v0
 ; CHECK-NEXT:    vsw12.v v0, 0(v1)
-; CHECK-NEXT:    lw ra, 0(sp) # 4-byte Folded Reload
+; CHECK-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
+; CHECK-NEXT:    regext zero, zero, 9
+; CHECK-NEXT:    vlw.v v33, -4(v32) # 4-byte Folded Reload
 ; CHECK-NEXT:    addi sp, sp, -12
 ; CHECK-NEXT:    addi tp, tp, -4
+; CHECK-NEXT:    regext zero, zero, 1
+; CHECK-NEXT:    vmv.v.x v32, tp
 ; CHECK-NEXT:    ret
-                                              ,ptr addrspace(3) nocapture noundef align 4 %B) {
+            noundef align 4 %A, ptr addrspace(3) nocapture noundef align 4 %B) {
+
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)
   %calland = and i32 %call, 399

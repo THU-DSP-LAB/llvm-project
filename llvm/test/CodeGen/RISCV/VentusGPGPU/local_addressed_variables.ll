@@ -9,9 +9,9 @@ define dso_local ventus_kernel void @compute_sum_with_localmem(ptr addrspace(1) 
 ; VENTUS-LABEL: compute_sum_with_localmem:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    li t0, 12
-; VENTUS-NEXT:    sw t0, 24(s0)
-; VENTUS-NEXT:    sw t0, 0(s0)
-; VENTUS-NEXT:    sw t0, 36(s0)
+; VENTUS-NEXT:    sw t0, -16(s0)
+; VENTUS-NEXT:    sw t0, -40(s0)
+; VENTUS-NEXT:    sw t0, -4(s0)
 ; VENTUS-NEXT:    addi s0, s0, -40
 ; VENTUS-NEXT:    ret
 entry:

@@ -49,7 +49,7 @@ You can dive into `build-ventus.sh` file to see the detailed information about b
 
 ### 3: Bridge icd loader
 
-Run `export VENTUS_INSTALL_PREFIX=<path_to>/ventus-llvm/install` to set `VENTUS_INSTALL_PREFIX` environment variable(system environment variable recommended)
+Run `export VENTUS_INSTALL_PREFIX=<path_to_install>` to set `VENTUS_INSTALL_PREFIX` environment variable(system environment variable recommended)
 
 Run `export LD_LIBRARY_PATH=${VENTUS_INSTALL_PREFIX}/lib` to tell OpenCL application to use your own built `libOpenCL.so`, also to correctly locate LLVM shared libraries
 

@@ -516,6 +516,10 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
                   StackOffset::getFixed(-SPStackSize),
                   MachineInstr::FrameDestroy, getStackAlign());
+  if(LocalStackSize)
+    RI->adjustReg(MBB, MBBI, DL, RISCV::X8, RISCV::X8,
+                  StackOffset::getFixed(-LocalStackSize),
+                  MachineInstr::FrameDestroy, getStackAlign());
   if(TPStackSize) {
     RI->adjustReg(MBB, MBBI, DL, TPReg, TPReg,
                   StackOffset::getFixed(-TPStackSize),
@@ -597,7 +601,7 @@ void RISCVFrameLowering::processFunctionBeforeFrameFinalized(
   auto *CurrentProgramInfo = const_cast<VentusProgramInfo*>(
                     MF.getSubtarget<RISCVSubtarget>().getVentusProgramInfo());
 
-  // When accessing a new function, we need to add a new container to calculate 
+  // When accessing a new function, we need to add a new container to calculate
   // its resource usage.
   CurrentProgramInfo->RegisterAddedSetVec.push_back(DenseSet<unsigned>());
   CurrentProgramInfo->SubProgramInfoVec.push_back(SubVentusProgramInfo());
@@ -615,14 +619,14 @@ void RISCVFrameLowering::processFunctionBeforeFrameFinalized(
         if (!Op.isReg())
           continue;
 
-        RI->insertRegToSet(MRI, CurrentRegisterAddedSet, 
+        RI->insertRegToSet(MRI, CurrentRegisterAddedSet,
                     CurrentSubProgramInfo, Op.getReg());
       }
     }
   }
 
   // ra register is a special register.
-  RI->insertRegToSet(MRI, CurrentRegisterAddedSet, 
+  RI->insertRegToSet(MRI, CurrentRegisterAddedSet,
                     CurrentSubProgramInfo, RISCV::X1);
 }
 

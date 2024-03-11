@@ -41,6 +41,8 @@ define dso_local void @foo_fun(ptr addrspace(1) nocapture noundef %A, ptr addrsp
 ; VENTUS-NEXT:    vlw.v v34, -8(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    addi tp, tp, -8
+; VENTUS-NEXT:    regext zero, zero, 1
+; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    ret
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)

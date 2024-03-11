@@ -1555,7 +1555,7 @@ std::string RISCVInstrInfo::createMIROperandComment(
 }
 
 int RISCVInstrInfo::getSPAdjust(const MachineInstr &MI) const {
-  // FIXME: Don't need this value now, but we can add relevant modifications 
+  // FIXME: Don't need this value now, but we can add relevant modifications
   // here when we optimize the PrologueInsert stage in the future.
   return 0;
 }

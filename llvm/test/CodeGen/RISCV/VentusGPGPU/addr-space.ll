@@ -42,6 +42,8 @@ define dso_local ventus_kernel void @func(ptr addrspace(1) nocapture noundef ali
 ; VENTUS-NEXT:    vlw.v v33, -4(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -12
 ; VENTUS-NEXT:    addi tp, tp, -4
+; VENTUS-NEXT:    regext zero, zero, 1
+; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    ret
 entry:
   %call = tail call i32 @_Z13get_global_idj(i32 noundef 0)

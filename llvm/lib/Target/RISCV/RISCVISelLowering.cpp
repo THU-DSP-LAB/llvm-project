@@ -11815,7 +11815,7 @@ static SDValue unpackFromMemLoc(SelectionDAG &DAG, SDValue Chain,
     ValVT = LocVT;
   }
 
-  // Just align to 4 bytes, because parameters more than 4 bytes will be split 
+  // Just align to 4 bytes, because parameters more than 4 bytes will be split
   // into 4-byte parameters
   int FI = MFI.CreateFixedObject(ValVT.getStoreSize(), 0,
                                  /*IsImmutable=*/true);
@@ -11931,7 +11931,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
         ArgValue = unpackF64OnRV32DSoftABI(DAG, Chain, VA, DL);
       else if (VA.isRegLoc())
         ArgValue = unpackFromRegLoc(DAG, Chain, VA, DL, *this, Ins[i]);
-      else 
+      else
         ArgValue = unpackFromMemLoc(DAG, Chain, VA, DL);
 
       if (VA.getLocInfo() == CCValAssign::Indirect) {
@@ -12291,12 +12291,12 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
         StackPtr = DAG.getCopyFromReg(Chain, DL, RISCV::X4, PtrVT);
       SDValue Address =
           DAG.getNode(ISD::ADD, DL, PtrVT, StackPtr,
-                      DAG.getIntPtrConstant(-((int)VA.getLocMemOffset() 
+                      DAG.getIntPtrConstant(-((int)VA.getLocMemOffset()
                       + CurrentFrameSize), DL));
 
       // Emit the store.
       MemOpChains.push_back(
-          DAG.getStore(Chain, DL, ArgValue, Address, 
+          DAG.getStore(Chain, DL, ArgValue, Address,
                             MachinePointerInfo(RISCVAS::PRIVATE_ADDRESS)));
     }
   }

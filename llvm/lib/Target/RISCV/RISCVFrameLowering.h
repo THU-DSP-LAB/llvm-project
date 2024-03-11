@@ -74,7 +74,6 @@ public:
   /// Get stack size for different stack ID
   uint64_t getStackSize(const MachineFunction &MF, RISCVStackID::Value ID) const;
 
-
   /// Calculate frame object's stack offset
   /// Frame Objects:
   /// fi#0: id=4 size=48, align=4, at location [SP+8]

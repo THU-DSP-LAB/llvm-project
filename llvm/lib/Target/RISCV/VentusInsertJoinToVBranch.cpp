@@ -6,37 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// In Ventus, if VBranch instructions are generated, we need to insert join
-// instructions in both `else` and `then` branch to tell hardware where these
-// two branches need to join together
+// In ventus, if VBranch instructions are generated, we need to insert setrpc
+// and join instructions to tell hardware where branches need to join
 //
-// we follow the following rules to insert join block and join instruction
-//
-// 1: Legalize all the return block
-//    when there are one more return blocks in machine function, there must be
-//    branches, we need to reduce return blocks number down to 1
-// 1.1: If two return blocks have common nearest parent branch, this two blocks
-//    need to be joined, and we add a hasBeenJoined marker for this parent
-//    branch
-// 1.2: after we complete 1.1 process, there maybe one more return blocks, we
-//    need to further add join block, we recursively build dominator tree for
-//    these return blocks, first we find the nearest common dominator branch for
-//    two return blocks, and then get dominator tree path between dominator
-//    and each return block, we need to check this path in which whether any
-//    other branch blocks exists, ideally, the branch block in path should have
-//    been joined and marked, if not, this path is illegal, these two block can
-//    not be joined
-//
-// 2: Insert join instructions
-// 2.1: we scan through the MachineBasic blocks and check what blocks to insert
-//    join instruction, below MBB represents MachineBasic Block
-// 2.2: The MBB must have one more predecessors and its nearest dominator must
-//     be a VBranch
-// 2.3: Then we analyze the the predecessor of MBB, if the predecessor
-//    has single successor, we add a join instruction to the predecessor end,
-//    other wise, we need to insert a join block between predecessor and MBB
-//
-// WRANING: Do not use -O(1|2|3) optimization option
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/RISCVMCTargetDesc.h"
