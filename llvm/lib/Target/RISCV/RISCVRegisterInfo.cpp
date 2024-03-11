@@ -179,9 +179,9 @@ bool RISCVRegisterInfo::isSGPRReg(const MachineRegisterInfo &MRI,
   return RC ? isSGPRClass(RC) : false;
 }
 
-void RISCVRegisterInfo::insertRegToSet(const MachineRegisterInfo &MRI, 
+void RISCVRegisterInfo::insertRegToSet(const MachineRegisterInfo &MRI,
                     DenseSet<unsigned int> *CurrentRegisterAddedSet,
-                    SubVentusProgramInfo *CurrentSubProgramInfo, 
+                    SubVentusProgramInfo *CurrentSubProgramInfo,
                     Register Reg) const {
   if (CurrentRegisterAddedSet->contains(Reg))
     return;
@@ -192,9 +192,9 @@ void RISCVRegisterInfo::insertRegToSet(const MachineRegisterInfo &MRI,
 
   CurrentRegisterAddedSet->insert(Reg);
 
-  if (!isSGPRReg(MRI, Reg)) 
+  if (!isSGPRReg(MRI, Reg))
     CurrentSubProgramInfo->VGPRUsage++;
-  else 
+  else
     CurrentSubProgramInfo->SGPRUsage++;
 }
 
@@ -387,7 +387,7 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       DestReg = MI.getOperand(0).getReg();
     else
       DestReg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
-    // !!!Very importtant for adjust
+    // !!!Very important for adjust
     adjustReg(*II->getParent(), II, DL, DestReg, FrameReg, Offset,
               MachineInstr::NoFlags, std::nullopt);
   }
