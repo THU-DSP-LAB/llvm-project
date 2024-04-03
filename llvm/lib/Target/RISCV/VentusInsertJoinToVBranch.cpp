@@ -236,8 +236,20 @@ bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
           if (&MI1 == &Def)
             Insert = MI1.getIterator();
         }
-        if (Insert != Pre->begin()) {
+        if (Insert != Pre->begin() || Pre->begin() == &Def) {
           // Last instruction define in Pre MBB
+          bool IsInsert = false;
+          for(auto Pair : MBBMaybeInsertedInstr) {
+            if (Pair.first == Pre) {
+              IsInsert = true;
+              break;
+            }
+          }
+
+          // Only last MI in Pre need to insert
+          if (IsInsert)
+            continue;
+
           NeedToBeInsertMBBNum++;
           MBBMaybeInsertedInstr.push_back({Pre, Insert});
         }
