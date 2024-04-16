@@ -340,14 +340,28 @@ class PseudoVFROUND<RegisterClass Ty>
 // Instructions
 //===----------------------------------------------------------------------===//
 
+// FIXME: Ventus doesn't have FLW/FSW,it is same opcode with LW/SW
+// but for GPRF32.
 let Predicates = [HasStdExtZfinx] in {
 /// Loads
-def : Pat<(f32 (load (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12))),
-          (COPY_TO_REGCLASS (LW GPR:$rs1, simm12:$imm12), GPRF32)>;
+def FLW  : RVInstI<0b010, OPC_LOAD, (outs GPRF32:$rd),
+                   (ins GPRMem:$rs1, simm12:$imm12),
+                   "flw", "$rd, ${imm12}(${rs1})">,
+                   Sched<[WriteLDW, ReadMemBase]>;
+
+def : Pat<(f32 (UniformLoadFrag<load>
+          (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12))),
+          (FLW GPR:$rs1, simm12:$imm12)>;
 
 /// Stores
-def : Pat<(store (f32 FPR32INX:$rs2), (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12)),
-          (SW (COPY_TO_REGCLASS FPR32INX:$rs2, GPR), GPR:$rs1, simm12:$imm12)>;
+def FSW : RVInstS<0b010, OPC_STORE, (outs),
+              (ins GPRF32:$rs2, GPRMem:$rs1, simm12:$imm12),
+              "fsw", "$rs2, ${imm12}(${rs1})">,
+              Sched<[WriteSTW, ReadStoreData, ReadMemBase]>;
+
+def : Pat<(UniformStoreFrag<store> (f32 GPRF32:$rs2),
+          (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12)),
+          (FSW GPRF32:$rs2, GPR:$rs1, simm12:$imm12)>;
 } // Predicates = [HasStdExtZfinx]
 
 let SchedRW = [WriteFMA32, ReadFMA32, ReadFMA32, ReadFMA32] in {

@@ -32,9 +32,11 @@ class RVRegisterClass <string n, list<ValueType> rTypes, int Align, dag rList>
   // vALU and sALU registers
   field bit IsVGPR = 0;
   field bit IsSGPR = 0;
+  field bit IsFGPR = 0;
 
   let TSFlags{0} = IsVGPR;
   let TSFlags{1} = IsSGPR;
+  let TSFlags{2} = IsFGPR;
 }
 
 class RISCVReg<bits<8> Enc, string n, list<string> alt = []> : Register<n> {
@@ -360,41 +362,57 @@ let RegAltNameIndices = [ABIRegAltName] in {
 
 // The order of registers represents the preferred allocation sequence,
 // meaning caller-save regs are listed before callee-save.
-def FPR16 : RegisterClass<"RISCV", [f16], 16, (add
+def FPR16 : RVRegisterClass<"RISCV", [f16], 16, (add
     (sequence "F%u_H", 0, 7),
     (sequence "F%u_H", 10, 17),
     (sequence "F%u_H", 28, 31),
     (sequence "F%u_H", 8, 9),
     (sequence "F%u_H", 18, 27)
-)>;
+)> {
+  let RegInfos = XLenRI;
+  let IsFGPR = 1;
+}
 
-def FPR32 : RegisterClass<"RISCV", [f32], 32, (add
+
+def FPR32 : RVRegisterClass<"RISCV", [f32], 32, (add
     (sequence "F%u_F", 0, 7),
     (sequence "F%u_F", 10, 17),
     (sequence "F%u_F", 28, 31),
     (sequence "F%u_F", 8, 9),
     (sequence "F%u_F", 18, 27)
-)>;
+)> {
+  let RegInfos = XLenRI;
+  let IsFGPR = 1;
+}
 
-def FPR32C : RegisterClass<"RISCV", [f32], 32, (add
+def FPR32C : RVRegisterClass<"RISCV", [f32], 32, (add
   (sequence "F%u_F", 10, 15),
   (sequence "F%u_F", 8, 9)
-)>;
+)> {
+  let RegInfos = XLenRI;
+  let IsFGPR = 1;
+}
 
 // The order of registers represents the preferred allocation sequence,
 // meaning caller-save regs are listed before callee-save.
-def FPR64 : RegisterClass<"RISCV", [f64], 64, (add
+def FPR64 : RVRegisterClass<"RISCV", [f64], 64, (add
     (sequence "F%u_D", 0, 7),
     (sequence "F%u_D", 10, 17),
     (sequence "F%u_D", 28, 31),
     (sequence "F%u_D", 8, 9),
     (sequence "F%u_D", 18, 27)
-)>;
+)> {
+  let RegInfos = XLenRI;
+  let IsFGPR = 1;
+}
 
-def FPR64C : RegisterClass<"RISCV", [f64], 64, (add
+def FPR64C : RVRegisterClass<"RISCV", [f64], 64, (add
   (sequence "F%u_D", 10, 15),
   (sequence "F%u_D", 8, 9)
-)>;
+)> {
+  let RegInfos = XLenRI;
+  let IsFGPR = 1;
+}
 
 
 // Vector registers
@@ -416,9 +434,18 @@ def VCSR : RegisterClass<"RISCV", [XLenVT], 32,
 }
 
 let RegInfos = XLenRI in {
-def GPRF16  : RegisterClass<"RISCV", [f16], 16, (add GPR)>;
-def GPRF32  : RegisterClass<"RISCV", [f32], 32, (add GPR)>;
-def GPRF64  : RegisterClass<"RISCV", [f64], 64, (add GPR)>;
+def GPRF16  : RVRegisterClass<"RISCV", [f16], 16, (add GPR)> {
+  let RegInfos = XLenRI;
+  let IsFGPR = 1;
+}
+def GPRF32  : RVRegisterClass<"RISCV", [f32], 32, (add GPR)> {
+  let RegInfos = XLenRI;
+  let IsFGPR = 1;
+}
+def GPRF64  : RVRegisterClass<"RISCV", [f64], 64, (add GPR)> {
+  let RegInfos = XLenRI;
+  let IsFGPR = 1;
+}
 } // RegInfos = XLenRI
 
 let RegAltNameIndices = [ABIRegAltName] in {

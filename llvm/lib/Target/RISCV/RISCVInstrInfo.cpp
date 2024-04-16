@@ -132,7 +132,7 @@ bool RISCVInstrInfo::isLocalMemoryAccess(const MachineInstr &MI) const {
     default:
       return false;
     case RISCV::VLWI12:
-    case RISCV::VLBI12: 
+    case RISCV::VLBI12:
     case RISCV::VLBUI12:
     case RISCV::VLHI12:
     case RISCV::VLHUI12:
@@ -153,7 +153,7 @@ unsigned RISCVInstrInfo::getPrivateMemoryOpcode(MachineInstr &MI) const {
     case RISCV::LB:
     case RISCV::VLBI12:
       return RISCV::VLB;
-    case RISCV::LBU:    
+    case RISCV::LBU:
     case RISCV::VLBUI12:
       return RISCV::VLBU;
     case RISCV::LH:
@@ -161,20 +161,20 @@ unsigned RISCVInstrInfo::getPrivateMemoryOpcode(MachineInstr &MI) const {
       return RISCV::VLH;
     case RISCV::LHU:
     case RISCV::VLHUI12:
-      return RISCV::VLHU;   
+      return RISCV::VLHU;
     case RISCV::SW:
     case RISCV::VSWI12:
       return RISCV::VSW;
     case RISCV::SH:
     case RISCV::VSHI12:
-      return RISCV::VSH;   
+      return RISCV::VSH;
     case RISCV::SB:
     case RISCV::VSBI12:
       return RISCV::VSB;
     default:
       // MI.dump();
       assert(0 && "TODO");
-      return RISCV::VLW;    
+      return RISCV::VLW;
   }
 }
 
@@ -199,7 +199,7 @@ unsigned RISCVInstrInfo::getUniformMemoryOpcode(MachineInstr &MI) const {
     default:
       // MI.dump();
       assert(0 && "TODO");
-      return RISCV::VLW;    
+      return RISCV::VLW;
   }
 }
 
@@ -1555,7 +1555,7 @@ std::string RISCVInstrInfo::createMIROperandComment(
 }
 
 int RISCVInstrInfo::getSPAdjust(const MachineInstr &MI) const {
-  // FIXME: Don't need this value now, but we can add relevant modifications 
+  // FIXME: Don't need this value now, but we can add relevant modifications
   // here when we optimize the PrologueInsert stage in the future.
   return 0;
 }

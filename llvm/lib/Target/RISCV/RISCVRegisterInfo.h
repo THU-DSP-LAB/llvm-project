@@ -60,12 +60,18 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
     return hasFGPRs(RC) && !hasVGPRs(RC) && !hasSGPRs(RC);
   }
 
+  static bool isVGPRClass(const TargetRegisterClass *RC) {
+    return hasVGPRs(RC) && !hasFGPRs(RC) && !hasSGPRs(RC);
+  }
+
   /// \returns true if this class ID contains only SGPR registers
   bool isSGPRClassID(unsigned RCID) const {
     return isSGPRClass(getRegClass(RCID));
   }
 
   bool isSGPRReg(const MachineRegisterInfo &MRI, Register Reg) const;
+
+  bool isVGPRReg(const MachineRegisterInfo &MRI, Register Reg) const;
 
   void insertRegToSet(const MachineRegisterInfo &MRI,
                       DenseSet<unsigned int> *CurrentRegUsageSet,

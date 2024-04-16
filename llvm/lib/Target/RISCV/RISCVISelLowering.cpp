@@ -13492,12 +13492,12 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
 
     // FIXME: Why does this need to consider isLiveIn?
     if (Reg.isPhysical() || MRI.isLiveIn(Reg))
-      return !TRI->isSGPRReg(MRI, Reg);
+      return TRI->isVGPRReg(MRI, Reg);
     // FIXME: Why need to comment below two lines, not the same as AMDGPU
     // if (const Value *V = FLI->getValueFromVirtualReg(R->getReg()))
     //   return KDA->isDivergent(V);
 
-    return !TRI->isSGPRReg(MRI, Reg);
+    return TRI->isVGPRReg(MRI, Reg);
   }
   case ISD::LOAD: {
     const LoadSDNode *L = cast<LoadSDNode>(N);
@@ -13568,6 +13568,7 @@ RISCVTargetLowering::getRegClassFor(MVT VT, bool isDivergent) const {
   const TargetRegisterClass *RC = TargetLoweringBase::getRegClassFor(VT, false);
   const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
   if (!TRI->isSGPRClass(RC) && !isDivergent)
+    // FIXME: use VGPR for f32 type, cause vmv.vx has problem for f32
     return VT == MVT::i32 ? &RISCV::GPRRegClass : &RISCV::GPRF32RegClass;
   // FIXME: cause we set defalut register class for XlenVT is GPR class
   else if (TRI->isSGPRClass(RC) && isDivergent)
