@@ -22,3 +22,23 @@ define dso_local ventus_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr add
   store i32 %add, ptr addrspace(1) %c, align 4
   ret void
 }
+
+define dso_local ventus_kernel void @float_add(ptr addrspace(1) nocapture noundef writeonly align 4 %out, ptr addrspace(4) nocapture noundef readonly align 4 %in) {
+; VENTUS-LABEL: float_add:
+; VENTUS:       .cfi_startproc
+; VENTUS:       # %bb.0:
+; VENTUS-NEXT:    lw	t0, 4(a0)
+; VENTUS-NEXT:    flw	t0, 0(t0)
+; VENTUS-NEXT:    lui	t1, %hi(.LCPI1_0)
+; VENTUS-NEXT:    flw	t1, %lo(.LCPI1_0)(t1)
+; VENTUS-NEXT:    fadd.s	t0, t0, t1
+; VENTUS-NEXT:    lw	t1, 0(a0)
+; VENTUS-NEXT:    fsw	t0, 0(t1)
+; VENTUS-NEXT:    ret
+
+entry:
+  %0 = load float, ptr addrspace(4) %in, align 4
+  %add = fadd float %0, 1.200000e+01
+  store float %add, ptr addrspace(1) %out, align 4
+  ret void
+}
