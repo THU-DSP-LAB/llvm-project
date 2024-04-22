@@ -179,6 +179,16 @@ bool RISCVRegisterInfo::isSGPRReg(const MachineRegisterInfo &MRI,
   return RC ? isSGPRClass(RC) : false;
 }
 
+bool RISCVRegisterInfo::isVGPRReg(const MachineRegisterInfo &MRI,
+                                  Register Reg) const {
+  const TargetRegisterClass *RC;
+  if (Reg.isVirtual())
+    RC = MRI.getRegClass(Reg);
+  else
+    RC = getPhysRegClass(Reg);
+  return RC ? isVGPRClass(RC) : false;
+}
+
 void RISCVRegisterInfo::insertRegToSet(const MachineRegisterInfo &MRI,
                     DenseSet<unsigned int> *CurrentRegisterAddedSet,
                     SubVentusProgramInfo *CurrentSubProgramInfo,
