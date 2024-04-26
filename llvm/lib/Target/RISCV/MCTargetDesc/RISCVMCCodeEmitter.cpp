@@ -193,6 +193,21 @@ void RISCVMCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
     MCNumEmitted += 2;
     return;
   }
+  if (MI.getOpcode() == RISCV::PseudoFLW ||
+      MI.getOpcode() == RISCV::PseudoFSW) {
+    auto DestReg = MI.getOperand(0).getReg();
+    auto SrcReg = MI.getOperand(1).getReg();
+    auto Offset = MI.getOperand(2);
+    MCInst TmpInst =
+        MCInstBuilder(MI.getOpcode() == RISCV::PseudoFLW ? RISCV::LW
+                                                         : RISCV::SW)
+            .addReg(DestReg)
+            .addReg(SrcReg)
+            .addOperand(Offset);
+    uint32_t Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
+    support::endian::write(OS, Binary, support::little);
+    return;
+  }
 
   if (MI.getOpcode() == RISCV::PseudoAddTPRel) {
     expandAddTPRel(MI, OS, Fixups, STI);

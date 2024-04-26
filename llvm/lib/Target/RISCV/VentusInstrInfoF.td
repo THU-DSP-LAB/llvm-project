@@ -439,6 +439,24 @@ defm FCVT_S_LU : FPUnaryOp_r_frm_m<0b1101000, 0b00011, FXIN64X, "fcvt.s.lu">,
                  Sched<[WriteFCvtI64ToF32, ReadFCvtI64ToF32]>;
 defm           : FPUnaryOpDynFrmAlias_m<FCVT_S_LU, "fcvt.s.lu", FXIN64X>;
 
+def PseudoFLW : Pseudo<(outs GPRF32:$rd), (ins GPRMem:$rs1, simm12:$imm12), [],
+                       "flw", "$rd, ${imm12}(${rs1})"> {
+  let hasSideEffects = 0;
+  let mayLoad = 1;
+  let mayStore = 0;
+  let isCodeGenOnly = 0;
+  let isAsmParserOnly = 1;
+}
+
+def PseudoFSW : Pseudo<(outs), (ins  GPRF32:$rs2, GPRMem:$rs1, simm12:$imm12),
+                       [], "fsw", "$rs2, ${imm12}(${rs1})"> {
+  let hasSideEffects = 0;
+  let mayLoad = 0;
+  let mayStore = 1;
+  let isCodeGenOnly = 0;
+  let isAsmParserOnly = 1;
+}
+
 //===----------------------------------------------------------------------===//
 // Assembler Pseudo Instructions (User-Level ISA, Version 2.2, Chapter 20)
 //===----------------------------------------------------------------------===//
@@ -487,30 +505,16 @@ def : InstAlias<"fsflags $rs",        (CSRRW       X0, SysRegFFLAGS.Encoding, GP
 def : InstAlias<"fsflagsi $rd, $imm", (CSRRWI GPR:$rd, SysRegFFLAGS.Encoding, uimm5:$imm)>;
 def : InstAlias<"fsflagsi $imm",      (CSRRWI      X0, SysRegFFLAGS.Encoding, uimm5:$imm), 2>;
 
+def : InstAlias<"flw $rd, ${imm12}(${rs1})",
+                (PseudoFLW  GPR:$rd, GPR:$rs1, simm12:$imm12)>;
+
+def : InstAlias<"fsw $rs2, ${imm12}(${rs1})",
+                (PseudoFSW  GPR:$rs2, GPR:$rs1, simm12:$imm12)>;
 // fmv.w.x and fmv.x.w were previously known as fmv.s.x and fmv.x.s. Both
 // spellings should be supported by standard tools.
 def : MnemonicAlias<"fmv.s.x", "fmv.w.x">;
 def : MnemonicAlias<"fmv.x.s", "fmv.x.w">;
 
-def PseudoFLW : Pseudo<(outs GPRF32:$rd), (ins GPRMem:$rs1, simm12:$imm12), [],
-                       "flw", "$rd, ${imm12}(${rs1})">,
-                PseudoInstExpansion<(LW GPR:$rd, GPRMem:$rs1, simm12:$imm12)> {
-  let hasSideEffects = 0;
-  let mayLoad = 1;
-  let mayStore = 0;
-  let isCodeGenOnly = 0;
-  let isAsmParserOnly = 1;
-}
-
-def PseudoFSW : Pseudo<(outs), (ins  GPRF32:$rs2, GPRMem:$rs1, simm12:$imm12),
-                       [], "fsw", "$rs2, ${imm12}(${rs1})">,
-                PseudoInstExpansion<(SW GPR:$rs2, GPRMem:$rs1, simm12:$imm12)> {
-  let hasSideEffects = 0;
-  let mayLoad = 0;
-  let mayStore = 1;
-  let isCodeGenOnly = 0;
-  let isAsmParserOnly = 1;
-}
 
 let usesCustomInserter = 1 in {
 def PseudoQuietFLE_S : PseudoQuietFCMP<GPRF32>;
