@@ -445,11 +445,11 @@ defm           : FPUnaryOpDynFrmAlias_m<FCVT_S_LU, "fcvt.s.lu", FXIN64X>;
 
 let Predicates = [HasStdExtZfinx] in {
 
-def : InstAlias<"flw $rd, ${imm12}(${rs1})",
-                (LW  GPR:$rd, GPR:$rs1, simm12:$imm12)>;
+// def : InstAlias<"flw $rd, ${imm12}(${rs1})",
+//                 (LW  GPR:$rd, GPR:$rs1, simm12:$imm12)>;
 
-def : InstAlias<"fsw $rs2, ${imm12}(${rs1})",
-                (SW  GPR:$rs2, GPR:$rs1, simm12:$imm12)>;
+// def : InstAlias<"fsw $rs2, ${imm12}(${rs1})",
+//                 (SW  GPR:$rs2, GPR:$rs1, simm12:$imm12)>;
 
 def : InstAlias<"fmv.s $rd, $rs",  (FSGNJ_S  GPRF32:$rd, GPRF32:$rs, GPRF32:$rs)>;
 def : InstAlias<"fabs.s $rd, $rs", (FSGNJX_S GPRF32:$rd, GPRF32:$rs, GPRF32:$rs)>;

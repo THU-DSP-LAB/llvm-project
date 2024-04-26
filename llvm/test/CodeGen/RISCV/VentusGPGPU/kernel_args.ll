@@ -28,12 +28,12 @@ define dso_local ventus_kernel void @float_add(ptr addrspace(1) nocapture nounde
 ; VENTUS:       .cfi_startproc
 ; VENTUS:       # %bb.0:
 ; VENTUS-NEXT:    lw	t0, 4(a0)
-; VENTUS-NEXT:    flw	t0, 0(t0)
+; VENTUS-NEXT:    lw	t0, 0(t0)
 ; VENTUS-NEXT:    lui	t1, %hi(.LCPI1_0)
-; VENTUS-NEXT:    flw	t1, %lo(.LCPI1_0)(t1)
+; VENTUS-NEXT:    lw	t1, %lo(.LCPI1_0)(t1)
 ; VENTUS-NEXT:    fadd.s	t0, t0, t1
 ; VENTUS-NEXT:    lw	t1, 0(a0)
-; VENTUS-NEXT:    fsw	t0, 0(t1)
+; VENTUS-NEXT:    sw	t0, 0(t1)
 ; VENTUS-NEXT:    ret
 
 entry:
