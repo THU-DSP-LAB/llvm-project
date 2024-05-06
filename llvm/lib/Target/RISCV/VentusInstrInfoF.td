@@ -340,15 +340,7 @@ class PseudoVFROUND<RegisterClass Ty>
 // Instructions
 //===----------------------------------------------------------------------===//
 
-let Predicates = [HasStdExtZfinx] in {
-/// Loads
-def : Pat<(f32 (load (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12))),
-          (COPY_TO_REGCLASS (LW GPR:$rs1, simm12:$imm12), GPRF32)>;
 
-/// Stores
-def : Pat<(store (f32 FPR32INX:$rs2), (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12)),
-          (SW (COPY_TO_REGCLASS FPR32INX:$rs2, GPR), GPR:$rs1, simm12:$imm12)>;
-} // Predicates = [HasStdExtZfinx]
 
 let SchedRW = [WriteFMA32, ReadFMA32, ReadFMA32, ReadFMA32] in {
 defm FMADD_S  : FPFMA_rrr_frm_m<OPC_MADD,  0b00, "fmadd.s",  FINX>;
@@ -447,13 +439,35 @@ defm FCVT_S_LU : FPUnaryOp_r_frm_m<0b1101000, 0b00011, FXIN64X, "fcvt.s.lu">,
                  Sched<[WriteFCvtI64ToF32, ReadFCvtI64ToF32]>;
 defm           : FPUnaryOpDynFrmAlias_m<FCVT_S_LU, "fcvt.s.lu", FXIN64X>;
 
+def PseudoFLW : Pseudo<(outs GPRF32:$rd), (ins GPRMem:$rs1, simm12:$imm12), [],
+                       "flw", "$rd, ${imm12}(${rs1})"> {
+  let hasSideEffects = 0;
+  let mayLoad = 1;
+  let mayStore = 0;
+  let isCodeGenOnly = 0;
+  let isAsmParserOnly = 1;
+}
+
+def PseudoFSW : Pseudo<(outs), (ins  GPRF32:$rs2, GPRMem:$rs1, simm12:$imm12),
+                       [], "fsw", "$rs2, ${imm12}(${rs1})"> {
+  let hasSideEffects = 0;
+  let mayLoad = 0;
+  let mayStore = 1;
+  let isCodeGenOnly = 0;
+  let isAsmParserOnly = 1;
+}
+
 //===----------------------------------------------------------------------===//
 // Assembler Pseudo Instructions (User-Level ISA, Version 2.2, Chapter 20)
 //===----------------------------------------------------------------------===//
 
 let Predicates = [HasStdExtZfinx] in {
-// def : InstAlias<"flw $rd, (${rs1})",  (FLW GPRF32:$rd,  GPR:$rs1, 0), 0>;
-// def : InstAlias<"fsw $rs2, (${rs1})", (FSW GPRF32:$rs2, GPR:$rs1, 0), 0>;
+
+// def : InstAlias<"flw $rd, ${imm12}(${rs1})",
+//                 (LW  GPR:$rd, GPR:$rs1, simm12:$imm12)>;
+
+// def : InstAlias<"fsw $rs2, ${imm12}(${rs1})",
+//                 (SW  GPR:$rs2, GPR:$rs1, simm12:$imm12)>;
 
 def : InstAlias<"fmv.s $rd, $rs",  (FSGNJ_S  GPRF32:$rd, GPRF32:$rs, GPRF32:$rs)>;
 def : InstAlias<"fabs.s $rd, $rs", (FSGNJX_S GPRF32:$rd, GPRF32:$rs, GPRF32:$rs)>;
@@ -491,13 +505,17 @@ def : InstAlias<"fsflags $rs",        (CSRRW       X0, SysRegFFLAGS.Encoding, GP
 def : InstAlias<"fsflagsi $rd, $imm", (CSRRWI GPR:$rd, SysRegFFLAGS.Encoding, uimm5:$imm)>;
 def : InstAlias<"fsflagsi $imm",      (CSRRWI      X0, SysRegFFLAGS.Encoding, uimm5:$imm), 2>;
 
+def : InstAlias<"flw $rd, ${imm12}(${rs1})",
+                (PseudoFLW  GPR:$rd, GPR:$rs1, simm12:$imm12)>;
+
+def : InstAlias<"fsw $rs2, ${imm12}(${rs1})",
+                (PseudoFSW  GPR:$rs2, GPR:$rs1, simm12:$imm12)>;
 // fmv.w.x and fmv.x.w were previously known as fmv.s.x and fmv.x.s. Both
 // spellings should be supported by standard tools.
 def : MnemonicAlias<"fmv.s.x", "fmv.w.x">;
 def : MnemonicAlias<"fmv.x.s", "fmv.x.w">;
 
-def PseudoFLW  : PseudoFloatLoad<"flw", GPRF32>;
-def PseudoFSW  : PseudoStore<"fsw", GPRF32>;
+
 let usesCustomInserter = 1 in {
 def PseudoQuietFLE_S : PseudoQuietFCMP<GPRF32>;
 def PseudoQuietFLT_S : PseudoQuietFCMP<GPRF32>;
@@ -640,11 +658,11 @@ def PseudoFROUND_S : PseudoFROUND<GPRF32>;
 
 // /// Loads
 
-// defm : UniformLdPat<load, FLW, f32>;
+defm : UniformLdPat<load, PseudoFLW, f32>;
 
 // /// Stores
 
-// defm : UniformStPat<store, FSW, GPRF32, f32>;
+defm : UniformStPat<store, PseudoFSW, GPRF32, f32>;
 
 } // Predicates = [HasStdExtZfinx]
 

@@ -79,7 +79,7 @@ we can now use our built compiler to generate an ELF file, and using [spike](htt
 
 > Cause the address space requirement in spike, we use a customized linker script for our compiler
 
-Take `vector_add.cl` below as an example :
+Take `vecadd.cl` below as an example :
 
 ```
 __kernel void vectorAdd(__global float* A, __global float* B) {
@@ -90,14 +90,54 @@ __kernel void vectorAdd(__global float* A, __global float* B) {
 
 #### 4.1: Generate ELF file
 
+##### 4.1.1 Compile directly
+
 > Remember to build libclc too because we need the libclc library
 
 Use command line under the root directory of `llvm-ventus`
 
 ```
-./install/bin/clang -cl-std=CL2.0 -target riscv32 -mcpu=ventus-gpgpu demo.cl  ./install/lib/crt0.o -L./install/lib -lworkitem -I./libclc/generic/include -nodefaultlibs ./libclc/riscv32/lib/workitem/get_global_id.cl -O1 -cl-std=CL2.0 -Wl,-T,utils/ldscripts/ventus/elf32lriscv.ld -o vecadd.riscv
+./install/bin/clang -cl-std=CL2.0 -target riscv32 -mcpu=ventus-gpgpu vecadd.cl  ./install/lib/crt0.o -L./install/lib -lworkitem -I./libclc/generic/include -nodefaultlibs ./libclc/riscv32/lib/workitem/get_global_id.cl -O1 -cl-std=CL2.0 -Wl,-T,utils/ldscripts/ventus/elf32lriscv.ld -o vecadd.riscv
 ```
-Because the whole libclc library for `RISCV` is under tested, we don't use whole library, we just show a simple example now, after running the command line above, we will get `vecadd.riscv`.
+
+##### 4.1.2 Compile step-by-step
+
+1. Compile OpenCL code to LLVM IR assembly (.ll file):
+
+```sh
+./install/bin/clang -S -cl-std=CL2.0 -target riscv32 -mcpu=ventus-gpgpu vecadd.cl -emit-llvm -o vecadd.ll
+```
+
+2. Assemble LLVM IR assembly to RISC-V assembly (.s file):
+
+```sh
+./install/bin/llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs vecadd.ll -o vecadd.s
+```
+
+3. Compile RISC-V assembly to object file (.o file):
+
+```sh
+./install/bin/llc -mtriple=riscv32 -mcpu=ventus-gpgpu --filetype=obj vecadd.ll -o vecadd.o
+```
+
+4. Link essential library:
+Linking CRT and libclc
+All the libclc workitem is included in `riscv32clc.o`
+```sh
+./install/bin/ld.lld -o vecadd.riscv -T utils/ldscripts/ventus/elf32lriscv.ld vecadd.o ./install/lib/crt0.o ./install/lib/riscv32clc.o -L./install/lib -lworkitem --gc-sections
+```
+
+##### 4.1.3 compile assembly code to object file (`.s` to `.o`)
+Take custome instructions `custome.s` as an example :
+```asm
+vftta.vv v0, v0, v1
+vfexp v0, v1
+vadd12.vi v0, v1, 8
+```
+
+```sh
+./install/bin/clang -c -target riscv32 -mcpu=ventus-gpgpu custom.s -o custom.o
+```
 
 #### 4.2: Dump file
 
@@ -130,6 +170,23 @@ Disassembly of section .text:
 ....
 ....
 ....
+```
+
+or you can check encoding of custom instructions
+
+```
+./install/bin/llvm-objdump -d --mattr=+v custom.o >& custom.txt
+```
+
+```
+custom.o:       file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <.text>:
+       0: 0b c0 00 0e   vftta.vv        v0, v0, v1
+       4: 0b 60 10 0a   vfexp   v0, v1
+       8: 0b 80 80 00   vadd12.vi       v0, v1, 8
 ```
 
 #### 4.3: Running in spike
