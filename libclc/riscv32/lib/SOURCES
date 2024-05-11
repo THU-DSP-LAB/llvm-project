@@ -33,3 +33,7 @@ compiler-rt/floatundidf.cl
 compiler-rt/isfinite.cl
 compiler-rt/udivdi3.cl
 compiler-rt/udivmodti4.cl
+
+workgroup/wg.h
+workgroup/wganyall.cl
+workgroup/wgbarrier.cl
