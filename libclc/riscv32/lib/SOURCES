@@ -38,4 +38,6 @@ workgroup/wg.h
 workgroup/wganyall.cl
 workgroup/wgbarrier.cl
 workgroup/wgbcast.cl
+workgroup/wgreduce.cl
+workgroup/wgscan.cl
 workgroup/wgscratch.cl
