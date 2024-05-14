@@ -16,16 +16,16 @@ work_group_reduce_add(TYPE a) \
 \
     p[i] = a; \
 \
-    work_group_barrier(CLK_LOCAL_MEM_FENCE); \
+    work_group_barrier(CLK_GLOBAL_MEM_FENCE); \
     if (i == 0) { \
     TYPE res = 0; \
 	for (int j = 0; j < n; j++) \
         res += p[j]; \
     p[0] = res; \
     } \
-    work_group_barrier(CLK_LOCAL_MEM_FENCE); \
+    work_group_barrier(CLK_GLOBAL_MEM_FENCE); \
     a = p[0]; \
-    work_group_barrier(CLK_LOCAL_MEM_FENCE); \
+    work_group_barrier(CLK_GLOBAL_MEM_FENCE); \
     return a; \
 } \
 \
@@ -42,16 +42,16 @@ work_group_reduce_max(TYPE a) \
 \
     p[i] = a; \
 \
-    work_group_barrier(CLK_LOCAL_MEM_FENCE); \
+    work_group_barrier(CLK_GLOBAL_MEM_FENCE); \
     if (i == 0) { \
     TYPE res = p[0]; \
 	for (int j = 0; j < n; j++) \
         res = p[j] > res ? p[j] : res; \
     p[0] = res; \
     } \
-    work_group_barrier(CLK_LOCAL_MEM_FENCE); \
+    work_group_barrier(CLK_GLOBAL_MEM_FENCE); \
     a = p[0]; \
-    work_group_barrier(CLK_LOCAL_MEM_FENCE); \
+    work_group_barrier(CLK_GLOBAL_MEM_FENCE); \
     return a; \
 } \
 \
@@ -68,16 +68,16 @@ work_group_reduce_min(TYPE a) \
 \
     p[i] = a; \
 \
-    work_group_barrier(CLK_LOCAL_MEM_FENCE); \
+    work_group_barrier(CLK_GLOBAL_MEM_FENCE); \
     if (i == 0) { \
     TYPE res = p[0]; \
 	for (int j = 0; j < n; j++) \
         res = p[j] < res ? p[j] : res; \
     p[0] = res; \
     } \
-    work_group_barrier(CLK_LOCAL_MEM_FENCE); \
+    work_group_barrier(CLK_GLOBAL_MEM_FENCE); \
     a = p[0]; \
-    work_group_barrier(CLK_LOCAL_MEM_FENCE); \
+    work_group_barrier(CLK_GLOBAL_MEM_FENCE); \
     return a; \
 }
 
