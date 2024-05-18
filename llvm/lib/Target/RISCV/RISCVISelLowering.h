@@ -334,7 +334,7 @@ enum NodeType : unsigned {
 
 class RISCVTargetLowering : public TargetLowering {
   const RISCVSubtarget &Subtarget;
-  int *VastartStoreFrameIndex = new int;
+  int *VastartStoreFrameIndex = new int(INT_MAX);
 public:
   explicit RISCVTargetLowering(const TargetMachine &TM,
                                const RISCVSubtarget &STI);
