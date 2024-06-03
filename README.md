@@ -108,26 +108,24 @@ Use command line under the root directory of `llvm-ventus`
 ./install/bin/clang -S -cl-std=CL2.0 -target riscv32 -mcpu=ventus-gpgpu vecadd.cl -emit-llvm -o vecadd.ll
 ```
 
-2. Assemble LLVM IR assembly to RISC-V assembly (.s file):
+2. Compile LLVM IR to RISC-V assembly or object file:
 
 ```sh
-./install/bin/llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs vecadd.ll -o vecadd.s
+./install/bin/llc -mtriple=riscv32 -mcpu=ventus-gpgpu vecadd.ll -o vecadd.s
 ```
-
-3. Compile RISC-V assembly to object file (.o file):
 
 ```sh
 ./install/bin/llc -mtriple=riscv32 -mcpu=ventus-gpgpu --filetype=obj vecadd.ll -o vecadd.o
 ```
 
-4. Link essential library:
-Linking CRT and libclc
-All the libclc workitem is included in `riscv32clc.o`
+3. Link essential library:
+Linking `crt0` and `libclc`
+All the libclc workitem functions' implementation is included in `riscv32clc.o`
 ```sh
 ./install/bin/ld.lld -o vecadd.riscv -T utils/ldscripts/ventus/elf32lriscv.ld vecadd.o ./install/lib/crt0.o ./install/lib/riscv32clc.o -L./install/lib -lworkitem --gc-sections
 ```
 
-##### 4.1.3 compile assembly code to object file (`.s` to `.o`)
+##### 4.1.3 Compile assembly code to object file (`.s` to `.o`)
 Take custome instructions `custome.s` as an example :
 ```asm
 vftta.vv v0, v0, v1
@@ -142,7 +140,7 @@ vadd12.vi v0, v1, 8
 #### 4.2: Dump file
 
 ```
-./install/bin/llvm-objdump -d --mattr=+v vecadd.riscv >& vecadd.txt
+./install/bin/llvm-objdump -d --mattr=+v,+zfinx vecadd.riscv >& vecadd.txt
 ```
 
 you will see output like below, `0x80000000` is the space address required by spike for `_start` function, this is the reason why we use a customized linker script
@@ -175,7 +173,7 @@ Disassembly of section .text:
 or you can check encoding of custom instructions
 
 ```
-./install/bin/llvm-objdump -d --mattr=+v custom.o >& custom.txt
+./install/bin/llvm-objdump -d --mattr=+v,+zfinx custom.o >& custom.txt
 ```
 
 ```
