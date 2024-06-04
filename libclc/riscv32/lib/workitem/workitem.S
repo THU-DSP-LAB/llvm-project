@@ -65,7 +65,7 @@ _local_id_z:
   .word 0
   // End workaround for pocl driver
 
-  .text
+  .section	.text.__builtin_riscv_global_linear_id,"ax",@progbits
   .global __builtin_riscv_global_linear_id
   .type __builtin_riscv_global_linear_id, @function
 __builtin_riscv_global_linear_id:
@@ -103,7 +103,7 @@ __builtin_riscv_global_linear_id:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_workgroup_id_x,"ax",@progbits
   .global __builtin_riscv_workgroup_id_x
   .type __builtin_riscv_workgroup_id_x, @function
 __builtin_riscv_workgroup_id_x:
@@ -112,7 +112,7 @@ __builtin_riscv_workgroup_id_x:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_workgroup_id_y,"ax",@progbits
   .global __builtin_riscv_workgroup_id_y
   .type __builtin_riscv_workgroup_id_y, @function
 __builtin_riscv_workgroup_id_y:
@@ -121,7 +121,7 @@ __builtin_riscv_workgroup_id_y:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_workgroup_id_z,"ax",@progbits
   .global __builtin_riscv_workgroup_id_z
   .type __builtin_riscv_workgroup_id_z, @function
 __builtin_riscv_workgroup_id_z:
@@ -130,7 +130,7 @@ __builtin_riscv_workgroup_id_z:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_workitem_id_x,"ax",@progbits
   .global __builtin_riscv_workitem_id_x
   .type __builtin_riscv_workitem_id_x, @function
 __builtin_riscv_workitem_id_x:
@@ -148,7 +148,7 @@ __builtin_riscv_workitem_id_x:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_workitem_id_y,"ax",@progbits
   .global __builtin_riscv_workitem_id_y
   .type __builtin_riscv_workitem_id_y, @function
 __builtin_riscv_workitem_id_y:
@@ -178,7 +178,7 @@ __builtin_riscv_workitem_id_y:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_workitem_id_z,"ax",@progbits
   .global __builtin_riscv_workitem_id_z
   .type __builtin_riscv_workitem_id_z, @function
 __builtin_riscv_workitem_id_z:
@@ -207,7 +207,7 @@ __builtin_riscv_workitem_id_z:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_global_id_x,"ax",@progbits
   .global __builtin_riscv_global_id_x
   .type __builtin_riscv_global_id_x, @function
 __builtin_riscv_global_id_x:
@@ -226,7 +226,7 @@ __builtin_riscv_global_id_x:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_global_id_y,"ax",@progbits
   .global __builtin_riscv_global_id_y
   .type __builtin_riscv_global_id_y, @function
 __builtin_riscv_global_id_y:
@@ -244,7 +244,7 @@ __builtin_riscv_global_id_y:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_global_id_z,"ax",@progbits
   .global __builtin_riscv_global_id_z
   .type __builtin_riscv_global_id_z, @function
 __builtin_riscv_global_id_z:
@@ -263,7 +263,7 @@ __builtin_riscv_global_id_z:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_local_size_x,"ax",@progbits
   .global __builtin_riscv_local_size_x
   .type __builtin_riscv_local_size_x, @function
 __builtin_riscv_local_size_x:
@@ -273,7 +273,7 @@ __builtin_riscv_local_size_x:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_local_size_y,"ax",@progbits
   .global __builtin_riscv_local_size_y
   .type __builtin_riscv_local_size_y, @function
 __builtin_riscv_local_size_y:
@@ -283,7 +283,7 @@ __builtin_riscv_local_size_y:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_local_size_z,"ax",@progbits
   .global __builtin_riscv_local_size_z
   .type __builtin_riscv_local_size_z, @function
 __builtin_riscv_local_size_z:
@@ -293,7 +293,7 @@ __builtin_riscv_local_size_z:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_global_size_x,"ax",@progbits
   .global __builtin_riscv_global_size_x
   .type __builtin_riscv_global_size_x, @function
 __builtin_riscv_global_size_x:
@@ -303,7 +303,7 @@ __builtin_riscv_global_size_x:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_global_size_y,"ax",@progbits
   .global __builtin_riscv_global_size_y
   .type __builtin_riscv_global_size_y, @function
 __builtin_riscv_global_size_y:
@@ -313,7 +313,7 @@ __builtin_riscv_global_size_y:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_global_size_z,"ax",@progbits
   .global __builtin_riscv_global_size_z
   .type __builtin_riscv_global_size_z, @function
 __builtin_riscv_global_size_z:
@@ -323,7 +323,7 @@ __builtin_riscv_global_size_z:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_global_offset_x,"ax",@progbits
   .global __builtin_riscv_global_offset_x
   .type __builtin_riscv_global_offset_x, @function
 __builtin_riscv_global_offset_x:
@@ -333,7 +333,7 @@ __builtin_riscv_global_offset_x:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_global_offset_y,"ax",@progbits
   .global __builtin_riscv_global_offset_y
   .type __builtin_riscv_global_offset_y, @function
 __builtin_riscv_global_offset_y:
@@ -343,7 +343,7 @@ __builtin_riscv_global_offset_y:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_global_offset_z,"ax",@progbits
   .global __builtin_riscv_global_offset_z
   .type __builtin_riscv_global_offset_z, @function
 __builtin_riscv_global_offset_z:
@@ -353,7 +353,7 @@ __builtin_riscv_global_offset_z:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_num_groups_x,"ax",@progbits
   .global __builtin_riscv_num_groups_x
   .type __builtin_riscv_num_groups_x, @function
 __builtin_riscv_num_groups_x:
@@ -365,7 +365,7 @@ __builtin_riscv_num_groups_x:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_num_groups_y,"ax",@progbits
   .global __builtin_riscv_num_groups_y
   .type __builtin_riscv_num_groups_y, @function
 __builtin_riscv_num_groups_y:
@@ -377,7 +377,7 @@ __builtin_riscv_num_groups_y:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_num_groups_z,"ax",@progbits
   .global __builtin_riscv_num_groups_z
   .type __builtin_riscv_num_groups_z, @function
 __builtin_riscv_num_groups_z:
@@ -389,7 +389,7 @@ __builtin_riscv_num_groups_z:
   ret
 
 
-  .text
+  .section	.text.__builtin_riscv_work_dim,"ax",@progbits
   .global __builtin_riscv_work_dim
   .type __builtin_riscv_work_dim, @function
 __builtin_riscv_work_dim:
