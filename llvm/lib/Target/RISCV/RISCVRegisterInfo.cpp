@@ -483,6 +483,17 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     return false;
   }
 
+  if (RII->isLocalMemoryAccess(MI) && FrameReg == RISCV::X8) {
+    Register DestReg =
+        MF.getRegInfo().createVirtualRegister(&RISCV::VGPRRegClass);
+    BuildMI(*MBB, II, DL, RII->get(RISCV::VMV_V_X), DestReg).addReg(FrameReg);
+    MI.getOperand(FIOperandNum)
+        .ChangeToRegister(DestReg, /*IsDef*/ false,
+                          /*IsImp*/ false,
+                          /*IsKill*/ false);
+    return false;
+  }
+
   if (RII->isPrivateMemoryAccess(MI))
     MI.getOperand(FIOperandNum)
         .ChangeToRegister(getPrivateMemoryBaseRegister(MF), /*IsDef*/ false,
