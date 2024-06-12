@@ -73,7 +73,7 @@ fi
 check_if_program_exits $POCL_DIR "pocl"
 POCL_BUILD_DIR=${POCL_DIR}/build
 
-# Get build type from env, otherwise use default value 'Debug'
+# Get build type from env, otherwise use default value 'Release'
 if [ -z "${BUILD_TYPE}" ]; then
   BUILD_TYPE=Release
 fi
@@ -99,7 +99,7 @@ if [ -z "${OCL_ICD_DIR}" ]; then
   OCL_ICD_DIR=${DIR}/../ocl-icd
 fi
 
-check_if_program_exits ${OCL_ICD_DIR} "ocl icd"
+check_if_program_exits ${OCL_ICD_DIR} "ocl-icd"
 OCL_ICD_BUILD_DIR=${OCL_ICD_DIR}/build
 
 # Need to get the gpu-rodinia folder from enviroment variables
