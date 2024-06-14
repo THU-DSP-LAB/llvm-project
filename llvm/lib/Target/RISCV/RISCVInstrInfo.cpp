@@ -96,51 +96,18 @@ unsigned RISCVInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
 }
 
 bool RISCVInstrInfo::isPrivateMemoryAccess(const MachineInstr &MI) const {
-  switch (MI.getOpcode()) {
-    default:
-      return false;
-    case RISCV::VLW:
-    case RISCV::VLB:
-    case RISCV::VLBU:
-    case RISCV::VLH:
-    case RISCV::VLHU:
-    case RISCV::VSW:
-    case RISCV::VSH:
-    case RISCV::VSB:
-      return true;
-  }
+ return RISCVII::getMemScope(MI.getDesc().TSFlags) ==
+         RISCVII::MemScope::PrivateMemScope;
 }
 
 bool RISCVInstrInfo::isUniformMemoryAccess(const MachineInstr &MI) const {
-  switch (MI.getOpcode()) {
-    default:
-      return false;
-    case RISCV::LW:
-    case RISCV::LB:
-    case RISCV::LBU:
-    case RISCV::LH:
-    case RISCV::LHU:
-    case RISCV::SW:
-    case RISCV::SH:
-    case RISCV::SB:
-      return true;
-  }
+  return RISCVII::getMemScope(MI.getDesc().TSFlags) ==
+         RISCVII::MemScope::DefaultMemScope;
 }
 
 bool RISCVInstrInfo::isLocalMemoryAccess(const MachineInstr &MI) const {
-  switch (MI.getOpcode()) {
-    default:
-      return false;
-    case RISCV::VLWI12:
-    case RISCV::VLBI12:
-    case RISCV::VLBUI12:
-    case RISCV::VLHI12:
-    case RISCV::VLHUI12:
-    case RISCV::VSWI12:
-    case RISCV::VSHI12:
-    case RISCV::VSBI12:
-      return true;
-  }
+ return RISCVII::getMemScope(MI.getDesc().TSFlags) ==
+         RISCVII::MemScope::LocalMemScope;
 }
 
 
@@ -214,6 +181,7 @@ unsigned RISCVInstrInfo::isStoreToStackSlot(const MachineInstr &MI,
   case RISCV::SD:
   case RISCV::VSW:
   case RISCV::VSH:
+  case RISCV::VSB:
     break;
   }
 

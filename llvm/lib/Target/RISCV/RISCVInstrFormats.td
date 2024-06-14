@@ -211,6 +211,12 @@ class RVInst<dag outs, dag ins, string opcodestr, string argstr,
 
   bit IsVOPIMM11 = 0;
   let TSFlags{20} = IsVOPIMM11;
+
+  // 0: global and constant
+  // 1: shared/local
+  // 2: private
+  bits<2> MemScope = 0;
+  let TSFlags{22-21} = MemScope;
 }
 
 // Pseudo instructions

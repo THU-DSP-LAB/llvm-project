@@ -102,6 +102,10 @@ enum {
 
   IsVOPIMM11Shift = IsVVALUInstrShift + 1,
   IsVOPIMM11Mask = 1 << IsVOPIMM11Shift,
+
+  MemScopeShift = IsVOPIMM11Shift + 1,
+  MemScopeMask = 0b11 << MemScopeShift
+
 };
 
 // Match with the definitions in RISCVInstrFormats.td
@@ -110,6 +114,12 @@ enum VConstraintType {
   VS2Constraint = 0b001,
   VS1Constraint = 0b010,
   VMConstraint = 0b100,
+};
+
+enum MemScope {
+  DefaultMemScope = 0b00,
+  LocalMemScope = 0b01,
+  PrivateMemScope = 0b10
 };
 
 enum VLMUL : uint8_t {
@@ -133,6 +143,12 @@ static inline unsigned getFormat(uint64_t TSFlags) {
 static inline VConstraintType getConstraint(uint64_t TSFlags) {
   return static_cast<VConstraintType>((TSFlags & ConstraintMask) >>
                                       ConstraintShift);
+}
+
+/// \returns the memory access scope for the instruction.
+static inline MemScope getMemScope(uint64_t TSFlags) {
+  return static_cast<MemScope>((TSFlags & MemScopeMask) >>
+                                      MemScopeShift);
 }
 
 /// \returns true if there is a dummy mask operand for the instruction.
