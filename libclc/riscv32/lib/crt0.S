@@ -43,7 +43,7 @@ _start:
   li t4, 0
   csrr t1, CSR_WID
   csrr t2, CSR_LDS
-  li t3, 1024           # 1M size for single warp
+  li t3, 1024           # 1k size for single warp
   mul t1, t1, t3        # sp wid * warp_size
   add sp, t1, t2        # sp points to baseaddr of local memory of each SM
   li tp, 0              # tp points to baseaddr for lower bound of private memory(1K) of each thread
