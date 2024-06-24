@@ -382,9 +382,10 @@ DecodeStatus RISCVDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
   // extensions with instructions > 32-bits (up to 176 bits wide).
   uint32_t Insn;
   DecodeStatus Result;
+  bool IsRV32C = STI.getFeatureBits()[RISCV::FeatureStdExtC];
 
   // It's a 32 bit instruction if bit 0 and 1 are 1.
-  if ((Bytes[0] & 0x3) == 0x3) {
+  if (!IsRV32C || (Bytes[0] & 0x3) == 0x3) {
     if (Bytes.size() < 4) {
       Size = 0;
       return MCDisassembler::Fail;

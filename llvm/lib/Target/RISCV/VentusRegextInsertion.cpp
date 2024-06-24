@@ -13,6 +13,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "MCTargetDesc/RISCVBaseInfo.h"
 #include "RISCV.h"
 #include "RISCVInstrInfo.h"
 #include "RISCVTargetMachine.h"
@@ -75,7 +76,7 @@ bool VentusRegextInsertion::insertRegext(MachineBasicBlock &MBB,
                                          MachineInstr &MI) {
   bool hasOverflow = false;
 
-  if (MI.isPseudo())
+  if (MI.isPseudo() && RISCVII::isVOPIMM11(MI.getDesc().TSFlags))
     return false;
 
   // 3 bits encoding for each rd, rs1, rs2, rs3, total 12 bits.
@@ -86,7 +87,7 @@ bool VentusRegextInsertion::insertRegext(MachineBasicBlock &MBB,
     MachineOperand &Op = MI.getOperand(i);
     if (!Op.isReg() ||
         MI.getDesc().getOperandConstraint(i, MCOI::TIED_TO) != -1 ||
-        MI.isDebugInstr() || MI.isPseudo())
+        MI.isDebugInstr())
       continue;
 
     uint16_t RegEncodingValue = TRI->getEncodingValue(Op.getReg());
