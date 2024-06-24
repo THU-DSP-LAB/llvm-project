@@ -117,9 +117,9 @@ enum VConstraintType {
 };
 
 enum MemScope {
-  DefaultMemScope = 0b00,
-  LocalMemScope = 0b01,
-  PrivateMemScope = 0b10
+  DefaultMemScope = 0b01,
+  LocalMemScope = 0b10,
+  PrivateMemScope = 0b11
 };
 
 enum VLMUL : uint8_t {
