@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RISCVISelLowering.h"
+#include "MCTargetDesc/RISCVMCTargetDesc.h"
 #include "MCTargetDesc/RISCVMatInt.h"
 #include "RISCV.h"
 #include "RISCVMachineFunctionInfo.h"
@@ -7486,6 +7487,7 @@ SDValue RISCVTargetLowering::lowerKernArgParameterPtr(SelectionDAG &DAG,
 
   return DAG.getObjectPtrOffset(SL, BasePtr, TypeSize::Fixed(Offset));
 }
+
 SDValue RISCVTargetLowering::getFPExtOrFPRound(SelectionDAG &DAG,
                                             SDValue Op,
                                             const SDLoc &DL,
@@ -7565,6 +7567,17 @@ SDValue RISCVTargetLowering::lowerKernargMemParameter(
   SDValue Load = DAG.getLoad(MemVT, SL, Chain, Ptr, PtrInfo, Alignment,
                              MachineMemOperand::MODereferenceable |
                                  MachineMemOperand::MOInvariant);
+
+if(Arg->Flags.getPointerAddrSpace() == RISCVAS::LOCAL_ADDRESS) {
+        MVT XLenVT = Subtarget.getXLenVT();
+        MachineSDNode *LDSNode = DAG.getMachineNode(
+        RISCV::CSRRS, SL, XLenVT,
+        DAG.getTargetConstant(0x806, SL, XLenVT),
+        DAG.getRegister(RISCV::X0, XLenVT));
+        SDValue Add = DAG.getObjectPtrOffset(SL, Load, SDValue(LDSNode, 0));
+        SDValue Val = convertArgType(DAG, VT, MemVT, SL, Add, Signed, Arg);
+        return DAG.getMergeValues({ Val, Load.getValue(1) }, SL);
+      }
 
   SDValue Val = convertArgType(DAG, VT, MemVT, SL, Load, Signed, Arg);
   // return DAG.getMergeValues({ Load, Load.getValue(1) }, SL);
