@@ -22,8 +22,9 @@ namespace llvm {
 
     uint32_t VGPRUsage = 0; // The number of VGPRS which has been used
     uint32_t SGPRUsage = 0; // The number of SGPRS which has been used
-    uint32_t LDSMemory = 0; // Used local memory size
-    uint32_t PDSMemory = 0; // Used private memory size
+    uint32_t LocalSpill = 0; // Size of SGPR spill to local memory
+    uint32_t LocalMemoryUse = 0; // Used local memory size
+    uint32_t PrivateSpill = 0; // Size of VGPR spill to private memory
 
     SubVentusProgramInfo() = default;
 

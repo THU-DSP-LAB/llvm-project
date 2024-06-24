@@ -378,8 +378,9 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   uint64_t LocalStackSize = getStackSize(MF, RISCVStackID::LocalMemSpill);
 
   // FIXME: need to add local data declaration calculation
-  CurrentSubProgramInfo->LDSMemory += SPStackSize;
-  CurrentSubProgramInfo->PDSMemory += TPStackSize;
+  CurrentSubProgramInfo->LocalSpill += SPStackSize;
+  CurrentSubProgramInfo->LocalMemoryUse += LocalStackSize;
+  CurrentSubProgramInfo->PrivateSpill += TPStackSize;
   //uint64_t RealStackSize = IsEntryFunction ?
   //                                SPStackSize + RMFI->getLibCallStackSize() :
   //                                TPStackSize + RMFI->getLibCallStackSize();

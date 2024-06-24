@@ -210,9 +210,11 @@ bool RISCVAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
     OutStreamer->emitInt16(
                     CurrentProgramInfo->SubProgramInfoVec[FuncCount].SGPRUsage);
     OutStreamer->emitInt16(
-                    CurrentProgramInfo->SubProgramInfoVec[FuncCount].LDSMemory);
+                    CurrentProgramInfo->SubProgramInfoVec[FuncCount].LocalSpill);
     OutStreamer->emitInt16(
-                    CurrentProgramInfo->SubProgramInfoVec[FuncCount].PDSMemory);
+                    CurrentProgramInfo->SubProgramInfoVec[FuncCount].LocalMemoryUse);
+    OutStreamer->emitInt16(
+                    CurrentProgramInfo->SubProgramInfoVec[FuncCount].PrivateSpill);
   }
 
   FuncCount++;
