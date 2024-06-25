@@ -69,7 +69,7 @@ parser.add_argument('--files', nargs='+', type=str)
 args = parser.parse_args()
 
 github = github.Github(args.token)
-llvm_repo = github.get_organization('llvm').get_repo('llvm-project')
+llvm_repo = github.get_organization('THU-DSP-LAB').get_repo('llvm-project')
 
 if args.command == 'create':
     create_release(llvm_repo, args.release)
