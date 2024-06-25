@@ -711,7 +711,7 @@ class VENTUS_VL<bits<3> funct3, string opcodestr>
               opcodestr # ".v", "$rd, ${imm12}(${rs1})"> {
   let Inst{31} = 0;
   let Inst{30-20} = imm12{10-0};
-  let MemScope = 0b10;
+  let MemScope = 0b11;
 }
 class VENTUS_VS<bits<3> funct3, string opcodestr>
     : RVInstS<funct3, OPC_CUSTOM_1, (outs),
@@ -720,7 +720,7 @@ class VENTUS_VS<bits<3> funct3, string opcodestr>
   let Inst{31} = 1;
   let Inst{30-25} = imm12{10-5};
   let Inst{11-7} = imm12{4-0};
-  let MemScope = 0b10;
+  let MemScope = 0b11;
 }
 
 // Local/Global memory load/store instructions
@@ -728,14 +728,14 @@ class VENTUS_VLI12<bits<3> funct3, string opcodestr> :
               RVInstI<funct3, OPC_CUSTOM_3, (outs VGPR:$rd),
               (ins VGPRMem:$rs1, simm12:$imm12),
               opcodestr # ".v" , "$rd, ${imm12}(${rs1})">, Sched<[]> {
-  let MemScope = 0b01;
+  let MemScope = 0b10;
 }
 
 class VENTUS_VSI12<bits<3> funct3, string opcodestr> :
               RVInstS<funct3, OPC_CUSTOM_3, (outs),
               (ins VGPR:$rs2, VGPRMem:$rs1, simm12:$imm12),
               opcodestr # ".v", "$rs2, ${imm12}(${rs1})">, Sched<[]> {
-  let MemScope = 0b01;
+  let MemScope = 0b10;
 }
 
 //===----------------------------------------------------------------------===//
