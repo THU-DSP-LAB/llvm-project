@@ -49,7 +49,7 @@ jobs:
 
     - name: Install Dependencies
       run: |
-        pip install --require-hashes -r ./llvm/utils/git/requirements.txt
+        pip install -r ./llvm/utils/git/requirements.txt
 
     - name: Check Permissions
       env:
