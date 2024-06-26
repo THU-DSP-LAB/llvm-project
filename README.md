@@ -30,7 +30,7 @@ Our program is based on LLVM, so the need packages to build ventus are almost th
 * ccache
 * cmake
 * ninja
-* clang(optional)
+* clang
 
 > If you see any packages missing information, just install them
 
@@ -210,3 +210,30 @@ the workflow file is `.github/workflows/ventus-build.yml`, including below jobs
 * Isa simulation test
 * GPU-rodinia testsuite
 * Pocl testing
+
+### 6: Docker image
+
+If the user needs to build the toolchain of the Ventus project in an environment other than Ubuntu, such as the CentOS system, we provide the Dockerfile for building the CentOS image. The file is under '.github/workflows/containers/dockerfiles'.
+
+Note: When using build-ventus.sh to build the instantiated centos container, the following modifications are required, which are different from the above "2: Build all the programs":
+
+```
+--- a/build-ventus.sh
++++ b/build-ventus.sh
+@@ -119,6 +119,8 @@ build_llvm() {
+     -DLLVM_CCACHE_BUILD=ON \
+     -DLLVM_OPTIMIZED_TABLEGEN=ON \
+     -DLLVM_PARALLEL_LINK_JOBS=12 \
++    -DCMAKE_C_COMPILER=clang \
++    -DCMAKE_CXX_COMPILER=clang++ \
+     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+     -DLLVM_ENABLE_PROJECTS="clang;lld;libclc" \
+     -DLLVM_TARGETS_TO_BUILD="AMDGPU;X86;RISCV" \
+@@ -232,7 +234,7 @@ export_elements() {
+   export SPIKE_TARGET_DIR=${VENTUS_INSTALL_PREFIX}
+   export VENTUS_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX}
+   export POCL_DEVICES="ventus"
+-  export OCL_ICD_VENDORS=${VENTUS_INSTALL_PREFIX}/lib/libpocl.so
++  export OCL_ICD_VENDORS=${VENTUS_INSTALL_PREFIX}/lib64/libpocl.so
+ }
+```
