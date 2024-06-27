@@ -36,7 +36,7 @@
     case 15: return VAR.sF;
 
 #define _CLC_GET_ELEMENT_DEFINE(ARGTYPE, ARGSIZE, IDXTYPE) \
-    inline ARGTYPE __clc_get_el_##ARGTYPE##ARGSIZE##_##IDXTYPE(ARGTYPE##ARGSIZE x, IDXTYPE idx) {\
+    _CLC_DEF _CLC_OVERLOAD __attribute__((noinline))  ARGTYPE __clc_get_el_##ARGTYPE##ARGSIZE##_##IDXTYPE(ARGTYPE##ARGSIZE x, IDXTYPE idx) {\
         switch (idx){ \
             _CLC_ELEMENT_CASES##ARGSIZE(x) \
             default: return 0; \
@@ -76,7 +76,6 @@
 #define _CLC_SHUFFLE_DEFINE2(ARGTYPE, ARGSIZE, MASKTYPE) \
 _CLC_DEF _CLC_OVERLOAD ARGTYPE##2 shuffle(ARGTYPE##ARGSIZE x, MASKTYPE##2 mask){ \
     ARGTYPE##2 ret_val; \
-    mask &= (MASKTYPE##2)(ARGSIZE-1); \
     _CLC_SHUFFLE_SET_2_ELEMENTS(ARGTYPE, ARGSIZE, MASKTYPE) \
     return ret_val; \
 }
@@ -84,7 +83,6 @@ _CLC_DEF _CLC_OVERLOAD ARGTYPE##2 shuffle(ARGTYPE##ARGSIZE x, MASKTYPE##2 mask){
 #define _CLC_SHUFFLE_DEFINE4(ARGTYPE, ARGSIZE, MASKTYPE) \
 _CLC_DEF _CLC_OVERLOAD ARGTYPE##4 shuffle(ARGTYPE##ARGSIZE x, MASKTYPE##4 mask){ \
     ARGTYPE##4 ret_val; \
-    mask &= (MASKTYPE##4)(ARGSIZE-1); \
     _CLC_SHUFFLE_SET_4_ELEMENTS(ARGTYPE, ARGSIZE, MASKTYPE) \
     return ret_val; \
 }
@@ -92,7 +90,6 @@ _CLC_DEF _CLC_OVERLOAD ARGTYPE##4 shuffle(ARGTYPE##ARGSIZE x, MASKTYPE##4 mask){
 #define _CLC_SHUFFLE_DEFINE8(ARGTYPE, ARGSIZE, MASKTYPE) \
 _CLC_DEF _CLC_OVERLOAD ARGTYPE##8 shuffle(ARGTYPE##ARGSIZE x, MASKTYPE##8 mask){ \
     ARGTYPE##8 ret_val; \
-    mask &= (MASKTYPE##8)(ARGSIZE-1); \
     _CLC_SHUFFLE_SET_8_ELEMENTS(ARGTYPE, ARGSIZE, MASKTYPE) \
     return ret_val; \
 }
@@ -100,7 +97,6 @@ _CLC_DEF _CLC_OVERLOAD ARGTYPE##8 shuffle(ARGTYPE##ARGSIZE x, MASKTYPE##8 mask){
 #define _CLC_SHUFFLE_DEFINE16(ARGTYPE, ARGSIZE, MASKTYPE) \
 _CLC_DEF _CLC_OVERLOAD ARGTYPE##16 shuffle(ARGTYPE##ARGSIZE x, MASKTYPE##16 mask){ \
     ARGTYPE##16 ret_val; \
-    mask &= (MASKTYPE##16)(ARGSIZE-1); \
     _CLC_SHUFFLE_SET_16_ELEMENTS(ARGTYPE, ARGSIZE, MASKTYPE) \
     return ret_val; \
 }
