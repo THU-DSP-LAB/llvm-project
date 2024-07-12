@@ -265,6 +265,7 @@ void RISCVPassConfig::addPreEmitPass() {
   // breaks the def-use chain!
   // Insert regext instruction for instruction whose register id is greater
   // than 31.
+  addPass(createAnalyzeConvergentBlockPass());
   addPass(createVentusRegextInsertionPass());
   addPass(&BranchRelaxationPassID);
   addPass(createRISCVMakeCompressibleOptPass());
