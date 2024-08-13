@@ -52,6 +52,7 @@ SMOOTH_STEP_DEF(double, float, SMOOTH_STEP_IMPL_D);
 
 _CLC_V_S_S_V_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, double, smoothstep, float, float, double);
 _CLC_V_S_S_V_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, float, smoothstep, double, double, float);
+_CLC_V_S_S_V_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, double, smoothstep, double, double, double);
 #endif
 
 #endif
