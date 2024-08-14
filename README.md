@@ -39,6 +39,7 @@ The following packages are needed for other repositories:
 * device-tree-compiler
 * bsdmainutils
 
+> ATTENTION: In addition, we also provide Dockerfiles for Ubuntu and CentOS in `.github/workflows/containers/dockerfiles`. You can use them directly if needed. The following "6: Docker image" has the corresponding usage.
 
 Run `./build-ventus.sh` to automatically build all the programs, but we need to run firstly
 * For developers who want to build `Debug` version for llvm, `export BUILD_TYPE=Debug`, since it's set default to be 'Release'
@@ -220,16 +221,7 @@ Note: When using build-ventus.sh to build the instantiated centos container, the
 ```
 --- a/build-ventus.sh
 +++ b/build-ventus.sh
-@@ -119,6 +119,8 @@ build_llvm() {
-     -DLLVM_CCACHE_BUILD=ON \
-     -DLLVM_OPTIMIZED_TABLEGEN=ON \
-     -DLLVM_PARALLEL_LINK_JOBS=12 \
-+    -DCMAKE_C_COMPILER=clang \
-+    -DCMAKE_CXX_COMPILER=clang++ \
-     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-     -DLLVM_ENABLE_PROJECTS="clang;lld;libclc" \
-     -DLLVM_TARGETS_TO_BUILD="AMDGPU;X86;RISCV" \
-@@ -232,7 +234,7 @@ export_elements() {
+@@ -232,7 +232,7 @@ export_elements() {
    export SPIKE_TARGET_DIR=${VENTUS_INSTALL_PREFIX}
    export VENTUS_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX}
    export POCL_DEVICES="ventus"

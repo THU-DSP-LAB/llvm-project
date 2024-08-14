@@ -1,20 +1,19 @@
 FROM centos:7.9.2009 as base
 
-RUN yum remove gcc gcc-c++ gdb make -y \
+RUN curl -LJO http://dspdev.ime.tsinghua.edu.cn/images/ventus_centos7_repos.tar.gz \
+    && tar -zxvf ventus_centos7_repos.tar.gz \
+    && mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.bak \
+    && cp -r ventus_centos7_repos/* /etc/yum.repos.d/ \
+    && rm -rf ventus_centos7_repos ventus_centos7_repos.tar.gz \
+    && yum remove gcc gcc-c++ gdb make -y \
     && yum install -y scl-utils \
     && yum install -y centos-release-scl \
-    && yum install -y devtoolset-8-toolchain \
-    && echo "source /opt/rh/devtoolset-8/enable" >>  /etc/profile \
-    && scl enable devtoolset-8 bash \
-    && yum install -y epel-release \
-    && yum install -y llvm-toolset-7.0-clang.x86_64 llvm-toolset-7.0-llvm-libs.x86_64 llvm-toolset-7.0-lld.x86_64 libatomic \
-    && ldconfig \
-    && echo "source /opt/rh/llvm-toolset-7.0/enable" >> /etc/profile \
-    && echo "/opt/rh/llvm-toolset-7.0/root/usr/lib64" > /etc/ld.so.conf.d/clang.conf \
-    && ldconfig \
+    && yum install -y devtoolset-11-toolchain \
+    && echo "source /opt/rh/devtoolset-11/enable" >>  /etc/profile \
+    && scl enable devtoolset-11 bash \
     && yum clean all && rm -rf /var/cache/yum /tmp/* /var/tmp/*
 
-ENV PATH="/opt/rh/devtoolset-8/root/usr/bin:/opt/rh/llvm-toolset-7.0/root/usr/bin:$PATH"
+ENV PATH="/opt/rh/devtoolset-11/root/usr/bin:$PATH"
 
 FROM base as ventus-env
 
@@ -24,7 +23,8 @@ RUN yum remove cmake -y && yum install -y wget \
     && yum install -y openssl openssl-devel \
     && cd /opt/cmake-3.22.1 && ./bootstrap --prefix=/usr/local/cmake && make && make install \
     && ln -s /usr/local/cmake/bin/cmake /usr/bin/cmake \
-    && yum install -y python3 python3-devel ccache ninja-build which dtc words autoconf automake libtool ncurses-devel hwloc-devel hwloc hwloc-libs patch ruby git \
+    && yum install -y epel-release \
+    && yum install -y python3 python3-devel binutils-devel ccache ninja-build which dtc words autoconf automake libtool ncurses-devel hwloc-devel hwloc hwloc-libs patch ruby git \
     && yum clean all && rm -rf /var/cache/yum /tmp/* /var/tmp/*
 
 LABEL \
