@@ -20,6 +20,7 @@ Download all the repositories firstly and place them in the same path.
 * ocl-icd : git clone https://github.com/OCL-dev/ocl-icd.git
 * isa-simulator(spike) : git clone https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator.git
 * driver : git clone https://github.com/THU-DSP-LAB/ventus-driver.git
+* rodinia : git clone https://github.com/THU-DSP-LAB/gpu-rodinia.git  (The method to download the dataset is in the `ventus_readme.md`.)
 
 > ATTENTION: Remember to check branch for every repository, cause the project are under development, if you get any build errors, feel free to give an issue or just contact authors
 
