@@ -656,13 +656,14 @@ defm Select_FPR32 : SelectCC_GPR_rrirr<GPRF32>;
 def PseudoVFROUND_S : PseudoVFROUND<VGPR>;
 def PseudoFROUND_S : PseudoFROUND<GPRF32>;
 
-// /// Loads
+/// Loads
 
-defm : UniformLdPat<load, PseudoFLW, f32>;
+def : Pat<(f32 (load (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12))),
+          (COPY_TO_REGCLASS (LW GPR:$rs1, simm12:$imm12), GPRF32)>;
 
-// /// Stores
-
-defm : UniformStPat<store, PseudoFSW, GPRF32, f32>;
+/// Stores
+def : Pat<(store (f32 FPR32INX:$rs2), (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12)),
+          (SW (COPY_TO_REGCLASS FPR32INX:$rs2, GPR), GPR:$rs1, simm12:$imm12)>;
 
 } // Predicates = [HasStdExtZfinx]
 
