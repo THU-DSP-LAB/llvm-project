@@ -22,7 +22,7 @@ Options:
     Chosen programs to build : llvm, ocl-icd, libclc, spike, driver, pocl
     Option format : "llvm;pocl", string are seperated by semicolon
     Default : "llvm;ocl-icd;libclc;spike;driver;pocl"
-    'BUILD_TYPE' is default 'Debug' which can be changed by enviroment variable
+    'BUILD_TYPE' is default 'Release' which can be changed by enviroment variable
 
   --help | -h
     Print this help message and exit.
