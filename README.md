@@ -33,7 +33,7 @@ Our program is based on LLVM, so the need packages to build ventus are almost th
 * ninja
 * clang
 
-> If you see any packages missing information, just install them
+> NOTE: If you see any packages missing information, just install them.
 
 The following packages are needed for other repositories:
 
@@ -42,29 +42,26 @@ The following packages are needed for other repositories:
 
 > ATTENTION: In addition, we also provide Dockerfiles for Ubuntu and CentOS in `.github/workflows/containers/dockerfiles`. You can use them directly if needed. The following "6: Docker image" has the corresponding usage.
 
-Run `./build-ventus.sh` to automatically build all the programs, but we need to run firstly
-* For developers who want to build `Debug` version for llvm, `export BUILD_TYPE=Debug`, since it's set default to be 'Release'
-* `export POCL_DIR=<path-to-pocl-dir>`, default folder path will be set to be **`<llvm-ventus-parentFolder>`/pocl**
-* `export OCL_ICD_DIR=<path-to-ocl-icd-dir>`, default folder path will be set to be **`<llvm-ventus-parentFolder>`/ocl-icd**
+Before running `./build-ventus.sh` to automatically build all the programs, we need to set the following commands:
+* For developers who want to build `Debug` version for llvm, `export BUILD_TYPE=Debug`, since it's set default to be 'Release'.
+* `export POCL_DIR=<path-to-pocl-dir>`, default folder path will be set to be `<path-to-llvm-ventus>/../pocl`.
+* `export OCL_ICD_DIR=<path-to-ocl-icd-dir>`, default folder path will be set to be `<path-to-llvm-ventus>/../ocl-icd`.
 
-You can dive into `build-ventus.sh` file to see the detailed information about build process
+You can dive into `build-ventus.sh` file to see the detailed information about build process.
 
 ### 3: Bridge icd loader
 
-Run `export VENTUS_INSTALL_PREFIX=<path_to_install>` to set `VENTUS_INSTALL_PREFIX` environment variable(system environment variable recommended)
+Run `export VENTUS_INSTALL_PREFIX=<path_to_install>` to set `VENTUS_INSTALL_PREFIX` environment variable(system environment variable recommended), default folder path will be set to be `<path-to-llvm-ventus>/install`.
 
-Run `export LD_LIBRARY_PATH=${VENTUS_INSTALL_PREFIX}/lib` to tell OpenCL application to use your own built `libOpenCL.so`, also to correctly locate LLVM shared libraries
+Run `export LD_LIBRARY_PATH=${VENTUS_INSTALL_PREFIX}/lib` to tell OpenCL application to use your own built `libOpenCL.so`, also to correctly locate LLVM shared libraries.
 
 Run `export OCL_ICD_VENDORS=${VENTUS_INSTALL_PREFIX}/lib/libpocl.so` to tell ocl icd loader where the icd driver is.
 
-Finally, run `export POCL_DEVICES="ventus"` to tell pocl driver which device is available(should we set ventus as default device?).
-
-You will see Ventus GPGPU device is found if your setup is correct.
-
-NOTE: OpenCL host side program should be linked with icd loader `-lOpenCL`.
+Finally, run `export POCL_DEVICES="ventus"` to tell pocl driver which device is available(should we set ventus as default device?). You will see Ventus GPGPU device is found if your setup is correct:
 ```
 $ <pocl-install-dir>/bin/poclcc -l
 
+// The following output should be shown:
 LIST OF DEVICES:
 0:
   Vendor:   THU
@@ -72,31 +69,34 @@ LIST OF DEVICES:
  Version:   2.2 HSTR: THU-ventus-gpgpu
 ```
 
-Also, you can try to set `POCL_DEBUG=all` and run example under `<pocl-build-dir>` to see the full OpenCL software stack execution pipeline. For example(Work in progress).
+> NOTE: OpenCL host side program should be linked with icd loader `-lOpenCL`.
 
+Also, you can try to set `POCL_DEBUG=all` and run example under `<pocl-build-dir>` to see the full OpenCL software stack execution pipeline. For example:
+```
+./<pocl-install-dir>/examples/vecadd/vecadd
+```
+You will see that the program runs correctly.
 
 ### 4: Compiler using example
 
-we can now use our built compiler to generate an ELF file, and using [spike](https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator) to complete the isa simulation.
+We can now use our built compiler to generate an ELF file, and using [spike](https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator) to complete the isa simulation.
 
-> Cause the address space requirement in spike, we use a customized linker script for our compiler
+> NOTE: Cause the address space requirement in spike, we use a customized linker script for our compiler.
 
-Take `vecadd.cl` below as an example :
-
+First, name the following program `vecadd.cl`,  and place it under `<path-to-llvm-ventus>`:
 ```
 __kernel void vectorAdd(__global float* A, __global float* B) {
   unsigned tid = get_global_id(0);
   A[tid] += B[tid];
 }
 ```
+Then, run the commands listed as follows under the same directory.
+
+> NOTE: Remember to build libclc too because we need the libclc library.
 
 #### 4.1: Generate ELF file
 
 ##### 4.1.1 Compile directly
-
-> Remember to build libclc too because we need the libclc library
-
-Use command line under the root directory of `llvm-ventus`
 
 ```
 ./install/bin/clang -cl-std=CL2.0 -target riscv32 -mcpu=ventus-gpgpu vecadd.cl  ./install/lib/crt0.o -L./install/lib -lworkitem -I./libclc/generic/include -nodefaultlibs ./libclc/riscv32/lib/workitem/get_global_id.cl -O1 -cl-std=CL2.0 -Wl,-T,utils/ldscripts/ventus/elf32lriscv.ld -o vecadd.riscv
@@ -145,7 +145,7 @@ vadd12.vi v0, v1, 8
 ./install/bin/llvm-objdump -d --mattr=+v,+zfinx vecadd.riscv >& vecadd.txt
 ```
 
-you will see output like below, `0x80000000` is the space address required by spike for `_start` function, this is the reason why we use a customized linker script
+you will see output like below, `0x80000000` is the space address required by spike for `_start` function, this is the reason why we use a customized linker script:
 
 ```
 vecadd.riscv:	file format elf32-littleriscv
@@ -172,7 +172,7 @@ Disassembly of section .text:
 ....
 ```
 
-or you can check encoding of custom instructions
+or you can check encoding of custom instructions:
 
 ```
 ./install/bin/llvm-objdump -d --mattr=+v,+zfinx custom.o >& custom.txt
@@ -191,17 +191,15 @@ Disassembly of section .text:
 
 #### 4.3: Running in spike
 
-We need to run the isa simulator to verify our compiler
-
-Use [spike](https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator) from THU and follow the `README.md`
+We need to run the isa simulator to verify our compiler. Use [spike](https://github.com/THU-DSP-LAB/ventus-gpgpu-isa-simulator) from THU and follow the `README.md`.
 
 #### 4.4: Driver using example
 
-Accordingly, after all the building process, you can change directory to `<llvm-ventus-parentFolder>/pocl/build/examples/vecadd` directory, then export variables as what [Bridge icd loader](#3-bridge-icd-loader) does, finally just execute the file `vecadd`
+Accordingly, after all the building process, you can change directory to `<path-to-llvm-ventus>/../pocl/build/examples/vecadd` directory, then export variables as what [3: Bridge icd loader](#3-bridge-icd-loader) does, finally just execute the file `vecadd`.
 
 ### 5: Github actions
 
-the workflow file is `.github/workflows/ventus-build.yml`, including below jobs
+the workflow file is `.github/workflows/ventus-build.yml`, including below jobs:
 
 * Build llvm
 * Build ocl-icd
@@ -215,9 +213,9 @@ the workflow file is `.github/workflows/ventus-build.yml`, including below jobs
 
 ### 6: Docker image
 
-If the user needs to build the toolchain of the Ventus project in an environment other than Ubuntu, such as the CentOS system, we provide the Dockerfile for building the CentOS image. The file is under '.github/workflows/containers/dockerfiles'.
+If the user needs to build the toolchain of the Ventus project in an environment other than Ubuntu, such as the CentOS system, we provide the Dockerfile for building the CentOS image. The file is under `.github/workflows/containers/dockerfiles`.
 
-Note: When using build-ventus.sh to build the instantiated centos container, the following modifications are required, which are different from the above "2: Build all the programs":
+Note: When using build-ventus.sh to build the instantiated centos container, the following modifications are required, which are different from [2: Build all the programs](#2-build-all-the-programs):
 
 ```
 --- a/build-ventus.sh
