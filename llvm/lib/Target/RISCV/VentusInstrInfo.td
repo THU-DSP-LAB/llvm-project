@@ -777,6 +777,12 @@ class CSR_ir<bits<3> funct3, string opcodestr>
 
 let hasNoSchedulingInfo = 1,
     hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
+class CSR_ir_v<bits<3> funct3, string opcodestr>
+    : RVInstIV<funct3, OPC_SYSTEM_V, (outs VGPR:$vd), (ins csr_sysreg:$imm12, GPR:$rs1),
+              opcodestr, "$vd, $imm12, $rs1">, Sched<[WriteCSR, ReadCSR]>;
+
+let hasNoSchedulingInfo = 1,
+    hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
 class CSR_ii<bits<3> funct3, string opcodestr>
     : RVInstI<funct3, OPC_SYSTEM, (outs GPR:$rd),
               (ins csr_sysreg:$imm12, uimm5:$rs1),
@@ -964,6 +970,8 @@ def CSRRC : CSR_ir<0b011, "csrrc">;
 def CSRRWI : CSR_ii<0b101, "csrrwi">;
 def CSRRSI : CSR_ii<0b110, "csrrsi">;
 def CSRRCI : CSR_ii<0b111, "csrrci">;
+
+def CSRRSV : CSR_ir_v<0b010, "csrrs.v">;
 
 /// RV64I instructions
 
@@ -1268,6 +1276,8 @@ def : InstAlias<"csrc $csr, $rs", (CSRRC      X0, csr_sysreg:$csr, GPR:$rs)>;
 def : InstAlias<"csrwi $csr, $imm", (CSRRWI X0, csr_sysreg:$csr, uimm5:$imm)>;
 def : InstAlias<"csrsi $csr, $imm", (CSRRSI X0, csr_sysreg:$csr, uimm5:$imm)>;
 def : InstAlias<"csrci $csr, $imm", (CSRRCI X0, csr_sysreg:$csr, uimm5:$imm)>;
+
+def : InstAlias<"csrr.v $vd, $csr", (CSRRSV VGPR:$vd, csr_sysreg:$csr,      X0)>;
 
 let EmitPriority = 0 in {
 def : InstAlias<"csrw $csr, $imm", (CSRRWI X0, csr_sysreg:$csr, uimm5:$imm)>;

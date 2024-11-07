@@ -148,6 +148,7 @@ def OPC_CUSTOM_4  : RISCVOpcode<"CUSTOM_4",  0b1011111>;
 def OPC_BRANCH    : RISCVOpcode<"BRANCH",    0b1100011>;
 def OPC_JALR      : RISCVOpcode<"JALR",      0b1100111>;
 def OPC_JAL       : RISCVOpcode<"JAL",       0b1101111>;
+def OPC_SYSTEM_V  : RISCVOpcode<"SYSTEM_V",  0b1110010>;
 def OPC_SYSTEM    : RISCVOpcode<"SYSTEM",    0b1110011>;
 def OPC_CUSTOM_3  : RISCVOpcode<"CUSTOM_3",  0b1111011>;
 
@@ -374,6 +375,22 @@ class RVInstI<bits<3> funct3, RISCVOpcode opcode, dag outs, dag ins,
   let Opcode = opcode.Value;
 
   let CustomConstraints = "$rd = 0,$rs1 = 1";
+}
+
+class RVInstIV<bits<3> funct3, RISCVOpcode opcode, dag outs, dag ins,
+              string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI> {
+  bits<12> imm12;
+  bits<5> rs1;
+  bits<5> vd;
+
+  let Inst{31-20} = imm12;
+  let Inst{19-15} = rs1;
+  let Inst{14-12} = funct3;
+  let Inst{11-7} = vd;
+  let Opcode = opcode.Value;
+
+  let CustomConstraints = "$vd = 0,$rs1 = 1";
 }
 
 class RVInstIShift<bits<5> imm11_7, bits<3> funct3, RISCVOpcode opcode,
