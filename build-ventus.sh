@@ -1,4 +1,4 @@
-#!bash
+#!/usr/bin/env bash
 
 DIR=$(cd "$(dirname "${0}")" &> /dev/null && (pwd -W 2> /dev/null || pwd))
 VENTUS_BUILD_DIR=${DIR}/build
