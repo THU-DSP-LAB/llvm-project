@@ -124,7 +124,7 @@ Then, run the commands listed as follows under the same directory.
 Linking `crt0` and `libclc`
 All the libclc workitem functions' implementation is included in `riscv32clc.o`
 ```sh
-./install/bin/ld.lld -o vecadd.riscv -T utils/ldscripts/ventus/elf32lriscv.ld vecadd.o ./install/lib/crt0.o ./install/lib/riscv32clc.o -L./install/lib -lworkitem --gc-sections
+./install/bin/ld.lld -o vecadd.riscv -T utils/ldscripts/ventus/elf32lriscv.ld vecadd.o ./install/lib/crt0.o ./install/lib/riscv32clc.o -L./install/lib -lworkitem --gc-sections --init vectorAdd
 ```
 
 ##### 4.1.3 Compile assembly code to object file (`.s` to `.o`)
