@@ -10,7 +10,8 @@ PROGRAMS_TOBUILD=(llvm ocl-icd libclc spike driver pocl rodinia test-pocl)
 help() {
   cat <<END
 
-Build llvm, pocl, ocl-icd, libclc programs
+Build llvm, pocl, ocl-icd, libclc, driver, spike programs.
+Run the rodinia and test-pocl test suites.
 Read ${DIR}/README.md to get started.
 
 Usage: ${DIR}/$(basename ${0})
@@ -19,9 +20,9 @@ Usage: ${DIR}/$(basename ${0})
 
 Options:
   --build <build programs>
-    Chosen programs to build : llvm, ocl-icd, libclc, spike, driver, pocl
+    Chosen programs to build : llvm, ocl-icd, libclc, spike, driver, pocl, rodinia, test-pocl
     Option format : "llvm;pocl", string are seperated by semicolon
-    Default : "llvm;ocl-icd;libclc;spike;driver;pocl"
+    Default : "llvm;ocl-icd;libclc;spike;driver;pocl;rodinia;test-pocl"
     'BUILD_TYPE' is default 'Release' which can be changed by enviroment variable
 
   --help | -h
