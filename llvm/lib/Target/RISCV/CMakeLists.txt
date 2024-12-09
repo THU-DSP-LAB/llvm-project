@@ -47,6 +47,7 @@ add_llvm_target(RISCVCodeGen
   GISel/RISCVInstructionSelector.cpp
   GISel/RISCVLegalizerInfo.cpp
   GISel/RISCVRegisterBankInfo.cpp
+  VentusPrintfRuntimeBinding.cpp
 
   LINK_COMPONENTS
   Analysis
