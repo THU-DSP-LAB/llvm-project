@@ -30,8 +30,10 @@
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/MC/TargetRegistry.h"
+#include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/Scalar.h"
@@ -65,6 +67,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVSExtWRemovalPass(*PR);
   initializeRISCVPreRAExpandPseudoPass(*PR);
   initializeRISCVExpandPseudoPass(*PR);
+  initializeVentusPrintfRuntimeBindingPass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT, StringRef CPU) {
@@ -134,6 +137,23 @@ RISCVTargetMachine::getSubtargetImpl(const Function &F) const {
   return I.get();
 }
 
+void RISCVTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
+  PB.registerPipelineParsingCallback(
+      [this](StringRef PassName, ModulePassManager &PM,
+             ArrayRef<PassBuilder::PipelineElement>) {
+        if (PassName == "ventus-printf-runtime-binding") {
+          PM.addPass(VentusPrintfRuntimeBindingPass());
+          return true;
+        }
+        return false;
+      });
+
+  PB.registerPipelineEarlySimplificationEPCallback(
+      [this](ModulePassManager &PM, OptimizationLevel Level) {
+        PM.addPass(VentusPrintfRuntimeBindingPass());
+      });
+}
+
 TargetTransformInfo
 RISCVTargetMachine::getTargetTransformInfo(const Function &F) const {
   return TargetTransformInfo(RISCVTTIImpl(this, F));
@@ -201,6 +221,8 @@ TargetPassConfig *RISCVTargetMachine::createPassConfig(PassManagerBase &PM) {
 }
 
 void RISCVPassConfig::addIRPasses() {
+  addPass(createVentusPrintfRuntimeBinding());
+
   if (getOptLevel() != CodeGenOpt::None) {
     addPass(createSROAPass());
     addPass(createInferAddressSpacesPass());
