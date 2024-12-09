@@ -397,3 +397,12 @@ __builtin_riscv_work_dim:
   lw t0, KNL_WORK_DIM(a0)   # Get work_dim
   vmv.v.x v0, t0
   ret
+
+
+  .section	.text.__builtin_riscv_printf_alloc,"ax",@progbits
+  .global __builtin_riscv_printf_alloc
+  .type __builtin_riscv_printf_alloc, @function
+__builtin_riscv_printf_alloc:
+  csrr a0, CSR_PRINT         # Get printf buffer
+  vadd.vx v0, v0, a0
+  ret

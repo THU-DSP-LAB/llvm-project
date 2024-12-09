@@ -65,6 +65,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVSExtWRemovalPass(*PR);
   initializeRISCVPreRAExpandPseudoPass(*PR);
   initializeRISCVExpandPseudoPass(*PR);
+  initializeVentusPrintfRuntimeBindingPass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT, StringRef CPU) {
@@ -201,6 +202,8 @@ TargetPassConfig *RISCVTargetMachine::createPassConfig(PassManagerBase &PM) {
 }
 
 void RISCVPassConfig::addIRPasses() {
+  addPass(createVentusPrintfRuntimeBinding());
+
   if (getOptLevel() != CodeGenOpt::None) {
     addPass(createSROAPass());
     addPass(createInferAddressSpacesPass());
