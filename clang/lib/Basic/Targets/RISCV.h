@@ -135,6 +135,10 @@ public:
     Opts["cl_khr_byte_addressable_store"] = true;
     Opts["cl_khr_fp64"] = true;
     Opts["__cl_clang_variadic_functions"] = true;
+    Opts["cl_khr_global_int32_base_atomics"] = true;
+    Opts["cl_khr_global_int32_extended_atomics"] = true;
+    Opts["cl_khr_local_int32_base_atomics"] = true;
+    Opts["cl_khr_local_int32_extended_atomics"] = true;
   }
 
   LangAS getOpenCLTypeAddrSpace(OpenCLTypeKind TK) const override {

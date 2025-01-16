@@ -13259,7 +13259,7 @@ void __ovld atomic_init(volatile atomic_double *, double);
 #endif //cl_khr_fp64
 #endif
 #endif //defined(__opencl_c_generic_address_space)
-#if (__OPENCL_C_VERSION__ >= CL_VERSION_3_0 || __OPENCL_CPP_VERSION__ >= 202100)
+#if (__OPENCL_C_VERSION__ >= CL_VERSION_2_0 || __OPENCL_CPP_VERSION__ >= 202100)
 void __ovld atomic_init(volatile __global atomic_int *, int);
 void __ovld atomic_init(volatile __local atomic_int *, int);
 void __ovld atomic_init(volatile __global atomic_uint *, uint);
@@ -14034,13 +14034,14 @@ void __ovld atomic_store_explicit(volatile atomic_long *, long, memory_order, me
 void __ovld atomic_store_explicit(volatile atomic_ulong *, ulong, memory_order, memory_scope);
 #endif
 #endif //defined(__opencl_c_generic_address_space)
-#if (__OPENCL_C_VERSION__ >= CL_VERSION_3_0 || __OPENCL_CPP_VERSION__ >= 202100)
+#if (__OPENCL_C_VERSION__ >= CL_VERSION_2_0 || __OPENCL_CPP_VERSION__ >= 202100)
 void __ovld atomic_store_explicit(volatile __global atomic_int *, int, memory_order, memory_scope);
 void __ovld atomic_store_explicit(volatile __local atomic_int *, int, memory_order, memory_scope);
 void __ovld atomic_store_explicit(volatile __global atomic_uint *, uint, memory_order, memory_scope);
 void __ovld atomic_store_explicit(volatile __local atomic_uint *, uint, memory_order, memory_scope);
 void __ovld atomic_store_explicit(volatile __global atomic_float *, float, memory_order, memory_scope);
 void __ovld atomic_store_explicit(volatile __local atomic_float *, float, memory_order, memory_scope);
+#define atomic_store_explicit __opencl_atomic_store
 #if defined(cl_khr_int64_base_atomics) && defined(cl_khr_int64_extended_atomics)
 #ifdef cl_khr_fp64
 void __ovld atomic_store_explicit(volatile __global atomic_double *, double, memory_order, memory_scope);
@@ -14132,13 +14133,14 @@ long __ovld atomic_load_explicit(volatile atomic_long *, memory_order, memory_sc
 ulong __ovld atomic_load_explicit(volatile atomic_ulong *, memory_order, memory_scope);
 #endif
 #endif //defined(__opencl_c_generic_address_space)
-#if (__OPENCL_C_VERSION__ >= CL_VERSION_3_0 || __OPENCL_CPP_VERSION__ >= 202100)
+#if (__OPENCL_C_VERSION__ >= CL_VERSION_2_0 || __OPENCL_CPP_VERSION__ >= 202100)
 int __ovld atomic_load_explicit(volatile __global atomic_int *, memory_order, memory_scope);
 int __ovld atomic_load_explicit(volatile __local atomic_int *, memory_order, memory_scope);
 uint __ovld atomic_load_explicit(volatile __global atomic_uint *, memory_order, memory_scope);
 uint __ovld atomic_load_explicit(volatile __local atomic_uint *, memory_order, memory_scope);
 float __ovld atomic_load_explicit(volatile __global atomic_float *, memory_order, memory_scope);
 float __ovld atomic_load_explicit(volatile __local atomic_float *, memory_order, memory_scope);
+#define atomic_load_explicit __c11_atomic_load
 #if defined(cl_khr_int64_base_atomics) && defined(cl_khr_int64_extended_atomics)
 #ifdef cl_khr_fp64
 double __ovld atomic_load_explicit(volatile __global atomic_double *, memory_order, memory_scope);
