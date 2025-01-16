@@ -916,7 +916,7 @@ void TargetPassConfig::addIRPasses() {
 
   // Prepare expensive constants for SelectionDAG.
   if (getOptLevel() != CodeGenOpt::None && !DisableConstantHoisting)
-    // addPass(createConstantHoistingPass());
+    addPass(createConstantHoistingPass());
 
   if (getOptLevel() != CodeGenOpt::None)
     addPass(createReplaceWithVeclibLegacyPass());

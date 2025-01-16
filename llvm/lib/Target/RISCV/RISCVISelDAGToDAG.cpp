@@ -68,6 +68,13 @@ static SDNode *selectImmSeq(SelectionDAG *CurDAG, const SDLoc &DL, const MVT VT,
                             RISCVMatInt::InstSeq &Seq) {
   SDNode *Result = nullptr;
   SDValue SrcReg = CurDAG->getRegister(RISCV::X0, VT);
+
+  Register MyReg = CurDAG->getMachineFunction().getRegInfo().createVirtualRegister(CurDAG->getTargetLoweringInfo().getRegClassFor(VT, true));
+
+  SDValue Chain = CurDAG->getEntryNode();
+  SDValue FromX0 = CurDAG->getCopyFromReg(Chain, DL, RISCV::X0, VT);
+  SDValue ToReg = CurDAG->getCopyToReg(Chain, DL, MyReg.id(), FromX0);
+  SrcReg = CurDAG->getCopyFromReg(ToReg, DL, MyReg, VT);
   for (RISCVMatInt::Inst &Inst : Seq) {
     SDValue SDImm = CurDAG->getTargetConstant(Inst.Imm, DL, VT);
     switch (Inst.getOpndKind()) {

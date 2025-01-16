@@ -65,7 +65,12 @@ static void generateInstSeqImpl(int64_t Val,
       Res.emplace_back(RISCV::LUI, Hi20);
 
     if (Lo12 || Hi20 == 0) {
-      unsigned AddiOpc = (IsRV64 && Hi20) ? RISCV::ADDIW : RISCV::ADDI;
+      // unsigned AddiOpc = (IsRV64 && Hi20) ? RISCV::ADDIW : (Hi20 ? RISCV::ADDI : RISCV::VADD_VI);
+      unsigned AddiOpc = (IsRV64 && Hi20) ? RISCV::ADDIW : (RISCV::VADD_VI);
+      if ((Lo12 > 15) || (Lo12 < -16)) {
+        AddiOpc = RISCV::VADDIMM12;
+      }
+      // unsigned AddiOpc = (IsRV64 && Hi20) ? RISCV::ADDIW : RISCV::ADDI;
       Res.emplace_back(AddiOpc, Lo12);
     }
     return;
@@ -406,6 +411,8 @@ OpndKind Inst::getOpndKind() const {
     return RISCVMatInt::RegReg;
   case RISCV::ADDI:
   case RISCV::ADDIW:
+  case RISCV::VADD_VI:
+  case RISCV::VADDIMM12:
   case RISCV::SLLI:
   case RISCV::SRLI:
   case RISCV::SLLI_UW:
