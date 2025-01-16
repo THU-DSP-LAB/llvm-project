@@ -378,6 +378,8 @@ public:
                     bool ForCodeSize) const override;
   bool isExtractSubvectorCheap(EVT ResVT, EVT SrcVT,
                                unsigned Index) const override;
+  bool requiresDivergentRegister(MachineFunction &MF,
+                               const Value *V) const override;
   bool isSDNodeSourceOfDivergence(const SDNode *N,
     FunctionLoweringInfo *FLI, LegacyDivergenceAnalysis *DA) const override;
 

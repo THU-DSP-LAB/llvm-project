@@ -908,6 +908,11 @@ public:
     return false;
   }
 
+  virtual bool requiresDivergentRegister(MachineFunction &MF,
+                                       const Value *) const {
+    return false;
+  }
+
   /// Return the 'representative' register class for the specified value
   /// type.
   ///

@@ -13480,10 +13480,27 @@ bool RISCVTargetLowering::isIntDivCheap(EVT VT, AttributeList Attr) const {
   return OptSize && !VT.isVector();
 }
 
+bool RISCVTargetLowering::requiresDivergentRegister(MachineFunction &MF,
+                                               const Value *V) const {
+  if (dyn_cast<Constant>(V)) {
+    return true;
+  }
+  return false;
+}
+
 bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
     const SDNode *N, FunctionLoweringInfo *FLI,
     LegacyDivergenceAnalysis *KDA) const {
   switch (N->getOpcode()) {
+  case ISD::Constant: {
+    return true;
+  }
+  case ISD::TargetConstant: {
+    return true;
+  }
+  case ISD::CopyToReg: {
+    return true;
+  }
   case ISD::CopyFromReg: {
     const RegisterSDNode *R = cast<RegisterSDNode>(N->getOperand(1));
     const MachineRegisterInfo &MRI = FLI->MF->getRegInfo();
@@ -13532,6 +13549,12 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
       // Generic read-modify-write atomics are sources of divergence.
       return A->readMem() && A->writeMem();
     }
+    for (int i = 0; i < N->getNumOperands(); i++) {
+      if (N->getOperand(i)->getOpcode() == ISD::Constant) {
+        return true;
+      }
+    }
+    
     return false;
   }
 }
