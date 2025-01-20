@@ -13266,6 +13266,7 @@ void __ovld atomic_init(volatile __global atomic_uint *, uint);
 void __ovld atomic_init(volatile __local atomic_uint *, uint);
 void __ovld atomic_init(volatile __global atomic_float *, float);
 void __ovld atomic_init(volatile __local atomic_float *, float);
+#define atomic_init __opencl_atomic_init
 #if defined(cl_khr_int64_base_atomics) && defined(cl_khr_int64_extended_atomics)
 void __ovld atomic_init(volatile __global atomic_long *, long);
 void __ovld atomic_init(volatile __local atomic_long *, long);
@@ -14140,7 +14141,7 @@ uint __ovld atomic_load_explicit(volatile __global atomic_uint *, memory_order, 
 uint __ovld atomic_load_explicit(volatile __local atomic_uint *, memory_order, memory_scope);
 float __ovld atomic_load_explicit(volatile __global atomic_float *, memory_order, memory_scope);
 float __ovld atomic_load_explicit(volatile __local atomic_float *, memory_order, memory_scope);
-#define atomic_load_explicit __c11_atomic_load
+#define atomic_load_explicit __opencl_atomic_load
 #if defined(cl_khr_int64_base_atomics) && defined(cl_khr_int64_extended_atomics)
 #ifdef cl_khr_fp64
 double __ovld atomic_load_explicit(volatile __global atomic_double *, memory_order, memory_scope);
