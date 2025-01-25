@@ -11502,11 +11502,14 @@ ABIArgInfo VentusRISCVABIInfo::classifyArgumentType(QualType Ty,
 namespace {
 class RISCVTargetCodeGenInfo : public TargetCodeGenInfo {
 public:
-  // TODO: Pick VentusRISCVABI or RISCVABI conditionally according to
+  // Pick VentusRISCVABI or RISCVABI conditionally according to
   // target CPU.
-  RISCVTargetCodeGenInfo(CodeGen::CodeGenTypes &CGT, unsigned XLen,
-                         unsigned FLen)
-      : TargetCodeGenInfo(std::make_unique<VentusRISCVABIInfo>(CGT, XLen)) {}
+  CodeGen::CodeGenTypes &CGT;
+  RISCVTargetCodeGenInfo(CodeGen::CodeGenTypes &CGT, unsigned XLen, unsigned FLen)
+      : TargetCodeGenInfo(CGT.getTarget().getTargetOpts().CPU == "ventus-gpgpu" 
+          ? std::unique_ptr<ABIInfo>(std::make_unique<VentusRISCVABIInfo>(CGT, XLen))
+          : std::unique_ptr<ABIInfo>(std::make_unique<RISCVABIInfo>(CGT, XLen, FLen))),
+        CGT(CGT) {} 
 
   void setTargetAttributes(const Decl *D, llvm::GlobalValue *GV,
                            CodeGen::CodeGenModule &CGM) const override {
@@ -11530,8 +11533,10 @@ public:
   }
   unsigned getOpenCLKernelCallingConv() const override;
 };
-  unsigned RISCVTargetCodeGenInfo::getOpenCLKernelCallingConv() const {
-    return llvm::CallingConv::VENTUS_KERNEL;
+  unsigned RISCVTargetCodeGenInfo::getOpenCLKernelCallingConv() const {  
+    if (CGT.getTarget().getTargetOpts().CPU == "ventus-gpgpu")
+      return llvm::CallingConv::VENTUS_KERNEL;
+    return TargetCodeGenInfo::getOpenCLKernelCallingConv(); 
   }
 } // namespace
 
