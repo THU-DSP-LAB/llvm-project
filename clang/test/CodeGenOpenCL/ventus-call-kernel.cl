@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -no-opaque-pointers -triple riscv32-unknown-unknown -S -emit-llvm -o - %s | FileCheck %s
+// RUN: %clang_cc1 -no-opaque-pointers -triple riscv32-unknown-unknown -target-cpu ventus-gpgpu -S -emit-llvm -o - %s | FileCheck %s
 
 kernel void test_kernel(global int *out)
 {
