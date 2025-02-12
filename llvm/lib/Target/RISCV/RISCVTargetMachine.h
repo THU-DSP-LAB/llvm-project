@@ -44,6 +44,8 @@ public:
     return TLOF.get();
   }
 
+  void registerPassBuilderCallbacks(PassBuilder &PB) override;
+
   TargetTransformInfo getTargetTransformInfo(const Function &F) const override;
 
   bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DstAS) const override;

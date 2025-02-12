@@ -14,6 +14,7 @@
 #ifndef LLVM_LIB_TARGET_RISCV_RISCV_H
 #define LLVM_LIB_TARGET_RISCV_RISCV_H
 
+#include "llvm/Pass.h"
 #include "MCTargetDesc/RISCVBaseInfo.h"
 #include "llvm/Target/TargetMachine.h"
 
@@ -81,6 +82,15 @@ void initializeVentusInsertJoinToVBranchPass(PassRegistry &);
 InstructionSelector *createRISCVInstructionSelector(const RISCVTargetMachine &,
                                                     RISCVSubtarget &,
                                                     RISCVRegisterBankInfo &);
+
+ModulePass *createVentusPrintfRuntimeBinding();
+void initializeVentusPrintfRuntimeBindingPass(PassRegistry&);
+extern char &VentusPrintfRuntimeBindingID;
+
+struct VentusPrintfRuntimeBindingPass
+    : PassInfoMixin<VentusPrintfRuntimeBindingPass> {
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+};
 }
 
 
