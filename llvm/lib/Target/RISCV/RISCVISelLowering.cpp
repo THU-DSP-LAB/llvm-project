@@ -13527,32 +13527,6 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
         cast<ConstantSDNode>(N->getOperand(1))->getZExtValue());
   case Intrinsic::vastart:
     return true;
-  /*
-  case AMDGPUISD::ATOMIC_CMP_SWAP:
-  case AMDGPUISD::ATOMIC_INC:
-  case AMDGPUISD::ATOMIC_DEC:
-  case AMDGPUISD::ATOMIC_LOAD_FMIN:
-  case AMDGPUISD::ATOMIC_LOAD_FMAX:
-  case AMDGPUISD::BUFFER_ATOMIC_SWAP:
-  case AMDGPUISD::BUFFER_ATOMIC_ADD:
-  case AMDGPUISD::BUFFER_ATOMIC_SUB:
-  case AMDGPUISD::BUFFER_ATOMIC_SMIN:
-  case AMDGPUISD::BUFFER_ATOMIC_UMIN:
-  case AMDGPUISD::BUFFER_ATOMIC_SMAX:
-  case AMDGPUISD::BUFFER_ATOMIC_UMAX:
-  case AMDGPUISD::BUFFER_ATOMIC_AND:
-  case AMDGPUISD::BUFFER_ATOMIC_OR:
-  case AMDGPUISD::BUFFER_ATOMIC_XOR:
-  case AMDGPUISD::BUFFER_ATOMIC_INC:
-  case AMDGPUISD::BUFFER_ATOMIC_DEC:
-  case AMDGPUISD::BUFFER_ATOMIC_CMPSWAP:
-  case AMDGPUISD::BUFFER_ATOMIC_CSUB:
-  case AMDGPUISD::BUFFER_ATOMIC_FADD:
-  case AMDGPUISD::BUFFER_ATOMIC_FMIN:
-  case AMDGPUISD::BUFFER_ATOMIC_FMAX:
-    // Target-specific read-modify-write atomics are sources of divergence.
-    return true;
-  */
   default:
     if (auto *A = dyn_cast<AtomicSDNode>(N)) {
       // Generic read-modify-write atomics are sources of divergence.

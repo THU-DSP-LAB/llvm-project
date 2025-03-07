@@ -384,8 +384,6 @@ bool RISCVTTIImpl::isSourceOfDivergence(const Value *V) const {
 
   if (const IntrinsicInst *Intrinsic = dyn_cast<IntrinsicInst>(V)) {
     if (Intrinsic->getIntrinsicID() == Intrinsic::read_register)
-    //   return isReadRegisterSourceOfDivergence(Intrinsic);
-    // return AMDGPU::isIntrinsicSourceOfDivergence(Intrinsic->getIntrinsicID());
       return true;
   }
 
