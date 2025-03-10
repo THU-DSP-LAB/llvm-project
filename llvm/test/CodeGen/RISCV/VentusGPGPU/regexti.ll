@@ -236,3 +236,25 @@ entry:
 
 declare dso_local i32 @_Z13get_global_idj(i32 noundef)
 declare dso_local i32 @_Z12get_local_idj(i32 noundef)
+
+define dso_local i32 @regexti14(i32 noundef %a) {
+; CHECK-LABEL: regexti14:
+; CHECK:       # %bb.0: # %entry
+; CHECK-NEXT:    regexti	zero, zero, 0
+; CHECK-NEXT:    vor.vi	v0, v0, -16
+; CHECK-NEXT:    ret
+entry:
+  %res = or i32 %a, 16
+  ret i32 %res
+}
+
+define dso_local i32 @regexti15(i32 noundef %a) {
+; CHECK-LABEL: regexti15:
+; CHECK:       # %bb.0: # %entry
+; CHECK-NEXT:    regexti	zero, zero, 64 
+; CHECK-NEXT:    vor.vi	v0, v0, -16
+; CHECK-NEXT:    ret
+entry:
+  %res = or i32 %a, 48
+  ret i32 %res
+}
