@@ -16,13 +16,11 @@
 #include "types.h"
 
 fp_t _fmax(fp_t x, fp_t y) {
-
-  return (__builtin_isnan((x)) || x < y) ? y : x;
+    return (__builtin_isnan(x)) ? y : ((__builtin_isnan(y)) ? x : ((x < y) ? y : x));
 }
 
 fp_t _fmin(fp_t x, fp_t y) {
-
-  return (__builtin_isnan((x)) || x < y) ? x : y;
+    return (__builtin_isnan(x)) ? y : ((__builtin_isnan(y)) ? x : ((x < y) ? x : y));
 }
 
 double rint (double x)
