@@ -15,6 +15,14 @@ _CLC_UNARY_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, float, rsqrt, float);
 
 _CLC_OVERLOAD _CLC_DEF double rsqrt(double x)
 {
+    if (x == 0.0) {
+        return __builtin_inf();
+    }
+
+    if (isnan(x)) {
+        return x;
+    }
+
     return 1.0 / sqrt(x);
 }
 

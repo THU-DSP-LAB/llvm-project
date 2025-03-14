@@ -368,6 +368,9 @@ _CLC_DEF _CLC_OVERLOAD double __clc_pow(double x, double y)
     long ret = as_long(expv);
 
     // Now all the edge cases
+    ret = (ax < 0x3ff0000000000000L && ax > 0 && (uy & 0x8000000000000000L) && ((uy & 0x7FFFFFFFFFFFFFFFL) > 0x7FE0000000000000L) && uy != NINFBITPATT_DP64) ? PINFBITPATT_DP64 : ret;
+    ret = (!xpos && (uy & 0x8000000000000000L) && ((uy & 0x7FFFFFFFFFFFFFFFL) > 0x7FE0000000000000L) && uy != NINFBITPATT_DP64 && ax < 0x3ff0000000000000L) ? PINFBITPATT_DP64 : ret;
+    ret = (ax > 0x3ff0000000000000L && !xpos && (uy & 0x8000000000000000L) && ((uy & 0x7FFFFFFFFFFFFFFFL) > 0x7FE0000000000000L) && uy != NINFBITPATT_DP64) ? 0L : ret;
     ret = !xpos & (inty == 0) ? QNANBITPATT_DP64 : ret;
     ret = ax < 0x3ff0000000000000L & uy == NINFBITPATT_DP64 ? PINFBITPATT_DP64 : ret;
     ret = ax > 0x3ff0000000000000L & uy == NINFBITPATT_DP64 ? 0L : ret;

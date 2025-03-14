@@ -373,7 +373,8 @@ _CLC_DEF _CLC_OVERLOAD double __clc_powr(double x, double y)
     ret = ((ax == 0L) & (ay == 0L)) ? QNANBITPATT_DP64 : ret;
     ret = ((ax != 0L) & !xpos) ? QNANBITPATT_DP64 : ret;
     ret = ax > PINFBITPATT_DP64 ? ux : ret;
-    ret = ay > PINFBITPATT_DP64 ? uy : ret;
+    ret = (ax < 0x3ff0000000000000L && ax > 0 && (uy & 0x8000000000000000L) && ((uy & 0x7FFFFFFFFFFFFFFFL) > 0x7FE0000000000000L) && xpos && uy != NINFBITPATT_DP64) ? PINFBITPATT_DP64 : ret;
+    ret = ((ay & 0x7FF0000000000000L) == 0x7FF0000000000000L && (ay & 0x000FFFFFFFFFFFFFL) != 0) ? QNANBITPATT_DP64 : ret;
 
     return as_double(ret);
 }
