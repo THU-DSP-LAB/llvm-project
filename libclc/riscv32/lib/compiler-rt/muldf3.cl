@@ -24,8 +24,17 @@ static __inline fp_t __mulXf3__(fp_t a, fp_t b) {
   const rep_t productSign =
       (toRep(a) ^ toRep(b)) & (1UL << (52 + ((sizeof(rep_t) * 8) - 52 - 1)));
 
-  rep_t aSignificand = toRep(a) & ((1UL << 52) - 1U);
-  rep_t bSignificand = toRep(b) & ((1UL << 52) - 1U);
+  const rep_t aSignificand = toRep(a) & ((1UL << 52) - 1U);
+  const rep_t bSignificand = toRep(b) & ((1UL << 52) - 1U);
+  
+  if ((aExponent == ((1 << ((sizeof(rep_t) * 8) - 52 - 1)) - 1) && aSignificand) ||
+      (bExponent == ((1 << ((sizeof(rep_t) * 8) - 52 - 1)) - 1) && bSignificand)) {
+    return fromRep(((1UL << (52 + ((sizeof(rep_t) * 8) - 52 - 1))) - 1U) | ((1UL << 51)));
+  }
+
+  rep_t aSignificandForCalc = toRep(a) & ((1UL << 52) - 1U);
+  rep_t bSignificandForCalc = toRep(b) & ((1UL << 52) - 1U);
+  
   int scale = 0;
 
   if (aExponent - 1U >= ((1 << ((sizeof(rep_t) * 8) - 52 - 1)) - 1) - 1U ||
@@ -75,16 +84,16 @@ static __inline fp_t __mulXf3__(fp_t a, fp_t b) {
       return fromRep(productSign);
 
     if (aAbs < (1UL << 52))
-      scale += normalize(&aSignificand);
+      scale += normalize(&aSignificandForCalc);
     if (bAbs < (1UL << 52))
-      scale += normalize(&bSignificand);
+      scale += normalize(&bSignificandForCalc);
   }
 
-  aSignificand |= (1UL << 52);
-  bSignificand |= (1UL << 52);
+  aSignificandForCalc |= (1UL << 52);
+  bSignificandForCalc |= (1UL << 52);
 
   rep_t productHi, productLo;
-  wideMultiply(aSignificand, bSignificand << ((sizeof(rep_t) * 8) - 52 - 1),
+  wideMultiply(aSignificandForCalc, bSignificandForCalc << ((sizeof(rep_t) * 8) - 52 - 1),
                &productHi, &productLo);
 
   int productExponent = aExponent + bExponent -
