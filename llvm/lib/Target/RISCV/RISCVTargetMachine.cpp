@@ -321,6 +321,12 @@ void RISCVPassConfig::addPostRegAlloc() {
   if (TM->getOptLevel() != CodeGenOpt::None && EnableRedundantCopyElimination)
     addPass(createRISCVRedundantCopyEliminationPass());
 
+  // Copy form SPIRV
+  // Do not work with OpPhi.
+  disablePass(&BranchFolderPassID);
+  disablePass(&MachineBlockPlacementID);
+
+  TargetPassConfig::addPostRegAlloc();
 }
 
 yaml::MachineFunctionInfo *

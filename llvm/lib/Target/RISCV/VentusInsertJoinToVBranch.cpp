@@ -46,8 +46,6 @@ public:
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
-  bool checkJoinMBB(MachineBasicBlock &MBB) const;
-
   MachineInstr *getDivergentBranchInstr(MachineBasicBlock &MBB);
 
   bool convergeReturnBlock(MachineFunction &MF);
@@ -95,19 +93,14 @@ bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
           .addReg(RISCV::X6)
           .addSym(AUIPCSymbol, RISCVII::MO_PCREL_LO);
 
-      // FIXME: There is something wrong when add this operand.
-      // VBranch->addOperand(MachineOperand::CreateReg(
-      //     RISCV::RPC, false /* isDef */, true /* isImp */));
       if (!JoinedBB.contains(PostIDomBB)) {
         IsChanged = true;
         JoinedBB.insert(PostIDomBB);
-        // Insert join instruction after last vmv.v instruction
         BuildMI(*PostIDomBB, PostIDomBB->begin(), DebugLoc(),
                 TII->get(RISCV::JOIN))
             .addReg(RISCV::X0)
             .addReg(RISCV::X0)
             .addImm(0);
-        IsChanged |= checkJoinMBB(*PostIDomBB);
       }
     }
   }
@@ -187,86 +180,6 @@ bool VentusInsertJoinToVBranch::convergeReturnBlock(MachineFunction &MF) {
 
   return true;
 }
-
-bool VentusInsertJoinToVBranch::checkJoinMBB(MachineBasicBlock &MBB) const {
-  MachineFunction *MF = MBB.getParent();
-  MachineRegisterInfo &MR = MBB.getParent()->getRegInfo();
-  bool IsChanged = false;
-  // When MBB has only one predecessor, return directly
-  if (std::distance(MBB.pred_begin(), MBB.pred_end()) <= 1)
-    return IsChanged;
-
-  // For some instructions like vmv.v,  if the src register are defined in
-  // all predecessors, then it should not appear after join point
-  for (auto &MI : make_early_inc_range(MBB)) {
-    // FIXME: Maybe vfmv.v.f instruction need to be checked too
-    if (MI.getOpcode() != RISCV::VMV_V_X)
-      continue;
-
-    // The number of MBB needed to be inserted VMV instruction
-    unsigned NeedToBeInsertMBBNum = 0;
-    assert(MI.getOperand(1).isReg() && "unexpected operator");
-    auto Defines = MR.def_instructions(MI.getOperand(1).getReg());
-    bool IsInSameBlock = false;
-    SmallVector<std::pair<MachineBasicBlock *, MachineBasicBlock::iterator>>
-        MBBMaybeInsertedInstr;
-    for (auto &Def : Defines) {
-      unsigned Opcode = Def.getOpcode();
-      // FIXME: Find a better way to handle this in tablegen
-      if (Opcode == RISCV::JOIN || Opcode == RISCV::SETRPC ||
-          Opcode == RISCV::REGEXT || Opcode == RISCV::REGEXTI)
-        continue;
-
-      // When define instruction is in the same MBB, no need to change position
-      for (auto Iter = MBB.instr_begin(); Iter != MI.getIterator(); Iter++) {
-        if (&Def.getDesc() == &Iter->getDesc()) {
-          IsInSameBlock = true;
-          break;
-        }
-      }
-
-      if (IsInSameBlock)
-        continue;
-
-      // Check if define instruction is in the predecessors or not
-      for (auto *Pre : MBB.predecessors()) {
-        MachineBasicBlock::iterator Insert = Pre->begin();
-        for (auto &MI1 : *Pre) {
-          // Get last register definition
-          if (&MI1 == &Def)
-            Insert = MI1.getIterator();
-        }
-        if (Insert != Pre->begin() || Pre->begin() == &Def) {
-          // Last instruction define in Pre MBB
-          bool IsInsert = false;
-          for(auto Pair : MBBMaybeInsertedInstr) {
-            if (Pair.first == Pre) {
-              IsInsert = true;
-              break;
-            }
-          }
-
-          // Only last MI in Pre need to insert
-          if (IsInsert)
-            continue;
-
-          NeedToBeInsertMBBNum++;
-          MBBMaybeInsertedInstr.push_back({Pre, Insert});
-        }
-      }
-    }
-    if (NeedToBeInsertMBBNum >= 2) {
-      // Means there are more than two blocks need to insert vmv instruction
-      IsChanged |= true;
-      MBB.addLiveIn(MCRegister(MI.getOperand(0).getReg()));
-      for (auto Pair : MBBMaybeInsertedInstr)
-        Pair.first->insertAfter(Pair.second, MF->CloneMachineInstr(&MI));
-      MI.eraseFromParent();
-    }
-  }
-  return IsChanged;
-}
-
 } // end of anonymous namespace
 
 INITIALIZE_PASS(VentusInsertJoinToVBranch, "Insert-join-to-VBranch",
