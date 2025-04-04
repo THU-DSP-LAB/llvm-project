@@ -13,7 +13,6 @@
 
 #ifndef LLVM_LIB_TARGET_RISCV_RISCV_H
 #define LLVM_LIB_TARGET_RISCV_RISCV_H
-
 #include "llvm/Pass.h"
 #include "MCTargetDesc/RISCVBaseInfo.h"
 #include "llvm/Target/TargetMachine.h"
@@ -84,15 +83,26 @@ InstructionSelector *createRISCVInstructionSelector(const RISCVTargetMachine &,
                                                     RISCVRegisterBankInfo &);
 
 ModulePass *createVentusPrintfRuntimeBinding();
-void initializeVentusPrintfRuntimeBindingPass(PassRegistry&);
+void initializeVentusPrintfRuntimeBindingPass(PassRegistry &);
 extern char &VentusPrintfRuntimeBindingID;
 
 struct VentusPrintfRuntimeBindingPass
     : PassInfoMixin<VentusPrintfRuntimeBindingPass> {
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
 };
-}
 
+ModulePass *createVentusAlwaysInlinePass(bool GlobalOpt = true);
+void initializeVentusAlwaysInlinePass(PassRegistry &Registry);
+
+struct VentusAlwaysInlinePass : public PassInfoMixin<VentusAlwaysInlinePass> {
+  VentusAlwaysInlinePass(bool GlobalOpt = true) : GlobalOpt(GlobalOpt) {}
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+
+private:
+  bool GlobalOpt;
+};
+
+} // namespace llvm
 
 /// OpenCL uses address spaces to differentiate between
 /// various memory regions on the hardware. On the CPU
@@ -101,19 +111,19 @@ struct VentusPrintfRuntimeBindingPass
 /// a separate piece of memory that is unique from other
 /// memory locations.
 namespace RISCVAS {
-  enum : unsigned {
-    // The maximum value for flat, generic, local, private, constant and region.
-    MAX_VENTUS_ADDRESS = 5,
+enum : unsigned {
+  // The maximum value for flat, generic, local, private, constant and region.
+  MAX_VENTUS_ADDRESS = 5,
 
-    FLAT_ADDRESS = 0,     ///< Address space for flat memory.
-    GLOBAL_ADDRESS = 1,   ///< Address space for global memory
-    CONSTANT_ADDRESS = 4, ///< Address space for constant memory
-    LOCAL_ADDRESS = 3,    ///< Address space for local memory.
-    PRIVATE_ADDRESS = 5,  ///< Address space for private memory.
+  FLAT_ADDRESS = 0,     ///< Address space for flat memory.
+  GLOBAL_ADDRESS = 1,   ///< Address space for global memory
+  CONSTANT_ADDRESS = 4, ///< Address space for constant memory
+  LOCAL_ADDRESS = 3,    ///< Address space for local memory.
+  PRIVATE_ADDRESS = 5,  ///< Address space for private memory.
 
-    // Some places use this if the address space can't be determined.
-    UNKNOWN_ADDRESS_SPACE = ~0u,
-  };
+  // Some places use this if the address space can't be determined.
+  UNKNOWN_ADDRESS_SPACE = ~0u,
+};
 }
 
 /// Because there are two stacks in ventus, we need to add a VGPRSpill according
