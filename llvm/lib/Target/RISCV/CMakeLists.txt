@@ -48,7 +48,8 @@ add_llvm_target(RISCVCodeGen
   GISel/RISCVLegalizerInfo.cpp
   GISel/RISCVRegisterBankInfo.cpp
   VentusPrintfRuntimeBinding.cpp
-
+  VentusAlwaysInlinePass.cpp
+  
   LINK_COMPONENTS
   Analysis
   AsmPrinter
