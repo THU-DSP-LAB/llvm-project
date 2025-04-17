@@ -1367,12 +1367,6 @@ def : Pat<(fabs (f32 VGPR:$rs1)), (VFSGNJX_VV $rs1, $rs1)>;
 
 // Patterns for ternary operations
 // TODO: vmacc/vfmacc, vnmsac/vfnmsac
-defm : PatVXFTer<[DivergentBinFrag<fadd>, DivergentBinFrag<fmul>], f32,
-                                            GPRF32, [VFMADD_VV, VFMADD_VF]>;
-defm : PatVXFTer<[DivergentBinFrag<fsub>, DivergentBinFrag<fmul>], f32,
-                    GPRF32, [VFMSUB_VV, VFMSUB_VF, VFNMADD_VV, VFNMADD_VF]>;
-defm : PatVXFTer<[ReverseDivergentBinFrag<fsub>, DivergentBinFrag<fmul>],
-                                   f32, GPRF32, [VFNMSUB_VV, VFNMSUB_VF]>;
 defm : PatVXFTer<[DivergentBinFrag<add>, DivergentBinFrag<mul>], XLenVT,
                                      GPR, [VMADD_VV, VMADD_VX]>;
 defm : PatVXFTer<[ReverseDivergentBinFrag<sub>, DivergentBinFrag<mul>],
