@@ -1453,19 +1453,13 @@ def : DivergentBccPat<SETUGE, VBGEU>;
 
 // Ventus barrier instructions pattern
 
-let Predicates = [NoSubgroupFlag] in {
+def : Pat<(int_riscv_ventus_barrier timm:$uimm5), (BARRIER $uimm5)>;
+def PseudoBarrier : Pseudo<(outs), (ins i32imm:$uimm1, i32imm:$uimm2),
+          [(int_riscv_ventus_barrier_with_scope timm:$uimm1, timm:$uimm2)]>;
 
-  def : Pat<(int_riscv_ventus_barrier timm:$uimm5), (BARRIER $uimm5)>;
-  def PseudoBarrier : Pseudo<(outs), (ins i32imm:$uimm1, i32imm:$uimm2),
-           [(int_riscv_ventus_barrier_with_scope timm:$uimm1, timm:$uimm2)]>;
-} // Predicates = [NoSubgroupBarrierFlag]
-
-let Predicates = [HasSubgroupFlag] in {
-
-def : Pat<(int_riscv_ventus_barrier timm:$uimm5), (SUBGROUP_BARRIER $uimm5)>;
+def : Pat<(int_riscv_ventus_subgroup_barrier timm:$uimm5), (SUBGROUP_BARRIER $uimm5)>;
 def PseudoSubGroupBarrier : Pseudo<(outs), (ins i32imm:$uimm1, i32imm:$uimm2),
-           [(int_riscv_ventus_barrier_with_scope timm:$uimm1, timm:$uimm2)]>;
-} // Predicates = [HasSubgroupBarrierFlag]
+          [(int_riscv_ventus_subgroup_barrier_with_scope timm:$uimm1, timm:$uimm2)]>;
 
 // TODO: Fix it!
 /*
