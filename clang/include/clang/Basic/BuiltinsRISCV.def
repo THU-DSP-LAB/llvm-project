@@ -20,9 +20,9 @@
 //===----------------------------------------------------------------------===//
 
 // Barrier function builtins
-TARGET_BUILTIN(barrier, "vUi", "n", "32bit")
-TARGET_BUILTIN(work_group_barrier, "vUi.", "n", "32bit")
-TARGET_BUILTIN(sub_group_barrier, "vUi.", "n", "32bit")
+TARGET_BUILTIN(barrier, "vi", "n", "32bit")
+TARGET_BUILTIN(work_group_barrier, "vi.", "n", "32bit")
+TARGET_BUILTIN(sub_group_barrier, "vi.", "n", "32bit")
 
 //===----------------------------------------------------------------------===//
 // Standard RISCV instruction builtins.
