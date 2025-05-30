@@ -217,6 +217,7 @@ class RVInst<dag outs, dag ins, string opcodestr, string argstr,
   // 2: private
   bits<2> MemScope = 0;
   let TSFlags{22-21} = MemScope;
+  let isConvergent = 1;
 }
 
 // Pseudo instructions
