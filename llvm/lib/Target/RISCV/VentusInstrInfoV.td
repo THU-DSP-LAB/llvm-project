@@ -1366,13 +1366,12 @@ def : Pat<(fneg (f32 VGPR:$rs1)), (VFSGNJN_VV $rs1, $rs1)>;
 def : Pat<(fabs (f32 VGPR:$rs1)), (VFSGNJX_VV $rs1, $rs1)>;
 
 // Patterns for ternary operations
-// TODO: vmacc/vfmacc, vnmsac/vfnmsac
-defm : PatVXFTer<[DivergentBinFrag<fadd>, DivergentBinFrag<fmul>], f32,
-                                            GPRF32, [VFMADD_VV, VFMADD_VF]>;
-defm : PatVXFTer<[DivergentBinFrag<fsub>, DivergentBinFrag<fmul>], f32,
-                    GPRF32, [VFMSUB_VV, VFMSUB_VF, VFNMADD_VV, VFNMADD_VF]>;
-defm : PatVXFTer<[ReverseDivergentBinFrag<fsub>, DivergentBinFrag<fmul>],
-                                   f32, GPRF32, [VFNMSUB_VV, VFNMSUB_VF]>;
+// TODO: vmacc, vnmsac
+
+// These FMA patterns (e.g., fadd(fmul(...))) were removed because they
+// enabled contraction regardless of the current FP_CONTRACT state.
+// The FP_CONTRACT pragma can be used to allow or disallow such contraction.
+// Emitting FMA here would violate the user's contraction preferences.
 defm : PatVXFTer<[DivergentBinFrag<add>, DivergentBinFrag<mul>], XLenVT,
                                      GPR, [VMADD_VV, VMADD_VX]>;
 defm : PatVXFTer<[ReverseDivergentBinFrag<sub>, DivergentBinFrag<mul>],
