@@ -511,8 +511,6 @@ def TuneShortForwardBranchOpt
                        "true", "Enable short forward branch optimization">;
 def HasShortForwardBranchOpt : Predicate<"Subtarget->hasShortForwardBranchOpt()">;
 def NoShortForwardBranchOpt : Predicate<"!Subtarget->hasShortForwardBranchOpt()">;
-def HasSubgroupFlag : Predicate<"Subtarget->hasSubgroupFlag()">;
-def NoSubgroupFlag : Predicate<"!Subtarget->hasSubgroupFlag()">;
 def TuneSiFive7 : SubtargetFeature<"sifive7", "RISCVProcFamily", "SiFive7",
                                    "SiFive 7-Series processors",
                                    [TuneNoDefaultUnroll,
