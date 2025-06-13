@@ -55,6 +55,10 @@ void RISCVTargetInfo::adjust(DiagnosticsEngine &Diags, LangOptions &Opts) {
   else
     resetDataLayout("e-m:e-p:64:64-i64:64-i128:128-n32:64-S128-A5-G1");
 
+  // Enable OpenCL generic address space for OpenCL 2.0 and later
+  if (Opts.OpenCL && Opts.getOpenCLCompatibleVersion() >= 200) {
+    Opts.OpenCLGenericAddressSpace = true;
+  }
 }
 
 ArrayRef<const char *> RISCVTargetInfo::getGCCRegNames() const {
