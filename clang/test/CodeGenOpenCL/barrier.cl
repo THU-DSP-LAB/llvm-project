@@ -6,5 +6,5 @@ void test() {
     // CHECK-NEXT: call void @llvm.riscv.ventus.barrier.with.scope(i32 1, i32 2)
     barrier(1);
     work_group_barrier(1);
-    work_group_barrier(1,2);
+    work_group_barrier(1, 2);
 }
