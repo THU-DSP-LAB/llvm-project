@@ -1366,13 +1366,12 @@ def : Pat<(fneg (f32 VGPR:$rs1)), (VFSGNJN_VV $rs1, $rs1)>;
 def : Pat<(fabs (f32 VGPR:$rs1)), (VFSGNJX_VV $rs1, $rs1)>;
 
 // Patterns for ternary operations
-// TODO: vmacc/vfmacc, vnmsac/vfnmsac
-defm : PatVXFTer<[DivergentBinFrag<fadd>, DivergentBinFrag<fmul>], f32,
-                                            GPRF32, [VFMADD_VV, VFMADD_VF]>;
-defm : PatVXFTer<[DivergentBinFrag<fsub>, DivergentBinFrag<fmul>], f32,
-                    GPRF32, [VFMSUB_VV, VFMSUB_VF, VFNMADD_VV, VFNMADD_VF]>;
-defm : PatVXFTer<[ReverseDivergentBinFrag<fsub>, DivergentBinFrag<fmul>],
-                                   f32, GPRF32, [VFNMSUB_VV, VFNMSUB_VF]>;
+// TODO: vmacc, vnmsac
+
+// These FMA patterns (e.g., fadd(fmul(...))) were removed because they
+// enabled contraction regardless of the current FP_CONTRACT state.
+// The FP_CONTRACT pragma can be used to allow or disallow such contraction.
+// Emitting FMA here would violate the user's contraction preferences.
 defm : PatVXFTer<[DivergentBinFrag<add>, DivergentBinFrag<mul>], XLenVT,
                                      GPR, [VMADD_VV, VMADD_VX]>;
 defm : PatVXFTer<[ReverseDivergentBinFrag<sub>, DivergentBinFrag<mul>],
@@ -1453,19 +1452,13 @@ def : DivergentBccPat<SETUGE, VBGEU>;
 
 // Ventus barrier instructions pattern
 
-let Predicates = [NoSubgroupFlag] in {
+def : Pat<(int_riscv_ventus_barrier timm:$uimm5), (BARRIER $uimm5)>;
+def PseudoBarrier : Pseudo<(outs), (ins i32imm:$uimm1, i32imm:$uimm2),
+          [(int_riscv_ventus_barrier_with_scope timm:$uimm1, timm:$uimm2)]>;
 
-  def : Pat<(int_riscv_ventus_barrier timm:$uimm5), (BARRIER $uimm5)>;
-  def PseudoBarrier : Pseudo<(outs), (ins i32imm:$uimm1, i32imm:$uimm2),
-           [(int_riscv_ventus_barrier_with_scope timm:$uimm1, timm:$uimm2)]>;
-} // Predicates = [NoSubgroupBarrierFlag]
-
-let Predicates = [HasSubgroupFlag] in {
-
-def : Pat<(int_riscv_ventus_barrier timm:$uimm5), (SUBGROUP_BARRIER $uimm5)>;
+def : Pat<(int_riscv_ventus_subgroup_barrier timm:$uimm5), (SUBGROUP_BARRIER $uimm5)>;
 def PseudoSubGroupBarrier : Pseudo<(outs), (ins i32imm:$uimm1, i32imm:$uimm2),
-           [(int_riscv_ventus_barrier_with_scope timm:$uimm1, timm:$uimm2)]>;
-} // Predicates = [HasSubgroupBarrierFlag]
+          [(int_riscv_ventus_subgroup_barrier_with_scope timm:$uimm1, timm:$uimm2)]>;
 
 // TODO: Fix it!
 /*

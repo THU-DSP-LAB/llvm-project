@@ -31,12 +31,6 @@
 #define GET_SUBTARGETINFO_HEADER
 #include "RISCVGenSubtargetInfo.inc"
 
-// FIXME: invalid yet
-#if defined(__opencl_c_subgroups)
-#define SubGroupFlag true
-#else
-#define SubGroupFlag false
-#endif
 
 namespace llvm {
 class StringRef;
@@ -221,7 +215,6 @@ public:
   bool enableDefaultUnroll() const { return EnableDefaultUnroll; }
   bool enableSaveRestore() const { return EnableSaveRestore; }
   bool hasShortForwardBranchOpt() const { return HasShortForwardBranchOpt; }
-  bool hasSubgroupFlag() const { return SubGroupFlag; };
   bool enableUnalignedScalarMem() const { return EnableUnalignedScalarMem; }
   bool hasLUIADDIFusion() const { return HasLUIADDIFusion; }
   bool hasForcedAtomics() const { return HasForcedAtomics; }

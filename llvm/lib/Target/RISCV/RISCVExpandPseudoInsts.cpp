@@ -210,12 +210,15 @@ bool RISCVExpandPseudo::expandBarrier(MachineBasicBlock &MBB,
   assert((MBBI->getOpcode() == RISCV::PseudoBarrier ||
           MBBI->getOpcode() == RISCV::PseudoSubGroupBarrier) &&
          "Unexpected opcode");
-  bool isBarrier = MBBI->getOpcode() == RISCV::PseudoBarrier;
-  unsigned BarrierOpcode = isBarrier ? RISCV::BARRIER : RISCV::SUBGROUP_BARRIER;
+  unsigned Opcode = MBBI->getOpcode();
+  if (Opcode == RISCV::PseudoSubGroupBarrier) {
+    Opcode = RISCV::SUBGROUP_BARRIER;
+  } else {
+    Opcode = RISCV::BARRIER;
+  }
   uint32_t MemFlag = MBBI->getOperand(0).getImm();
-  // when use barriersub, MemScope is default to be 0
-  uint32_t MemScope = isBarrier ? MBBI->getOperand(1).getImm() : 0;
-  BuildMI(MBB, MBBI, MBBI->getDebugLoc(), TII->get(BarrierOpcode))
+  uint32_t MemScope = MBBI->getOperand(1).getImm();
+  BuildMI(MBB, MBBI, MBBI->getDebugLoc(), TII->get(Opcode))
       .addImm((MemScope << 3) + MemFlag);
   MBBI->eraseFromParent();
   return true;
