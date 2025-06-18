@@ -255,6 +255,7 @@ bool RISCVPassConfig::addPreISel() {
 
 bool RISCVPassConfig::addInstSelector() {
   addPass(createRISCVISelDag(getRISCVTargetMachine(), getOptLevel()));
+  addPass(createVentusFixMixedPHIPass());
 
   return false;
 }
@@ -307,6 +308,9 @@ void RISCVPassConfig::addMachineSSAOptimization() {
 
   if (TM->getTargetTriple().getArch() == Triple::riscv64)
     addPass(createRISCVSExtWRemovalPass());
+    
+  // Disable Pre-RA Machine Sinking pass
+  disablePass(&MachineSinkingID);
 }
 
 void RISCVPassConfig::addPreRegAlloc() {
@@ -325,6 +329,9 @@ void RISCVPassConfig::addPostRegAlloc() {
   // Do not work with OpPhi.
   disablePass(&BranchFolderPassID);
   disablePass(&MachineBlockPlacementID);
+  
+  // Disable Post-RA Machine Sinking pass
+  disablePass(&PostRAMachineSinkingID);
 
   TargetPassConfig::addPostRegAlloc();
 }
