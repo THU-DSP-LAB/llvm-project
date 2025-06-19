@@ -80,6 +80,61 @@ class DivergentPrivateStoreFrag<SDPatternOperator Op> : PatFrag<
       );
   }]>;
 
+// Global memory Load
+class DivergentGlobalLoadFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0),
+  (Op $src0),
+  [{
+    return N->isDivergent() &&
+      cast<LoadSDNode>(N)->getAddressSpace() == RISCVAS::GLOBAL_ADDRESS;
+  }]>;
+
+// Global memory Store
+class DivergentGlobalStoreFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{
+    return N->isDivergent() &&
+      cast<StoreSDNode>(N)->getAddressSpace() == RISCVAS::GLOBAL_ADDRESS;
+  }]>;
+
+// Local memory Load
+class DivergentLocalLoadFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0),
+  (Op $src0),
+  [{
+    return N->isDivergent() &&
+      cast<LoadSDNode>(N)->getAddressSpace() == RISCVAS::LOCAL_ADDRESS;
+  }]>;
+
+// Local memory Store
+class DivergentLocalStoreFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{
+    return N->isDivergent() &&
+      cast<StoreSDNode>(N)->getAddressSpace() == RISCVAS::LOCAL_ADDRESS;
+  }]>;
+
+
+// Generic memory Store
+class DivergentGenericStoreFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{
+    return N->isDivergent() &&
+      cast<StoreSDNode>(N)->getAddressSpace() == RISCVAS::FLAT_ADDRESS;
+  }]>;
+
+// Generic memory Load
+class DivergentGenericLoadFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0),
+  (Op $src0),
+  [{
+    return N->isDivergent() &&
+      cast<LoadSDNode>(N)->getAddressSpace() == RISCVAS::FLAT_ADDRESS;
+  }]>;
+
 class UniformStoreFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
   (Op $src0, $src1),

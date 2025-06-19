@@ -150,6 +150,10 @@ def OPC_JALR      : RISCVOpcode<"JALR",      0b1100111>;
 def OPC_JAL       : RISCVOpcode<"JAL",       0b1101111>;
 def OPC_SYSTEM    : RISCVOpcode<"SYSTEM",    0b1110011>;
 def OPC_CUSTOM_3  : RISCVOpcode<"CUSTOM_3",  0b1111011>;
+def OPC_CUSTOM_PRIVATE  : RISCVOpcode<"CUSTOM_PRIVATE",  0b1111110>;
+def OPC_CUSTOM_LOCAL  : RISCVOpcode<"CUSTOM_LOCAL",  0b1111010>;
+def OPC_CUSTOM_GLOBAL : RISCVOpcode<"CUSTOM_GLOBAL",  0b1110110>;
+def OPC_CUSTOM_GENERIC : RISCVOpcode<"CUSTOM_GENERIC",  0b1111011>;
 
 class RVInst<dag outs, dag ins, string opcodestr, string argstr,
              list<dag> pattern, InstFormat format>
