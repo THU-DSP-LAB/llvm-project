@@ -8,10 +8,14 @@ define dso_local void @barrier() local_unnamed_addr {
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    barrier x0, x0, 3
 ; VENTUS-NEXT:    barrier x0, x0, 27
+; VENTUS-NEXT:    barriersub  x0, x0, 3
+; VENTUS-NEXT:    barriersub  x0, x0, 27
 ; VENTUS-NEXT:    ret
 entry:
   tail call void @llvm.riscv.ventus.barrier(i32 noundef 3)
   tail call void @llvm.riscv.ventus.barrier.with.scope(i32 noundef 3, i32 noundef 3)
+  tail call void @llvm.riscv.ventus.subgroup.barrier(i32 noundef 3)
+  tail call void @llvm.riscv.ventus.subgroup.barrier.with.scope(i32 noundef 3, i32 noundef 3)
   ret void
 }
 
@@ -21,3 +25,8 @@ declare void @llvm.riscv.ventus.barrier(i32 immarg)
 ; Function Attrs: nounwind
 declare void @llvm.riscv.ventus.barrier.with.scope(i32 immarg, i32 immarg)
 
+; Function Attrs: nounwind
+declare void @llvm.riscv.ventus.subgroup.barrier.with.scope(i32 immarg, i32 immarg)
+
+; Function Attrs: nounwind
+declare void @llvm.riscv.ventus.subgroup.barrier(i32 immarg)
