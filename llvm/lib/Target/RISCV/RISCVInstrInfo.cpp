@@ -78,11 +78,11 @@ unsigned RISCVInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
   case RISCV::LW:
   case RISCV::LWU:
   case RISCV::LD:
-  case RISCV::VLW:
-  case RISCV::VLH:
-  case RISCV::VLB:
-  case RISCV::VLHU:
-  case RISCV::VLBU:
+  case RISCV::VLW_PRIVATE:
+  case RISCV::VLH_PRIVATE:
+  case RISCV::VLB_PRIVATE:
+  case RISCV::VLHU_PRIVATE:
+  case RISCV::VLBU_PRIVATE:
     break;
   }
 
@@ -115,58 +115,58 @@ bool RISCVInstrInfo::isLocalMemoryAccess(const MachineInstr &MI) const {
 unsigned RISCVInstrInfo::getPrivateMemoryOpcode(MachineInstr &MI) const {
   switch (MI.getOpcode()) {
     case RISCV::LW:
-    case RISCV::VLWI12:
-      return RISCV::VLW;
+    case RISCV::VLW_LOCAL:
+      return RISCV::VLW_PRIVATE;
     case RISCV::LB:
-    case RISCV::VLBI12:
-      return RISCV::VLB;
+    case RISCV::VLB_LOCAL:
+      return RISCV::VLB_PRIVATE;
     case RISCV::LBU:
-    case RISCV::VLBUI12:
-      return RISCV::VLBU;
+    case RISCV::VLBU_LOCAL:
+      return RISCV::VLBU_PRIVATE;
     case RISCV::LH:
-    case RISCV::VLHI12:
-      return RISCV::VLH;
+    case RISCV::VLH_LOCAL:
+      return RISCV::VLH_PRIVATE;
     case RISCV::LHU:
-    case RISCV::VLHUI12:
-      return RISCV::VLHU;
+    case RISCV::VLHU_LOCAL:
+      return RISCV::VLHU_PRIVATE;
     case RISCV::SW:
-    case RISCV::VSWI12:
-      return RISCV::VSW;
+    case RISCV::VSW_LOCAL:
+      return RISCV::VSW_PRIVATE;
     case RISCV::SH:
-    case RISCV::VSHI12:
-      return RISCV::VSH;
+    case RISCV::VSH_LOCAL:
+      return RISCV::VSH_PRIVATE;
     case RISCV::SB:
-    case RISCV::VSBI12:
-      return RISCV::VSB;
+    case RISCV::VSB_LOCAL:
+      return RISCV::VSB_PRIVATE;
     default:
       // MI.dump();
       assert(0 && "TODO");
-      return RISCV::VLW;
+      return RISCV::VLW_PRIVATE;
   }
 }
 
 unsigned RISCVInstrInfo::getUniformMemoryOpcode(MachineInstr &MI) const {
   switch (MI.getOpcode()) {
-    case RISCV::VLW:
-      return RISCV::VLWI12;
-    case RISCV::VLB:
-      return RISCV::VLBI12;
-    case RISCV::VLBU:
-      return RISCV::VLBUI12;
-    case RISCV::VLH:
-      return RISCV::VLHI12;
-    case RISCV::VLHU:
-      return RISCV::VLHUI12;
-    case RISCV::VSW:
-      return RISCV::VSWI12;
-    case RISCV::VSH:
-      return RISCV::VSHI12;
-    case RISCV::VSB:
-      return RISCV::VSBI12;
+    case RISCV::VLW_PRIVATE:
+      return RISCV::VLW_LOCAL;
+    case RISCV::VLB_PRIVATE:
+      return RISCV::VLB_LOCAL;
+    case RISCV::VLBU_PRIVATE:
+      return RISCV::VLBU_LOCAL;
+    case RISCV::VLH_PRIVATE:
+      return RISCV::VLH_LOCAL;
+    case RISCV::VLHU_PRIVATE:
+      return RISCV::VLHU_LOCAL;
+    case RISCV::VSW_PRIVATE:
+      return RISCV::VSW_LOCAL;
+    case RISCV::VSH_PRIVATE:
+      return RISCV::VSH_LOCAL;
+    case RISCV::VSB_PRIVATE:
+      return RISCV::VSB_LOCAL;
     default:
       // MI.dump();
       assert(0 && "TODO");
-      return RISCV::VLW;
+      return RISCV::VLW_PRIVATE;
   }
 }
 
@@ -179,9 +179,9 @@ unsigned RISCVInstrInfo::isStoreToStackSlot(const MachineInstr &MI,
   case RISCV::SH:
   case RISCV::SW:
   case RISCV::SD:
-  case RISCV::VSW:
-  case RISCV::VSH:
-  case RISCV::VSB:
+  case RISCV::VSW_PRIVATE:
+  case RISCV::VSH_PRIVATE:
+  case RISCV::VSB_PRIVATE:
     break;
   }
 
@@ -289,12 +289,12 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
     Opcode = TRI->getRegSizeInBits(RISCV::GPRRegClass) == 32 ?
              RISCV::SW : RISCV::SD;
   } else if (RISCV::VGPRRegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::VSW;
+    Opcode = RISCV::VSW_PRIVATE;
   } else
     llvm_unreachable("Can't store this register to stack slot");
 
   // VGPR spills to per-thread stack, SGPR spills to local mem stack
-  if (Opcode != RISCV::VSW) {
+  if (Opcode != RISCV::VSW_PRIVATE) {
     MFI.setStackID(FI, TargetStackID::SGPRSpill);
   }
 
@@ -326,7 +326,7 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
     Opcode = TRI->getRegSizeInBits(RISCV::GPRRegClass) == 32 ?
              RISCV::LW : RISCV::LD;
   } else if (RISCV::VGPRRegClass.hasSubClassEq(RC)) {
-    Opcode = RISCV::VLW;
+    Opcode = RISCV::VLW_PRIVATE;
   } else
     llvm_unreachable("Can't load this register from stack slot");
 

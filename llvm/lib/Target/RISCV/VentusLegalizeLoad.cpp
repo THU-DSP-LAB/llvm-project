@@ -80,11 +80,11 @@ private:
   // Check whether machine instruction is local memory load instruction or not
   bool isLocalMemLoadInstr(MachineInstr &MI) {
     switch (MI.getOpcode()) {
-    case RISCV::VLWI12:
-    case RISCV::VLBI12:
-    case RISCV::VLBUI12:
-    case RISCV::VLHI12:
-    case RISCV::VLHUI12:
+    case RISCV::VLW_LOCAL:
+    case RISCV::VLB_LOCAL:
+    case RISCV::VLBU_LOCAL:
+    case RISCV::VLH_LOCAL:
+    case RISCV::VLHU_LOCAL:
       return true;
     default:
       return false;
@@ -94,16 +94,16 @@ private:
   unsigned getRelativePrivateMemLoadInstr(MachineInstr &MI) {
     assert(isLocalMemLoadInstr(MI) && "Illegal instruction.");
     switch (MI.getOpcode()) {
-      case RISCV::VLWI12:
-        return RISCV::VLW;
-      case RISCV::VLBI12:
-        return RISCV::VLB;
-      case RISCV::VLBUI12:
-        return RISCV::VLBU;
-      case RISCV::VLHI12:
-        return RISCV::VLH;
-      case RISCV::VLHUI12:
-        return RISCV::VLHU;
+      case RISCV::VLW_LOCAL:
+        return RISCV::VLW_PRIVATE;
+      case RISCV::VLB_LOCAL:
+        return RISCV::VLB_PRIVATE;
+      case RISCV::VLBU_LOCAL:
+        return RISCV::VLBU_PRIVATE;
+      case RISCV::VLH_LOCAL:
+        return RISCV::VLH_PRIVATE;
+      case RISCV::VLHU_LOCAL:
+        return RISCV::VLHU_PRIVATE;
       default:
         llvm_unreachable("Unexpected instruction.");
     }
@@ -127,7 +127,7 @@ bool VentusLegalizeLoad::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
   // Right now we only legalize vlw12.v instruction, and we need to analyze its
   // operand def-use chain
   for (auto &MI : MBB) {
-    if (MI.getOpcode() == RISCV::VLW)
+    if (MI.getOpcode() == RISCV::VLW_PRIVATE)
       IsMBBChanged |= checkVLWDependency(MBB, MI);
   }
   return IsMBBChanged;
@@ -171,7 +171,7 @@ bool VentusLegalizeLoad::checkInstructionUse(MachineBasicBlock &MBB, MachineInst
     }
     return IsChanged = true;
   }
-  if (MI.getOpcode() == RISCV::VSW)
+  if (MI.getOpcode() == RISCV::VSW_PRIVATE)
     return IsChanged;
   for (auto &Use : MR->use_instructions(MI.getOperand(0).getReg())) {
     IsChanged |= checkInstructionUse(MBB, Use);
