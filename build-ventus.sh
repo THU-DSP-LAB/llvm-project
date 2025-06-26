@@ -112,9 +112,9 @@ check_if_program_exits ${RODINIA_DIR} "gpu-rodinia"
 
 # Build llvm
 build_llvm() {
-  if [ ! -d "${VENTUS_BUILD_DIR}" ]; then
-    mkdir ${VENTUS_BUILD_DIR}
-  fi
+  rm -rf ${VENTUS_BUILD_DIR}
+  rm -rf ${VENTUS_INSTALL_PREFIX}  
+  mkdir ${VENTUS_BUILD_DIR}
   cd ${VENTUS_BUILD_DIR}
   cmake -G Ninja -B ${VENTUS_BUILD_DIR} ${DIR}/llvm \
     -DLLVM_CCACHE_BUILD=ON \
@@ -133,7 +133,8 @@ build_llvm() {
 
 # Build ventus driver
 build_driver() {
-  mkdir ${DRIVER_BUILD_DIR} || true
+  rm -rf ${DRIVER_BUILD_DIR}
+  mkdir ${DRIVER_BUILD_DIR} 
   cd ${DRIVER_DIR}
   cmake -G Ninja -B ${DRIVER_BUILD_DIR} . \
     -DCMAKE_C_COMPILER=clang \
@@ -146,8 +147,8 @@ build_driver() {
 
 # Build spike simulator
 build_spike() {
-  # rm -rf ${SPIKE_BUILD_DIR} || true
-  mkdir ${SPIKE_BUILD_DIR} ||true
+  rm -rf ${SPIKE_BUILD_DIR} 
+  mkdir ${SPIKE_BUILD_DIR} 
   cd ${SPIKE_BUILD_DIR}
   ../configure --prefix=${VENTUS_INSTALL_PREFIX} --enable-commitlog
   make -j8
@@ -156,7 +157,8 @@ build_spike() {
 
 # Build pocl from THU
 build_pocl() {
-  mkdir ${POCL_BUILD_DIR} || true
+  rm -rf ${POCL_BUILD_DIR}
+  mkdir ${POCL_BUILD_DIR} 
   cd ${POCL_DIR}
   cmake -G Ninja -B ${POCL_BUILD_DIR} . \
     -DENABLE_HOST_CPU_DEVICES=OFF \
@@ -174,9 +176,8 @@ build_pocl() {
 
 # Build libclc for pocl
 build_libclc() {
-  if [ ! -d "${LIBCLC_BUILD_DIR}" ]; then
-    mkdir ${LIBCLC_BUILD_DIR}
-  fi
+  rm -rf ${LIBCLC_BUILD_DIR}
+  mkdir ${LIBCLC_BUILD_DIR}
   cd ${LIBCLC_BUILD_DIR}
   cmake -G Ninja -B ${LIBCLC_BUILD_DIR} ${DIR}/libclc \
     -DCMAKE_CLC_COMPILER=clang \
@@ -220,9 +221,19 @@ test_rodinia() {
 
 # TODO : More test cases of the pocl will be added
 test_pocl() {
-   cd ${POCL_BUILD_DIR}/examples
-   ./vecadd/vecadd
-   ./matadd/matadd
+   cd "${POCL_BUILD_DIR}/examples"
+   # vecadd
+   cd vecadd
+   mkdir -p test_vecadd
+   cd test_vecadd
+   ../vecadd 
+   cd ../..
+   # matadd
+   cd matadd
+   mkdir -p test_matadd
+   cd test_matadd
+   ../matadd 
+   cd ../..
 }
 
 # Export needed path and enviroment variables
