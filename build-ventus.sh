@@ -278,7 +278,6 @@ check_if_ocl_icd_built() {
 
 #In full compilation mode
 if [ "$ORIG_ARGC" -eq 0 ]; then
-  echo "全编译模式，删除并新建所有中间 build 目录..."
   for dir in "${VENTUS_BUILD_DIR}" "${LIBCLC_BUILD_DIR}" "${POCL_BUILD_DIR}" "${DRIVER_BUILD_DIR}" "${SPIKE_BUILD_DIR}" "${OCL_ICD_BUILD_DIR}" "${VENTUS_INSTALL_PREFIX}"; do
     if [ -d "$dir" ]; then
       rm -rf "$dir"
@@ -287,7 +286,7 @@ if [ "$ORIG_ARGC" -eq 0 ]; then
   done
 fi
 
-# Process build options
+#In incremental compilation mode, process build options
 for program in "${PROGRAMS_TOBUILD[@]}"
 do
   if [ "${program}" == "llvm" ];then
