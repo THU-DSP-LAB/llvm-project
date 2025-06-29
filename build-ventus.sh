@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+ORIG_ARGC=$#
 DIR=$(cd "$(dirname "${0}")" &> /dev/null && (pwd -W 2> /dev/null || pwd))
 VENTUS_BUILD_DIR=${DIR}/build
 LIBCLC_BUILD_DIR=${DIR}/build-libclc
@@ -112,9 +112,9 @@ check_if_program_exits ${RODINIA_DIR} "gpu-rodinia"
 
 # Build llvm
 build_llvm() {
-  rm -rf ${VENTUS_BUILD_DIR}
-  rm -rf ${VENTUS_INSTALL_PREFIX}  
-  mkdir ${VENTUS_BUILD_DIR}
+  if [ ! -d "${VENTUS_BUILD_DIR}" ]; then
+    mkdir ${VENTUS_BUILD_DIR}
+  fi
   cd ${VENTUS_BUILD_DIR}
   cmake -G Ninja -B ${VENTUS_BUILD_DIR} ${DIR}/llvm \
     -DLLVM_CCACHE_BUILD=ON \
@@ -133,8 +133,7 @@ build_llvm() {
 
 # Build ventus driver
 build_driver() {
-  rm -rf ${DRIVER_BUILD_DIR}
-  mkdir ${DRIVER_BUILD_DIR} 
+  mkdir ${DRIVER_BUILD_DIR} || true
   cd ${DRIVER_DIR}
   cmake -G Ninja -B ${DRIVER_BUILD_DIR} . \
     -DCMAKE_C_COMPILER=clang \
@@ -147,8 +146,8 @@ build_driver() {
 
 # Build spike simulator
 build_spike() {
-  rm -rf ${SPIKE_BUILD_DIR} 
-  mkdir ${SPIKE_BUILD_DIR} 
+  # rm -rf ${SPIKE_BUILD_DIR} || true
+  mkdir ${SPIKE_BUILD_DIR} ||true
   cd ${SPIKE_BUILD_DIR}
   ../configure --prefix=${VENTUS_INSTALL_PREFIX} --enable-commitlog
   make -j8
@@ -157,8 +156,7 @@ build_spike() {
 
 # Build pocl from THU
 build_pocl() {
-  rm -rf ${POCL_BUILD_DIR}
-  mkdir ${POCL_BUILD_DIR} 
+  mkdir ${POCL_BUILD_DIR} || true
   cd ${POCL_DIR}
   cmake -G Ninja -B ${POCL_BUILD_DIR} . \
     -DENABLE_HOST_CPU_DEVICES=OFF \
@@ -176,8 +174,10 @@ build_pocl() {
 
 # Build libclc for pocl
 build_libclc() {
-  rm -rf ${LIBCLC_BUILD_DIR}
-  mkdir ${LIBCLC_BUILD_DIR}
+  if [ -d "${LIBCLC_BUILD_DIR}" ]; then
+      rm -rf "${LIBCLC_BUILD_DIR}"
+  fi
+  mkdir "${LIBCLC_BUILD_DIR}"
   cd ${LIBCLC_BUILD_DIR}
   cmake -G Ninja -B ${LIBCLC_BUILD_DIR} ${DIR}/libclc \
     -DCMAKE_CLC_COMPILER=clang \
@@ -221,19 +221,14 @@ test_rodinia() {
 
 # TODO : More test cases of the pocl will be added
 test_pocl() {
-   cd "${POCL_BUILD_DIR}/examples"
-   # vecadd
-   cd vecadd
+   cd "${POCL_BUILD_DIR}/examples/vecadd"
    mkdir -p test_vecadd
    cd test_vecadd
    ../vecadd 
-   cd ../..
-   # matadd
-   cd matadd
+   cd "${POCL_BUILD_DIR}/examples/matadd"
    mkdir -p test_matadd
    cd test_matadd
-   ../matadd 
-   cd ../..
+   ../matadd
 }
 
 # Export needed path and enviroment variables
@@ -280,6 +275,17 @@ check_if_ocl_icd_built() {
     exit 1
   fi
 }
+
+#In full compilation mode
+if [ "$ORIG_ARGC" -eq 0 ]; then
+  echo "全编译模式，删除并新建所有中间 build 目录..."
+  for dir in "${VENTUS_BUILD_DIR}" "${LIBCLC_BUILD_DIR}" "${POCL_BUILD_DIR}" "${DRIVER_BUILD_DIR}" "${SPIKE_BUILD_DIR}" "${OCL_ICD_BUILD_DIR}" "${VENTUS_INSTALL_PREFIX}"; do
+    if [ -d "$dir" ]; then
+      rm -rf "$dir"
+    fi
+    mkdir -p "$dir"
+  done
+fi
 
 # Process build options
 for program in "${PROGRAMS_TOBUILD[@]}"
