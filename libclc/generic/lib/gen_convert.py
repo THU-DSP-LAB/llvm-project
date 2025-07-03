@@ -445,14 +445,20 @@ def generate_float_conversion(src, dst, size, mode, sat):
                         USRC=unsigned_type[src], N=size
                     )
                 )
+                # For integer sources, check for saturation case
+                print(
+                    "  return select(r, nextafter(r, sign(r) * ({DST}{N})-INFINITY), convert_{BOOL}{N}(abs_y > abs_x || (abs_y == abs_x && abs_y == ({USRC}{N}){SRC_MAX})));".format(
+                        DST=dst, N=size, BOOL=bool_type[dst], USRC=unsigned_type[src], SRC_MAX=limit_max[src]
+                    )
+                )
             else:
                 print("  {SRC}{N} abs_x = fabs(x);".format(SRC=src, N=size))
                 print("  {SRC}{N} abs_y = fabs(y);".format(SRC=src, N=size))
-            print(
-                "  return select(r, nextafter(r, sign(r) * ({DST}{N})-INFINITY), convert_{BOOL}{N}(abs_y > abs_x));".format(
-                    DST=dst, N=size, BOOL=bool_type[dst]
+                print(
+                    "  return select(r, nextafter(r, sign(r) * ({DST}{N})-INFINITY), convert_{BOOL}{N}(abs_y > abs_x));".format(
+                        DST=dst, N=size, BOOL=bool_type[dst]
+                    )
                 )
-            )
         if mode == "_rtp":
             print(
                 "  return select(r, nextafter(r, ({DST}{N})INFINITY), convert_{BOOL}{N}(y < x));".format(
@@ -460,11 +466,21 @@ def generate_float_conversion(src, dst, size, mode, sat):
                 )
             )
         if mode == "_rtn":
-            print(
-                "  return select(r, nextafter(r, ({DST}{N})-INFINITY), convert_{BOOL}{N}(y > x));".format(
-                    DST=dst, N=size, BOOL=bool_type[dst]
+            if src in int_types:
+                # For integer sources, check for saturation case when converting back
+                # Cast the constant to source type to match vector element type
+                print(
+                    "  return select(r, nextafter(r, ({DST}{N})-INFINITY), convert_{BOOL}{N}(y > x || (y == x && y == ({SRC}{N}){SRC_MAX})));".format(
+                        DST=dst, N=size, BOOL=bool_type[dst], SRC=src, SRC_MAX=limit_max[src]
+                    )
                 )
-            )
+            else:
+                # For float sources, use original logic
+                print(
+                    "  return select(r, nextafter(r, ({DST}{N})-INFINITY), convert_{BOOL}{N}(y > x));".format(
+                        DST=dst, N=size, BOOL=bool_type[dst]
+                    )
+                )
 
     # Footer
     print("}")
