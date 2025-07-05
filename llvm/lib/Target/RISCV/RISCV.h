@@ -79,6 +79,9 @@ void initializeVentusLegalizeLoadPass(PassRegistry &);
 FunctionPass *createVentusInsertJoinToVBranchPass();
 void initializeVentusInsertJoinToVBranchPass(PassRegistry &);
 
+FunctionPass *createVentusFixMixedPHIPass();
+void initializeVentusFixMixedPHIPass(PassRegistry &);
+
 InstructionSelector *createRISCVInstructionSelector(const RISCVTargetMachine &,
                                                     RISCVSubtarget &,
                                                     RISCVRegisterBankInfo &);

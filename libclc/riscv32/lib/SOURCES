@@ -10,7 +10,7 @@ workitem/get_num_groups.cl
 workitem/get_work_dim.cl
 workitem/get_enqueued_local_size.cl
 
-compiler-rt/nextafterf.cl
+
 compiler-rt/adddf3.cl
 compiler-rt/comparedf2.cl
 compiler-rt/divdf3.cl
