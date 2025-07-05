@@ -277,7 +277,7 @@ entry:
 define dso_local i32 @fcvt_x_f(float noundef %a) local_unnamed_addr  {
 ; VENTUS-LABEL: fcvt_x_f:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vfcvt.x.f.v v0, v0
+; VENTUS-NEXT:    vfcvt.rtz.x.f.v v0, v0
 ; VENTUS-NEXT:    ret
 entry:
   %conv = fptosi float %a to i32
@@ -288,7 +288,7 @@ entry:
 define dso_local i32 @fcvtu_xu_f(float noundef %a) local_unnamed_addr  {
 ; VENTUS-LABEL: fcvtu_xu_f:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    vfcvt.xu.f.v v0, v0
+; VENTUS-NEXT:    vfcvt.rtz.xu.f.v v0, v0
 ; VENTUS-NEXT:    ret
 entry:
   %conv = fptoui float %a to i32
