@@ -2048,6 +2048,7 @@ static RISCVFPRndMode::RoundingMode matchRoundingOp(unsigned Opc) {
   switch (Opc) {
   case ISD::FROUNDEVEN:
   case ISD::VP_FROUNDEVEN:
+  case ISD::FRINT:
     return RISCVFPRndMode::RNE;
   case ISD::FTRUNC:
   case ISD::VP_FROUNDTOZERO:
@@ -2061,8 +2062,6 @@ static RISCVFPRndMode::RoundingMode matchRoundingOp(unsigned Opc) {
   case ISD::FROUND:
   case ISD::VP_FROUND:
     return RISCVFPRndMode::RMM;
-  case ISD::FRINT:
-    return RISCVFPRndMode::DYN;
   }
 
   return RISCVFPRndMode::Invalid;
@@ -11262,20 +11261,60 @@ static MachineBasicBlock *emitFROUND(MachineInstr &MI, MachineBasicBlock *MBB,
   // Convert to integer.
   Register F2IReg = MRI.createVirtualRegister(isDivergent ?
                                   &RISCV::VGPRRegClass : &RISCV::GPRRegClass);
-  MIB = BuildMI(CvtMBB, DL, TII.get(F2IOpc), F2IReg).addReg(SrcReg);
-  if(!isDivergent)
+  
+  Register OldFRMReg;
+  if (isDivergent) {
+    // For vector version, set FRM once for both conversions
+    // Save current FRM value
+    OldFRMReg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
+    BuildMI(CvtMBB, DL, TII.get(RISCV::CSRRS), OldFRMReg)
+        .addImm(0x002)  // FRM CSR address
+        .addReg(RISCV::X0);
+    
+    // Set new rounding mode
+    BuildMI(CvtMBB, DL, TII.get(RISCV::CSRRWI))
+        .addReg(RISCV::X0)
+        .addImm(0x002)  // FRM CSR address
+        .addImm(FRM);
+  }
+
+  // First conversion: float to int
+  if (isDivergent) {
+    // Vector version, FRM already set
+    MIB = BuildMI(CvtMBB, DL, TII.get(F2IOpc), F2IReg).addReg(SrcReg);
+  } else {
+    // Scalar version, add rounding mode directly
+    MIB = BuildMI(CvtMBB, DL, TII.get(F2IOpc), F2IReg).addReg(SrcReg);
     MIB.addImm(FRM);
+  }
+  
   if (MI.getFlag(MachineInstr::MIFlag::NoFPExcept))
     MIB->setFlag(MachineInstr::MIFlag::NoFPExcept);
 
   // Convert back to FP.
   Register I2FReg = MRI.createVirtualRegister(isDivergent ?
                                   &RISCV::VGPRRegClass : &RISCV::GPRRegClass);
-  MIB = BuildMI(CvtMBB, DL, TII.get(I2FOpc), I2FReg).addReg(F2IReg);
-  if(!isDivergent)
+  
+  // Second conversion: int to float
+  if (isDivergent) {
+    // Vector version, FRM still effective
+    MIB = BuildMI(CvtMBB, DL, TII.get(I2FOpc), I2FReg).addReg(F2IReg);
+  } else {
+    // Scalar version, add rounding mode directly
+    MIB = BuildMI(CvtMBB, DL, TII.get(I2FOpc), I2FReg).addReg(F2IReg);
     MIB.addImm(FRM);
+  }
+  
   if (MI.getFlag(MachineInstr::MIFlag::NoFPExcept))
     MIB->setFlag(MachineInstr::MIFlag::NoFPExcept);
+
+  // For vector version, restore original FRM
+  if (isDivergent) {
+    BuildMI(CvtMBB, DL, TII.get(RISCV::CSRRW))
+        .addReg(RISCV::X0)
+        .addImm(0x002)  // FRM CSR address
+        .addReg(OldFRMReg);
+  }
 
   // Restore the sign bit.
   Register CvtReg = MRI.createVirtualRegister(RC);
