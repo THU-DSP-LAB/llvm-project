@@ -12,12 +12,13 @@
   FUNC(__CLC_VECSIZE, __CLC_VECSIZE, __CLC_OFFSET, __CLC_GENTYPE, __local);
   FUNC(__CLC_VECSIZE, __CLC_VECSIZE, __CLC_OFFSET, __CLC_GENTYPE, __global);
   FUNC(__CLC_VECSIZE, __CLC_VECSIZE, __CLC_OFFSET, __CLC_GENTYPE, __constant);
-
+  FUNC(__CLC_VECSIZE, __CLC_VECSIZE, __CLC_OFFSET, __CLC_GENTYPE, __generic);
 #undef __CLC_OFFSET
 #else
   FUNC(, 1, 1, __CLC_GENTYPE, __private);
   FUNC(, 1, 1, __CLC_GENTYPE, __local);
   FUNC(, 1, 1, __CLC_GENTYPE, __global);
   FUNC(, 1, 1, __CLC_GENTYPE, __constant);
+  FUNC(, 1, 1, __CLC_GENTYPE, __generic);
 #endif
 #endif

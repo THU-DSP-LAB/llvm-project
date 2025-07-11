@@ -12,7 +12,8 @@
   _CLC_VECTOR_VLOAD_DECL(SUFFIX, MEM_TYPE, PRIM_TYPE, __private) \
   _CLC_VECTOR_VLOAD_DECL(SUFFIX, MEM_TYPE, PRIM_TYPE, __local) \
   _CLC_VECTOR_VLOAD_DECL(SUFFIX, MEM_TYPE, PRIM_TYPE, __constant) \
-  _CLC_VECTOR_VLOAD_DECL(SUFFIX, MEM_TYPE, PRIM_TYPE, __global)
+  _CLC_VECTOR_VLOAD_DECL(SUFFIX, MEM_TYPE, PRIM_TYPE, __global) \
+  _CLC_VECTOR_VLOAD_DECL(SUFFIX, MEM_TYPE, PRIM_TYPE, __generic)
 
 #define _CLC_VECTOR_VLOAD_PRIM1(PRIM_TYPE) \
   _CLC_VECTOR_VLOAD_PRIM3(, PRIM_TYPE, PRIM_TYPE)
@@ -45,12 +46,14 @@ _CLC_VLOAD_DECL(_half, half, float, , __constant)
 _CLC_VLOAD_DECL(_half, half, float, , __global)
 _CLC_VLOAD_DECL(_half, half, float, , __local)
 _CLC_VLOAD_DECL(_half, half, float, , __private)
+_CLC_VLOAD_DECL(_half, half, float, , __generic)
 
 // Scalar vloada_half is not part of the specs but CTS expects it
 _CLC_VLOAD_DECL(a_half, half, float, , __constant)
 _CLC_VLOAD_DECL(a_half, half, float, , __global)
 _CLC_VLOAD_DECL(a_half, half, float, , __local)
 _CLC_VLOAD_DECL(a_half, half, float, , __private)
+_CLC_VLOAD_DECL(a_half, half, float, , __generic)
 
 #undef _CLC_VLOAD_DECL
 #undef _CLC_VECTOR_VLOAD_DECL
