@@ -110,7 +110,7 @@
 #define w5_f   8.3633989561e-04f        /* 0x3a5b3dd2 */
 #define w6_f  -1.6309292987e-03f        /* 0xbad5c4e8 */
 
-_CLC_OVERLOAD _CLC_DEF float lgamma_r(float x, int *signp) {
+_CLC_OVERLOAD _CLC_DEF float lgamma_r(float x, private int *signp) {
     int hx = as_int(x);
     int ix = hx & 0x7fffffff;
     float absx = as_float(ix);
@@ -227,7 +227,7 @@ _CLC_OVERLOAD _CLC_DEF float lgamma_r(float x, int *signp) {
     return r;
 }
 
-// _CLC_V_V_VP_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, float, lgamma_r, float, private, int)
+_CLC_V_V_VP_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, float, lgamma_r, float, private, int)
 
 #ifdef cl_khr_fp64
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
@@ -376,7 +376,7 @@ _CLC_OVERLOAD _CLC_DEF float lgamma_r(float x, int *signp) {
 #define w5 8.36339918996282139126e-04	/* 0x3F4B67BA, 0x4CDAD5D1 */
 #define w6 -1.63092934096575273989e-03	/* 0xBF5AB89D, 0x0B9E43E4 */
 
-_CLC_OVERLOAD _CLC_DEF double lgamma_r(double x, int *ip) {
+_CLC_OVERLOAD _CLC_DEF double lgamma_r(double x, private int *ip) {
     ulong ux = as_ulong(x);
     ulong ax = ux & EXSIGNBIT_DP64;
     double absx = as_double(ax);
@@ -483,7 +483,7 @@ _CLC_OVERLOAD _CLC_DEF double lgamma_r(double x, int *ip) {
     return r;
 }
 
-// _CLC_V_V_VP_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, double, lgamma_r, double, private, int)
+_CLC_V_V_VP_VECTORIZE(_CLC_OVERLOAD _CLC_DEF, double, lgamma_r, double, private, int)
 #endif
 
 
@@ -497,7 +497,8 @@ _CLC_OVERLOAD _CLC_DEF double lgamma_r(double x, int *ip) {
 #include <clc/math/gentype.inc>
 #undef __CLC_ADDRSPACE
 
-#define __CLC_ADDRSPACE private
+#define __CLC_ADDRSPACE generic
 #define __CLC_BODY <lgamma_r.inc>
 #include <clc/math/gentype.inc>
 #undef __CLC_ADDRSPACE
+

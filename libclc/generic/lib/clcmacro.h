@@ -111,38 +111,51 @@
 
 #define _CLC_V_V_VP_VECTORIZE(DECLSPEC, RET_TYPE, FUNCTION, ARG1_TYPE, ADDR_SPACE, ARG2_TYPE) \
   DECLSPEC RET_TYPE##2 FUNCTION(ARG1_TYPE##2 x, ADDR_SPACE ARG2_TYPE##2 *y) { \
+    ADDR_SPACE ARG2_TYPE *ptr = (ADDR_SPACE ARG2_TYPE *)y; \
     return (RET_TYPE##2)( \
-        FUNCTION(x.x, (ARG2_TYPE*)y), \
-        FUNCTION(x.y, (ADDR_SPACE ARG2_TYPE*)((ADDR_SPACE ARG2_TYPE*)y+1)) \
+        FUNCTION(x.x, ptr), \
+        FUNCTION(x.y, ptr + 1) \
     ); \
   } \
 \
   DECLSPEC RET_TYPE##3 FUNCTION(ARG1_TYPE##3 x, ADDR_SPACE ARG2_TYPE##3 *y) { \
+    ADDR_SPACE ARG2_TYPE *ptr = (ADDR_SPACE ARG2_TYPE *)y; \
     return (RET_TYPE##3)( \
-        FUNCTION(x.x, (ARG2_TYPE*)y), \
-        FUNCTION(x.y, (ADDR_SPACE ARG2_TYPE*)((ADDR_SPACE ARG2_TYPE*)y+1)), \
-        FUNCTION(x.z, (ADDR_SPACE ARG2_TYPE*)((ADDR_SPACE ARG2_TYPE*)y+2)) \
+        FUNCTION(x.x, ptr), \
+        FUNCTION(x.y, ptr + 1), \
+        FUNCTION(x.z, ptr + 2) \
     ); \
   } \
 \
   DECLSPEC RET_TYPE##4 FUNCTION(ARG1_TYPE##4 x, ADDR_SPACE ARG2_TYPE##4 *y) { \
+    ADDR_SPACE ARG2_TYPE *ptr = (ADDR_SPACE ARG2_TYPE *)y; \
     return (RET_TYPE##4)( \
-        FUNCTION(x.lo, (ARG2_TYPE##2*)y), \
-        FUNCTION(x.hi, (ADDR_SPACE ARG2_TYPE##2*)((ADDR_SPACE ARG2_TYPE*)y+2)) \
+        FUNCTION(x.lo.x, ptr), FUNCTION(x.lo.y, ptr + 1), \
+        FUNCTION(x.hi.x, ptr + 2), FUNCTION(x.hi.y, ptr + 3) \
     ); \
   } \
 \
   DECLSPEC RET_TYPE##8 FUNCTION(ARG1_TYPE##8 x, ADDR_SPACE ARG2_TYPE##8 *y) { \
+    ADDR_SPACE ARG2_TYPE *ptr = (ADDR_SPACE ARG2_TYPE *)y; \
     return (RET_TYPE##8)( \
-        FUNCTION(x.lo, (ARG2_TYPE##4*)y), \
-        FUNCTION(x.hi, (ADDR_SPACE ARG2_TYPE##4*)((ADDR_SPACE ARG2_TYPE*)y+4)) \
+        FUNCTION(x.lo.lo.x, ptr), FUNCTION(x.lo.lo.y, ptr + 1), \
+        FUNCTION(x.lo.hi.x, ptr + 2), FUNCTION(x.lo.hi.y, ptr + 3), \
+        FUNCTION(x.hi.lo.x, ptr + 4), FUNCTION(x.hi.lo.y, ptr + 5), \
+        FUNCTION(x.hi.hi.x, ptr + 6), FUNCTION(x.hi.hi.y, ptr + 7) \
     ); \
   } \
 \
   DECLSPEC RET_TYPE##16 FUNCTION(ARG1_TYPE##16 x, ADDR_SPACE ARG2_TYPE##16 *y) { \
+    ADDR_SPACE ARG2_TYPE *ptr = (ADDR_SPACE ARG2_TYPE *)y; \
     return (RET_TYPE##16)( \
-        FUNCTION(x.lo, (ARG2_TYPE##8*)y), \
-        FUNCTION(x.hi, (ADDR_SPACE ARG2_TYPE##8*)((ADDR_SPACE ARG2_TYPE*)y+8)) \
+        FUNCTION(x.lo.lo.lo.x, ptr), FUNCTION(x.lo.lo.lo.y, ptr + 1), \
+        FUNCTION(x.lo.lo.hi.x, ptr + 2), FUNCTION(x.lo.lo.hi.y, ptr + 3), \
+        FUNCTION(x.lo.hi.lo.x, ptr + 4), FUNCTION(x.lo.hi.lo.y, ptr + 5), \
+        FUNCTION(x.lo.hi.hi.x, ptr + 6), FUNCTION(x.lo.hi.hi.y, ptr + 7), \
+        FUNCTION(x.hi.lo.lo.x, ptr + 8), FUNCTION(x.hi.lo.lo.y, ptr + 9), \
+        FUNCTION(x.hi.lo.hi.x, ptr + 10), FUNCTION(x.hi.lo.hi.y, ptr + 11), \
+        FUNCTION(x.hi.hi.lo.x, ptr + 12), FUNCTION(x.hi.hi.lo.y, ptr + 13), \
+        FUNCTION(x.hi.hi.hi.x, ptr + 14), FUNCTION(x.hi.hi.hi.y, ptr + 15) \
     ); \
   }
 

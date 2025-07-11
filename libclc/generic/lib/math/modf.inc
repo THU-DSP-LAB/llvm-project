@@ -28,7 +28,7 @@
 #define ZERO 0.0h
 #endif
 
-_CLC_OVERLOAD _CLC_DEF __CLC_GENTYPE modf(__CLC_GENTYPE x, __CLC_GENTYPE *iptr) {
+_CLC_OVERLOAD _CLC_DEF __CLC_GENTYPE modf(__CLC_GENTYPE x, private __CLC_GENTYPE *iptr) {
   *iptr = trunc(x);
   return copysign(isinf(x) ? ZERO : x - *iptr, x);
 }
@@ -43,5 +43,5 @@ _CLC_OVERLOAD _CLC_DEF __CLC_GENTYPE modf(__CLC_GENTYPE x, __CLC_GENTYPE *iptr) 
 
 MODF_DEF(local);
 MODF_DEF(global);
-MODF_DEF(private);
+MODF_DEF(generic);
 #undef ZERO

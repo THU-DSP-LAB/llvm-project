@@ -15,3 +15,9 @@
 #define __CLC_ADDRESS_SPACE private
 #include <clc/math/gentype.inc>
 #undef __CLC_ADDRESS_SPACE
+
+#define __CLC_BODY <remquo.inc>
+#define __CLC_ADDRESS_SPACE generic
+#include <clc/math/gentype.inc>
+#undef __CLC_ADDRESS_SPACE
+
