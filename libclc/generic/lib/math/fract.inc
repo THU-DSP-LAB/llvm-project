@@ -50,6 +50,7 @@ _CLC_OVERLOAD _CLC_DEF __CLC_GENTYPE fract(__CLC_GENTYPE x, private __CLC_GENTYP
 
 FRACT_DEF(local);
 FRACT_DEF(global);
+FRACT_DEF(generic)
 
 #undef MIN_CONSTANT
 #undef ZERO
