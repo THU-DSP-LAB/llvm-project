@@ -443,19 +443,82 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   //                         /*IsImp*/ false,
   //                         /*IsKill*/ false);
   if (RII->isUniformMemoryAccess(MI) && FrameReg == RISCV::X4) {
-    Register DestReg =
-        MF.getRegInfo().createVirtualRegister(&RISCV::VGPRRegClass);
-    MI.setDesc(RII->get(RII->getPrivateMemoryOpcode(MI)));
-    BuildMI(*MBB, II, DL, RII->get(RISCV::VMV_V_X), DestReg)
-        .addReg(MI.getOperand(FIOperandNum - 1).getReg());
-    MI.getOperand(FIOperandNum)
-        .ChangeToRegister(getPrivateMemoryBaseRegister(MF), /*IsDef*/ false,
-                          /*IsImp*/ false,
-                          /*IsKill*/ false);
-    MI.getOperand(FIOperandNum - 1)
-        .ChangeToRegister(DestReg, /*IsDef*/ false,
-                          /*IsImp*/ false,
-                          /*IsKill*/ false);
+    Register OrigDestReg = MI.getOperand(0).getReg();
+
+    MachineInstr *CopyInstr = nullptr;
+    Register VectorDestReg;
+
+    for (auto NextII = std::next(II); NextII != MI.getParent()->end(); ++NextII) {
+      MachineInstr &NextMI = *NextII;
+
+      if (NextMI.getOpcode() == RISCV::COPY &&
+          NextMI.getOperand(1).isReg() &&
+          NextMI.getOperand(1).getReg() == OrigDestReg) {
+
+        Register CopyDestReg = NextMI.getOperand(0).getReg();
+        const TargetRegisterClass *CopyDestRegClass = MRI.getRegClass(CopyDestReg);
+
+        bool isVectorRegClass =
+            (CopyDestRegClass == &RISCV::VGPRRegClass) ||
+            (CopyDestRegClass->getID() >= 2 && CopyDestRegClass->getID() <= 7);
+        if (isVectorRegClass) {
+          CopyInstr = &NextMI;
+          VectorDestReg = CopyDestReg;
+          break;
+        }
+      }
+
+      if (NextMI.readsRegister(OrigDestReg, nullptr))
+        break;
+    }
+
+    if (CopyInstr && VectorDestReg) {
+      SmallVector<MachineInstr *, 4> DefsOfTargetReg;
+      SmallVector<MachineInstr *, 4> UsersOfTargetReg;
+
+      for (auto NextII = std::next(CopyInstr->getIterator());
+           NextII != MI.getParent()->end(); ++NextII) {
+        MachineInstr &NextMI = *NextII;
+        if (NextMI.definesRegister(VectorDestReg, nullptr))
+          DefsOfTargetReg.push_back(&NextMI);
+        if (NextMI.readsRegister(VectorDestReg, nullptr))
+          UsersOfTargetReg.push_back(&NextMI);
+      }
+
+      bool HasConflict = false;
+      if (!DefsOfTargetReg.empty() && !UsersOfTargetReg.empty()) {
+        MachineInstr *FirstDef = DefsOfTargetReg[0];
+        MachineInstr *FirstUse = UsersOfTargetReg[0];
+
+        for (auto CheckII = std::next(CopyInstr->getIterator());
+             CheckII != MI.getParent()->end(); ++CheckII) {
+          if (&*CheckII == FirstUse) {
+            HasConflict = true;
+            break;
+          }
+          if (&*CheckII == FirstDef) {
+            break;
+          }
+        }
+      }
+
+      Register FinalDestReg = VectorDestReg;
+      if (HasConflict) {
+        FinalDestReg = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
+      }
+
+      MI.setDesc(RII->get(RII->getPrivateMemoryOpcode(MI)));
+      MI.getOperand(0).ChangeToRegister(FinalDestReg, true, false, false);
+      MI.getOperand(FIOperandNum).ChangeToRegister(getPrivateMemoryBaseRegister(MF), false, false, false);
+
+      if (HasConflict) {
+        CopyInstr->getOperand(1).ChangeToRegister(FinalDestReg, false);
+      } else {
+        CopyInstr->eraseFromParent();
+      }
+    } else {
+      MI.getOperand(FIOperandNum).ChangeToRegister(getPrivateMemoryBaseRegister(MF), false, false, false);
+    }
 
     return false;
   }
