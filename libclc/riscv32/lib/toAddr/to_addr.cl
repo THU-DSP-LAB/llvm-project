@@ -38,3 +38,15 @@ _CLC_OVERLOAD cl_mem_fence_flags get_fence(generic void *ptr) {
         return 0;
     }
 }
+
+_CLC_OVERLOAD cl_mem_fence_flags get_fence(const generic void *ptr) {
+    if (__is_local_ptr(ptr)) {
+        return CLK_LOCAL_MEM_FENCE;
+    } else if (__is_global_ptr(ptr)) {
+        return CLK_GLOBAL_MEM_FENCE;
+    } else {
+        // For private memory or unknown address space, return 0
+        // Private memory doesn't typically need memory fences
+        return 0;
+    }
+}
