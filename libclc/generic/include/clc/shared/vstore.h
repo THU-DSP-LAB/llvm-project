@@ -11,7 +11,8 @@
 #define _CLC_VECTOR_VSTORE_PRIM3(SUFFIX, MEM_TYPE, PRIM_TYPE, RND) \
   _CLC_VECTOR_VSTORE_DECL(SUFFIX, MEM_TYPE, PRIM_TYPE, __private, RND) \
   _CLC_VECTOR_VSTORE_DECL(SUFFIX, MEM_TYPE, PRIM_TYPE, __local, RND) \
-  _CLC_VECTOR_VSTORE_DECL(SUFFIX, MEM_TYPE, PRIM_TYPE, __global, RND)
+  _CLC_VECTOR_VSTORE_DECL(SUFFIX, MEM_TYPE, PRIM_TYPE, __global, RND) \
+  _CLC_VECTOR_VSTORE_DECL(SUFFIX, MEM_TYPE, PRIM_TYPE, __generic, RND)
 
 #define _CLC_VECTOR_VSTORE_PRIM1(PRIM_TYPE) \
   _CLC_VECTOR_VSTORE_PRIM3(,PRIM_TYPE, PRIM_TYPE, )
@@ -20,10 +21,12 @@
 	_CLC_VSTORE_DECL(_half, half, PRIM_TYPE, , __private, RND) \
 	_CLC_VSTORE_DECL(_half, half, PRIM_TYPE, , __local, RND) \
 	_CLC_VSTORE_DECL(_half, half, PRIM_TYPE, , __global, RND) \
+  _CLC_VSTORE_DECL(_half, half, PRIM_TYPE, , __generic, RND) \
 	_CLC_VECTOR_VSTORE_PRIM3(_half, half, PRIM_TYPE, RND) \
 	_CLC_VSTORE_DECL(a_half, half, PRIM_TYPE, , __private, RND) \
 	_CLC_VSTORE_DECL(a_half, half, PRIM_TYPE, , __local, RND) \
 	_CLC_VSTORE_DECL(a_half, half, PRIM_TYPE, , __global, RND) \
+  _CLC_VSTORE_DECL(a_half, half, PRIM_TYPE, , __generic, RND) \
 	_CLC_VECTOR_VSTORE_PRIM3(a_half, half, PRIM_TYPE, RND)
 
 _CLC_VECTOR_VSTORE_PRIM1(char)

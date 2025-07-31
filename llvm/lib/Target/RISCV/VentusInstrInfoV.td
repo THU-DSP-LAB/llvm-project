@@ -49,8 +49,8 @@ multiclass DivergentPriLdPat<PatFrag LoadOp, RVInst Inst,
                                   list<ValueType> ValueTypes = [XLenVT, f32]> {
   foreach val = ValueTypes in {
     def : Pat<(val (DivergentPrivateLoadFrag<LoadOp>
-                (PriAddrRegImm (XLenVT VGPR:$rs1), (simm11:$imm11)))),
-                (Inst VGPR:$rs1, simm11:$imm11)>;
+                (PriAddrRegImm (XLenVT VGPR:$rs1), (simm12:$imm12)))),
+                (Inst VGPR:$rs1, simm12:$imm12)>;
   }
 }
 
@@ -58,10 +58,73 @@ multiclass DivergentPriStPat<PatFrag StoreOp, RVInst Inst,
                                   list<ValueType> ValueTypes = [XLenVT, f32]> {
   foreach val = ValueTypes in {
     def : Pat<(DivergentPrivateStoreFrag<StoreOp>
-         (val VGPR:$vs3), (PriAddrRegImm (XLenVT VGPR:$rs1), (simm11:$imm11))),
-         (Inst VGPR:$vs3, VGPR:$rs1, simm11:$imm11)>;
+         (val VGPR:$vs3), (PriAddrRegImm (XLenVT VGPR:$rs1), (simm12:$imm12))),
+         (Inst VGPR:$vs3, VGPR:$rs1, simm12:$imm12)>;
   }
 }
+
+// Global memory Load 
+multiclass DivergentGlobalLdPat<PatFrag LoadOp, RVInst Inst,
+                                list<ValueType> ValueTypes = [XLenVT, f32]> {
+  foreach val = ValueTypes in {
+    def : Pat<(val (DivergentGlobalLoadFrag<LoadOp>
+                (AddrRegImm (XLenVT VGPR:$rs1), (simm12:$imm12)))),
+                (Inst VGPR:$rs1, simm12:$imm12)>;
+  }
+}
+
+// Global memory Store 
+multiclass DivergentGlobalStPat<PatFrag StoreOp, RVInst Inst,
+                                list<ValueType> ValueTypes = [XLenVT, f32]> {
+  foreach val = ValueTypes in {
+    def : Pat<(DivergentGlobalStoreFrag<StoreOp>
+         (val VGPR:$vs3), (AddrRegImm (XLenVT VGPR:$rs1), (simm12:$imm12))),
+         (Inst VGPR:$vs3, VGPR:$rs1, simm12:$imm12)>;
+  }
+}
+
+// Local memory Load  
+multiclass DivergentLocalLdPat<PatFrag LoadOp, RVInst Inst,
+                               list<ValueType> ValueTypes = [XLenVT, f32]> {
+  foreach val = ValueTypes in {
+    def : Pat<(val (DivergentLocalLoadFrag<LoadOp>
+                (AddrRegImm (XLenVT VGPR:$rs1), (simm12:$imm12)))),
+                (Inst VGPR:$rs1, simm12:$imm12)>;
+  }
+}
+
+// Local memory Store 
+multiclass DivergentLocalStPat<PatFrag StoreOp, RVInst Inst,
+                               list<ValueType> ValueTypes = [XLenVT, f32]> {
+  foreach val = ValueTypes in {
+    def : Pat<(DivergentLocalStoreFrag<StoreOp>
+         (val VGPR:$vs3), (AddrRegImm (XLenVT VGPR:$rs1), (simm12:$imm12))),
+         (Inst VGPR:$vs3, VGPR:$rs1, simm12:$imm12)>;
+  }
+}
+
+// Generic memory Load
+multiclass DivergentGenericLdPat<PatFrag LoadOp, RVInst Inst,
+                               list<ValueType> ValueTypes = [XLenVT, f32]> {
+  foreach val = ValueTypes in {
+    def : Pat<(val (DivergentGenericLoadFrag<LoadOp>
+                (AddrRegImm (XLenVT VGPR:$rs1), (simm12:$imm12)))),
+                (Inst VGPR:$rs1, simm12:$imm12)>;
+  }
+}
+
+
+// Generic memory Store
+multiclass DivergentGenericStPat<PatFrag StoreOp, RVInst Inst,
+                               list<ValueType> ValueTypes = [XLenVT, f32]> {
+  foreach val = ValueTypes in {
+    def : Pat<(DivergentGenericStoreFrag<StoreOp>
+         (val VGPR:$vs3), (AddrRegImm (XLenVT VGPR:$rs1), (simm12:$imm12))),
+         (Inst VGPR:$vs3, VGPR:$rs1, simm12:$imm12)>;
+  }
+}
+
+
 class DivergentNonPriLdPat<PatFrag LoadOp, RVInst Inst>
  : Pat<(XLenVT (DivergentNonPrivateLoadFrag<LoadOp>
                 (AddrRegReg GPR:$rs1, (XLenVT VGPR:$vs2)))),
@@ -705,37 +768,72 @@ class Branch_i<bits<3> funct3, string opcodestr>
 }
 
 // Private memory load/store instructions
-class VENTUS_VL<bits<3> funct3, string opcodestr>
-    : RVInstI<funct3, OPC_CUSTOM_1, (outs VGPR:$rd),
-              (ins VGPRMem:$rs1, simm11:$imm12),
+class VENTUS_VL_PRIVATE<bits<3> funct3, string opcodestr>
+    : RVInstI<funct3, OPC_CUSTOM_PRIVATE, (outs VGPR:$rd),
+              (ins VGPRMem:$rs1, simm12:$imm12),
               opcodestr # ".v", "$rd, ${imm12}(${rs1})"> {
-  let Inst{31} = 0;
-  let Inst{30-20} = imm12{10-0};
+  let Inst{31-20} = imm12{11-0};
   let MemScope = 0b11;
 }
-class VENTUS_VS<bits<3> funct3, string opcodestr>
-    : RVInstS<funct3, OPC_CUSTOM_1, (outs),
-              (ins VGPR:$rs2, VGPRMem:$rs1, simm11:$imm12),
+class VENTUS_VS_PRIVATE<bits<3> funct3, string opcodestr>
+    : RVInstS<funct3, OPC_CUSTOM_PRIVATE, (outs),
+              (ins VGPR:$rs2, VGPRMem:$rs1, simm12:$imm12),
               opcodestr # ".v", "$rs2, ${imm12}(${rs1})"> {
-  let Inst{31} = 1;
-  let Inst{30-25} = imm12{10-5};
+  let Inst{31-25} = imm12{11-5};
   let Inst{11-7} = imm12{4-0};
   let MemScope = 0b11;
 }
 
-// Local/Global memory load/store instructions
-class VENTUS_VLI12<bits<3> funct3, string opcodestr> :
-              RVInstI<funct3, OPC_CUSTOM_3, (outs VGPR:$rd),
+// Local memory load/store instructions
+class VENTUS_VL_LOCAL<bits<3> funct3, string opcodestr> :
+              RVInstI<funct3, OPC_CUSTOM_LOCAL, (outs VGPR:$rd),
               (ins VGPRMem:$rs1, simm12:$imm12),
               opcodestr # ".v" , "$rd, ${imm12}(${rs1})">, Sched<[]> {
+  let Inst{31-20} = imm12{11-0};
   let MemScope = 0b10;
 }
 
-class VENTUS_VSI12<bits<3> funct3, string opcodestr> :
-              RVInstS<funct3, OPC_CUSTOM_3, (outs),
+class VENTUS_VS_LOCAL<bits<3> funct3, string opcodestr> :
+              RVInstS<funct3, OPC_CUSTOM_LOCAL, (outs),
               (ins VGPR:$rs2, VGPRMem:$rs1, simm12:$imm12),
               opcodestr # ".v", "$rs2, ${imm12}(${rs1})">, Sched<[]> {
+  let Inst{31-25} = imm12{11-5};
+  let Inst{11-7} = imm12{4-0};
   let MemScope = 0b10;
+}
+
+// Global memory load/store instructions
+class VENTUS_VL_GLOBAL<bits<3> funct3, string opcodestr> :
+              RVInstI<funct3, OPC_CUSTOM_GLOBAL, (outs VGPR:$rd),
+              (ins VGPRMem:$rs1, simm12:$imm12),
+              opcodestr # ".v" , "$rd, ${imm12}(${rs1})">, Sched<[]> {
+  let Inst{31-20} = imm12{11-0};
+  let MemScope = 0b01;
+}
+
+class VENTUS_VS_GLOBAL<bits<3> funct3, string opcodestr> :
+              RVInstS<funct3, OPC_CUSTOM_GLOBAL, (outs),
+              (ins VGPR:$rs2, VGPRMem:$rs1, simm12:$imm12),
+              opcodestr # ".v", "$rs2, ${imm12}(${rs1})">, Sched<[]> {
+  let Inst{31-25} = imm12{11-5};
+  let Inst{11-7} = imm12{4-0};
+  let MemScope = 0b01;
+}
+
+// Generic memory load/store instructions
+class VENTUS_VL_GENERIC<bits<3> funct3, string opcodestr> :
+              RVInstI<funct3, OPC_CUSTOM_GENERIC, (outs VGPR:$rd),
+              (ins VGPRMem:$rs1, simm12:$imm12),
+              opcodestr # ".v" , "$rd, ${imm12}(${rs1})">, Sched<[]> {
+  let Inst{31-20} = imm12{11-0};
+}
+
+class VENTUS_VS_GENERIC<bits<3> funct3, string opcodestr> :
+              RVInstS<funct3, OPC_CUSTOM_GENERIC, (outs),
+              (ins VGPR:$rs2, VGPRMem:$rs1, simm12:$imm12),
+              opcodestr # ".v", "$rs2, ${imm12}(${rs1})">, Sched<[]> {
+  let Inst{31-25} = imm12{11-5};
+  let Inst{11-7} = imm12{4-0};
 }
 
 //===----------------------------------------------------------------------===//
@@ -785,26 +883,47 @@ def VSUXEI32 : VectorStore<LSWidth32, "vsuxei32.v">;
 
 // FIXME: simm11 is encoded into register name in assembly code.
 let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in {
-def VLW : VENTUS_VL<0b010, "vlw">;
-def VLH : VENTUS_VL<0b001, "vlh">;
-def VLB : VENTUS_VL<0b000, "vlb">;
-def VLHU : VENTUS_VL<0b101, "vlhu">;
-def VLBU : VENTUS_VL<0b100, "vlbu">;
-def VLWI12 : VENTUS_VLI12<0b010, "vlw12">;
-def VLHI12 : VENTUS_VLI12<0b001, "vlh12">;
-def VLBI12 : VENTUS_VLI12<0b000, "vlb12">;
-def VLHUI12 : VENTUS_VLI12<0b101, "vlhu12">;
-def VLBUI12 : VENTUS_VLI12<0b100, "vlbu12">;
+def VLW_PRIVATE : VENTUS_VL_PRIVATE<0b010, "vlw_private">;
+def VLH_PRIVATE : VENTUS_VL_PRIVATE<0b001, "vlh_private">;
+def VLB_PRIVATE : VENTUS_VL_PRIVATE<0b000, "vlb_private">;
+def VLHU_PRIVATE : VENTUS_VL_PRIVATE<0b101, "vlhu_private">;
+def VLBU_PRIVATE : VENTUS_VL_PRIVATE<0b100, "vlbu_private">;
+
+def VLW_LOCAL : VENTUS_VL_LOCAL<0b010, "vlw_local">;
+def VLH_LOCAL : VENTUS_VL_LOCAL<0b001, "vlh_local">;
+def VLB_LOCAL : VENTUS_VL_LOCAL<0b000, "vlb_local">;
+def VLHU_LOCAL : VENTUS_VL_LOCAL<0b101, "vlhu_local">;
+def VLBU_LOCAL : VENTUS_VL_LOCAL<0b100, "vlbu_local">;
+
+def VLW_GLOBAL : VENTUS_VL_GLOBAL<0b010, "vlw_global">;
+def VLH_GLOBAL : VENTUS_VL_GLOBAL<0b001, "vlh_global">;
+def VLB_GLOBAL : VENTUS_VL_GLOBAL<0b000, "vlb_global">;
+def VLHU_GLOBAL : VENTUS_VL_GLOBAL<0b101, "vlhu_global">;
+def VLBU_GLOBAL : VENTUS_VL_GLOBAL<0b100, "vlbu_global">;
+
+def VLW_GENERIC : VENTUS_VL_GENERIC<0b010,"vlw12">;
+def VLH_GENERIC : VENTUS_VL_GENERIC<0b001,"vlh12">;
+def VLB_GENERIC : VENTUS_VL_GENERIC<0b000,"vlb12">;
+def VLHU_GENERIC : VENTUS_VL_GENERIC<0b101,"vlhu12">;
+def VLBU_GENERIC : VENTUS_VL_GENERIC<0b100,"vlbu12">;
 }
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in {
-def VSW : VENTUS_VS<0b010, "vsw">;
-def VSH : VENTUS_VS<0b001, "vsh">;
-def VSB : VENTUS_VS<0b000, "vsb">;
-// FIXME: update funct3
-def VSWI12 : VENTUS_VSI12<0b110, "vsw12">;
-def VSHI12 : VENTUS_VSI12<0b011, "vsh12">;
-def VSBI12 : VENTUS_VSI12<0b111, "vsb12">;
+def VSW_PRIVATE : VENTUS_VS_PRIVATE<0b110, "vsw_private">;
+def VSH_PRIVATE : VENTUS_VS_PRIVATE<0b011, "vsh_private">;
+def VSB_PRIVATE : VENTUS_VS_PRIVATE<0b111, "vsb_private">;
+
+def VSW_LOCAL : VENTUS_VS_LOCAL<0b110, "vsw_local">;
+def VSH_LOCAL : VENTUS_VS_LOCAL<0b011, "vsh_local">;
+def VSB_LOCAL : VENTUS_VS_LOCAL<0b111, "vsb_local">;
+
+def VSW_GLOBAL : VENTUS_VS_GLOBAL<0b110, "vsw_global">;
+def VSH_GLOBAL : VENTUS_VS_GLOBAL<0b011, "vsh_global">;
+def VSB_GLOBAL : VENTUS_VS_GLOBAL<0b111, "vsb_global">;
+
+def VSW_GENERIC : VENTUS_VS_GENERIC<0b110,"vsw12">;
+def VSH_GENERIC : VENTUS_VS_GENERIC<0b011,"vsh12">;
+def VSB_GENERIC : VENTUS_VS_GENERIC<0b111,"vsb12">;
 }
 
 let Predicates = [HasVInstructions] in {
@@ -1248,29 +1367,59 @@ def VFTTA : RVInstIVI<0b000011, (outs VGPR:$vd_wb),
 
 // ATTENTION: please don't change the pattern order
 // Private memory per-thread load/store
-defm : DivergentPriLdPat<load, VLW>;
-defm : DivergentPriLdPat<zextloadi16, VLHU>;
-defm : DivergentPriLdPat<sextloadi16, VLH>;
-defm : DivergentPriLdPat<extloadi16, VLH>;
-defm : DivergentPriLdPat<zextloadi8, VLBU>;
-defm : DivergentPriLdPat<extloadi8, VLB>;
-defm : DivergentPriLdPat<sextloadi8, VLB>;
-defm : DivergentPriStPat<store, VSW>;
-defm : DivergentPriStPat<truncstorei16, VSH>;
-defm : DivergentPriStPat<truncstorei8, VSB>;
+defm : DivergentPriLdPat<load, VLW_PRIVATE>;
+defm : DivergentPriLdPat<zextloadi16, VLHU_PRIVATE>;
+defm : DivergentPriLdPat<sextloadi16, VLH_PRIVATE>;
+defm : DivergentPriLdPat<extloadi16, VLH_PRIVATE>;
+defm : DivergentPriLdPat<zextloadi8, VLBU_PRIVATE>;
+defm : DivergentPriLdPat<extloadi8, VLB_PRIVATE>;
+defm : DivergentPriLdPat<sextloadi8, VLB_PRIVATE>;
+
+defm : DivergentPriStPat<store, VSW_PRIVATE>;
+defm : DivergentPriStPat<truncstorei16, VSH_PRIVATE>;
+defm : DivergentPriStPat<truncstorei8, VSB_PRIVATE>;
+
+// Global memory load/store
+defm : DivergentGlobalLdPat<load, VLW_GLOBAL>;
+defm : DivergentGlobalLdPat<zextloadi16, VLHU_GLOBAL>;
+defm : DivergentGlobalLdPat<sextloadi16, VLH_GLOBAL>;
+defm : DivergentGlobalLdPat<extloadi16, VLH_GLOBAL>;
+defm : DivergentGlobalLdPat<zextloadi8, VLBU_GLOBAL>;
+defm : DivergentGlobalLdPat<extloadi8, VLB_GLOBAL>;
+defm : DivergentGlobalLdPat<sextloadi8, VLB_GLOBAL>;
+
+defm : DivergentGlobalStPat<store, VSW_GLOBAL>;
+defm : DivergentGlobalStPat<truncstorei16, VSH_GLOBAL>;
+defm : DivergentGlobalStPat<truncstorei8, VSB_GLOBAL>;
+
+// Local memory load/store
+defm : DivergentLocalLdPat<load, VLW_LOCAL>;
+defm : DivergentLocalLdPat<zextloadi16, VLHU_LOCAL>;
+defm : DivergentLocalLdPat<sextloadi16, VLH_LOCAL>;
+defm : DivergentLocalLdPat<extloadi16, VLH_LOCAL>;
+defm : DivergentLocalLdPat<zextloadi8, VLBU_LOCAL>;
+defm : DivergentLocalLdPat<extloadi8, VLB_LOCAL>;
+defm : DivergentLocalLdPat<sextloadi8, VLB_LOCAL>;
+
+defm : DivergentLocalStPat<store, VSW_LOCAL>;
+defm : DivergentLocalStPat<truncstorei16, VSH_LOCAL>;
+defm : DivergentLocalStPat<truncstorei8, VSB_LOCAL>;
+
+// Generic memory load/store
+defm : DivergentGenericLdPat<load, VLW_GENERIC>;
+defm : DivergentGenericLdPat<zextloadi16, VLHU_GENERIC>;
+defm : DivergentGenericLdPat<sextloadi16, VLH_GENERIC>;
+defm : DivergentGenericLdPat<extloadi16, VLH_GENERIC>;
+defm : DivergentGenericLdPat<zextloadi8, VLBU_GENERIC>;
+defm : DivergentGenericLdPat<extloadi8, VLB_GENERIC>;
+defm : DivergentGenericLdPat<sextloadi8, VLB_GENERIC>;
+
+defm : DivergentGenericStPat<store, VSW_GENERIC>;
+defm : DivergentGenericStPat<truncstorei16, VSH_GENERIC>;
+defm : DivergentGenericStPat<truncstorei8, VSB_GENERIC>;
 
 // Non-private memory load/store
 // TODO: add store/load test file for testing pattern match
-defm : DivergentNonPriLdImmPat<load, VLWI12>;
-defm : DivergentNonPriLdImmPat<sextloadi16, VLHI12>;
-defm : DivergentNonPriLdImmPat<extloadi16, VLHI12>;
-defm : DivergentNonPriLdImmPat<sextloadi8, VLBI12>;
-defm : DivergentNonPriLdImmPat<extloadi8, VLBI12>;
-defm : DivergentNonPriLdImmPat<zextloadi8, VLBUI12>;
-defm : DivergentNonPriLdImmPat<zextloadi16, VLHUI12>;
-defm : DivergentNonPriStImmPat<store, VSWI12>;
-defm : DivergentNonPriStImmPat<truncstorei16, VSHI12>;
-defm : DivergentNonPriStImmPat<truncstorei8, VSBI12>;
 def : DivergentNonPriLdPat<sextloadi8, VLUXEI8>;
 def : DivergentNonPriLdPat<extloadi8, VLUXEI8>;
 def : DivergentNonPriLdPat<sextloadi16, VLUXEI16>;

@@ -11,6 +11,8 @@ workitem/get_work_dim.cl
 workitem/get_enqueued_local_size.cl
 
 
+toAddr/to_addr.cl
+compiler-rt/nextafterf.cl
 compiler-rt/adddf3.cl
 compiler-rt/comparedf2.cl
 compiler-rt/divdf3.cl
@@ -31,6 +33,7 @@ compiler-rt/floatunsidf.cl
 compiler-rt/floatundisf.cl
 compiler-rt/floatundidf.cl
 compiler-rt/isfinite.cl
+compiler-rt/memcpy.cl
 compiler-rt/udivdi3.cl
 compiler-rt/udivmodti4.cl
 

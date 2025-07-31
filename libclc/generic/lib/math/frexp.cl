@@ -15,3 +15,8 @@
 #define __CLC_ADDRESS_SPACE local
 #include <clc/math/gentype.inc>
 #undef __CLC_ADDRESS_SPACE
+
+#define __CLC_BODY <frexp.inc>
+#define __CLC_ADDRESS_SPACE generic
+#include <clc/math/gentype.inc>
+#undef __CLC_ADDRESS_SPACE
