@@ -57,6 +57,8 @@ Run `export LD_LIBRARY_PATH=${VENTUS_INSTALL_PREFIX}/lib` to tell OpenCL applica
 
 Run `export OCL_ICD_VENDORS=${VENTUS_INSTALL_PREFIX}/lib/libpocl.so` to tell ocl icd loader where the icd driver is.
 
+Run `export POCL_ENABLE_UNINIT=1` to enable automatic device uninitialization when the last OpenCL context is released. 
+
 Finally, run `export POCL_DEVICES="ventus"` to tell pocl driver which device is available(should we set ventus as default device?). You will see Ventus GPGPU device is found if your setup is correct:
 ```
 $ <pocl-install-dir>/bin/poclcc -l
