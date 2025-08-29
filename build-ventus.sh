@@ -238,6 +238,7 @@ export_elements() {
   export SPIKE_SRC_DIR=${SPIKE_DIR}
   export SPIKE_TARGET_DIR=${VENTUS_INSTALL_PREFIX}
   export VENTUS_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX}
+  export POCL_ENABLE_UNINIT=1
   export POCL_DEVICES="ventus"
   export OCL_ICD_VENDORS=${VENTUS_INSTALL_PREFIX}/lib/libpocl.so
 }
