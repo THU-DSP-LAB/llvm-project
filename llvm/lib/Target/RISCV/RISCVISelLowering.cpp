@@ -12826,7 +12826,7 @@ RISCVTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
       // TODO: Support fixed vectors up to XLen for P extension?
       if (VT.isVector())
         break;
-      return std::make_pair(0U, &RISCV::GPRRegClass);
+      return std::make_pair(0U, &RISCV::SmallGPRRegClass);
     case 'f':
       if (Subtarget.hasStdExtZfh() && VT == MVT::f16)
         return std::make_pair(0U, &RISCV::FPR16RegClass);
@@ -12841,7 +12841,7 @@ RISCVTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
       break;
     }
   } else if (Constraint == "vr") {
-    for (const auto *RC : {&RISCV::VGPRRegClass}) {
+    for (const auto *RC : {&RISCV::SmallVGPRRegClass}) {
       if (TRI->isTypeLegalForClass(*RC, VT.SimpleTy))
         return std::make_pair(0U, RC);
     }
