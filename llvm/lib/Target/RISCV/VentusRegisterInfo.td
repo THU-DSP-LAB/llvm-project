@@ -558,3 +558,20 @@ def AnyReg : RegisterClass<"RISCV", [untyped], 32,
                                 (sequence "V%u", 0, 255))> {
   let Size = 32;
 }
+
+// Used for inlineAsm operands.
+def SmallGPR : RVRegisterClass<"RISCV", [XLenVT], 32, (add
+    (sequence "X%u", 5, 31),
+    (sequence "X%u", 0, 4)
+  )> {
+  let RegInfos = XLenRI;
+  let IsSGPR = 1;
+}
+
+def SmallVGPR : RVRegisterClass<"RISCV",
+                            !listconcat(Reg32Types.types, Reg16Types.types),
+                            32,
+                            (add (sequence "V%u", 0, 31))> {
+  let Size = 32;
+  let IsVGPR = 1;
+}
