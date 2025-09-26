@@ -14,7 +14,7 @@ set(LIBNAME_OBJ "${LIBNAME}_obj")
 add_library(${LIBNAME_OBJ} OBJECT crt0.S)
 add_library(${LIBNAME} SHARED $<TARGET_OBJECTS:${LIBNAME_OBJ}>)
 
-target_include_directories(workitem PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(workitem BEFORE PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Copy crt0 object library to lib folder to be automatically installed
 add_custom_command(TARGET ${LIBNAME}
