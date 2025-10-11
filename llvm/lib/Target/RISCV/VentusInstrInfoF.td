@@ -691,6 +691,8 @@ def : Pat<(i32 (UniformUnaryFrag<any_lround> GPRF32:$rs1)), (FCVT_W_S $rs1, 0b10
 // [u]int->float. Match GCC and default to using dynamic rounding mode.
 def : Pat<(UniformUnaryFrag<any_sint_to_fp> (i32 GPR:$rs1)), (FCVT_S_W $rs1, 0b111)>;
 def : Pat<(UniformUnaryFrag<any_uint_to_fp> (i32 GPR:$rs1)), (FCVT_S_WU $rs1, 0b111)>;
+def : Pat<(any_sint_to_fp (sub simm5:$imm, (i32 GPR:$rs1))),
+          (FCVT_S_W (ADDI (SUB X0, GPR:$rs1), simm5:$imm), 0b111)>;
 } // Predicates = [HasStdExtZfinx, IsRV32]
 
 let Predicates = [HasStdExtZfinx, IsRV64] in {
