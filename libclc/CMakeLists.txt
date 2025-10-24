@@ -123,6 +123,19 @@ target_compile_definitions( prepare_builtins PRIVATE ${LLVM_VERSION_DEFINE} )
 # These were not properly reported in early LLVM and we don't need them
 target_compile_options( prepare_builtins PRIVATE -fno-rtti -fno-exceptions )
 
+# Set RPATH for prepare_builtins to find LLVM libraries
+if(APPLE)
+  set_target_properties(prepare_builtins PROPERTIES
+    INSTALL_RPATH "@loader_path/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+  )
+else()
+  set_target_properties(prepare_builtins PROPERTIES
+    INSTALL_RPATH "$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+  )
+endif()
+
 # Setup arch devices
 set( r600--_devices cedar cypress barts cayman )
 set( amdgcn--_devices tahiti )
@@ -311,13 +324,13 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
 		set( obj_suffix ${arch_suffix}.bc )
 
 		# Add opt target
-		# add_custom_command( OUTPUT "builtins.opt.${obj_suffix}"
-		# 		    COMMAND ${LLVM_OPT} ${opt_flags} -o
-		# 		    "builtins.opt.${obj_suffix}"
-		# 		    "builtins.link.${obj_suffix}"
-		# 		    DEPENDS "builtins.link.${arch_suffix}" )
-		# add_custom_target( "opt.${obj_suffix}" ALL
-		#                    DEPENDS "builtins.opt.${obj_suffix}" )
+		add_custom_command( OUTPUT "builtins.opt.${obj_suffix}"
+				    COMMAND ${LLVM_OPT} ${opt_flags} -o
+				    "builtins.opt.${obj_suffix}"
+				    "builtins.link.${obj_suffix}"
+				    DEPENDS "builtins.link.${arch_suffix}" )
+		add_custom_target( "opt.${obj_suffix}" ALL
+		                   DEPENDS "builtins.opt.${obj_suffix}" )
 
 		if( ${ARCH} STREQUAL "spirv" OR ${ARCH} STREQUAL "spirv64" )
 			set( spv_suffix ${arch_suffix}.spv )
@@ -333,15 +346,15 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
 		else()
 
 			# Add prepare target
-			# add_custom_command( OUTPUT "${obj_suffix}"
-			# 	            COMMAND prepare_builtins -o
-			# 		    "${obj_suffix}"
-			# 		    "builtins.opt.${obj_suffix}"
-			# 		    DEPENDS "opt.${obj_suffix}"
-			# 		            "builtins.opt.${obj_suffix}"
-			# 		            prepare_builtins )
-			# add_custom_target( "prepare-${obj_suffix}" ALL
-			# 		   DEPENDS "${obj_suffix}" )
+			add_custom_command( OUTPUT "${obj_suffix}"
+			            COMMAND prepare_builtins -o
+			    "${obj_suffix}"
+			    "builtins.opt.${obj_suffix}"
+			    DEPENDS "opt.${obj_suffix}"
+			            "builtins.opt.${obj_suffix}"
+			            prepare_builtins )
+			add_custom_target( "prepare-${obj_suffix}" ALL
+			           DEPENDS "${obj_suffix}" )
 
 			# nvptx-- targets don't include workitem builtins
 			if( NOT ${t} MATCHES ".*ptx.*--$" )
@@ -350,16 +363,16 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
 					  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} )
 			endif()
 
-			# install( FILES ${CMAKE_CURRENT_BINARY_DIR}/${obj_suffix} DESTINATION "${CMAKE_INSTALL_DATADIR}/clc" )
-			# foreach( a ${${d}_aliases} )
-			# 	set( alias_suffix "${a}-${t}.bc" )
-			# 	add_custom_target( ${alias_suffix} ALL
-			# 			   COMMAND ${CMAKE_COMMAND} -E
-			# 			   create_symlink ${obj_suffix}
-			# 			   ${alias_suffix}
-			# 	                   DEPENDS "prepare-${obj_suffix}" )
-			# 	install( FILES ${CMAKE_CURRENT_BINARY_DIR}/${alias_suffix} DESTINATION "${CMAKE_INSTALL_DATADIR}/clc" )
-			# endforeach( a )
+			install( FILES ${CMAKE_CURRENT_BINARY_DIR}/${obj_suffix} DESTINATION "${CMAKE_INSTALL_DATADIR}/clc" )
+			foreach( a ${${d}_aliases} )
+				set( alias_suffix "${a}-${t}.bc" )
+				add_custom_target( ${alias_suffix} ALL
+				   COMMAND ${CMAKE_COMMAND} -E
+				   create_symlink ${obj_suffix}
+				   ${alias_suffix}
+	                   DEPENDS "prepare-${obj_suffix}" )
+				install( FILES ${CMAKE_CURRENT_BINARY_DIR}/${alias_suffix} DESTINATION "${CMAKE_INSTALL_DATADIR}/clc" )
+			endforeach( a )
 		endif()
 	endforeach( d )
 endforeach( t )
