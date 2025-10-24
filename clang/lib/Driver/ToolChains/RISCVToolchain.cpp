@@ -153,7 +153,6 @@ void RISCVToolChain::addOpenCLBitcodeLibArgs(const ArgList &DriverArgs,
   // First try the driver's installation directory
   llvm::sys::path::append(BitcodeLibPath, getDriver().Dir, "..", "lib",
                           "riscv32clc.bc");
-  llvm::errs() << "DEBUG: BitcodeLibPath: " << BitcodeLibPath.str() << "\n";
   if (llvm::sys::fs::exists(BitcodeLibPath)) {
     CC1Args.push_back("-mlink-builtin-bitcode");
     CC1Args.push_back(DriverArgs.MakeArgString(BitcodeLibPath.str()));
