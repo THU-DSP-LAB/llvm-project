@@ -867,9 +867,6 @@ defm VAND_V : VALU_IV_V_X_I<"vand", 0b001001>;
 defm VOR_V : VALU_IV_V_X_I<"vor", 0b001010>;
 defm VXOR_V : VALU_IV_V_X_I<"vxor", 0b001011>;
 
-def : InstAlias<"vnot.v $vd, $vs",
-                (VXOR_VI VGPR:$vd, VGPR:$vs, -1)>;
-
 // Vector Single-Width Bit Shift Instructions
 defm VSLL_V : VSHT_IV_V_X_I<"vsll", 0b100101, uimm5>;
 defm VSRL_V : VSHT_IV_V_X_I<"vsrl", 0b101000, uimm5>;
