@@ -620,6 +620,11 @@ def warn_drv_libstdcxx_not_found : Warning<
   "command line to use the libc++ standard library instead">,
   InGroup<DiagGroup<"stdlibcxx-not-found">>;
 
+def warn_drv_riscv_bitcode_lib_not_found : Warning<
+  "RISC-V OpenCL bitcode library 'riscv32clc.bc' not found; "
+  "OpenCL builtin functions may not be available">,
+  InGroup<DiagGroup<"riscv-bitcode-lib-not-found">>;
+
 def err_drv_cannot_mix_options : Error<"cannot specify '%1' along with '%0'">;
 
 def err_drv_invalid_object_mode : Error<

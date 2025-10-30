@@ -35,6 +35,10 @@ public:
   addLibStdCxxIncludePaths(const llvm::opt::ArgList &DriverArgs,
                            llvm::opt::ArgStringList &CC1Args) const override;
 
+  // Add bitcode library linking for OpenCL
+  void addOpenCLBitcodeLibArgs(const llvm::opt::ArgList &DriverArgs,
+                               llvm::opt::ArgStringList &CC1Args) const;
+
 protected:
   Tool *buildLinker() const override;
 

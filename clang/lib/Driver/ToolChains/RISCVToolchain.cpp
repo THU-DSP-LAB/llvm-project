@@ -14,7 +14,6 @@
 #include "llvm/Option/ArgList.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/raw_ostream.h"
 
 using namespace clang::driver;
 using namespace clang::driver::toolchains;
@@ -77,8 +76,8 @@ Tool *RISCVToolChain::buildLinker() const {
 }
 
 ToolChain::RuntimeLibType RISCVToolChain::GetDefaultRuntimeLibType() const {
-  return GCCInstallation.isValid() ?
-    ToolChain::RLT_Libgcc : ToolChain::RLT_CompilerRT;
+  return GCCInstallation.isValid() ? ToolChain::RLT_Libgcc
+                                   : ToolChain::RLT_CompilerRT;
 }
 
 ToolChain::UnwindLibType
@@ -86,11 +85,12 @@ RISCVToolChain::GetUnwindLibType(const llvm::opt::ArgList &Args) const {
   return ToolChain::UNW_None;
 }
 
-void RISCVToolChain::addClangTargetOptions(
-    const llvm::opt::ArgList &DriverArgs,
-    llvm::opt::ArgStringList &CC1Args,
-    Action::OffloadKind) const {
+void RISCVToolChain::addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
+                                           llvm::opt::ArgStringList &CC1Args,
+                                           Action::OffloadKind) const {
   CC1Args.push_back("-nostdsysteminc");
+  // Add OpenCL bitcode library for RISC-V
+  addOpenCLBitcodeLibArgs(DriverArgs, CC1Args);
 }
 
 void RISCVToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
@@ -144,6 +144,45 @@ std::string RISCVToolChain::computeSysRoot() const {
   return std::string(SysRootDir.str());
 }
 
+void RISCVToolChain::addOpenCLBitcodeLibArgs(const ArgList &DriverArgs,
+                                             ArgStringList &CC1Args) const {
+
+  // Look for riscv32clc.bc in the toolchain installation
+  SmallString<128> BitcodeLibPath;
+
+  // First try the driver's installation directory
+  llvm::sys::path::append(BitcodeLibPath, getDriver().Dir, "..", "lib",
+                          "riscv32clc.bc");
+  if (llvm::sys::fs::exists(BitcodeLibPath)) {
+    CC1Args.push_back("-mlink-builtin-bitcode");
+    CC1Args.push_back(DriverArgs.MakeArgString(BitcodeLibPath.str()));
+    return;
+  }
+
+  // Try the resource directory
+  BitcodeLibPath.clear();
+  llvm::sys::path::append(BitcodeLibPath, getDriver().ResourceDir, "lib",
+                          "riscv32clc.bc");
+  if (llvm::sys::fs::exists(BitcodeLibPath)) {
+    CC1Args.push_back("-mlink-builtin-bitcode");
+    CC1Args.push_back(DriverArgs.MakeArgString(BitcodeLibPath.str()));
+    return;
+  }
+
+  // Try sysroot
+  BitcodeLibPath.clear();
+  llvm::sys::path::append(BitcodeLibPath, computeSysRoot(), "lib",
+                          "riscv32clc.bc");
+  if (llvm::sys::fs::exists(BitcodeLibPath)) {
+    CC1Args.push_back("-mlink-builtin-bitcode");
+    CC1Args.push_back(DriverArgs.MakeArgString(BitcodeLibPath.str()));
+    return;
+  }
+
+  // If not found, emit a warning but don't fail
+  getDriver().Diag(clang::diag::warn_drv_riscv_bitcode_lib_not_found);
+}
+
 void RISCV::Linker::ConstructJob(Compilation &C, const JobAction &JA,
                                  const InputInfo &Output,
                                  const InputInfoList &Inputs,
@@ -176,11 +215,11 @@ void RISCV::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     crtbegin = "crtbegin.o";
     crtend = "crtend.o";
   } else {
-    assert (RuntimeLib == ToolChain::RLT_CompilerRT);
+    assert(RuntimeLib == ToolChain::RLT_CompilerRT);
     crtbegin = ToolChain.getCompilerRTArgString(Args, "crtbegin",
                                                 ToolChain::FT_Object);
-    crtend = ToolChain.getCompilerRTArgString(Args, "crtend",
-                                              ToolChain::FT_Object);
+    crtend =
+        ToolChain.getCompilerRTArgString(Args, "crtend", ToolChain::FT_Object);
   }
 
   if (WantCRTs) {
