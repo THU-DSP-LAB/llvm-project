@@ -68,6 +68,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVPreRAExpandPseudoPass(*PR);
   initializeRISCVExpandPseudoPass(*PR);
   initializeVentusPrintfRuntimeBindingPass(*PR);
+  initializeVentusPromoteAllocaPass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT, StringRef CPU) {
@@ -228,6 +229,9 @@ void RISCVPassConfig::addIRPasses() {
     addPass(createInferAddressSpacesPass());
   }
 
+  // Promote allocas to vector or local memory for Ventus GPU
+  addPass(createVentusPromoteAllocaPass());
+
   addPass(createAtomicExpandPass());
 
   if (getOptLevel() != CodeGenOpt::None)
@@ -308,7 +312,7 @@ void RISCVPassConfig::addMachineSSAOptimization() {
 
   if (TM->getTargetTriple().getArch() == Triple::riscv64)
     addPass(createRISCVSExtWRemovalPass());
-    
+
   // Disable Pre-RA Machine Sinking pass
   disablePass(&MachineSinkingID);
 }
@@ -329,7 +333,7 @@ void RISCVPassConfig::addPostRegAlloc() {
   // Do not work with OpPhi.
   disablePass(&BranchFolderPassID);
   disablePass(&MachineBlockPlacementID);
-  
+
   // Disable Post-RA Machine Sinking pass
   disablePass(&PostRAMachineSinkingID);
 
