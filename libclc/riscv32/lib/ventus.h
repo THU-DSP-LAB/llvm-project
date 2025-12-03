@@ -33,6 +33,13 @@
 #define CSR_GID_Y 0x809    // group_id_y
 #define CSR_GID_Z 0x80a    // group_id_z
 #define CSR_PRINT 0x80b    // for print buffer
+#define CSR_GL_ID_X  0x80d    // global_id_x
+#define CSR_GL_ID_Y  0x80e    // global_id_y
+#define CSR_GL_ID_Z  0x80f    // global_id_z
+#define CSR_GLL_ID   0x810   // global_linear_id
+#define CSR_LC_ID_X  0x811   // local_id_x
+#define CSR_LC_ID_Y  0x812   // local_id_y
+#define CSR_LC_ID_Z  0x813   // local_id_z
 
 // Kernel metadata buffer offsets
 #define KNL_ENTRY 0
