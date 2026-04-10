@@ -82,6 +82,12 @@ void initializeVentusInsertJoinToVBranchPass(PassRegistry &);
 FunctionPass *createVentusFixMixedPHIPass();
 void initializeVentusFixMixedPHIPass(PassRegistry &);
 
+FunctionPass *createVentusInsertSGPRKeepAlivePass();
+void initializeVentusInsertSGPRKeepAlivePass(PassRegistry &);
+
+FunctionPass *createVentusRemoveSGPRKeepAlivePass();
+void initializeVentusRemoveSGPRKeepAlivePass(PassRegistry &);
+
 FunctionPass *createVentusPromoteAllocaPass();
 void initializeVentusPromoteAllocaPass(PassRegistry &);
 extern char &VentusPromoteAllocaID;

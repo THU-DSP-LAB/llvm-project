@@ -42,6 +42,7 @@ add_llvm_target(RISCVCodeGen
   VentusRegextInsertion.cpp
   VentusVVInstrConversion.cpp
   VentusFixMixedPHI.cpp
+  VentusSGPRKeepAlive.cpp
   VentusInsertJoinToVBranch.cpp
   VentusLegalizeLoad.cpp
   VentusPromoteAlloca.cpp

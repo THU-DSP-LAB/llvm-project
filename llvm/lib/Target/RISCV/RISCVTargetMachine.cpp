@@ -69,6 +69,8 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVExpandPseudoPass(*PR);
   initializeVentusPrintfRuntimeBindingPass(*PR);
   initializeVentusPromoteAllocaPass(*PR);
+  initializeVentusInsertSGPRKeepAlivePass(*PR);
+  initializeVentusRemoveSGPRKeepAlivePass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT, StringRef CPU) {
@@ -323,9 +325,11 @@ void RISCVPassConfig::addPreRegAlloc() {
     addPass(createRISCVMergeBaseOffsetOptPass());
   addPass(createVentusVVInstrConversionPass());
   addPass(createVentusLegalizeLoadPass());
+  addPass(createVentusInsertSGPRKeepAlivePass());
 }
 
 void RISCVPassConfig::addPostRegAlloc() {
+  addPass(createVentusRemoveSGPRKeepAlivePass());
   if (TM->getOptLevel() != CodeGenOpt::None && EnableRedundantCopyElimination)
     addPass(createRISCVRedundantCopyEliminationPass());
 
