@@ -73,11 +73,16 @@ public:
   StringRef getPassName() const override { return "Ventus Remove SGPR KeepAlive"; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.setPreservesCFG();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
   bool runOnMachineFunction(MachineFunction &MF) override;
+};
+
+struct BranchKeepAliveInfo {
+  MachineBasicBlock *JoinBB;
+  SmallSetVector<Register, 8> Regs;
+  SmallVector<MachineBasicBlock *, 4> ExitPreds;
 };
 
 static bool isDivergentBranchOpcode(unsigned Opcode) {
@@ -213,15 +218,19 @@ static bool isDefinedBeforeBranch(Register Reg, const MachineRegisterInfo &MRI,
   return isBeforeInBlock(*DefMI, BranchMI);
 }
 
-static bool dominatesJoin(Register Reg, const MachineRegisterInfo &MRI,
-                          const MachineDominatorTree &MDT,
-                          MachineBasicBlock &JoinBB) {
+static bool dominatesBlockEnd(Register Reg, const MachineRegisterInfo &MRI,
+                              const MachineDominatorTree &MDT,
+                              MachineBasicBlock &UseBB) {
   MachineInstr *DefMI = MRI.getVRegDef(Reg);
   if (!DefMI)
     return false;
-  // The keepalive use is inserted in JoinBB, so the original vreg must remain
-  // a valid SSA value at that block.
-  return MDT.dominates(DefMI->getParent(), &JoinBB);
+  return MDT.dominates(DefMI->getParent(), &UseBB);
+}
+
+static bool dominatesJoin(Register Reg, const MachineRegisterInfo &MRI,
+                          const MachineDominatorTree &MDT,
+                          MachineBasicBlock &JoinBB) {
+  return dominatesBlockEnd(Reg, MRI, MDT, JoinBB);
 }
 
 static MachineBasicBlock *
@@ -251,11 +260,69 @@ static bool isJoinPhiIncomingFromRegion(
   return PredBB == &BranchBB || RegionBlocks.contains(PredBB);
 }
 
+static bool hasSuccessor(MachineBasicBlock &MBB, MachineBasicBlock &SuccBB) {
+  for (MachineBasicBlock *Succ : MBB.successors())
+    if (Succ == &SuccBB)
+      return true;
+  return false;
+}
+
+static SmallVector<MachineBasicBlock *, 4>
+collectJoinExitPreds(MachineBasicBlock &BranchBB,
+                     ArrayRef<MachineBasicBlock *> RegionBlocks,
+                     MachineBasicBlock &JoinBB) {
+  SmallVector<MachineBasicBlock *, 4> ExitPreds;
+  DenseSet<MachineBasicBlock *> Seen;
+
+  auto MaybeAddExitPred = [&](MachineBasicBlock *MBB) {
+    if (Seen.insert(MBB).second && hasSuccessor(*MBB, JoinBB))
+      ExitPreds.push_back(MBB);
+  };
+
+  MaybeAddExitPred(&BranchBB);
+  for (MachineBasicBlock *MBB : RegionBlocks)
+    MaybeAddExitPred(MBB);
+
+  return ExitPreds;
+}
+
+static bool isRemovableKeepAliveEdgeBlock(
+    const MachineBasicBlock &MBB,
+    const DenseSet<const MachineBasicBlock *> &MarkedKeepAliveBlocks) {
+  if (MBB.isEHPad() || MBB.isInlineAsmBrIndirectTarget() || MBB.isReturnBlock())
+    return false;
+  if (MBB.pred_size() != 1 || MBB.succ_size() != 1)
+    return false;
+  if (!MarkedKeepAliveBlocks.contains(&MBB))
+    return false;
+
+  MachineBasicBlock *Succ = *MBB.succ_begin();
+  for (const MachineInstr &MI : MBB) {
+    if (MI.isDebugInstr())
+      continue;
+    if (MI.getOpcode() == RISCV::PseudoBR && MI.getOperand(0).getMBB() == Succ)
+      continue;
+    return false;
+  }
+
+  return true;
+}
+
+static void removeKeepAliveEdgeBlock(MachineBasicBlock &MBB) {
+  MachineBasicBlock *Pred = *MBB.pred_begin();
+  MachineBasicBlock *Succ = *MBB.succ_begin();
+
+  Pred->ReplaceUsesOfBlockWith(&MBB, Succ);
+  Succ->replacePhiUsesWith(&MBB, Pred);
+  MBB.removeSuccessor(Succ);
+  MBB.eraseFromParent();
+  Pred->updateTerminator(Succ);
+}
+
 static void collectJoinPhiRegs(MachineBasicBlock &BranchBB, MachineInstr &BranchMI,
                                MachineBasicBlock &JoinBB,
                                const DenseSet<MachineBasicBlock *> &RegionBlocks,
                                const MachineRegisterInfo &MRI,
-                               const MachineDominatorTree &MDT,
                                SmallSetVector<Register, 8> &Regs) {
   // PHI incoming values are edge uses, so join-only consumers would be missed
   // by the region body scan unless we inspect the join block explicitly.
@@ -274,9 +341,6 @@ static void collectJoinPhiRegs(MachineBasicBlock &BranchBB, MachineInstr &Branch
         continue;
 
       if (!isDefinedBeforeBranch(Reg, MRI, RegionBlocks, BranchBB, BranchMI))
-        continue;
-
-      if (!dominatesJoin(Reg, MRI, MDT, JoinBB))
         continue;
 
       Regs.insert(Reg);
@@ -310,16 +374,12 @@ bool VentusInsertSGPRKeepAlive::collectRegionRegs(
         if (!isDefinedBeforeBranch(Reg, *MRI, RegionBlockSet, BranchBB, BranchMI))
           continue;
 
-        if (!dominatesJoin(Reg, *MRI, *MDT, JoinBB))
-          continue;
-
         Regs.insert(Reg);
       }
     }
   }
 
-  collectJoinPhiRegs(BranchBB, BranchMI, JoinBB, RegionBlockSet, *MRI, *MDT,
-                     Regs);
+  collectJoinPhiRegs(BranchBB, BranchMI, JoinBB, RegionBlockSet, *MRI, Regs);
 
   return !Regs.empty();
 }
@@ -335,10 +395,12 @@ bool VentusInsertSGPRKeepAlive::runOnMachineFunction(MachineFunction &MF) {
     return false;
 
   bool Changed = convergeReturnBlock(MF, *TII);
-  if (Changed)
+  if (Changed) {
+    MDT->getBase().recalculate(MF);
     MPDT->getBase().recalculate(MF);
+  }
 
-  MapVector<MachineBasicBlock *, SmallSetVector<Register, 8>> JoinToRegs;
+  SmallVector<BranchKeepAliveInfo, 8> BranchInfos;
   for (MachineBasicBlock &MBB : MF) {
     MachineInstr *BranchMI = getDivergentBranchInstr(MBB, *TII);
     if (!BranchMI)
@@ -347,7 +409,50 @@ bool VentusInsertSGPRKeepAlive::runOnMachineFunction(MachineFunction &MF) {
     MachineBasicBlock *JoinBB = getImmediatePostDominatorOrReport(
         MF, MBB, *MPDT, "Ventus Insert SGPR KeepAlive");
 
-    collectRegionRegs(MBB, *BranchMI, *JoinBB, JoinToRegs[JoinBB]);
+    BranchKeepAliveInfo Info{JoinBB, {}, {}};
+    if (!collectRegionRegs(MBB, *BranchMI, *JoinBB, Info.Regs))
+      continue;
+
+    SmallVector<MachineBasicBlock *, 8> RegionBlocks =
+        collectRegionBlocks(MBB, *JoinBB);
+    Info.ExitPreds = collectJoinExitPreds(MBB, RegionBlocks, *JoinBB);
+    BranchInfos.push_back(std::move(Info));
+  }
+
+  MapVector<MachineBasicBlock *, SmallSetVector<Register, 8>> JoinToRegs;
+  DenseMap<MachineBasicBlock *, DenseMap<MachineBasicBlock *, MachineBasicBlock *>>
+      EdgeToKeepAliveBlock;
+  MapVector<MachineBasicBlock *, SmallSetVector<Register, 8>> BlockToRegs;
+
+  auto GetOrCreateKeepAliveBlock = [&](MachineBasicBlock *PredBB,
+                                       MachineBasicBlock *JoinBB) {
+    MachineBasicBlock *&KeepAliveBB = EdgeToKeepAliveBlock[PredBB][JoinBB];
+    if (KeepAliveBB)
+      return KeepAliveBB;
+
+    KeepAliveBB = PredBB->SplitCriticalEdge(JoinBB, *this);
+    assert(KeepAliveBB && "Expected keepalive edge split to succeed");
+    BuildMI(*KeepAliveBB, KeepAliveBB->begin(), DebugLoc(),
+            TII->get(RISCV::PseudoSGPRKeepAliveBlock));
+    Changed = true;
+    return KeepAliveBB;
+  };
+
+  for (BranchKeepAliveInfo &Info : BranchInfos) {
+    for (Register Reg : Info.Regs) {
+      if (dominatesJoin(Reg, *MRI, *MDT, *Info.JoinBB)) {
+        JoinToRegs[Info.JoinBB].insert(Reg);
+        continue;
+      }
+
+      for (MachineBasicBlock *ExitPred : Info.ExitPreds) {
+        if (!dominatesBlockEnd(Reg, *MRI, *MDT, *ExitPred))
+          continue;
+        MachineBasicBlock *KeepAliveBB =
+            GetOrCreateKeepAliveBlock(ExitPred, Info.JoinBB);
+        BlockToRegs[KeepAliveBB].insert(Reg);
+      }
+    }
   }
 
   for (auto &Entry : JoinToRegs) {
@@ -360,20 +465,47 @@ bool VentusInsertSGPRKeepAlive::runOnMachineFunction(MachineFunction &MF) {
     }
   }
 
+  for (auto &Entry : BlockToRegs) {
+    MachineBasicBlock *KeepAliveBB = Entry.first;
+    auto InsertIt = KeepAliveBB->getFirstTerminator();
+    for (Register Reg : Entry.second) {
+      BuildMI(*KeepAliveBB, InsertIt, DebugLoc(),
+              TII->get(RISCV::PseudoSGPRKeepAlive))
+          .addReg(Reg);
+      Changed = true;
+    }
+  }
+
   return Changed;
 }
 
 bool VentusRemoveSGPRKeepAlive::runOnMachineFunction(MachineFunction &MF) {
   bool Changed = false;
+  DenseSet<const MachineBasicBlock *> MarkedKeepAliveBlocks;
   for (MachineBasicBlock &MBB : MF) {
     for (auto MI = MBB.begin(), E = MBB.end(); MI != E;) {
       MachineInstr &Instr = *MI++;
-      if (Instr.getOpcode() != RISCV::PseudoSGPRKeepAlive)
+      if (Instr.getOpcode() == RISCV::PseudoSGPRKeepAliveBlock)
+        MarkedKeepAliveBlocks.insert(&MBB);
+
+      if (Instr.getOpcode() != RISCV::PseudoSGPRKeepAlive &&
+          Instr.getOpcode() != RISCV::PseudoSGPRKeepAliveBlock)
         continue;
       Instr.eraseFromParent();
       Changed = true;
     }
   }
+
+  SmallVector<MachineBasicBlock *, 8> DeadKeepAliveBlocks;
+  for (MachineBasicBlock &MBB : MF)
+    if (isRemovableKeepAliveEdgeBlock(MBB, MarkedKeepAliveBlocks))
+      DeadKeepAliveBlocks.push_back(&MBB);
+
+  for (MachineBasicBlock *MBB : DeadKeepAliveBlocks) {
+    removeKeepAliveEdgeBlock(*MBB);
+    Changed = true;
+  }
+
   return Changed;
 }
 

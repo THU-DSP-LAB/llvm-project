@@ -1739,6 +1739,8 @@ def PseudoRET : Pseudo<(outs), (ins), [(riscv_ret_flag)]>,
 
 let hasSideEffects = 1, mayLoad = 0, mayStore = 0, isCodeGenOnly = 1 in
 def PseudoSGPRKeepAlive : Pseudo<(outs), (ins GPR:$src), []>;
+let hasSideEffects = 1, mayLoad = 0, mayStore = 0, isCodeGenOnly = 1 in
+def PseudoSGPRKeepAliveBlock : Pseudo<(outs), (ins), []>;
 
 // PseudoTAIL is a pseudo instruction similar to PseudoCALL and will eventually
 // expand to auipc and jalr while encoding.
