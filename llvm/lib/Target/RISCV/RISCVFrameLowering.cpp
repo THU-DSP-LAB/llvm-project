@@ -313,9 +313,6 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   MachineFrameInfo &MFI = MF.getFrameInfo();
   auto *RMFI = MF.getInfo<RISCVMachineFunctionInfo>();
   const RISCVRegisterInfo *RI = STI.getRegisterInfo();
-  const MachineRegisterInfo &MRI = MF.getRegInfo();
-  auto *CurrentRegisterAddedSet = const_cast<DenseSet<unsigned>*>(
-                                              STI.getCurrentRegisterAddedSet());
   auto *CurrentSubProgramInfo = const_cast<SubVentusProgramInfo*>(
                                               STI.getCurrentSubProgramInfo());
   const RISCVInstrInfo *TII = STI.getInstrInfo();
@@ -400,8 +397,7 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
 
   // Allocate space on the local-mem stack and private-mem stack if necessary.
   if(SPStackSize) {
-    RI->insertRegToSet(MRI, CurrentRegisterAddedSet, CurrentSubProgramInfo,
-                        SPReg);
+    RI->updateVentusRegUsage(CurrentSubProgramInfo, SPReg);
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
                   StackOffset::getFixed(SPStackSize), MachineInstr::FrameSetup,
                   getStackAlign());
@@ -596,19 +592,15 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
 void RISCVFrameLowering::processFunctionBeforeFrameFinalized(
   MachineFunction &MF,
   RegScavenger *RS) const {
-  const MachineRegisterInfo &MRI = MF.getRegInfo();
   const RISCVRegisterInfo *RI = STI.getRegisterInfo();
   auto *CurrentProgramInfo = const_cast<VentusProgramInfo*>(
                     MF.getSubtarget<RISCVSubtarget>().getVentusProgramInfo());
 
   // When accessing a new function, we need to add a new container to calculate
   // its resource usage.
-  CurrentProgramInfo->RegisterAddedSetVec.push_back(DenseSet<unsigned>());
   CurrentProgramInfo->SubProgramInfoVec.push_back(SubVentusProgramInfo());
 
   // Gets the container for the resource calculation of the current function.
-  auto *CurrentRegisterAddedSet = const_cast<DenseSet<unsigned>*>(
-                    MF.getSubtarget<RISCVSubtarget>().getCurrentRegisterAddedSet());
   auto *CurrentSubProgramInfo = const_cast<SubVentusProgramInfo*>(
                     MF.getSubtarget<RISCVSubtarget>().getCurrentSubProgramInfo());
 
@@ -619,15 +611,13 @@ void RISCVFrameLowering::processFunctionBeforeFrameFinalized(
         if (!Op.isReg())
           continue;
 
-        RI->insertRegToSet(MRI, CurrentRegisterAddedSet,
-                    CurrentSubProgramInfo, Op.getReg());
+        RI->updateVentusRegUsage(CurrentSubProgramInfo, Op.getReg());
       }
     }
   }
 
   // ra register is a special register.
-  RI->insertRegToSet(MRI, CurrentRegisterAddedSet,
-                    CurrentSubProgramInfo, RISCV::X1);
+  RI->updateVentusRegUsage(CurrentSubProgramInfo, RISCV::X1);
 }
 
 void RISCVFrameLowering::determineCalleeSaves(MachineFunction &MF,

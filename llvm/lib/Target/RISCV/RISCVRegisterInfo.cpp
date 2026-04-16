@@ -24,6 +24,7 @@
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <algorithm>
 
 #define GET_REGINFO_TARGET_DESC
 #include "RISCVGenRegisterInfo.inc"
@@ -49,6 +50,24 @@ static_assert(RISCV::F31_D == RISCV::F0_D + 31,
               "Register list not consecutive");
 static_assert(RISCV::V1 == RISCV::V0 + 1, "Register list not consecutive");
 static_assert(RISCV::V31 == RISCV::V0 + 31, "Register list not consecutive");
+static_assert(RISCV::V255 == RISCV::V0 + 255, "Register list not consecutive");
+static_assert(RISCV::X63 == RISCV::X0 + 63, "Register list not consecutive");
+
+static void updateVentusLeafRegUsage(SubVentusProgramInfo *CurrentSubProgramInfo,
+                                     MCRegister Reg) {
+  if (Reg >= RISCV::V0 && Reg <= RISCV::V255) {
+    const uint32_t VGPRIndex = Reg.id() - RISCV::V0;
+    CurrentSubProgramInfo->VGPRUsage =
+        std::max(CurrentSubProgramInfo->VGPRUsage, VGPRIndex + 1);
+    return;
+  }
+
+  if (Reg >= RISCV::X0 && Reg <= RISCV::X63) {
+    const uint32_t SGPRIndex = Reg.id() - RISCV::X0;
+    CurrentSubProgramInfo->SGPRUsage =
+        std::max(CurrentSubProgramInfo->SGPRUsage, SGPRIndex + 1);
+  }
+}
 
 RISCVRegisterInfo::RISCVRegisterInfo(unsigned HwMode)
     : RISCVGenRegisterInfo(RISCV::X1, /*DwarfFlavour*/0, /*EHFlavor*/0,
@@ -189,23 +208,14 @@ bool RISCVRegisterInfo::isVGPRReg(const MachineRegisterInfo &MRI,
   return RC ? isVGPRClass(RC) : false;
 }
 
-void RISCVRegisterInfo::insertRegToSet(const MachineRegisterInfo &MRI,
-                    DenseSet<unsigned int> *CurrentRegisterAddedSet,
+void RISCVRegisterInfo::updateVentusRegUsage(
                     SubVentusProgramInfo *CurrentSubProgramInfo,
                     Register Reg) const {
-  if (CurrentRegisterAddedSet->contains(Reg))
+  if (!Reg.isPhysical())
     return;
 
-  // Beyond the limits of SGPR and VGPR
-  if (Reg.id() < RISCV::V0 || Reg.id() > RISCV::X63)
-    return;
-
-  CurrentRegisterAddedSet->insert(Reg);
-
-  if (!isSGPRReg(MRI, Reg))
-    CurrentSubProgramInfo->VGPRUsage++;
-  else
-    CurrentSubProgramInfo->SGPRUsage++;
+  for (MCPhysReg PhysReg : subregs_inclusive(Reg.asMCReg()))
+    updateVentusLeafRegUsage(CurrentSubProgramInfo, PhysReg);
 }
 
 const Register RISCVRegisterInfo::getPrivateMemoryBaseRegister(

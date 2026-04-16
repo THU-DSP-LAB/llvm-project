@@ -73,10 +73,8 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
 
   bool isVGPRReg(const MachineRegisterInfo &MRI, Register Reg) const;
 
-  void insertRegToSet(const MachineRegisterInfo &MRI,
-                      DenseSet<unsigned int> *CurrentRegUsageSet,
-                      SubVentusProgramInfo *CurrentSubProgramInfo,
-                      Register Reg) const;
+  void updateVentusRegUsage(SubVentusProgramInfo *CurrentSubProgramInfo,
+                            Register Reg) const;
 
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;

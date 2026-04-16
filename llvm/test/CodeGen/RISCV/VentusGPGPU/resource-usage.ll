@@ -5,7 +5,7 @@
 
 ; VENTUS: .section	.ventus.resource.usage,"w",@progbits
 ; VENTUS: .half	0
-; VENTUS: .half	6
+; VENTUS: .half	11
 ; VENTUS: .half	4
 ; VENTUS: .half	0
 

@@ -16,6 +16,7 @@
 #include "MCTargetDesc/RISCVTargetStreamer.h"
 #include "RISCV.h"
 #include "RISCVMachineFunctionInfo.h"
+#include "RISCVRegisterInfo.h"
 #include "RISCVTargetMachine.h"
 #include "TargetInfo/RISCVTargetInfo.h"
 #include "VentusProgramInfo.h"
@@ -92,6 +93,30 @@ private:
 
 #define GEN_COMPRESS_INSTR
 #include "RISCVGenCompressInstEmitter.inc"
+
+static SubVentusProgramInfo collectVentusResourceInfo(
+    const MachineFunction &MF, const RISCVRegisterInfo &TRI,
+    const SubVentusProgramInfo &StoredResourceInfo) {
+  SubVentusProgramInfo ResourceInfo = StoredResourceInfo;
+  ResourceInfo.VGPRUsage = 0;
+  ResourceInfo.SGPRUsage = 0;
+
+  for (const MachineBasicBlock &MBB : MF) {
+    for (const MachineInstr &MI : MBB) {
+      for (const MachineOperand &Op : MI.operands()) {
+        if (!Op.isReg())
+          continue;
+
+        TRI.updateVentusRegUsage(&ResourceInfo, Op.getReg());
+      }
+    }
+  }
+
+  // Keep the historical behavior where RA counts as a used SGPR.
+  TRI.updateVentusRegUsage(&ResourceInfo, RISCV::X1);
+  return ResourceInfo;
+}
+
 void RISCVAsmPrinter::EmitToStreamer(MCStreamer &S, const MCInst &Inst) {
   MCInst CInst;
   bool Res = compressInst(CInst, Inst, *STI, OutStreamer->getContext());
@@ -202,17 +227,15 @@ bool RISCVAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   auto *CurrentProgramInfo =
       const_cast<VentusProgramInfo *>(STI->getVentusProgramInfo());
   if (MF.getInfo<RISCVMachineFunctionInfo>()->isEntryFunction()) {
+    const SubVentusProgramInfo ResourceInfo = collectVentusResourceInfo(
+        MF, *STI->getRegisterInfo(), CurrentProgramInfo->SubProgramInfoVec[FuncCount]);
     MCSectionELF *ResourceSection = OutContext.getELFSection(
         ".ventus.resource." + MF.getName(), ELF::SHT_PROGBITS, ELF::SHF_WRITE);
     OutStreamer->switchSection(ResourceSection);
-    OutStreamer->emitInt16(
-                    CurrentProgramInfo->SubProgramInfoVec[FuncCount].VGPRUsage);
-    OutStreamer->emitInt16(
-                    CurrentProgramInfo->SubProgramInfoVec[FuncCount].SGPRUsage);
-    OutStreamer->emitInt16(
-                    CurrentProgramInfo->SubProgramInfoVec[FuncCount].LDSMemory);
-    OutStreamer->emitInt16(
-                    CurrentProgramInfo->SubProgramInfoVec[FuncCount].PDSMemory);
+    OutStreamer->emitInt16(ResourceInfo.VGPRUsage);
+    OutStreamer->emitInt16(ResourceInfo.SGPRUsage);
+    OutStreamer->emitInt16(ResourceInfo.LDSMemory);
+    OutStreamer->emitInt16(ResourceInfo.PDSMemory);
   }
 
   FuncCount++;
