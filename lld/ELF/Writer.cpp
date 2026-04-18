@@ -31,6 +31,7 @@
 #include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/xxhash.h"
 #include <climits>
+#include <optional>
 
 #define DEBUG_TYPE "lld"
 
@@ -43,6 +44,122 @@ using namespace lld;
 using namespace lld::elf;
 
 namespace {
+constexpr uint32_t ventusResObjMagic = 0x5652534fu;
+constexpr uint32_t ventusResObjVersion = 1u;
+constexpr uint32_t ventusResObjHeaderSize = 9u * sizeof(uint32_t);
+constexpr uint32_t ventusResObjFunctionRecordSize =
+    2u * sizeof(uint32_t) + 5u * sizeof(uint64_t) + 4u * sizeof(uint32_t);
+constexpr uint32_t ventusResObjEdgeRecordSize = 2u * sizeof(uint32_t);
+constexpr uint32_t ventusResObjStaticRefRecordSize =
+    2u * sizeof(uint32_t) + sizeof(uint64_t);
+constexpr uint32_t vrofIsEntry = 1u << 0;
+constexpr uint32_t vrofHasDynamicAlloca = 1u << 1;
+constexpr uint32_t vrofHasIndirectCall = 1u << 2;
+constexpr uint32_t vroeIsTail = 1u << 0;
+constexpr uint32_t vrosIsLdsStatic = 1u << 0;
+constexpr uint32_t vrosIsPdsStatic = 1u << 1;
+constexpr uint32_t vkrfHasDynamicAlloca = 1u << 0;
+constexpr uint32_t vkrfHasRecursion = 1u << 1;
+constexpr uint32_t vkrfHasIndirectCall = 1u << 2;
+constexpr uint32_t vkrfHasUnknownExternalCallee = 1u << 3;
+constexpr uint32_t vkrfStackPeakUnavailable = 1u << 4;
+constexpr uint32_t vkrfRegisterUsageIncomplete = 1u << 5;
+constexpr uint32_t ventusResourceVersion = 2u;
+constexpr uint64_t ventusUnknownResourceSize = UINT64_MAX;
+
+struct VentusParsedFunctionRecord {
+  Symbol *owner = nullptr;
+  uint32_t flags = 0;
+  uint64_t vgprUsed = 0;
+  uint64_t sgprUsed = 0;
+  uint64_t ldsStackSelf = 0;
+  uint64_t pdsStackSelf = 0;
+  uint64_t outgoingPrivateMax = 0;
+  uint32_t edgeBegin = 0;
+  uint32_t edgeCount = 0;
+  uint32_t staticRefBegin = 0;
+  uint32_t staticRefCount = 0;
+};
+
+struct VentusParsedEdgeRecord {
+  Symbol *callee = nullptr;
+  uint32_t flags = 0;
+};
+
+struct VentusParsedStaticRefRecord {
+  Symbol *resource = nullptr;
+  uint32_t flags = 0;
+  uint64_t size = 0;
+};
+
+struct VentusParsedObject {
+  SmallVector<VentusParsedFunctionRecord, 0> functions;
+  SmallVector<VentusParsedEdgeRecord, 0> edges;
+  SmallVector<VentusParsedStaticRefRecord, 0> staticRefs;
+};
+
+struct VentusLinkEdge {
+  Symbol *callee = nullptr;
+  uint32_t flags = 0;
+};
+
+struct VentusLinkStaticRef {
+  Symbol *resource = nullptr;
+  uint32_t flags = 0;
+  uint64_t size = 0;
+};
+
+struct VentusLinkFunction {
+  Symbol *owner = nullptr;
+  uint32_t flags = 0;
+  uint64_t vgprUsed = 0;
+  uint64_t sgprUsed = 0;
+  uint64_t ldsStackSelf = 0;
+  uint64_t pdsStackSelf = 0;
+  uint64_t outgoingPrivateMax = 0;
+  SmallVector<VentusLinkEdge, 0> edges;
+  SmallVector<VentusLinkStaticRef, 0> staticRefs;
+};
+
+struct VentusStackSummary {
+  uint64_t ldsStackPeakBytes = 0;
+  uint64_t pdsStackPeakBytes = 0;
+  uint32_t flags = 0;
+};
+
+enum class VentusEdgeResolutionKind {
+  Summarized,
+  ResolvedUnsummarized,
+  Unresolved,
+};
+
+struct VentusResolvedCallee {
+  VentusEdgeResolutionKind kind = VentusEdgeResolutionKind::Unresolved;
+  unsigned summaryIndex = 0;
+};
+
+struct VentusLegacyPlacement {
+  OutputSection *osec = nullptr;
+  InputSectionDescription *isd = nullptr;
+  InputSection *legacy = nullptr;
+};
+
+class VentusResourceSection final : public SyntheticSection {
+public:
+  VentusResourceSection(InputFile *ownerFile, StringRef name,
+                        SmallVector<uint8_t, 64> data)
+      : SyntheticSection(SHF_WRITE, SHT_PROGBITS, 8, saver().save(name)),
+        data(std::move(data)) {
+    file = ownerFile;
+  }
+
+  size_t getSize() const override { return data.size(); }
+  void writeTo(uint8_t *buf) override { memcpy(buf, data.data(), data.size()); }
+
+private:
+  SmallVector<uint8_t, 64> data;
+};
+
 // The writer writes a SymbolTable result to a file.
 template <class ELFT> class Writer {
 public:
@@ -61,6 +178,7 @@ private:
   void optimizeBasicBlockJumps();
   void sortInputSections();
   void finalizeSections();
+  void finalizeVentusResources();
   void checkExecuteOnly();
   void setReservedSymbolSections();
 
@@ -89,6 +207,657 @@ private:
   uint64_t sectionHeaderOff;
 };
 } // anonymous namespace
+
+static bool isVentusResourceSectionName(StringRef name) {
+  return name.startswith(".ventus.resource.");
+}
+
+static uint32_t translateVentusFunctionFlags(uint32_t flags) {
+  uint32_t result = 0;
+  if (flags & vrofHasDynamicAlloca)
+    result |= vkrfHasDynamicAlloca;
+  if (flags & vrofHasIndirectCall)
+    result |= vkrfHasIndirectCall;
+  return result;
+}
+
+template <class ELFT> static bool isVentusFinalizerEnabled() {
+  if (config->relocatable || config->shared || config->emachine != EM_RISCV)
+    return false;
+  return llvm::any_of(ctx.objectFiles, [](ELFFileBase *file) {
+    return cast<ObjFile<ELFT>>(file)->ventusResObjSecIndex != 0;
+  });
+}
+
+template <endianness E>
+static uint32_t readVentusU32(ArrayRef<uint8_t> data, uint64_t offset) {
+  return read32<E>(data.data() + offset);
+}
+
+template <endianness E>
+static uint64_t readVentusU64(ArrayRef<uint8_t> data, uint64_t offset) {
+  return read64<E>(data.data() + offset);
+}
+
+template <endianness E>
+static void appendVentusU32(SmallVectorImpl<uint8_t> &buf, uint32_t value) {
+  size_t offset = buf.size();
+  buf.resize(offset + sizeof(uint32_t));
+  write32<E>(buf.data() + offset, value);
+}
+
+template <endianness E>
+static void appendVentusU64(SmallVectorImpl<uint8_t> &buf, uint64_t value) {
+  size_t offset = buf.size();
+  buf.resize(offset + sizeof(uint64_t));
+  write64<E>(buf.data() + offset, value);
+}
+
+template <class ELFT>
+static bool checkVentusTableBounds(ObjFile<ELFT> &file, ArrayRef<uint8_t> data,
+                                   StringRef tableName, uint32_t offset,
+                                   uint32_t count, uint32_t recordSize) {
+  uint64_t end = uint64_t(offset) + uint64_t(count) * uint64_t(recordSize);
+  if (end < offset || end > data.size()) {
+    error(toString(&file) + ": malformed .ventus.resobj " + tableName +
+          " table");
+    return false;
+  }
+  return true;
+}
+
+static bool isZeroFilled(ArrayRef<uint8_t> data, uint64_t offset) {
+  return llvm::all_of(data.drop_front(offset),
+                      [](uint8_t byte) { return byte == 0; });
+}
+
+template <class ELFT>
+static bool collectVentusRelocs(ObjFile<ELFT> &file,
+                                DenseMap<uint64_t, Symbol *> &relocs) {
+  if (file.ventusResObjRelSecIndex == 0)
+    return true;
+
+  const ELFFile<ELFT> obj = file.getObj();
+  auto sections = file.template getELFShdrs<ELFT>();
+  const typename ELFT::Shdr &relSec = sections[file.ventusResObjRelSecIndex];
+  auto addReloc = [&](const auto &rel, uint64_t addend) {
+    if (addend != 0) {
+      error(toString(&file) +
+            ": .ventus.resobj symbol references do not support addends");
+      return false;
+    }
+    uint64_t offset = rel.r_offset;
+    Symbol *&slot = relocs[offset];
+    if (slot) {
+      error(toString(&file) + ": duplicate .ventus.resobj relocation at 0x" +
+            Twine::utohexstr(offset));
+      return false;
+    }
+    slot = &file.getRelocTargetSym(rel);
+    return true;
+  };
+
+  if (relSec.sh_type == SHT_RELA) {
+    for (const typename ELFT::Rela &rel :
+         CHECK(obj.relas(relSec), "could not retrieve .ventus.resobj relocs"))
+      if (!addReloc(rel, rel.r_addend))
+        return false;
+    return true;
+  }
+
+  if (relSec.sh_type == SHT_REL) {
+    for (const typename ELFT::Rel &rel :
+         CHECK(obj.rels(relSec), "could not retrieve .ventus.resobj relocs"))
+      if (!addReloc(rel, 0))
+        return false;
+    return true;
+  }
+
+  error(toString(&file) + ": invalid .ventus.resobj relocation section type");
+  return false;
+}
+
+template <class ELFT>
+static Symbol *getVentusRelocSymbol(ObjFile<ELFT> &file, uint64_t offset,
+                                    DenseMap<uint64_t, Symbol *> &relocs,
+                                    DenseSet<uint64_t> &usedRelocs) {
+  auto it = relocs.find(offset);
+  if (it == relocs.end()) {
+    error(toString(&file) + ": missing .ventus.resobj relocation at 0x" +
+          Twine::utohexstr(offset));
+    return nullptr;
+  }
+  usedRelocs.insert(offset);
+  return it->second;
+}
+
+template <class ELFT>
+static bool checkVentusUnusedRelocs(ObjFile<ELFT> &file,
+                                    DenseMap<uint64_t, Symbol *> &relocs,
+                                    DenseSet<uint64_t> &usedRelocs) {
+  for (const auto &it : relocs)
+    if (!usedRelocs.count(it.first)) {
+      error(toString(&file) +
+            ": unexpected relocation in .ventus.resobj at 0x" +
+            Twine::utohexstr(it.first));
+      return false;
+    }
+  return true;
+}
+
+template <class ELFT>
+static std::optional<VentusParsedObject> parseVentusResObj(ObjFile<ELFT> &file) {
+  if (file.ventusResObjSecIndex == 0)
+    return VentusParsedObject();
+
+  const ELFFile<ELFT> obj = file.getObj();
+  auto sections = file.template getELFShdrs<ELFT>();
+  ArrayRef<uint8_t> data =
+      check(obj.getSectionContents(sections[file.ventusResObjSecIndex]));
+
+  DenseMap<uint64_t, Symbol *> relocs;
+  DenseSet<uint64_t> usedRelocs;
+  if (!collectVentusRelocs(file, relocs))
+    return std::nullopt;
+
+  VentusParsedObject parsed;
+  uint64_t payloadOffset = 0;
+  // The backend emits one `.ventus.resobj` section per regular object file.
+  // A single input section can still contain multiple payloads after
+  // relocatable links concatenate several summaries, so keep parsing until the
+  // section is exhausted.
+  while (payloadOffset < data.size()) {
+    if (data.size() - payloadOffset < ventusResObjHeaderSize) {
+      if (isZeroFilled(data, payloadOffset))
+        break;
+      error(toString(&file) + ": .ventus.resobj header is truncated");
+      return std::nullopt;
+    }
+
+    uint32_t magic =
+        readVentusU32<ELFT::TargetEndianness>(data, payloadOffset + 0);
+    uint32_t version =
+        readVentusU32<ELFT::TargetEndianness>(data, payloadOffset + 4);
+    if (magic != ventusResObjMagic || version != ventusResObjVersion) {
+      if (isZeroFilled(data, payloadOffset))
+        break;
+      error(toString(&file) + ": unsupported .ventus.resobj header");
+      return std::nullopt;
+    }
+
+    uint32_t functionCount =
+        readVentusU32<ELFT::TargetEndianness>(data, payloadOffset + 12);
+    uint32_t edgeCount =
+        readVentusU32<ELFT::TargetEndianness>(data, payloadOffset + 16);
+    uint32_t staticRefCount =
+        readVentusU32<ELFT::TargetEndianness>(data, payloadOffset + 20);
+    uint32_t functionTableOffset =
+        readVentusU32<ELFT::TargetEndianness>(data, payloadOffset + 24);
+    uint32_t edgeTableOffset =
+        readVentusU32<ELFT::TargetEndianness>(data, payloadOffset + 28);
+    uint32_t staticRefTableOffset =
+        readVentusU32<ELFT::TargetEndianness>(data, payloadOffset + 32);
+
+    uint64_t functionTableAbs = payloadOffset + uint64_t(functionTableOffset);
+    uint64_t edgeTableAbs = payloadOffset + uint64_t(edgeTableOffset);
+    uint64_t staticRefTableAbs = payloadOffset + uint64_t(staticRefTableOffset);
+    if (!checkVentusTableBounds(file, data, "function", functionTableAbs,
+                                functionCount,
+                                ventusResObjFunctionRecordSize) ||
+        !checkVentusTableBounds(file, data, "edge", edgeTableAbs, edgeCount,
+                                ventusResObjEdgeRecordSize) ||
+        !checkVentusTableBounds(file, data, "static ref", staticRefTableAbs,
+                                staticRefCount,
+                                ventusResObjStaticRefRecordSize))
+      return std::nullopt;
+
+    uint64_t payloadEnd = payloadOffset + ventusResObjHeaderSize;
+    payloadEnd = std::max(payloadEnd, functionTableAbs +
+                                      uint64_t(functionCount) *
+                                          ventusResObjFunctionRecordSize);
+    payloadEnd = std::max(payloadEnd, edgeTableAbs +
+                                      uint64_t(edgeCount) *
+                                          ventusResObjEdgeRecordSize);
+    payloadEnd = std::max(payloadEnd, staticRefTableAbs +
+                                      uint64_t(staticRefCount) *
+                                          ventusResObjStaticRefRecordSize);
+
+    uint32_t edgeBase = parsed.edges.size();
+    uint32_t staticRefBase = parsed.staticRefs.size();
+    size_t functionBase = parsed.functions.size();
+    parsed.functions.reserve(functionBase + functionCount);
+    parsed.edges.reserve(parsed.edges.size() + edgeCount);
+    parsed.staticRefs.reserve(parsed.staticRefs.size() + staticRefCount);
+
+    for (uint32_t i = 0; i != functionCount; ++i) {
+      uint64_t off = functionTableAbs +
+                     uint64_t(i) * ventusResObjFunctionRecordSize;
+      Symbol *owner = getVentusRelocSymbol(file, off, relocs, usedRelocs);
+      if (!owner)
+        return std::nullopt;
+      parsed.functions.push_back(
+          {owner,
+           readVentusU32<ELFT::TargetEndianness>(data, off + 4),
+           readVentusU64<ELFT::TargetEndianness>(data, off + 8),
+           readVentusU64<ELFT::TargetEndianness>(data, off + 16),
+           readVentusU64<ELFT::TargetEndianness>(data, off + 24),
+           readVentusU64<ELFT::TargetEndianness>(data, off + 32),
+           readVentusU64<ELFT::TargetEndianness>(data, off + 40),
+           readVentusU32<ELFT::TargetEndianness>(data, off + 48),
+           readVentusU32<ELFT::TargetEndianness>(data, off + 52),
+           readVentusU32<ELFT::TargetEndianness>(data, off + 56),
+           readVentusU32<ELFT::TargetEndianness>(data, off + 60)});
+    }
+
+    for (uint32_t i = 0; i != edgeCount; ++i) {
+      uint64_t off =
+          edgeTableAbs + uint64_t(i) * ventusResObjEdgeRecordSize;
+      Symbol *callee = getVentusRelocSymbol(file, off, relocs, usedRelocs);
+      if (!callee)
+        return std::nullopt;
+      parsed.edges.push_back(
+          {callee, readVentusU32<ELFT::TargetEndianness>(data, off + 4)});
+    }
+
+    for (uint32_t i = 0; i != staticRefCount; ++i) {
+      uint64_t off = staticRefTableAbs +
+                     uint64_t(i) * ventusResObjStaticRefRecordSize;
+      Symbol *resource = getVentusRelocSymbol(file, off, relocs, usedRelocs);
+      if (!resource)
+        return std::nullopt;
+      parsed.staticRefs.push_back(
+          {resource,
+           readVentusU32<ELFT::TargetEndianness>(data, off + 4),
+           readVentusU64<ELFT::TargetEndianness>(data, off + 8)});
+    }
+
+    for (size_t i = functionBase; i != parsed.functions.size(); ++i) {
+      VentusParsedFunctionRecord &func = parsed.functions[i];
+      uint64_t edgeEnd = uint64_t(func.edgeBegin) + uint64_t(func.edgeCount);
+      uint64_t staticEnd =
+          uint64_t(func.staticRefBegin) + uint64_t(func.staticRefCount);
+      if (edgeEnd > edgeCount || staticEnd > staticRefCount) {
+        error(toString(&file) + ": malformed .ventus.resobj record ranges");
+        return std::nullopt;
+      }
+      func.edgeBegin += edgeBase;
+      func.staticRefBegin += staticRefBase;
+    }
+
+    payloadOffset = alignTo(payloadEnd, uint64_t(8));
+  }
+
+  if (!checkVentusUnusedRelocs(file, relocs, usedRelocs))
+    return std::nullopt;
+  return parsed;
+}
+
+template <class ELFT>
+static bool shouldKeepVentusSummary(const ObjFile<ELFT> &file, Symbol &sym) {
+  auto *def = dyn_cast<Defined>(&sym);
+  return def && sym.file == &file && def->section &&
+         def->section != &InputSection::discarded;
+}
+
+template <class ELFT>
+static bool collectVentusFunctions(SmallVectorImpl<VentusLinkFunction> &out) {
+  for (ELFFileBase *base : ctx.objectFiles) {
+    auto *file = cast<ObjFile<ELFT>>(base);
+    std::optional<VentusParsedObject> parsed = parseVentusResObj(*file);
+    if (!parsed)
+      return false;
+
+    for (const VentusParsedFunctionRecord &func : parsed->functions) {
+      if (!shouldKeepVentusSummary(*file, *func.owner))
+        continue;
+
+      VentusLinkFunction &summary = out.emplace_back();
+      summary.owner = func.owner;
+      summary.flags = func.flags;
+      summary.vgprUsed = func.vgprUsed;
+      summary.sgprUsed = func.sgprUsed;
+      summary.ldsStackSelf = func.ldsStackSelf;
+      summary.pdsStackSelf = func.pdsStackSelf;
+      summary.outgoingPrivateMax = func.outgoingPrivateMax;
+
+      for (uint32_t i = 0; i != func.edgeCount; ++i) {
+        const VentusParsedEdgeRecord &edge = parsed->edges[func.edgeBegin + i];
+        summary.edges.push_back({edge.callee, edge.flags});
+      }
+      for (uint32_t i = 0; i != func.staticRefCount; ++i) {
+        const VentusParsedStaticRefRecord &ref =
+            parsed->staticRefs[func.staticRefBegin + i];
+        summary.staticRefs.push_back({ref.resource, ref.flags, ref.size});
+      }
+    }
+  }
+  return true;
+}
+
+static bool buildVentusFunctionIndex(
+    ArrayRef<VentusLinkFunction> functions, DenseMap<Symbol *, unsigned> &bySym,
+    DenseMap<std::pair<const SectionBase *, uint64_t>, unsigned> &bySecValue) {
+  for (auto [index, func] : llvm::enumerate(functions)) {
+    if (!bySym.try_emplace(func.owner, index).second) {
+      error("duplicate Ventus resource summary for symbol " +
+            toString(*func.owner));
+      return false;
+    }
+
+    auto *def = cast<Defined>(func.owner);
+    auto key = std::make_pair(static_cast<const SectionBase *>(def->section),
+                              def->value);
+    if (!bySecValue.try_emplace(key, index).second) {
+      error("duplicate Ventus resource summary for section/value of symbol " +
+            toString(*func.owner));
+      return false;
+    }
+  }
+  return true;
+}
+
+static std::optional<unsigned> findVentusFunctionSummary(
+    const Symbol &sym, DenseMap<Symbol *, unsigned> &bySym,
+    DenseMap<std::pair<const SectionBase *, uint64_t>, unsigned> &bySecValue) {
+  if (auto it = bySym.find(const_cast<Symbol *>(&sym)); it != bySym.end())
+    return it->second;
+
+  auto *def = dyn_cast<Defined>(&sym);
+  if (!def || !def->section || def->section == &InputSection::discarded)
+    return std::nullopt;
+
+  auto it = bySecValue.find({def->section, def->value});
+  if (it == bySecValue.end())
+    return std::nullopt;
+  return it->second;
+}
+
+static VentusResolvedCallee resolveVentusCallee(
+    const Symbol &sym, DenseMap<Symbol *, unsigned> &bySym,
+    DenseMap<std::pair<const SectionBase *, uint64_t>, unsigned> &bySecValue) {
+  if (std::optional<unsigned> index =
+          findVentusFunctionSummary(sym, bySym, bySecValue))
+    return {VentusEdgeResolutionKind::Summarized, *index};
+
+  auto *def = dyn_cast<Defined>(&sym);
+  if (!def || !def->section || def->section == &InputSection::discarded ||
+      sym.isShared() || sym.isUndefined())
+    return {VentusEdgeResolutionKind::Unresolved, 0};
+  return {VentusEdgeResolutionKind::ResolvedUnsummarized, 0};
+}
+
+static SmallVector<unsigned, 8> collectVentusReachableFunctions(
+    unsigned entryIndex, ArrayRef<VentusLinkFunction> functions,
+    DenseMap<Symbol *, unsigned> &bySym,
+    DenseMap<std::pair<const SectionBase *, uint64_t>, unsigned> &bySecValue,
+    uint32_t &flags) {
+  SmallVector<unsigned, 8> worklist = {entryIndex};
+  SmallVector<unsigned, 8> reachable;
+  SmallVector<char, 0> visited(functions.size(), 0);
+
+  while (!worklist.empty()) {
+    unsigned index = worklist.pop_back_val();
+    if (visited[index])
+      continue;
+    visited[index] = 1;
+    reachable.push_back(index);
+
+    const VentusLinkFunction &func = functions[index];
+    flags |= translateVentusFunctionFlags(func.flags);
+    if (func.flags & vrofHasIndirectCall)
+      flags |= vkrfRegisterUsageIncomplete;
+
+    for (const VentusLinkEdge &edge : func.edges) {
+      VentusResolvedCallee callee =
+          resolveVentusCallee(*edge.callee, bySym, bySecValue);
+      if (callee.kind == VentusEdgeResolutionKind::Summarized) {
+        worklist.push_back(callee.summaryIndex);
+        continue;
+      }
+      if (callee.kind == VentusEdgeResolutionKind::Unresolved)
+        flags |= vkrfHasUnknownExternalCallee;
+      flags |= vkrfRegisterUsageIncomplete;
+    }
+  }
+
+  return reachable;
+}
+
+static uint64_t getVentusStaticRefSize(const VentusLinkStaticRef &ref) {
+  if (ref.resource->isDefined() || ref.resource->isShared()) {
+    uint64_t size = ref.resource->getSize();
+    if (size != 0)
+      return size;
+  }
+  return ref.size;
+}
+
+static void collectVentusStaticResources(
+    ArrayRef<unsigned> reachable, ArrayRef<VentusLinkFunction> functions,
+    uint64_t &ldsStaticBytes, uint64_t &pdsStaticBytes) {
+  DenseSet<std::pair<const SectionBase *, uint64_t>> seenDefs;
+  DenseSet<const Symbol *> seenOtherSyms;
+
+  for (unsigned index : reachable) {
+    for (const VentusLinkStaticRef &ref : functions[index].staticRefs) {
+      auto *def = dyn_cast<Defined>(ref.resource);
+      bool inserted = false;
+      if (def && def->section && def->section != &InputSection::discarded)
+        inserted = seenDefs.insert({def->section, def->value}).second;
+      else
+        inserted = seenOtherSyms.insert(ref.resource).second;
+      if (!inserted)
+        continue;
+
+      uint64_t size = getVentusStaticRefSize(ref);
+      if (ref.flags & vrosIsLdsStatic)
+        ldsStaticBytes += size;
+      if (ref.flags & vrosIsPdsStatic)
+        pdsStaticBytes += size;
+    }
+  }
+}
+
+static VentusStackSummary makeVentusUnavailable(uint32_t flags) {
+  return {ventusUnknownResourceSize, ventusUnknownResourceSize,
+          flags | vkrfStackPeakUnavailable};
+}
+
+static VentusStackSummary computeVentusStackSummary(
+    unsigned index, ArrayRef<VentusLinkFunction> functions,
+    DenseMap<Symbol *, unsigned> &bySym,
+    DenseMap<std::pair<const SectionBase *, uint64_t>, unsigned> &bySecValue,
+    SmallVector<std::optional<VentusStackSummary>, 0> &memo,
+    SmallVector<char, 0> &visiting) {
+  if (memo[index])
+    return *memo[index];
+  if (visiting[index])
+    return makeVentusUnavailable(vkrfHasRecursion);
+
+  visiting[index] = 1;
+  const VentusLinkFunction &func = functions[index];
+  uint32_t flags = translateVentusFunctionFlags(func.flags);
+  if (flags & (vkrfHasDynamicAlloca | vkrfHasIndirectCall)) {
+    visiting[index] = 0;
+    return *(memo[index] = makeVentusUnavailable(flags));
+  }
+
+  uint64_t ldsPeak = func.ldsStackSelf;
+  uint64_t pdsPeak = func.pdsStackSelf + func.outgoingPrivateMax;
+  for (const VentusLinkEdge &edge : func.edges) {
+    VentusResolvedCallee callee =
+        resolveVentusCallee(*edge.callee, bySym, bySecValue);
+    if (callee.kind != VentusEdgeResolutionKind::Summarized) {
+      visiting[index] = 0;
+      if (callee.kind == VentusEdgeResolutionKind::Unresolved)
+        flags |= vkrfHasUnknownExternalCallee;
+      return *(memo[index] = makeVentusUnavailable(flags));
+    }
+
+    VentusStackSummary calleeSummary = computeVentusStackSummary(
+        callee.summaryIndex, functions, bySym, bySecValue, memo, visiting);
+    flags |= calleeSummary.flags;
+    if (calleeSummary.flags & vkrfStackPeakUnavailable) {
+      visiting[index] = 0;
+      return *(memo[index] = makeVentusUnavailable(flags));
+    }
+
+    if (edge.flags & vroeIsTail) {
+      ldsPeak = std::max(ldsPeak, calleeSummary.ldsStackPeakBytes);
+      pdsPeak = std::max(pdsPeak, calleeSummary.pdsStackPeakBytes);
+      continue;
+    }
+
+    ldsPeak =
+        std::max(ldsPeak, func.ldsStackSelf + calleeSummary.ldsStackPeakBytes);
+    pdsPeak = std::max(pdsPeak, func.pdsStackSelf + func.outgoingPrivateMax +
+                                    calleeSummary.pdsStackPeakBytes);
+  }
+
+  visiting[index] = 0;
+  return *(memo[index] = VentusStackSummary{ldsPeak, pdsPeak, flags});
+}
+
+template <class ELFT>
+static SmallVector<uint8_t, 64> createVentusResourcePayload(
+    uint32_t flags, uint64_t vgprUsed, uint64_t sgprUsed,
+    uint64_t ldsStaticBytes, uint64_t pdsStaticBytes,
+    uint64_t ldsStackPeakBytes, uint64_t pdsStackPeakBytes) {
+  SmallVector<uint8_t, 64> buf;
+  appendVentusU32<ELFT::TargetEndianness>(buf, ventusResourceVersion);
+  appendVentusU32<ELFT::TargetEndianness>(buf, flags);
+  appendVentusU64<ELFT::TargetEndianness>(buf, vgprUsed);
+  appendVentusU64<ELFT::TargetEndianness>(buf, sgprUsed);
+  appendVentusU64<ELFT::TargetEndianness>(buf, ldsStaticBytes);
+  appendVentusU64<ELFT::TargetEndianness>(buf, pdsStaticBytes);
+  appendVentusU64<ELFT::TargetEndianness>(buf, ldsStackPeakBytes);
+  appendVentusU64<ELFT::TargetEndianness>(buf, pdsStackPeakBytes);
+  return buf;
+}
+
+static InputSectionDescription *getVentusSectionDescription(OutputSection &osec) {
+  if (osec.commands.empty() || !isa<InputSectionDescription>(osec.commands.back()))
+    osec.commands.push_back(make<InputSectionDescription>(""));
+  return cast<InputSectionDescription>(osec.commands.back());
+}
+
+static OutputSection *createVentusOutputSection(StringRef name) {
+  auto *osd = script->createOutputSection(saver().save(name), "<internal>");
+  osd->osec.type = SHT_PROGBITS;
+  osd->osec.flags = SHF_WRITE;
+  script->sectionCommands.push_back(osd);
+  return &osd->osec;
+}
+
+template <class ELFT> static bool checkVentusMixedInputFormats() {
+  for (ELFFileBase *base : ctx.objectFiles) {
+    auto *file = cast<ObjFile<ELFT>>(base);
+    if (file->ventusResObjSecIndex == 0 && file->hasLegacyVentusResource) {
+      error(toString(file) + ": mixes legacy .ventus.resource.* input with "
+                             "link-time finalization; recompile all Ventus "
+                             "objects to emit .ventus.resobj");
+      return false;
+    }
+  }
+  return true;
+}
+
+static StringMap<SmallVector<VentusLegacyPlacement, 1>>
+collectLegacyVentusPlacements() {
+  StringMap<SmallVector<VentusLegacyPlacement, 1>> placements;
+  for (SectionCommand *&cmd : script->sectionCommands) {
+    auto *osd = dyn_cast<OutputDesc>(cmd);
+    if (!osd)
+      continue;
+
+    for (SectionCommand *subCmd : osd->osec.commands) {
+      auto *isd = dyn_cast<InputSectionDescription>(subCmd);
+      if (!isd)
+        continue;
+      for (InputSection *isec : isd->sections)
+        if (!isa<SyntheticSection>(isec) && isVentusResourceSectionName(isec->name))
+          placements[isec->name].push_back({&osd->osec, isd, isec});
+    }
+  }
+  return placements;
+}
+
+static bool isVentusScriptMatch(const InputSectionDescription &isd,
+                                const SectionPattern &pattern,
+                                const InputSectionBase &sec) {
+  return pattern.sectionPat.match(sec.name) && isd.matchesFile(sec.file) &&
+         !pattern.excludesFile(sec.file) &&
+         (sec.flags & isd.withFlags) == isd.withFlags &&
+         (sec.flags & isd.withoutFlags) == 0;
+}
+
+static bool findVentusScriptPlacement(InputSection &sec, OutputSection *&osec,
+                                      InputSectionDescription *&isd) {
+  for (SectionCommand *cmd : script->sectionCommands) {
+    auto *osd = dyn_cast<OutputDesc>(cmd);
+    if (!osd)
+      continue;
+    for (SectionCommand *subCmd : osd->osec.commands) {
+      auto *desc = dyn_cast<InputSectionDescription>(subCmd);
+      if (!desc)
+        continue;
+      for (const SectionPattern &pattern : desc->sectionPatterns)
+        if (isVentusScriptMatch(*desc, pattern, sec)) {
+          osec = &osd->osec;
+          isd = desc;
+          return true;
+        }
+    }
+  }
+  return false;
+}
+
+static void replaceVentusLegacyPlacement(const VentusLegacyPlacement &placement,
+                                         InputSection &replacement) {
+  MutableArrayRef<InputSection *> sections = placement.isd->sections;
+  auto it = llvm::find(sections, placement.legacy);
+  assert(it != sections.end());
+  placement.legacy->parent = nullptr;
+  placement.legacy->markDead();
+  replacement.parent = placement.osec;
+  *it = &replacement;
+}
+
+static void removeLegacyVentusResourceInputs() {
+  for (SectionCommand *&cmd : script->sectionCommands) {
+    auto *osd = dyn_cast<OutputDesc>(cmd);
+    if (!osd)
+      continue;
+
+    bool hasNonInputCommand = false;
+    for (SectionCommand *subCmd : osd->osec.commands)
+      hasNonInputCommand |= !isa<InputSectionDescription>(subCmd);
+
+    for (SectionCommand *subCmd : osd->osec.commands) {
+      auto *isd = dyn_cast<InputSectionDescription>(subCmd);
+      if (!isd)
+        continue;
+      llvm::erase_if(isd->sections, [](InputSection *isec) {
+        if (isa<SyntheticSection>(isec) || !isVentusResourceSectionName(isec->name))
+          return false;
+        isec->parent = nullptr;
+        isec->markDead();
+        return true;
+      });
+    }
+
+    if (hasNonInputCommand || getFirstInputSection(&osd->osec))
+      continue;
+    if (isVentusResourceSectionName(osd->osec.name))
+      cmd = nullptr;
+  }
+
+  llvm::erase_if(script->sectionCommands,
+                 [](SectionCommand *cmd) { return cmd == nullptr; });
+  llvm::erase_if(script->orphanSections, [](const InputSectionBase *sec) {
+    return !isa<SyntheticSection>(sec) && isVentusResourceSectionName(sec->name);
+  });
+}
 
 static bool needsInterpSection() {
   return !config->relocatable && !config->shared &&
@@ -1823,6 +2592,85 @@ static void removeUnusedSyntheticSections() {
   });
 }
 
+template <class ELFT> void Writer<ELFT>::finalizeVentusResources() {
+  if (!isVentusFinalizerEnabled<ELFT>())
+    return;
+  if (!checkVentusMixedInputFormats<ELFT>())
+    return;
+
+  SmallVector<VentusLinkFunction, 0> functions;
+  if (!collectVentusFunctions<ELFT>(functions) || errorCount() != 0)
+    return;
+
+  DenseMap<Symbol *, unsigned> bySym;
+  DenseMap<std::pair<const SectionBase *, uint64_t>, unsigned> bySecValue;
+  if (!buildVentusFunctionIndex(functions, bySym, bySecValue))
+    return;
+
+  auto legacyPlacements = collectLegacyVentusPlacements();
+  for (auto [index, func] : llvm::enumerate(functions)) {
+    auto *def = dyn_cast<Defined>(func.owner);
+    if (!(func.flags & vrofIsEntry) || !def || !def->section ||
+        !def->section->isLive())
+      continue;
+
+    uint32_t flags = 0;
+    SmallVector<unsigned, 8> reachable = collectVentusReachableFunctions(
+        index, functions, bySym, bySecValue, flags);
+    uint64_t vgprUsed = 0;
+    uint64_t sgprUsed = 0;
+    for (unsigned reachableIndex : reachable) {
+      vgprUsed = std::max(vgprUsed, functions[reachableIndex].vgprUsed);
+      sgprUsed = std::max(sgprUsed, functions[reachableIndex].sgprUsed);
+    }
+
+    uint64_t ldsStaticBytes = 0;
+    uint64_t pdsStaticBytes = 0;
+    collectVentusStaticResources(reachable, functions, ldsStaticBytes,
+                                 pdsStaticBytes);
+
+    SmallVector<std::optional<VentusStackSummary>, 0> memo(functions.size());
+    SmallVector<char, 0> visiting(functions.size(), 0);
+    VentusStackSummary stackSummary = computeVentusStackSummary(
+        index, functions, bySym, bySecValue, memo, visiting);
+    flags |= stackSummary.flags;
+
+    SmallVector<uint8_t, 64> payload = createVentusResourcePayload<ELFT>(
+        flags, vgprUsed, sgprUsed, ldsStaticBytes, pdsStaticBytes,
+        stackSummary.ldsStackPeakBytes, stackSummary.pdsStackPeakBytes);
+    std::string secName = (".ventus.resource." + func.owner->getName()).str();
+    auto *sec = make<VentusResourceSection>(func.owner->file, secName,
+                                            std::move(payload));
+
+    if (auto it = legacyPlacements.find(secName); it != legacyPlacements.end() &&
+                                                  !it->second.empty()) {
+      replaceVentusLegacyPlacement(it->second.front(), *sec);
+      it->second.erase(it->second.begin());
+      it->second.clear();
+      if (OutputSection *parent = sec->getParent())
+        parent->commitSection(sec);
+      continue;
+    }
+
+    OutputSection *osec = nullptr;
+    InputSectionDescription *isd = nullptr;
+    if (findVentusScriptPlacement(*sec, osec, isd)) {
+      sec->parent = osec;
+      isd->sections.push_back(sec);
+      osec->commitSection(sec);
+      continue;
+    }
+
+    osec = findSection(secName);
+    if (!osec)
+      osec = createVentusOutputSection(secName);
+    getVentusSectionDescription(*osec)->sections.push_back(sec);
+    osec->commitSection(sec);
+  }
+
+  removeLegacyVentusResourceInputs();
+}
+
 // Create output section objects and add them to OutputSections.
 template <class ELFT> void Writer<ELFT>::finalizeSections() {
   if (!config->relocatable) {
@@ -1983,6 +2831,7 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
   if (in.mipsGot)
     in.mipsGot->build();
 
+  finalizeVentusResources();
   removeUnusedSyntheticSections();
   script->diagnoseOrphanHandling();
 

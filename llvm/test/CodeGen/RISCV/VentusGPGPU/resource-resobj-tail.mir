@@ -1,0 +1,177 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs %s -o - \
+# RUN:   | FileCheck -check-prefix=RESOBJ %s
+
+--- |
+  source_filename = "resource-resobj-tail.mir"
+  target datalayout = "e-m:e-p:32:32-i64:64-n32-S128-A5-G1"
+  target triple = "riscv32"
+
+  define dso_local void @deep_callee() #0 {
+  entry:
+    ret void
+  }
+
+  define dso_local void @tailer() #0 {
+  entry:
+    call void @deep_callee()
+    ret void
+  }
+
+  define dso_local ventus_kernel void @kernel_tail() #0 {
+  entry:
+    call void @tailer()
+    ret void
+  }
+
+  attributes #0 = { "target-cpu"="ventus-gpgpu" }
+...
+---
+name:            deep_callee
+alignment:       4
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        false
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 0
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+  isEntryFunction: false
+body:             |
+  bb.0.entry:
+    PseudoRET
+...
+---
+name:            tailer
+alignment:       4
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        true
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 0
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     true
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+  isEntryFunction: false
+body:             |
+  bb.0.entry:
+    PseudoTAIL target-flags(riscv-call) @deep_callee, csr_ilp32_lp64, implicit $x2, implicit $x4
+...
+---
+name:            kernel_tail
+alignment:       4
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        true
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 0
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+  isEntryFunction: true
+body:             |
+  bb.0.entry:
+    ADJCALLSTACKUP 0, 0, implicit-def dead $x2, implicit-def dead $x4, implicit $x2, implicit $x4
+    PseudoCALL target-flags(riscv-call) @tailer, csr_ilp32_lp64, implicit-def dead $x1, implicit-def $x2, implicit-def $x4
+    ADJCALLSTACKDOWN 0, 0, implicit-def dead $x2, implicit-def dead $x4, implicit $x2, implicit $x4
+    PseudoRET
+
+# RESOBJ: .section	.ventus.resobj,"",@progbits
+# RESOBJ-NEXT: .p2align	3
+# RESOBJ-NEXT: .word	1448235855
+# RESOBJ-NEXT: .word	1
+# RESOBJ-NEXT: .word	0
+# RESOBJ-NEXT: .word	3
+# RESOBJ-NEXT: .word	2
+# RESOBJ-NEXT: .word	0
+# RESOBJ-NEXT: .word	36
+# RESOBJ-NEXT: .word	228
+# RESOBJ-NEXT: .word	244
+# RESOBJ-NEXT: .word	deep_callee
+# RESOBJ-NEXT: .word	0
+# RESOBJ: .word	tailer
+# RESOBJ-NEXT: .word	0
+# RESOBJ: .word	kernel_tail
+# RESOBJ-NEXT: .word	1
+# RESOBJ: .word	deep_callee
+# RESOBJ-NEXT: .word	1
+# RESOBJ-NEXT: .word	tailer
+# RESOBJ-NEXT: .word	0

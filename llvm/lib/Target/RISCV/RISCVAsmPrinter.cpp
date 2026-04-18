@@ -49,6 +49,7 @@
 #include <functional>
 #include <limits>
 #include <optional>
+#include <string>
 
 using namespace llvm;
 
@@ -118,6 +119,78 @@ namespace {
 // Total peak memory, when the stack peak is known, is therefore:
 //   LDS total peak = LDSStaticBytes + LDSStackPeakBytes
 //   PDS total peak = PDSStaticBytes + PDSStackPeakBytes
+
+// Binary payload of `.ventus.resobj`.
+//
+// This is an object-local temporary summary consumed by a future link-time
+// finalizer. The backend emits one `.ventus.resobj` section per regular `.o`.
+// Unlike `.ventus.resource.<kernel>`, this payload contains function-level
+// facts and graph edges, not final aggregated kernel results.
+//
+// Version 1 layout:
+//   ResObjHeader {
+//     uint32_t Magic                // 'VRSO'
+//     uint32_t Version              // 1
+//     uint32_t Flags
+//     uint32_t FunctionCount
+//     uint32_t EdgeCount
+//     uint32_t StaticRefCount
+//     uint32_t FunctionTableOffset
+//     uint32_t EdgeTableOffset
+//     uint32_t StaticRefTableOffset
+//   }
+//
+//   FunctionRecord[FunctionCount] {
+//     uint32_t OwnerSymbol
+//     uint32_t Flags
+//     uint64_t VGPRUsed
+//     uint64_t SGPRUsed
+//     uint64_t LDSStackSelf
+//     uint64_t PDSStackSelf
+//     uint64_t OutgoingPrivateMax
+//     uint32_t EdgeBegin
+//     uint32_t EdgeCount
+//     uint32_t StaticRefBegin
+//     uint32_t StaticRefCount
+//   }
+//
+//   EdgeRecord[EdgeCount] {
+//     uint32_t CalleeSymbol
+//     uint32_t Flags
+//   }
+//
+//   StaticRefRecord[StaticRefCount] {
+//     uint32_t ResourceSymbol
+//     uint32_t Flags
+//     uint64_t Size
+//   }
+//
+// Symbol fields are emitted as relocatable 32-bit references because Ventus is
+// currently a RISCV32 target.
+constexpr uint32_t VentusResObjMagic = 0x5652534fu; // 'VRSO'
+constexpr uint32_t VentusResObjVersion = 1u;
+constexpr uint32_t VentusResObjSymbolRefSize = 4u;
+constexpr uint32_t VentusResObjHeaderSize = 9u * sizeof(uint32_t);
+constexpr uint32_t VentusResObjFunctionRecordSize =
+    2u * sizeof(uint32_t) + 5u * sizeof(uint64_t) + 4u * sizeof(uint32_t);
+constexpr uint32_t VentusResObjEdgeRecordSize = 2u * sizeof(uint32_t);
+constexpr uint32_t VentusResObjStaticRefRecordSize =
+    2u * sizeof(uint32_t) + sizeof(uint64_t);
+
+enum VentusResObjFunctionFlags : uint32_t {
+  VROF_IsEntry = 1u << 0,
+  VROF_HasDynamicAlloca = 1u << 1,
+  VROF_HasIndirectCall = 1u << 2,
+};
+
+enum VentusResObjEdgeFlags : uint32_t {
+  VROE_IsTail = 1u << 0,
+};
+
+enum VentusResObjStaticRefFlags : uint32_t {
+  VROS_IsLDSStatic = 1u << 0,
+  VROS_IsPDSStatic = 1u << 1,
+};
 //
 // Unknown values:
 // - `LDSStackPeakBytes` / `PDSStackPeakBytes` use `UINT64_MAX` when the peak
@@ -155,6 +228,13 @@ enum VentusKernelResourceFlags : uint32_t {
   VKRF_RegisterUsageIncomplete = 1u << 5,
 };
 
+struct VentusDirectCallEdge {
+  const GlobalValue *TargetGV = nullptr;
+  const Function *ResolvedCallee = nullptr;
+  std::string TargetName;
+  bool IsTail = false;
+};
+
 struct VentusFunctionSummary {
   uint64_t VGPRUsed = 0;
   uint64_t SGPRUsed = 0;
@@ -162,7 +242,8 @@ struct VentusFunctionSummary {
   uint64_t PDSStackSelf = 0;
   uint64_t OutgoingPrivateMax = 0;
   uint32_t LocalFlags = 0;
-  SmallVector<const GlobalVariable *, 4> ReferencedLocalGlobals;
+  SmallVector<const GlobalVariable *, 4> ReferencedStaticGlobals;
+  SmallVector<VentusDirectCallEdge, 4> DirectCallEdges;
   SmallVector<const Function *, 4> DirectCallees;
   SmallVector<const Function *, 4> NonTailCallees;
   SmallVector<const Function *, 4> TailCallees;
@@ -328,6 +409,10 @@ computeVentusLocalMemUsage(const MachineFunction &MF) {
   return Usage;
 }
 
+static void collectVentusReferencedGlobals(
+    const Constant &C, SmallPtrSetImpl<const GlobalVariable *> &Globals,
+    SmallPtrSetImpl<const Constant *> &VisitedConstants);
+
 static VentusFunctionSummary
 collectVentusFunctionSummary(const MachineFunction &MF, const Module &M) {
   const auto &FrameInfo = MF.getFrameInfo();
@@ -346,8 +431,33 @@ collectVentusFunctionSummary(const MachineFunction &MF, const Module &M) {
   Summary.PDSStackSelf =
       FrameLowering.getStackSize(MF, RISCVStackID::VGPRSpill);
   Summary.OutgoingPrivateMax = FrameInfo.getMaxCallFrameSize();
+
+  SmallPtrSet<const GlobalVariable *, 8> ReferencedStaticGlobals;
+  SmallPtrSet<const Constant *, 16> VisitedConstants;
   for (const auto &It : LocalMemGlobals)
-    Summary.ReferencedLocalGlobals.push_back(It.first);
+    ReferencedStaticGlobals.insert(It.first);
+  for (const BasicBlock &BB : MF.getFunction()) {
+    for (const Instruction &I : BB) {
+      for (const Value *Operand : I.operand_values()) {
+        const auto *OperandConstant = dyn_cast<Constant>(Operand);
+        if (!OperandConstant)
+          continue;
+        collectVentusReferencedGlobals(*OperandConstant, ReferencedStaticGlobals,
+                                       VisitedConstants);
+      }
+    }
+  }
+
+  for (const GlobalVariable *GV : ReferencedStaticGlobals) {
+    if (GV->getAddressSpace() != RISCVAS::LOCAL_ADDRESS &&
+        GV->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS)
+      continue;
+    Summary.ReferencedStaticGlobals.push_back(GV);
+  }
+  llvm::sort(Summary.ReferencedStaticGlobals,
+             [](const GlobalVariable *LHS, const GlobalVariable *RHS) {
+               return LHS->getName() < RHS->getName();
+             });
 
   if (FrameInfo.hasVarSizedObjects())
     Summary.LocalFlags |= VKRF_HasDynamicAlloca;
@@ -375,18 +485,20 @@ collectVentusFunctionSummary(const MachineFunction &MF, const Module &M) {
 
       const GlobalValue *TargetGV = getVentusDirectCalleeGlobalValue(MI, M);
       const Function *Callee = resolveVentusDirectCallee(TargetGV);
-      if (!Callee) {
-        Summary.LocalFlags |= VKRF_HasUnknownExternalCallee;
-        continue;
-      }
+      const bool IsTail = TII.isTailCall(MI);
 
-      if (Callee->isDeclarationForLinker()) {
-        Summary.LocalFlags |= VKRF_HasUnknownExternalCallee;
+      VentusDirectCallEdge Edge;
+      Edge.TargetGV = TargetGV;
+      Edge.ResolvedCallee = Callee;
+      Edge.TargetName = std::string(*TargetName);
+      Edge.IsTail = IsTail;
+      Summary.DirectCallEdges.push_back(std::move(Edge));
+
+      if (!Callee || Callee->isDeclarationForLinker())
         continue;
-      }
 
       Summary.DirectCallees.push_back(Callee);
-      if (TII.isTailCall(MI))
+      if (IsTail)
         Summary.TailCallees.push_back(Callee);
       else
         Summary.NonTailCallees.push_back(Callee);
@@ -396,6 +508,126 @@ collectVentusFunctionSummary(const MachineFunction &MF, const Module &M) {
   // Keep the historical behavior where RA counts as a used SGPR.
   updateVentusRegUsage(TRI, Summary.VGPRUsed, Summary.SGPRUsed, RISCV::X1);
   return Summary;
+}
+
+static bool
+hasUnknownVisibleVentusDirectCallee(const VentusFunctionSummary &Summary) {
+  for (const VentusDirectCallEdge &Edge : Summary.DirectCallEdges) {
+    if (!Edge.ResolvedCallee || Edge.ResolvedCallee->isDeclarationForLinker())
+      return true;
+  }
+  return false;
+}
+
+static uint32_t getVentusResObjFunctionFlags(const Function &F,
+                                             const VentusFunctionSummary &S) {
+  uint32_t Flags = 0;
+  if (F.getCallingConv() == CallingConv::SPIR_KERNEL ||
+      F.getCallingConv() == CallingConv::VENTUS_KERNEL)
+    Flags |= VROF_IsEntry;
+  if (S.LocalFlags & VKRF_HasDynamicAlloca)
+    Flags |= VROF_HasDynamicAlloca;
+  if (S.LocalFlags & VKRF_HasIndirectCall)
+    Flags |= VROF_HasIndirectCall;
+  return Flags;
+}
+
+static uint32_t getVentusResObjStaticRefFlags(const GlobalVariable &GV) {
+  switch (GV.getAddressSpace()) {
+  case RISCVAS::LOCAL_ADDRESS:
+    return VROS_IsLDSStatic;
+  case RISCVAS::PRIVATE_ADDRESS:
+    return VROS_IsPDSStatic;
+  default:
+    return 0;
+  }
+}
+
+static void emitVentusResObjSymbolRef(AsmPrinter &AP, const GlobalValue *GV,
+                                      StringRef Name) {
+  const MCSymbol *Sym =
+      GV ? AP.getSymbol(GV) : AP.GetExternalSymbolSymbol(Name);
+  AP.OutStreamer->emitValue(MCSymbolRefExpr::create(Sym, AP.OutContext),
+                            VentusResObjSymbolRefSize);
+}
+
+static void emitVentusResObj(AsmPrinter &AP, MCContext &Ctx, const Module &M,
+                             const DenseMap<const Function *, VentusFunctionSummary>
+                                 &VentusSummaries) {
+  SmallVector<const Function *, 16> Functions;
+  uint32_t EdgeCount = 0;
+  uint32_t StaticRefCount = 0;
+  for (const Function &F : M) {
+    auto It = VentusSummaries.find(&F);
+    if (It == VentusSummaries.end())
+      continue;
+    Functions.push_back(&F);
+    EdgeCount += It->second.DirectCallEdges.size();
+    StaticRefCount += It->second.ReferencedStaticGlobals.size();
+  }
+
+  if (Functions.empty())
+    return;
+
+  const uint32_t FunctionTableOffset = VentusResObjHeaderSize;
+  const uint32_t EdgeTableOffset =
+      FunctionTableOffset +
+      Functions.size() * VentusResObjFunctionRecordSize;
+  const uint32_t StaticRefTableOffset =
+      EdgeTableOffset + EdgeCount * VentusResObjEdgeRecordSize;
+
+  MCSectionELF *ResObjSection =
+      Ctx.getELFSection(".ventus.resobj", ELF::SHT_PROGBITS, 0);
+  AP.OutStreamer->switchSection(ResObjSection);
+  AP.emitAlignment(Align(8));
+
+  AP.emitInt32(VentusResObjMagic);
+  AP.emitInt32(VentusResObjVersion);
+  AP.emitInt32(0);
+  AP.emitInt32(Functions.size());
+  AP.emitInt32(EdgeCount);
+  AP.emitInt32(StaticRefCount);
+  AP.emitInt32(FunctionTableOffset);
+  AP.emitInt32(EdgeTableOffset);
+  AP.emitInt32(StaticRefTableOffset);
+
+  uint32_t CurrentEdgeBegin = 0;
+  uint32_t CurrentStaticRefBegin = 0;
+  for (const Function *F : Functions) {
+    const VentusFunctionSummary &Summary = VentusSummaries.find(F)->second;
+    emitVentusResObjSymbolRef(AP, F, F->getName());
+    AP.emitInt32(getVentusResObjFunctionFlags(*F, Summary));
+    AP.emitInt64(Summary.VGPRUsed);
+    AP.emitInt64(Summary.SGPRUsed);
+    AP.emitInt64(Summary.LDSStackSelf);
+    AP.emitInt64(Summary.PDSStackSelf);
+    AP.emitInt64(Summary.OutgoingPrivateMax);
+    AP.emitInt32(CurrentEdgeBegin);
+    AP.emitInt32(Summary.DirectCallEdges.size());
+    AP.emitInt32(CurrentStaticRefBegin);
+    AP.emitInt32(Summary.ReferencedStaticGlobals.size());
+    CurrentEdgeBegin += Summary.DirectCallEdges.size();
+    CurrentStaticRefBegin += Summary.ReferencedStaticGlobals.size();
+  }
+
+  for (const Function *F : Functions) {
+    const VentusFunctionSummary &Summary = VentusSummaries.find(F)->second;
+    for (const VentusDirectCallEdge &Edge : Summary.DirectCallEdges) {
+      emitVentusResObjSymbolRef(AP, Edge.TargetGV, Edge.TargetName);
+      AP.emitInt32(Edge.IsTail ? static_cast<uint32_t>(VROE_IsTail) : 0u);
+    }
+  }
+
+  for (const Function *F : Functions) {
+    const VentusFunctionSummary &Summary = VentusSummaries.find(F)->second;
+    for (const GlobalVariable *GV : Summary.ReferencedStaticGlobals) {
+      emitVentusResObjSymbolRef(AP, GV, GV->getName());
+      AP.emitInt32(getVentusResObjStaticRefFlags(*GV));
+      AP.emitInt64(GV->getValueType()->isSized()
+                       ? M.getDataLayout().getTypeAllocSize(GV->getValueType())
+                       : 0);
+    }
+  }
 }
 
 static void emitVentusKernelResource(AsmPrinter &AP, MCContext &Ctx,
@@ -416,7 +648,7 @@ static void emitVentusKernelResource(AsmPrinter &AP, MCContext &Ctx,
 }
 
 static bool hasIncompleteVentusRegisterUsage(uint32_t Flags) {
-  return Flags & (VKRF_HasIndirectCall | VKRF_HasUnknownExternalCallee);
+  return Flags & VKRF_HasIndirectCall;
 }
 
 static void collectVentusReferencedGlobals(
@@ -442,7 +674,6 @@ static VentusStaticResourceSummary collectVentusStaticResources(
     const DataLayout &DL) {
   SmallPtrSet<const Function *, 8> VisitedFunctions;
   SmallPtrSet<const GlobalVariable *, 8> ReferencedGlobals;
-  SmallPtrSet<const Constant *, 16> VisitedConstants;
   SmallVector<const Function *, 8> Worklist = {&Entry};
   VentusStaticResourceSummary Result;
 
@@ -456,27 +687,16 @@ static VentusStaticResourceSummary collectVentusStaticResources(
       continue;
 
     const VentusFunctionSummary &Summary = SummaryIt->second;
-    if (hasIncompleteVentusRegisterUsage(Summary.LocalFlags))
+    if (hasIncompleteVentusRegisterUsage(Summary.LocalFlags) ||
+        hasUnknownVisibleVentusDirectCallee(Summary))
       Result.Flags |= VKRF_RegisterUsageIncomplete;
 
-    for (const GlobalVariable *GV : Summary.ReferencedLocalGlobals)
+    for (const GlobalVariable *GV : Summary.ReferencedStaticGlobals)
       ReferencedGlobals.insert(GV);
 
     for (const Function *Callee : Summary.DirectCallees) {
       if (VentusSummaries.count(Callee))
         Worklist.push_back(Callee);
-    }
-
-    for (const BasicBlock &BB : *F) {
-      for (const Instruction &I : BB) {
-        for (const Value *Operand : I.operand_values()) {
-          const auto *OperandConstant = dyn_cast<Constant>(Operand);
-          if (!OperandConstant)
-            continue;
-          collectVentusReferencedGlobals(*OperandConstant, ReferencedGlobals,
-                                         VisitedConstants);
-        }
-      }
     }
   }
 
@@ -628,6 +848,8 @@ void RISCVAsmPrinter::emitStartOfAsmFile(Module &M) {
 
 void RISCVAsmPrinter::emitEndOfAsmFile(Module &M) {
   if (TM.getTargetTriple().isOSBinFormatELF()) {
+    emitVentusResObj(*this, OutContext, M, VentusSummaries);
+
     struct VentusComponentRegSummary {
       uint64_t VGPRUsed = 0;
       uint64_t SGPRUsed = 0;
@@ -762,6 +984,8 @@ void RISCVAsmPrinter::emitEndOfAsmFile(Module &M) {
       Peak.InProgress = true;
       const VentusFunctionSummary &Summary = VentusSummaries.find(F)->second;
       Peak.Flags = Summary.LocalFlags;
+      if (hasUnknownVisibleVentusDirectCallee(Summary))
+        Peak.Flags |= VKRF_HasUnknownExternalCallee;
 
       if (RecursiveFunctions.count(F))
         Peak.Flags |= VKRF_HasRecursion;
