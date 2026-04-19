@@ -464,6 +464,9 @@ collectVentusFunctionSummary(const MachineFunction &MF, const Module &M) {
 
   for (const MachineBasicBlock &MBB : MF) {
     for (const MachineInstr &MI : MBB) {
+      if (MI.isMetaInstruction())
+        continue;
+
       for (const MachineOperand &Op : MI.operands()) {
         if (!Op.isReg())
           continue;
