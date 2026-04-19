@@ -291,3 +291,77 @@ __builtin_riscv_printf_alloc:
   csrr a0, CSR_PRINT         # Get printf buffer
   vadd.vx v0, v0, a0
   ret
+
+  // Manual Ventus resource summary for workitem builtins.
+  //
+  // These routines are leaf helpers implemented in assembly, so they do not go
+  // through the RISCVAsmPrinter path that normally emits `.ventus.resobj`.
+  // Keep the summary local to this file so device-link resource finalization can
+  // treat these helpers as summarized instead of conservatively marking stack
+  // peaks as unavailable.
+  .set VENTUS_RESOBJ_MAGIC, 0x5652534f
+  .set VENTUS_RESOBJ_VERSION, 1
+  .set VENTUS_RESOBJ_FLAGS, 0
+  .set VENTUS_RESOBJ_FUNCTION_COUNT, 24
+  .set VENTUS_RESOBJ_EDGE_COUNT, 0
+  .set VENTUS_RESOBJ_STATIC_REF_COUNT, 0
+  .set VENTUS_RESOBJ_HEADER_SIZE, 36
+  .set VENTUS_RESOBJ_FUNCTION_RECORD_SIZE, 64
+  .set VENTUS_RESOBJ_FUNCTION_TABLE_OFFSET, VENTUS_RESOBJ_HEADER_SIZE
+  .set VENTUS_RESOBJ_EDGE_TABLE_OFFSET, \
+      VENTUS_RESOBJ_FUNCTION_TABLE_OFFSET + \
+          VENTUS_RESOBJ_FUNCTION_COUNT * VENTUS_RESOBJ_FUNCTION_RECORD_SIZE
+  .set VENTUS_RESOBJ_STATIC_REF_TABLE_OFFSET, VENTUS_RESOBJ_EDGE_TABLE_OFFSET
+
+  .macro ventus_resobj_func owner, vgpr, sgpr
+  .long \owner
+  .long 0
+  .quad \vgpr
+  .quad \sgpr
+  .quad 0
+  .quad 0
+  .quad 0
+  .long 0
+  .long 0
+  .long 0
+  .long 0
+  .endm
+
+  .section .ventus.resobj,"",@progbits
+  .balign 8
+  .long VENTUS_RESOBJ_MAGIC
+  .long VENTUS_RESOBJ_VERSION
+  .long VENTUS_RESOBJ_FLAGS
+  .long VENTUS_RESOBJ_FUNCTION_COUNT
+  .long VENTUS_RESOBJ_EDGE_COUNT
+  .long VENTUS_RESOBJ_STATIC_REF_COUNT
+  .long VENTUS_RESOBJ_FUNCTION_TABLE_OFFSET
+  .long VENTUS_RESOBJ_EDGE_TABLE_OFFSET
+  .long VENTUS_RESOBJ_STATIC_REF_TABLE_OFFSET
+
+  // VGPR/SGPR usage is encoded as the highest physical register index plus one.
+  // All helpers are leaf functions with zero stack usage and no static refs.
+  ventus_resobj_func __builtin_riscv_global_linear_id, 1, 0
+  ventus_resobj_func __builtin_riscv_workgroup_id_x, 1, 11
+  ventus_resobj_func __builtin_riscv_workgroup_id_y, 1, 11
+  ventus_resobj_func __builtin_riscv_workgroup_id_z, 1, 11
+  ventus_resobj_func __builtin_riscv_workitem_id_x, 1, 0
+  ventus_resobj_func __builtin_riscv_workitem_id_y, 1, 0
+  ventus_resobj_func __builtin_riscv_workitem_id_z, 1, 0
+  ventus_resobj_func __builtin_riscv_global_id_x, 1, 0
+  ventus_resobj_func __builtin_riscv_global_id_y, 1, 0
+  ventus_resobj_func __builtin_riscv_global_id_z, 1, 0
+  ventus_resobj_func __builtin_riscv_local_size_x, 1, 11
+  ventus_resobj_func __builtin_riscv_local_size_y, 1, 11
+  ventus_resobj_func __builtin_riscv_local_size_z, 1, 11
+  ventus_resobj_func __builtin_riscv_global_size_x, 1, 11
+  ventus_resobj_func __builtin_riscv_global_size_y, 1, 11
+  ventus_resobj_func __builtin_riscv_global_size_z, 1, 11
+  ventus_resobj_func __builtin_riscv_global_offset_x, 1, 11
+  ventus_resobj_func __builtin_riscv_global_offset_y, 1, 11
+  ventus_resobj_func __builtin_riscv_global_offset_z, 1, 11
+  ventus_resobj_func __builtin_riscv_num_groups_x, 1, 11
+  ventus_resobj_func __builtin_riscv_num_groups_y, 1, 11
+  ventus_resobj_func __builtin_riscv_num_groups_z, 1, 11
+  ventus_resobj_func __builtin_riscv_work_dim, 1, 11
+  ventus_resobj_func __builtin_riscv_printf_alloc, 1, 11
