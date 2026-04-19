@@ -2,13 +2,6 @@
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs \
 ; RUN: -asm-verbose < %s | FileCheck -check-prefix=VENTUS %s
 
-
-; VENTUS: .section	.ventus.resource.usage,"w",@progbits
-; VENTUS: .half	0
-; VENTUS: .half	11
-; VENTUS: .half	4
-; VENTUS: .half	0
-
 define dso_local ventus_kernel void @usage(ptr addrspace(1) nocapture noundef align 4 %b, ptr addrspace(3) nocapture noundef readonly align 4 %a) local_unnamed_addr #0 {
 ; VENTUS-LABEL: usage:
 ; VENTUS:       # %bb.0: # %entry
@@ -30,5 +23,16 @@ entry:
   store i32 %add, ptr addrspace(1) %b, align 4
   ret void
 }
+
+; VENTUS: .section	.ventus.resource.usage,"w",@progbits
+; VENTUS-NEXT: .p2align	3
+; VENTUS-NEXT: .word	2
+; VENTUS-NEXT: .word	0
+; VENTUS-NEXT: .quad	0
+; VENTUS-NEXT: .quad	11
+; VENTUS-NEXT: .quad	0
+; VENTUS-NEXT: .quad	0
+; VENTUS-NEXT: .quad	4
+; VENTUS-NEXT: .quad	0
 
 attributes #0 = { mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: readwrite) "frame-pointer"="all"}

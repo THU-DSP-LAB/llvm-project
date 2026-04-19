@@ -4,12 +4,6 @@
 
 @compute_sum_with_localmem.tmp_sum = internal addrspace(3) global [10 x i32] undef, align 4
 
-; VENTUS: .section	.ventus.resource.compute_sum_with_localmem,"w",@progbits
-; VENTUS: .half	0
-; VENTUS: .half	9
-; VENTUS: .half	0
-; VENTUS: .half	0
-
 ; Function Attrs: convergent noinline norecurse nounwind optnone vscale_range(1,2048)
 define dso_local ventus_kernel void @compute_sum_with_localmem(ptr addrspace(1) noundef align 4 %a, i32 noundef %n, ptr addrspace(1) noundef align 4 %sum) {
 ; VENTUS-LABEL: compute_sum_with_localmem:
@@ -32,3 +26,14 @@ entry:
   store i32 12, ptr addrspace(3) getelementptr inbounds ([10 x i32], ptr addrspace(3) @compute_sum_with_localmem.tmp_sum, i32 0, i32 9), align 4
   ret void
 }
+
+; VENTUS: .section	.ventus.resource.compute_sum_with_localmem,"w",@progbits
+; VENTUS-NEXT: .p2align	3
+; VENTUS-NEXT: .word	2
+; VENTUS-NEXT: .word	0
+; VENTUS-NEXT: .quad	0
+; VENTUS-NEXT: .quad	9
+; VENTUS-NEXT: .quad	40
+; VENTUS-NEXT: .quad	0
+; VENTUS-NEXT: .quad	0
+; VENTUS-NEXT: .quad	0

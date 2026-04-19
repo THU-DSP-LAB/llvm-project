@@ -14,12 +14,15 @@
 #define LLVM_LIB_TARGET_RISCV_RISCVMACHINEFUNCTIONINFO_H
 
 #include "RISCVSubtarget.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/CodeGen/MIRYamlMapping.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include <optional>
 
 namespace llvm {
 
+class GlobalVariable;
 class RISCVMachineFunctionInfo;
 
 namespace yaml {
@@ -65,13 +68,16 @@ private:
 
   /// Registers that have been sign extended from i32.
   SmallVector<Register, 8> SExt32Registers;
+  /// Per-function lowering state for addrspace(3) globals that are currently
+  /// materialized as LocalMemSpill frame objects.
+  DenseMap<const GlobalVariable *, int> LocalMemGlobalFrameIndices;
 
 public:
   RISCVMachineFunctionInfo(const MachineFunction &MF) {
-        CallingConv::ID CC = MF.getFunction().getCallingConv();
-        IsEntryFunction = CC == CallingConv::SPIR_KERNEL ||
-                          CC == CallingConv::VENTUS_KERNEL;
-      }
+    CallingConv::ID CC = MF.getFunction().getCallingConv();
+    IsEntryFunction =
+        CC == CallingConv::SPIR_KERNEL || CC == CallingConv::VENTUS_KERNEL;
+  }
 
   MachineFunctionInfo *
   clone(BumpPtrAllocator &Allocator, MachineFunction &DestMF,
@@ -115,6 +121,14 @@ public:
 
   void addSExt32Register(Register Reg);
   bool isSExt32Register(Register Reg) const;
+
+  std::optional<int>
+  getLocalMemGlobalFrameIndex(const GlobalVariable *GV) const;
+  void setLocalMemGlobalFrameIndex(const GlobalVariable *GV, int FrameIndex);
+  const DenseMap<const GlobalVariable *, int> &
+  getLocalMemGlobalFrameIndices() const {
+    return LocalMemGlobalFrameIndices;
+  }
 };
 
 } // end namespace llvm

@@ -313,11 +313,8 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   MachineFrameInfo &MFI = MF.getFrameInfo();
   auto *RMFI = MF.getInfo<RISCVMachineFunctionInfo>();
   const RISCVRegisterInfo *RI = STI.getRegisterInfo();
-  auto *CurrentSubProgramInfo = const_cast<SubVentusProgramInfo*>(
-                                              STI.getCurrentSubProgramInfo());
   const RISCVInstrInfo *TII = STI.getInstrInfo();
   MachineBasicBlock::iterator MBBI = MBB.begin();
-  bool IsEntryFunction = RMFI->isEntryFunction();
 
   Register SPReg = getSPReg(STI);
   Register TPReg = getTPReg(STI);
@@ -374,13 +371,6 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
   uint64_t LocalStackSize = getStackSize(MF, RISCVStackID::LocalMemSpill);
 
-  // FIXME: need to add local data declaration calculation
-  CurrentSubProgramInfo->LDSMemory += SPStackSize;
-  CurrentSubProgramInfo->PDSMemory += TPStackSize;
-  //uint64_t RealStackSize = IsEntryFunction ?
-  //                                SPStackSize + RMFI->getLibCallStackSize() :
-  //                                TPStackSize + RMFI->getLibCallStackSize();
-
   // Early exit if there is no need to allocate on the stack
   if (MFI.getStackSize() == 0 && !MFI.adjustsStack())
     return;
@@ -397,7 +387,6 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
 
   // Allocate space on the local-mem stack and private-mem stack if necessary.
   if(SPStackSize) {
-    RI->updateVentusRegUsage(CurrentSubProgramInfo, SPReg);
     RI->adjustReg(MBB, MBBI, DL, SPReg, SPReg,
                   StackOffset::getFixed(SPStackSize), MachineInstr::FrameSetup,
                   getStackAlign());
@@ -591,34 +580,7 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
 
 void RISCVFrameLowering::processFunctionBeforeFrameFinalized(
   MachineFunction &MF,
-  RegScavenger *RS) const {
-  const RISCVRegisterInfo *RI = STI.getRegisterInfo();
-  auto *CurrentProgramInfo = const_cast<VentusProgramInfo*>(
-                    MF.getSubtarget<RISCVSubtarget>().getVentusProgramInfo());
-
-  // When accessing a new function, we need to add a new container to calculate
-  // its resource usage.
-  CurrentProgramInfo->SubProgramInfoVec.push_back(SubVentusProgramInfo());
-
-  // Gets the container for the resource calculation of the current function.
-  auto *CurrentSubProgramInfo = const_cast<SubVentusProgramInfo*>(
-                    MF.getSubtarget<RISCVSubtarget>().getCurrentSubProgramInfo());
-
-  for (auto &MBB : MF) {
-    for (auto &MI : MBB) {
-      for (unsigned i = 0; i < MI.getNumOperands(); ++i) {
-        MachineOperand &Op = MI.getOperand(i);
-        if (!Op.isReg())
-          continue;
-
-        RI->updateVentusRegUsage(CurrentSubProgramInfo, Op.getReg());
-      }
-    }
-  }
-
-  // ra register is a special register.
-  RI->updateVentusRegUsage(CurrentSubProgramInfo, RISCV::X1);
-}
+  RegScavenger *RS) const {}
 
 void RISCVFrameLowering::determineCalleeSaves(MachineFunction &MF,
                                               BitVector &SavedRegs,

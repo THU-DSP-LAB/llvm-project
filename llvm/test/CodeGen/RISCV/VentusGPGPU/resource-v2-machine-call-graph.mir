@@ -1,0 +1,393 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs %s -o - \
+# RUN:   | FileCheck -check-prefix=VENTUS %s
+
+# This MIR test covers two cases that are difficult to express reliably in IR:
+# 1. Kernel register usage must aggregate physical-register use from reachable
+#    helpers.
+# 2. Tail callees must still contribute to stack-peak propagation.
+
+--- |
+  source_filename = "resource-v2-machine-call-graph.mir"
+  target datalayout = "e-m:e-p:32:32-i64:64-n32-S128-A5-G1"
+  target triple = "riscv32"
+
+  define dso_local void @high_reg_helper() #0 {
+  entry:
+    ret void
+  }
+
+  define dso_local ventus_kernel void @kernel_regs() #0 {
+  entry:
+    call void @high_reg_helper()
+    ret void
+  }
+
+  define dso_local void @leaf() #0 {
+  entry:
+    ret void
+  }
+
+  define dso_local void @deep_callee() #0 {
+  entry:
+    call void @leaf()
+    ret void
+  }
+
+  define dso_local void @tailer() #0 {
+  entry:
+    call void @deep_callee()
+    ret void
+  }
+
+  define dso_local ventus_kernel void @kernel_tail() #0 {
+  entry:
+    call void @tailer()
+    ret void
+  }
+
+  define dso_local ventus_kernel void @kernel_saverestore_libcall() #0 {
+  entry:
+    ret void
+  }
+
+  attributes #0 = { "target-cpu"="ventus-gpgpu" }
+...
+---
+name:            high_reg_helper
+alignment:       4
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        false
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 0
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+  isEntryFunction: false
+body:             |
+  bb.0.entry:
+    renamable $x31 = ADDI $x0, 0
+    SW killed renamable $x31, $x0, 0
+    PseudoRET
+...
+---
+name:            kernel_regs
+alignment:       4
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        true
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 0
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+  isEntryFunction: true
+body:             |
+  bb.0.entry:
+    ADJCALLSTACKUP 0, 0, implicit-def dead $x2, implicit-def dead $x4, implicit $x2, implicit $x4
+    PseudoCALL target-flags(riscv-call) @high_reg_helper, csr_ilp32_lp64, implicit-def dead $x1, implicit-def $x2, implicit-def $x4
+    ADJCALLSTACKDOWN 0, 0, implicit-def dead $x2, implicit-def dead $x4, implicit $x2, implicit $x4
+    PseudoRET
+
+# VENTUS: .section	.ventus.resource.kernel_regs,"w",@progbits
+# VENTUS-NEXT: .p2align	3
+# VENTUS-NEXT: .word	2
+# VENTUS-NEXT: .word	0
+# VENTUS-NEXT: .quad	0
+# VENTUS-NEXT: .quad	32
+# VENTUS-NEXT: .quad	0
+# VENTUS-NEXT: .quad	0
+# VENTUS-NEXT: .quad	4
+# VENTUS-NEXT: .quad	0
+...
+---
+name:            leaf
+alignment:       4
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        false
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 0
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+  isEntryFunction: false
+body:             |
+  bb.0.entry:
+    PseudoRET
+...
+---
+name:            deep_callee
+alignment:       4
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        true
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 32
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+  isEntryFunction: false
+body:             |
+  bb.0.entry:
+    ADJCALLSTACKUP 32, 0, implicit-def dead $x2, implicit-def dead $x4, implicit $x2, implicit $x4
+    PseudoCALL target-flags(riscv-call) @leaf, csr_ilp32_lp64, implicit-def dead $x1, implicit-def $x2, implicit-def $x4
+    ADJCALLSTACKDOWN 32, 0, implicit-def dead $x2, implicit-def dead $x4, implicit $x2, implicit $x4
+    PseudoRET
+...
+---
+name:            tailer
+alignment:       4
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        true
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 0
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     true
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+  isEntryFunction: false
+body:             |
+  bb.0.entry:
+    PseudoTAIL target-flags(riscv-call) @deep_callee, implicit $x2
+...
+---
+name:            kernel_tail
+alignment:       4
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        true
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 8
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+  isEntryFunction: true
+body:             |
+  bb.0.entry:
+    ADJCALLSTACKUP 8, 0, implicit-def dead $x2, implicit-def dead $x4, implicit $x2, implicit $x4
+    PseudoCALL target-flags(riscv-call) @tailer, csr_ilp32_lp64, implicit-def dead $x1, implicit-def $x2, implicit-def $x4
+    ADJCALLSTACKDOWN 8, 0, implicit-def dead $x2, implicit-def dead $x4, implicit $x2, implicit $x4
+    PseudoRET
+
+# VENTUS: .section	.ventus.resource.kernel_tail,"w",@progbits
+# VENTUS-NEXT: .p2align	3
+# VENTUS-NEXT: .word	2
+# VENTUS-NEXT: .word	0
+# VENTUS-NEXT: .quad	33
+# VENTUS-NEXT: .quad	5
+# VENTUS-NEXT: .quad	0
+# VENTUS-NEXT: .quad	0
+# VENTUS-NEXT: .quad	8
+# VENTUS-NEXT: .quad	40
+...
+---
+name:            kernel_saverestore_libcall
+alignment:       4
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        true
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 0
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     true
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+  isEntryFunction: true
+body:             |
+  bb.0.entry:
+    $x5 = PseudoCALLReg target-flags(riscv-call) &__riscv_save_0, implicit-def dead $x1, implicit-def $x2, implicit-def $x4
+    PseudoTAIL target-flags(riscv-call) &__riscv_restore_0, implicit $x2
+
+# VENTUS: .section	.ventus.resource.kernel_saverestore_libcall,"w",@progbits
+# VENTUS-NEXT: .p2align	3
+# VENTUS-NEXT: .word	2
+# VENTUS-NEXT: .word	0
+# VENTUS-NEXT: .quad	0
+# VENTUS-NEXT: .quad	6
+# VENTUS-NEXT: .quad	0
+# VENTUS-NEXT: .quad	0
+# VENTUS-NEXT: .quad	4
+# VENTUS-NEXT: .quad	0
+...

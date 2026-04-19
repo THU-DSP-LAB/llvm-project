@@ -4309,20 +4309,18 @@ SDValue RISCVTargetLowering::lowerGlobalAddress(SDValue Op,
 SDValue RISCVTargetLowering::lowerGlobalLocalAddress(GlobalAddressSDNode *Op,
                                                      SelectionDAG &DAG) const {
   MachineFunction &MF = DAG.getMachineFunction();
-  static SmallVector<std::pair<const GlobalVariable *, int>> LoweredVariables;
-
+  auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
   MachineFrameInfo &MFI = MF.getFrameInfo();
   const DataLayout &DL = DAG.getDataLayout();
   auto *GV = cast<GlobalVariable>(Op->getGlobal());
-  for(auto &VA : LoweredVariables) {
-    if(VA.first == GV)
-      return DAG.getFrameIndex(VA.second, MVT::i32);
-  }
+  if (std::optional<int> FI = RVFI->getLocalMemGlobalFrameIndex(GV))
+    return DAG.getFrameIndex(*FI, MVT::i32);
+
   unsigned AlignValue = DL.getABITypeAlignment(GV->getValueType());
   int FI = MFI.CreateStackObject(DL.getTypeAllocSize(GV->getValueType())
       /*Offset need to be modified too*/,
       Align(AlignValue), false, nullptr, RISCVStackID::LocalMemSpill);
-  LoweredVariables.push_back(std::make_pair(GV, FI));
+  RVFI->setLocalMemGlobalFrameIndex(GV, FI);
   return DAG.getFrameIndex(FI, MVT::i32);
 }
 
