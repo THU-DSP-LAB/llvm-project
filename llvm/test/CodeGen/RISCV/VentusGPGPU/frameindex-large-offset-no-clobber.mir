@@ -1,0 +1,64 @@
+# RUN: llc -x mir -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=prologepilog \
+# RUN:   -simplify-mir -verify-machineinstrs %s -o - | FileCheck %s
+
+--- |
+  target datalayout = "e-m:e-p:32:32-i64:64-n32-S128-A5-G1"
+  target triple = "riscv32"
+
+  define dso_local ventus_kernel void @fi_large_local() #0 {
+  entry:
+    ret void
+  }
+
+  attributes #0 = { "frame-pointer"="all" "target-cpu"="ventus-gpgpu" "target-features"="+32bit,+a,+m,+relax,+zdinx,+zfinx,+zhinx,+zve32f,+zve32x,+zvl32b,-64bit,-save-restore" }
+...
+---
+name:            fi_large_local
+alignment:       4
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    4
+  adjustsStack:    false
+  hasCalls:        false
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 0
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:
+  - { id: 0, name: '', type: default, offset: 0, size: 8192, alignment: 4, stack-id: default, callee-saved-register: '', callee-saved-restored: true, debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+  isEntryFunction: true
+body:             |
+  bb.0.entry:
+    ; CHECK-LABEL: name: fi_large_local
+    ; CHECK: bb.0.entry:
+    ; CHECK: $x5 = LUI 2
+    ; CHECK-NEXT: $x5 = SUB $x4, killed $x5
+    ; CHECK-NEXT: dead renamable $v1 = COPY renamable $x5
+    renamable $x5 = ADDI %stack.0, 0
+    dead renamable $v1 = COPY renamable $x5
+    PseudoRET
+...

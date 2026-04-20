@@ -375,7 +375,8 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     //   MachineInstr::NoFlags, std::nullopt);
   }
   Register DestReg = MI.getOperand(0).getReg();
-  if (Offset.getScalable() || Offset.getFixed()) {
+  const bool HasFrameAdjustment = Offset.getScalable() || Offset.getFixed();
+  if (HasFrameAdjustment) {
 
     if (MI.getOpcode() == RISCV::ADDI)
       DestReg = MI.getOperand(0).getReg();
@@ -484,12 +485,11 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                           /*IsImp*/ false,
                           /*IsKill*/ false);
   else
-    MI.getOperand(FIOperandNum)
-        .ChangeToRegister(DestReg == MI.getOperand(0).getReg() ? FrameReg
-                                                               : DestReg,
-                          /*IsDef*/ false,
-                          /*IsImp*/ false,
-                          /*IsKill*/ false);
+    MI.getOperand(FIOperandNum).ChangeToRegister(HasFrameAdjustment ? DestReg
+                                                                    : FrameReg,
+                                                 /*IsDef*/ false,
+                                                 /*IsImp*/ false,
+                                                 /*IsKill*/ false);
 
   // If after materializing the adjustment, we have a pointless ADDI, remove it
   if (MI.getOpcode() == RISCV::ADDI &&
