@@ -15,6 +15,8 @@
  * | global_size_z | local_size_x | local_size_y | local_size_z | global_offset_x
  * +--------4--------+--------4--------+------4-----+------4-----+
  * | global_offset_y | global_offset_z | print_addr | print_size |
+ * +--------4--------+--------4--------+
+ * | lds_stack_size  | reserved        |
  */
 
 #ifndef __VENTUS_H__
@@ -56,5 +58,7 @@
 #define KNL_GL_OFFSET_Z 44
 #define KNL_PRINT_ADDR 48
 #define KNL_PRINT_SIZE 52
+#define KNL_LDS_STACK_SIZE_PER_WF 56
+#define KNL_MAX_METADATA_SIZE 64
 
 #endif // __VENTUS_H__
