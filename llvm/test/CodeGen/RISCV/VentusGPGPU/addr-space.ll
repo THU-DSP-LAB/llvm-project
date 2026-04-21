@@ -16,9 +16,11 @@ define dso_local ventus_kernel void @func(ptr addrspace(1) nocapture noundef ali
 ; VENTUS-NEXT:    vsw.v v33, -4(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    .cfi_offset v33.l, 0
-; VENTUS-NEXT:    lw t0, 0(a0)
-; VENTUS-NEXT:    sw t0, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    lw t0, 4(a0)
+; VENTUS-NEXT:    csrr t1, CSR_LDS
+; VENTUS-NEXT:    lw t2, 0(a0)
+; VENTUS-NEXT:    sw t2, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    add t0, t1, t0
 ; VENTUS-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj

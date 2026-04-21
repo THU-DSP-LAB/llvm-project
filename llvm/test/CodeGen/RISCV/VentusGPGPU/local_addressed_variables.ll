@@ -29,7 +29,7 @@ entry:
 
 ; VENTUS: .section	.ventus.resource.compute_sum_with_localmem,"w",@progbits
 ; VENTUS-NEXT: .p2align	3
-; VENTUS-NEXT: .word	2
+; VENTUS-NEXT: .word	3
 ; VENTUS-NEXT: .word	0
 ; VENTUS-NEXT: .quad	0
 ; VENTUS-NEXT: .quad	9

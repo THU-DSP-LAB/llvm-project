@@ -249,6 +249,8 @@ define dso_local ventus_kernel void @local_memmory1(ptr addrspace(3) nocapture n
 ; VENTUS-LABEL: local_memmory1:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lw t0, 0(a0)
+; VENTUS-NEXT:    csrr t1, CSR_LDS
+; VENTUS-NEXT:    add t0, t1, t0
 ; VENTUS-NEXT:    lw t1, 0(t0)
 ; VENTUS-NEXT:    addi t1, t1, 1
 ; VENTUS-NEXT:    sw t1, 0(t0)

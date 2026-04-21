@@ -8,6 +8,8 @@ define dso_local ventus_kernel void @usage(ptr addrspace(1) nocapture noundef al
 ; VENTUS-NEXT:    addi sp, sp, 4
 ; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    lw t0, 4(a0)
+; VENTUS-NEXT:    csrr t1, CSR_LDS
+; VENTUS-NEXT:    add t0, t1, t0
 ; VENTUS-NEXT:    lw t1, 0(a0)
 ; VENTUS-NEXT:    lw t0, 0(t0)
 ; VENTUS-NEXT:    lw t2, 0(t1)
@@ -26,7 +28,7 @@ entry:
 
 ; VENTUS: .section	.ventus.resource.usage,"w",@progbits
 ; VENTUS-NEXT: .p2align	3
-; VENTUS-NEXT: .word	2
+; VENTUS-NEXT: .word	3
 ; VENTUS-NEXT: .word	0
 ; VENTUS-NEXT: .quad	0
 ; VENTUS-NEXT: .quad	11

@@ -6,7 +6,7 @@
 
 ; VENTUS: .section	.ventus.resource.kernel,"w",@progbits
 ; VENTUS-NEXT: .p2align	3
-; VENTUS-NEXT: .word	2
+; VENTUS-NEXT: .word	3
 ; VENTUS-NEXT: .word	0
 ; VENTUS-NEXT: .quad	0
 ; VENTUS-NEXT: .quad	9
@@ -17,7 +17,7 @@
 
 ; VENTUS: .section	.ventus.resource.kernel_unknown,"w",@progbits
 ; VENTUS-NEXT: .p2align	3
-; VENTUS-NEXT: .word	2
+; VENTUS-NEXT: .word	3
 ; VENTUS-NEXT: .word	56
 ; VENTUS-NEXT: .quad	0
 ; VENTUS-NEXT: .quad	5
@@ -28,7 +28,7 @@
 
 ; VENTUS: .section	.ventus.resource.kernel_unknown_static,"w",@progbits
 ; VENTUS-NEXT: .p2align	3
-; VENTUS-NEXT: .word	2
+; VENTUS-NEXT: .word	3
 ; VENTUS-NEXT: .word	56
 ; VENTUS-NEXT: .quad	2
 ; VENTUS-NEXT: .quad	7
@@ -39,7 +39,7 @@
 
 ; VENTUS: .section	.ventus.resource.kernel_unknown_local,"w",@progbits
 ; VENTUS-NEXT: .p2align	3
-; VENTUS-NEXT: .word	2
+; VENTUS-NEXT: .word	3
 ; VENTUS-NEXT: .word	56
 ; VENTUS-NEXT: .quad	0
 ; VENTUS-NEXT: .quad	9
@@ -50,7 +50,7 @@
 
 ; VENTUS: .section	.ventus.resource.kernel_alias,"w",@progbits
 ; VENTUS-NEXT: .p2align	3
-; VENTUS-NEXT: .word	2
+; VENTUS-NEXT: .word	3
 ; VENTUS-NEXT: .word	0
 ; VENTUS-NEXT: .quad	0
 ; VENTUS-NEXT: .quad	5

@@ -200,8 +200,8 @@ enum VentusResObjStaticRefFlags : uint32_t {
 // - `VGPRUsed` / `SGPRUsed` remain the best visible-call-graph counts. If
 //   unresolved callees make them incomplete, `Flags` carries
 //   `VKRF_RegisterUsageIncomplete`.
-struct VentusKernelResourceV2 {
-  uint32_t Version = 2;
+struct VentusKernelResourceV3 {
+  uint32_t Version = 3;
   uint32_t Flags = 0;
   uint64_t VGPRUsed = 0;
   uint64_t SGPRUsed = 0;
@@ -635,7 +635,7 @@ static void emitVentusResObj(AsmPrinter &AP, MCContext &Ctx, const Module &M,
 
 static void emitVentusKernelResource(AsmPrinter &AP, MCContext &Ctx,
                                      MCStreamer &Streamer, StringRef KernelName,
-                                     const VentusKernelResourceV2 &Resource) {
+                                     const VentusKernelResourceV3 &Resource) {
   MCSectionELF *ResourceSection = Ctx.getELFSection(
       ".ventus.resource." + KernelName, ELF::SHT_PROGBITS, ELF::SHF_WRITE);
   Streamer.switchSection(ResourceSection);
@@ -1075,7 +1075,7 @@ void RISCVAsmPrinter::emitEndOfAsmFile(Module &M) {
       const VentusStaticResourceSummary StaticResources =
           collectVentusStaticResources(F, VentusSummaries, M.getDataLayout());
 
-      VentusKernelResourceV2 Resource;
+      VentusKernelResourceV3 Resource;
       Resource.Flags = Peak.Flags | StaticResources.Flags;
       const std::pair<uint64_t, uint64_t> ReachableRegUsage =
           ComputeComponentRegs(ComponentIndex[&F]);

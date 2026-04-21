@@ -9,7 +9,7 @@
 # SECTIONS-NOT: .ventus.resobj
 
 # DATA:      Contents of section .ventus.resource.kernel:
-# DATA-NEXT: {{[0-9a-f]+}} 02000000 30000000 03000000 00000000
+# DATA-NEXT: {{[0-9a-f]+}} 03000000 30000000 03000000 00000000
 # DATA-NEXT: {{[0-9a-f]+}} 05000000 00000000 00000000 00000000
 # DATA-NEXT: {{[0-9a-f]+}} 00000000 00000000 ffffffff ffffffff
 # DATA-NEXT: {{[0-9a-f]+}} ffffffff ffffffff

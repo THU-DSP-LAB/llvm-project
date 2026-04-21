@@ -190,9 +190,11 @@ define dso_local ventus_kernel void @regexti13(ptr addrspace(1) nocapture
 ; CHECK-NEXT:    vsw.v v33, -4(v32) # 4-byte Folded Spill
 ; CHECK-NEXT:    .cfi_offset ra, 0
 ; CHECK-NEXT:    .cfi_offset v33.l, 0
-; CHECK-NEXT:    lw t0, 0(a0)
-; CHECK-NEXT:    sw t0, -4(sp) # 4-byte Folded Spill
 ; CHECK-NEXT:    lw t0, 4(a0)
+; CHECK-NEXT:    csrr t1, CSR_LDS
+; CHECK-NEXT:    lw t2, 0(a0)
+; CHECK-NEXT:    sw t2, -4(sp) # 4-byte Folded Spill
+; CHECK-NEXT:    add t0, t1, t0
 ; CHECK-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
 ; CHECK-NEXT:    vmv.v.x v0, zero
 ; CHECK-NEXT:    call _Z13get_global_idj

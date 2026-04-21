@@ -7568,6 +7568,27 @@ SDValue RISCVTargetLowering::lowerKernargMemParameter(
   return DAG.getMergeValues({ Val, Load.getValue(1) }, SL);
 }
 
+static bool isKernelLocalPointerArg(MachineFunction &MF,
+                                    const ISD::InputArg &Arg) {
+  if (!Arg.isOrigArg())
+    return false;
+
+  Argument *OrigArg = MF.getFunction().getArg(Arg.getOrigArgIndex());
+  Type *OrigArgTy = OrigArg != nullptr ? OrigArg->getType() : nullptr;
+  return OrigArgTy != nullptr && OrigArgTy->isPointerTy() &&
+         OrigArgTy->getPointerAddressSpace() == RISCVAS::LOCAL_ADDRESS;
+}
+
+static SDValue getKernelLocalBase(SelectionDAG &DAG, const SDLoc &DL,
+                                  SDValue Chain) {
+  MVT XLenVT = DAG.getSubtarget<RISCVSubtarget>().getXLenVT();
+  SDValue SysRegNo = DAG.getTargetConstant(
+      RISCVSysReg::lookupSysRegByName("CSR_LDS")->Encoding, DL, XLenVT);
+  SDVTList VTs = DAG.getVTList(XLenVT, MVT::Other);
+  SDValue Base = DAG.getNode(RISCVISD::READ_CSR, DL, VTs, Chain, SysRegNo);
+  return Base.getValue(0);
+}
+
 // Returns the opcode of the target-specific SDNode that implements the 32-bit
 // form of the given Opcode.
 static RISCVISD::NodeType getRISCVWOpcode(unsigned Opcode) {
@@ -11942,6 +11963,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
   else
     analyzeInputArgs(MF, CCInfo, Ins, /*IsRet=*/false, CC_Ventus);
 
+  std::optional<SDValue> KernelLocalBase;
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
     SDValue ArgValue;
@@ -11959,7 +11981,15 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
         DAG, VT, MemVT, DL, Chain, Offset, Alignment,
         Ins[i].Flags.isSExt(), &Ins[i]);
       OutChains.push_back(Arg.getValue(1));
-      InVals.push_back(Arg);
+      ArgValue = Arg.getValue(0);
+      if (isKernelLocalPointerArg(MF, Ins[i])) {
+        if (!KernelLocalBase.has_value())
+          KernelLocalBase = getKernelLocalBase(DAG, DL, Chain);
+        SDValue LocalOffset = DAG.getZExtOrTrunc(ArgValue, DL, PtrVT);
+        ArgValue = DAG.getNode(ISD::ADD, DL, PtrVT, *KernelLocalBase,
+                               LocalOffset);
+      }
+      InVals.push_back(ArgValue);
     } else {
       // Non-kernel function
       // Passing f64 on RV32D with a soft float ABI must be handled as a special

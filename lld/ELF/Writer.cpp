@@ -64,7 +64,7 @@ constexpr uint32_t vkrfHasIndirectCall = 1u << 2;
 constexpr uint32_t vkrfHasUnknownExternalCallee = 1u << 3;
 constexpr uint32_t vkrfStackPeakUnavailable = 1u << 4;
 constexpr uint32_t vkrfRegisterUsageIncomplete = 1u << 5;
-constexpr uint32_t ventusResourceVersion = 2u;
+constexpr uint32_t ventusResourceVersion = 3u;
 constexpr uint64_t ventusUnknownResourceSize = UINT64_MAX;
 
 struct VentusParsedFunctionRecord {
