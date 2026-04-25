@@ -541,16 +541,16 @@ def VGPR_256 : VentusRegisterTuples<getSubRegs<8>.ret, VGPR, 255, 1, 8, "v">;
 def VGPR_512 : VentusRegisterTuples<getSubRegs<16>.ret, VGPR, 255, 1, 16, "v">;
 
 // VGPR 64 ~ 512 registers
-def VReg_64  : RVRegisterClass<"RISCV", [i64, f64, v2i32, v2f32, v4f16, v4i16, ventus_mma_2x32], 64, (add VGPR_64)> {
+def VReg_64  : RVRegisterClass<"RISCV", [i64, f64, ventus_mma_2x32], 64, (add VGPR_64)> {
   let IsVGPR = 1;
 }
 def VReg_96  : RVRegisterClass<"RISCV", [v3i32, v3f32], 64, (add VGPR_96)> {
   let IsVGPR = 1;
 }
-def VReg_128 : RVRegisterClass<"RISCV", [v4i32, v4f32, v8i16, v8f16, ventus_mma_4x32], 64, (add VGPR_128)> {
+def VReg_128 : RVRegisterClass<"RISCV", [ventus_mma_4x32], 64, (add VGPR_128)> {
   let IsVGPR = 1;
 }
-def VReg_256 : RVRegisterClass<"RISCV", [v8i32, v8f32, v16i16, v16f16, ventus_mma_8x32], 64, (add VGPR_256)> {
+def VReg_256 : RVRegisterClass<"RISCV", [ventus_mma_8x32], 64, (add VGPR_256)> {
   let IsVGPR = 1;
 }
 def VReg_512 : RVRegisterClass<"RISCV", [v16i32, v16f32], 64, (add VGPR_512)> {

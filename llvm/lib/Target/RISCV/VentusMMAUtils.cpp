@@ -15,8 +15,10 @@
 
 using namespace llvm;
 
-bool llvm::isVentusMMAPseudoOpcode(const RISCVInstrInfo &TII, unsigned Opcode) {
-  return TII.getName(Opcode).starts_with("PseudoMMA_");
+bool llvm::hasVentusDedicatedRegextHandling(const RISCVInstrInfo &TII,
+                                            unsigned Opcode) {
+  StringRef Name = TII.getName(Opcode);
+  return Name.starts_with("PseudoMMA_") || Name.starts_with("PseudoVFMA_");
 }
 
 static unsigned getVentusRegextOffsets(const MachineInstr &MI,
@@ -134,9 +136,20 @@ static unsigned getVentusMMARealOpcode(unsigned PseudoOpc) {
 #undef VENTUS_MMA_REAL_OPCODE_CASE
 }
 
-bool llvm::expandVentusMMAPseudo(MachineBasicBlock &MBB,
-                                 MachineBasicBlock::iterator MBBI,
-                                 const RISCVInstrInfo &TII) {
+static unsigned getVentusAccVOpRealOpcode(unsigned PseudoOpc) {
+  switch (PseudoOpc) {
+  default:
+    return 0;
+  case RISCV::PseudoVFMA_F16X2:
+    return RISCV::VFMA_F16X2;
+  case RISCV::PseudoVFMA_BF16X2:
+    return RISCV::VFMA_BF16X2;
+  }
+}
+
+static bool expandVentusMMAPseudo(MachineBasicBlock &MBB,
+                                  MachineBasicBlock::iterator MBBI,
+                                  const RISCVInstrInfo &TII) {
   unsigned RealOpc = getVentusMMARealOpcode(MBBI->getOpcode());
   if (!RealOpc)
     return false;
@@ -171,4 +184,41 @@ bool llvm::expandVentusMMAPseudo(MachineBasicBlock &MBB,
 
   MBBI->eraseFromParent();
   return true;
+}
+
+static bool expandVentusAccVOpPseudo(MachineBasicBlock &MBB,
+                                     MachineBasicBlock::iterator MBBI,
+                                     const RISCVInstrInfo &TII) {
+  unsigned RealOpc = getVentusAccVOpRealOpcode(MBBI->getOpcode());
+  if (!RealOpc)
+    return false;
+
+  const TargetRegisterInfo *TRI =
+      MBB.getParent()->getSubtarget().getRegisterInfo();
+  const MachineInstr &MI = *MBBI;
+  const MCInstrDesc &MCID = TII.get(RealOpc);
+
+  Register DstReg = MI.getOperand(0).getReg();
+  Register AccReg = MI.getOperand(1).getReg();
+  Register Src1Reg = MI.getOperand(2).getReg();
+  Register Src2Reg = MI.getOperand(3).getReg();
+
+  MachineInstrBuilder MIB = BuildMI(MBB, MBBI, MI.getDebugLoc(), MCID, DstReg)
+                                .addReg(Src1Reg)
+                                .addReg(Src2Reg);
+
+  maybeEmitVentusRegext(MBB, *MIB, TII, *TRI);
+
+  MIB.addReg(DstReg, RegState::ImplicitDefine)
+      .addReg(AccReg, RegState::Implicit);
+
+  MBBI->eraseFromParent();
+  return true;
+}
+
+bool llvm::expandVentusCustomPseudo(MachineBasicBlock &MBB,
+                                    MachineBasicBlock::iterator MBBI,
+                                    const RISCVInstrInfo &TII) {
+  return expandVentusMMAPseudo(MBB, MBBI, TII) ||
+         expandVentusAccVOpPseudo(MBB, MBBI, TII);
 }

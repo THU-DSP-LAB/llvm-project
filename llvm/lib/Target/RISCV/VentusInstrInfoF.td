@@ -555,7 +555,7 @@ class PatFprFprDynFrm<SDPatternOperator OpNode, RVInstRFrm Inst,
 let Predicates = [HasStdExtZfinx] in {
 
 /// Float constants
-// def : Pat<(f32 (fpimm0)), (FMV_W_X X0)>;
+def : Pat<(f32 (fpimm0)), (f32 (COPY_TO_REGCLASS (i32 X0), GPRF32))>;
 // def : Pat<(f32 (fpimmneg0)), (FSGNJN_S (FMV_W_X X0), (FMV_W_X X0))>;
 
 /// Float conversion operations

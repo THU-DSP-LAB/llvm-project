@@ -15,11 +15,12 @@ namespace llvm {
 
 class RISCVInstrInfo;
 
-bool isVentusMMAPseudoOpcode(const RISCVInstrInfo &TII, unsigned Opcode);
+bool hasVentusDedicatedRegextHandling(const RISCVInstrInfo &TII,
+                                      unsigned Opcode);
 
-bool expandVentusMMAPseudo(MachineBasicBlock &MBB,
-                           MachineBasicBlock::iterator MBBI,
-                           const RISCVInstrInfo &TII);
+bool expandVentusCustomPseudo(MachineBasicBlock &MBB,
+                              MachineBasicBlock::iterator MBBI,
+                              const RISCVInstrInfo &TII);
 
 } // namespace llvm
 

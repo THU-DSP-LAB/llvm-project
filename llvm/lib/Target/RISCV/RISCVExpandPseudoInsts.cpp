@@ -102,7 +102,7 @@ bool RISCVExpandPseudo::expandMI(MachineBasicBlock &MBB,
   case RISCV::PseudoVMSGEU_VI:
     return expandCompareSelect(MBB, MBBI, NextMBBI);
   default:
-    return expandVentusMMAPseudo(MBB, MBBI, *TII);
+    return expandVentusCustomPseudo(MBB, MBBI, *TII);
   }
 }
 

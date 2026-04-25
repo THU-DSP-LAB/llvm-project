@@ -176,6 +176,57 @@ def int_riscv_ventus_subgroup_barrier : Intrinsic<[], [llvm_i32_ty],
 def int_riscv_ventus_subgroup_barrier_with_scope : Intrinsic<[], [llvm_i32_ty, llvm_i32_ty],
                       [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
                        IntrNoMem, IntrHasSideEffects, IntrConvergent]>;
+class VentusNoMemIntrinsic<list<LLVMType> Ret, list<LLVMType> Args> :
+    Intrinsic<Ret, Args, [IntrNoMem, IntrWillReturn]>;
+class VentusF32UnaryIntrinsic : VentusNoMemIntrinsic<[llvm_float_ty], [llvm_float_ty]>;
+class VentusI32UnaryIntrinsic : VentusNoMemIntrinsic<[llvm_i32_ty], [llvm_i32_ty]>;
+class VentusI32BinaryIntrinsic : VentusNoMemIntrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty]>;
+class VentusI32TernaryIntrinsic : VentusNoMemIntrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty]>;
+class VentusI32ImmUnaryIntrinsic
+    : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrWillReturn, ImmArg<ArgIndex<1>>]>;
+class VentusI32ToF32Intrinsic : VentusNoMemIntrinsic<[llvm_float_ty], [llvm_i32_ty]>;
+class VentusF32ToI32Intrinsic : VentusNoMemIntrinsic<[llvm_i32_ty], [llvm_float_ty]>;
+
+def int_riscv_ventus_shuffle_idx_i32 : VentusI32ImmUnaryIntrinsic;
+def int_riscv_ventus_shuffle_up_i32 : VentusI32ImmUnaryIntrinsic;
+def int_riscv_ventus_shuffle_down_i32 : VentusI32ImmUnaryIntrinsic;
+def int_riscv_ventus_shuffle_bfly_i32 : VentusI32ImmUnaryIntrinsic;
+def int_riscv_ventus_vcvt_fp32_fp16 : VentusI32ToF32Intrinsic;
+def int_riscv_ventus_vcvt_fp16_fp32 : VentusF32ToI32Intrinsic;
+def int_riscv_ventus_vcvt_fp32_bf16 : VentusI32ToF32Intrinsic;
+def int_riscv_ventus_vcvt_bf16_fp32 : VentusF32ToI32Intrinsic;
+def int_riscv_ventus_vadd_f16x2 : VentusI32BinaryIntrinsic;
+def int_riscv_ventus_vmul_f16x2 : VentusI32BinaryIntrinsic;
+def int_riscv_ventus_vfma_f16x2 : VentusI32TernaryIntrinsic;
+def int_riscv_ventus_vadd_bf16x2 : VentusI32BinaryIntrinsic;
+def int_riscv_ventus_vmul_bf16x2 : VentusI32BinaryIntrinsic;
+def int_riscv_ventus_vfma_bf16x2 : VentusI32TernaryIntrinsic;
+def int_riscv_ventus_vex2_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vlg2_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vrcp_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vsqrt_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vrsqrt_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vsin_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vcos_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vtanh_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vgelu_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vsilu_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vex2_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vrcp_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vsqrt_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vrsqrt_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vtanh_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vgelu_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vsilu_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vex2_approx_bf16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vrcp_approx_bf16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vsqrt_approx_bf16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vrsqrt_approx_bf16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vtanh_approx_bf16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vgelu_approx_bf16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vsilu_approx_bf16x2 : VentusI32UnaryIntrinsic;
+
 def int_riscv_ventus_mma_m8n8k16_row_row_f32_f16_f16_f32
     : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
                 [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],

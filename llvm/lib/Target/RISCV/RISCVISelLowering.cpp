@@ -1935,6 +1935,52 @@ static bool isVentusMMAIntrinsic(unsigned IntNo) {
   }
 }
 
+static bool isVentusDirectCustomIntrinsic(unsigned IntNo) {
+  switch (IntNo) {
+  default:
+    return false;
+  case Intrinsic::riscv_ventus_shuffle_idx_i32:
+  case Intrinsic::riscv_ventus_shuffle_up_i32:
+  case Intrinsic::riscv_ventus_shuffle_down_i32:
+  case Intrinsic::riscv_ventus_shuffle_bfly_i32:
+  case Intrinsic::riscv_ventus_vcvt_fp32_fp16:
+  case Intrinsic::riscv_ventus_vcvt_fp16_fp32:
+  case Intrinsic::riscv_ventus_vcvt_fp32_bf16:
+  case Intrinsic::riscv_ventus_vcvt_bf16_fp32:
+  case Intrinsic::riscv_ventus_vadd_f16x2:
+  case Intrinsic::riscv_ventus_vmul_f16x2:
+  case Intrinsic::riscv_ventus_vfma_f16x2:
+  case Intrinsic::riscv_ventus_vadd_bf16x2:
+  case Intrinsic::riscv_ventus_vmul_bf16x2:
+  case Intrinsic::riscv_ventus_vfma_bf16x2:
+  case Intrinsic::riscv_ventus_vex2_approx_f32:
+  case Intrinsic::riscv_ventus_vlg2_approx_f32:
+  case Intrinsic::riscv_ventus_vrcp_approx_f32:
+  case Intrinsic::riscv_ventus_vsqrt_approx_f32:
+  case Intrinsic::riscv_ventus_vrsqrt_approx_f32:
+  case Intrinsic::riscv_ventus_vsin_approx_f32:
+  case Intrinsic::riscv_ventus_vcos_approx_f32:
+  case Intrinsic::riscv_ventus_vtanh_approx_f32:
+  case Intrinsic::riscv_ventus_vgelu_approx_f32:
+  case Intrinsic::riscv_ventus_vsilu_approx_f32:
+  case Intrinsic::riscv_ventus_vex2_approx_f16x2:
+  case Intrinsic::riscv_ventus_vrcp_approx_f16x2:
+  case Intrinsic::riscv_ventus_vsqrt_approx_f16x2:
+  case Intrinsic::riscv_ventus_vrsqrt_approx_f16x2:
+  case Intrinsic::riscv_ventus_vtanh_approx_f16x2:
+  case Intrinsic::riscv_ventus_vgelu_approx_f16x2:
+  case Intrinsic::riscv_ventus_vsilu_approx_f16x2:
+  case Intrinsic::riscv_ventus_vex2_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vrcp_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vsqrt_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vrsqrt_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vtanh_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vgelu_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vsilu_approx_bf16x2:
+    return true;
+  }
+}
+
 static unsigned getVentusMMAPseudoOpcode(unsigned IntNo) {
   switch (IntNo) {
   default:
@@ -6129,11 +6175,12 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
   SDLoc DL(Op);
   MVT XLenVT = Subtarget.getXLenVT();
 
-  if (isVentusMMAIntrinsic(IntNo))
-    return lowerVentusMMAIntrinsic(Op, DAG);
-
   switch (IntNo) {
   default:
+    if (isVentusDirectCustomIntrinsic(IntNo))
+      return Op;
+    if (isVentusMMAIntrinsic(IntNo))
+      return lowerVentusMMAIntrinsic(Op, DAG);
     break; // Don't custom lower most intrinsics.
   case Intrinsic::thread_pointer: {
     EVT PtrVT = getPointerTy(DAG.getDataLayout());

@@ -79,7 +79,7 @@ bool VentusRegextInsertion::insertRegext(MachineBasicBlock &MBB,
 
   if (MI.isPseudo()) {
     if (RISCVII::isVOPIMM11(MI.getDesc().TSFlags) ||
-        isVentusMMAPseudoOpcode(*TII, MI.getOpcode()))
+        hasVentusDedicatedRegextHandling(*TII, MI.getOpcode()))
       return false;
   }
 

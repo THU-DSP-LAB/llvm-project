@@ -60,6 +60,10 @@ def SourcesOfDivergence : GenericTable {
 def : SourceOfDivergence<int_riscv_workitem_id_x>;
 def : SourceOfDivergence<int_riscv_workitem_id_y>;
 def : SourceOfDivergence<int_riscv_workitem_id_z>;
+def : SourceOfDivergence<int_riscv_ventus_vcvt_fp16_fp32>;
+def : SourceOfDivergence<int_riscv_ventus_vgelu_approx_f32>;
+def : SourceOfDivergence<int_riscv_ventus_vsilu_approx_f32>;
+def : SourceOfDivergence<int_riscv_ventus_mma_m16n16k16_row_col_f32_f16_f16_f32>;
 //def : SourceOfDivergence<int_riscv_interp_mov>;
 //def : SourceOfDivergence<int_riscv_interp_p1>;
 

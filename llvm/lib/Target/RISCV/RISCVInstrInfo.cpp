@@ -30,6 +30,7 @@
 #include "llvm/MC/MCInstBuilder.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -198,8 +199,61 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MBBI,
                                  const DebugLoc &DL, MCRegister DstReg,
                                  MCRegister SrcReg, bool KillSrc) const {
+  const TargetRegisterInfo &TRI = *STI.getRegisterInfo();
+
+  auto CopyTupleRegs = [&]() -> bool {
+    static const unsigned SubRegs[] = {
+        RISCV::sub0, RISCV::sub1, RISCV::sub2, RISCV::sub3,
+        RISCV::sub4, RISCV::sub5, RISCV::sub6, RISCV::sub7};
+    MCRegister DstSub0 = TRI.getSubReg(DstReg, RISCV::sub0);
+    MCRegister SrcSub0 = TRI.getSubReg(SrcReg, RISCV::sub0);
+    if (!DstSub0 || !SrcSub0)
+      return false;
+
+    unsigned ActiveSubs = 0;
+    for (unsigned Sub : SubRegs) {
+      MCRegister DstSub = TRI.getSubReg(DstReg, Sub);
+      MCRegister SrcSub = TRI.getSubReg(SrcReg, Sub);
+      if (!DstSub || !SrcSub) {
+        assert(!DstSub && !SrcSub && "mismatched tuple copy");
+        break;
+      }
+      ++ActiveSubs;
+    }
+    assert(ActiveSubs > 0 && "tuple copy must have at least one subreg");
+
+    unsigned Copied = 0;
+    for (unsigned Sub : SubRegs) {
+      MCRegister DstSub = TRI.getSubReg(DstReg, Sub);
+      MCRegister SrcSub = TRI.getSubReg(SrcReg, Sub);
+      if (!DstSub)
+        break;
+      ++Copied;
+      copyPhysReg(MBB, MBBI, DL, DstSub, SrcSub, KillSrc && Copied == ActiveSubs);
+    }
+    return true;
+  };
+
+  if (CopyTupleRegs())
+    return;
+
   // sGPR -> sGPR move
   if (RISCV::GPRRegClass.contains(DstReg, SrcReg)) {
+    BuildMI(MBB, MBBI, DL, get(RISCV::ADDI), DstReg)
+        .addReg(SrcReg, getKillRegState(KillSrc))
+        .addImm(0);
+    return;
+  }
+
+  // zfinx/zhinx classes are backed by X registers as well, so cross-class
+  // copies between GPR and GPRF* are plain bit copies.
+  auto IsGPRLike = [&](MCRegister Reg) {
+    return RISCV::GPRRegClass.contains(Reg) ||
+           RISCV::GPRF16RegClass.contains(Reg) ||
+           RISCV::GPRF32RegClass.contains(Reg) ||
+           RISCV::GPRF64RegClass.contains(Reg);
+  };
+  if (IsGPRLike(DstReg) && IsGPRLike(SrcReg)) {
     BuildMI(MBB, MBBI, DL, get(RISCV::ADDI), DstReg)
         .addReg(SrcReg, getKillRegState(KillSrc))
         .addImm(0);
@@ -243,7 +297,6 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   // Handle copy from csr
   if (RISCV::VCSRRegClass.contains(SrcReg) &&
       RISCV::GPRRegClass.contains(DstReg)) {
-    const TargetRegisterInfo &TRI = *STI.getRegisterInfo();
     BuildMI(MBB, MBBI, DL, get(RISCV::CSRRS), DstReg)
       .addImm(RISCVSysReg::lookupSysRegByName(TRI.getName(SrcReg))->Encoding)
       .addReg(RISCV::X0);
@@ -263,6 +316,8 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   } else if (RISCV::GPRF64RegClass.contains(DstReg, SrcReg)) {
     Opc = RISCV::FSGNJ_D;
   } else {
+    errs() << "Impossible RISCV physreg copy: dst=" << TRI.getName(DstReg)
+           << " src=" << TRI.getName(SrcReg) << '\n';
     llvm_unreachable("Impossible reg-to-reg copy");
   }
 
