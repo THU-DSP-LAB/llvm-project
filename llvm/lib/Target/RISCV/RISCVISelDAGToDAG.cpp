@@ -29,9 +29,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "riscv-isel"
 
-static bool isVentusMMAType(MVT VT) { return VT.isVentusMMA(); }
-
-static unsigned getVentusTupleSubReg(unsigned Index) {
+static unsigned getVentusMMASubReg(unsigned Index) {
   switch (Index) {
   default:
     llvm_unreachable("unexpected Ventus tuple subregister index");
@@ -68,24 +66,12 @@ static MVT getVentusMMAResultVT(unsigned NumResults) {
   }
 }
 
-static unsigned getVentusMMAResultLanes(MVT VT) {
-  switch (VT.SimpleTy) {
-  default:
-    llvm_unreachable("unexpected Ventus MMA type");
-  case MVT::ventus_mma_2x32:
-    return 2;
-  case MVT::ventus_mma_4x32:
-    return 4;
-  case MVT::ventus_mma_8x32:
-    return 8;
-  }
-}
-
 static SDValue decodeVentusMMAOperand(SDNode *Node, unsigned &OpIdx) {
   auto VT = MVT(static_cast<MVT::SimpleValueType>(
       cast<ConstantSDNode>(Node->getOperand(OpIdx++))->getZExtValue()));
-  if (!isVentusMMAType(VT))
-    return Node->getOperand(OpIdx++);
+  assert((VT == MVT::i32 || VT.isVentusMMA()) &&
+         "unexpected Ventus MMA operand type");
+  (void)VT;
   return Node->getOperand(OpIdx++);
 }
 
@@ -273,7 +259,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
         SDValue(CurDAG->getMachineNode(PseudoOpc, DL, ResultVT, Acc, A, B), 0);
     for (unsigned I = 0, E = Node->getNumValues(); I != E; ++I) {
       SDValue Lane = CurDAG->getTargetExtractSubreg(
-          getVentusTupleSubReg(I), DL, Node->getValueType(I), Tuple);
+          getVentusMMASubReg(I), DL, Node->getValueType(I), Tuple);
       CurDAG->ReplaceAllUsesOfValueWith(SDValue(Node, I), Lane);
     }
     CurDAG->RemoveDeadNode(Node);

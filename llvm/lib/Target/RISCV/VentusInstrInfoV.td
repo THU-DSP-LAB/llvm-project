@@ -1332,9 +1332,7 @@ foreach Shape = [MMAShape_M8N8K8, MMAShape_M16N8K8,
   }
 }
 
-class PseudoMMAFP32<SDPatternOperator Intr, RegisterClass RCAcc,
-                    RegisterClass RCA, RegisterClass RCB,
-                    ValueType AccVT, ValueType AVT, ValueType BVT>
+class PseudoMMAFP32<RegisterClass RCAcc, RegisterClass RCA, RegisterClass RCB>
     : Pseudo<(outs RCAcc:$vd_wb),
              (ins RCAcc:$vd, RCA:$vs1, RCB:$vs2),
              []> {
@@ -1729,256 +1727,38 @@ def PseudoMMA_M16N16K16_COL_COL_F32_BF16_BF16_F32
   let Size = 4;
 }
 def PseudoMMA_M8N8K8_ROW_ROW_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m8n8k8_row_row_f32_tf32_tf32_f32,
-                    VReg_64, VReg_64, VReg_64, v2f32, v2i32, v2i32>;
+    : PseudoMMAFP32<VReg_64, VReg_64, VReg_64>;
 def PseudoMMA_M8N8K8_ROW_COL_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m8n8k8_row_col_f32_tf32_tf32_f32,
-                    VReg_64, VReg_64, VReg_64, v2f32, v2i32, v2i32>;
+    : PseudoMMAFP32<VReg_64, VReg_64, VReg_64>;
 def PseudoMMA_M8N8K8_COL_ROW_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m8n8k8_col_row_f32_tf32_tf32_f32,
-                    VReg_64, VReg_64, VReg_64, v2f32, v2i32, v2i32>;
+    : PseudoMMAFP32<VReg_64, VReg_64, VReg_64>;
 def PseudoMMA_M8N8K8_COL_COL_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m8n8k8_col_col_f32_tf32_tf32_f32,
-                    VReg_64, VReg_64, VReg_64, v2f32, v2i32, v2i32>;
+    : PseudoMMAFP32<VReg_64, VReg_64, VReg_64>;
 def PseudoMMA_M16N8K8_ROW_ROW_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m16n8k8_row_row_f32_tf32_tf32_f32,
-                    VReg_128, VReg_128, VReg_64, v4f32, v4i32, v2i32>;
+    : PseudoMMAFP32<VReg_128, VReg_128, VReg_64>;
 def PseudoMMA_M16N8K8_ROW_COL_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m16n8k8_row_col_f32_tf32_tf32_f32,
-                    VReg_128, VReg_128, VReg_64, v4f32, v4i32, v2i32>;
+    : PseudoMMAFP32<VReg_128, VReg_128, VReg_64>;
 def PseudoMMA_M16N8K8_COL_ROW_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m16n8k8_col_row_f32_tf32_tf32_f32,
-                    VReg_128, VReg_128, VReg_64, v4f32, v4i32, v2i32>;
+    : PseudoMMAFP32<VReg_128, VReg_128, VReg_64>;
 def PseudoMMA_M16N8K8_COL_COL_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m16n8k8_col_col_f32_tf32_tf32_f32,
-                    VReg_128, VReg_128, VReg_64, v4f32, v4i32, v2i32>;
+    : PseudoMMAFP32<VReg_128, VReg_128, VReg_64>;
 def PseudoMMA_M8N16K8_ROW_ROW_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m8n16k8_row_row_f32_tf32_tf32_f32,
-                    VReg_128, VReg_64, VReg_128, v4f32, v2i32, v4i32>;
+    : PseudoMMAFP32<VReg_128, VReg_64, VReg_128>;
 def PseudoMMA_M8N16K8_ROW_COL_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m8n16k8_row_col_f32_tf32_tf32_f32,
-                    VReg_128, VReg_64, VReg_128, v4f32, v2i32, v4i32>;
+    : PseudoMMAFP32<VReg_128, VReg_64, VReg_128>;
 def PseudoMMA_M8N16K8_COL_ROW_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m8n16k8_col_row_f32_tf32_tf32_f32,
-                    VReg_128, VReg_64, VReg_128, v4f32, v2i32, v4i32>;
+    : PseudoMMAFP32<VReg_128, VReg_64, VReg_128>;
 def PseudoMMA_M8N16K8_COL_COL_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m8n16k8_col_col_f32_tf32_tf32_f32,
-                    VReg_128, VReg_64, VReg_128, v4f32, v2i32, v4i32>;
+    : PseudoMMAFP32<VReg_128, VReg_64, VReg_128>;
 def PseudoMMA_M16N16K8_ROW_ROW_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m16n16k8_row_row_f32_tf32_tf32_f32,
-                    VReg_256, VReg_128, VReg_128, v8f32, v4i32, v4i32>;
+    : PseudoMMAFP32<VReg_256, VReg_128, VReg_128>;
 def PseudoMMA_M16N16K8_ROW_COL_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m16n16k8_row_col_f32_tf32_tf32_f32,
-                    VReg_256, VReg_128, VReg_128, v8f32, v4i32, v4i32>;
+    : PseudoMMAFP32<VReg_256, VReg_128, VReg_128>;
 def PseudoMMA_M16N16K8_COL_ROW_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m16n16k8_col_row_f32_tf32_tf32_f32,
-                    VReg_256, VReg_128, VReg_128, v8f32, v4i32, v4i32>;
+    : PseudoMMAFP32<VReg_256, VReg_128, VReg_128>;
 def PseudoMMA_M16N16K8_COL_COL_F32_TF32_TF32_F32
-    : PseudoMMAFP32<int_riscv_ventus_mma_m16n16k8_col_col_f32_tf32_tf32_f32,
-                    VReg_256, VReg_128, VReg_128, v8f32, v4i32, v4i32>;
+    : PseudoMMAFP32<VReg_256, VReg_128, VReg_128>;
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
-
-//===----------------------------------------------------------------------===//
-// Ventus custom instruction space (..10 opcode plan)
-//===----------------------------------------------------------------------===//
-
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
-class VENTUS_CustomUnary<bits<6> funct6, bits<3> funct3, RISCVOpcode opcode, string opcodestr>
-    : RVInst<(outs VGPR:$vd), (ins VGPR:$vs2),
-             opcodestr, "$vd, $vs2", [], InstFormatR> {
-  bits<5> vs2;
-  bits<5> vd;
-
-  let Inst{31-26} = funct6;
-  let Inst{25} = 1;
-  let Inst{24-20} = vs2;
-  let Inst{19-15} = 0;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = vd;
-  let Opcode = opcode.Value;
-  let CustomConstraints = "$vd = 0,$vs2 = 2";
-}
-
-class VENTUS_CustomBinary<bits<6> funct6, bits<3> funct3, RISCVOpcode opcode, string opcodestr>
-    : RVInst<(outs VGPR:$vd), (ins VGPR:$vs1, VGPR:$vs2),
-             opcodestr, "$vd, $vs1, $vs2", [], InstFormatR> {
-  bits<5> vs2;
-  bits<5> vs1;
-  bits<5> vd;
-
-  let Inst{31-26} = funct6;
-  let Inst{25} = 1;
-  let Inst{24-20} = vs2;
-  let Inst{19-15} = vs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = vd;
-  let Opcode = opcode.Value;
-  let CustomConstraints = "$vd = 0,$vs1 = 1,$vs2 = 2";
-}
-
-class VENTUS_Shuffle<bits<6> funct6, string opcodestr>
-    : RVInst<(outs VGPR:$vd), (ins VGPR:$vs2, uimm5:$imm5),
-             opcodestr, "$vd, $vs2, $imm5", [], InstFormatR> {
-  bits<5> vs2;
-  bits<5> imm5;
-  bits<5> vd;
-
-  let Inst{31-26} = funct6;
-  let Inst{25} = 1;
-  let Inst{24-20} = vs2;
-  let Inst{19-15} = imm5;
-  let Inst{14-12} = 0b001;
-  let Inst{11-7} = vd;
-  let Opcode = OPC_CUSTOM_SHFL.Value;
-  let CustomConstraints = "$vd = 0,$vs2 = 2";
-}
-}
-
-let Predicates = [HasVInstructionsAnyF], hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
-// vcvt family, opcode = 0x7A, funct3 = 000, vm fixed to 1.
-def VCVT_FP32_FP16   : VENTUS_CustomUnary<0b000000, 0b000, OPC_CUSTOM_3_10, "vcvt.fp32.fp16">;
-def VCVT_FP16_FP32   : VENTUS_CustomUnary<0b000001, 0b000, OPC_CUSTOM_3_10, "vcvt.fp16.fp32">;
-def VCVT_FP32_BF16   : VENTUS_CustomUnary<0b000010, 0b000, OPC_CUSTOM_3_10, "vcvt.fp32.bf16">;
-def VCVT_BF16_FP32   : VENTUS_CustomUnary<0b000011, 0b000, OPC_CUSTOM_3_10, "vcvt.bf16.fp32">;
-
-// packed CUDA-core style ops, opcode = 0x5A, vm fixed to 1.
-def VADD_F16X2       : VENTUS_CustomBinary<0b000000, 0b000, OPC_CUSTOM_2_10, "vadd.f16x2">;
-def VMUL_F16X2       : VENTUS_CustomBinary<0b000001, 0b000, OPC_CUSTOM_2_10, "vmul.f16x2">;
-def VFMA_F16X2       : VENTUS_CustomBinary<0b000010, 0b000, OPC_CUSTOM_2_10, "vfma.f16x2">;
-def VADD_BF16X2      : VENTUS_CustomBinary<0b000000, 0b001, OPC_CUSTOM_2_10, "vadd.bf16x2">;
-def VMUL_BF16X2      : VENTUS_CustomBinary<0b000001, 0b001, OPC_CUSTOM_2_10, "vmul.bf16x2">;
-def VFMA_BF16X2      : VENTUS_CustomBinary<0b000010, 0b001, OPC_CUSTOM_2_10, "vfma.bf16x2">;
-
-// SFU approx ops, opcode = 0x2A, vm fixed to 1.
-def VEX2_APPROX_F32     : VENTUS_CustomUnary<0b000000, 0b000, OPC_CUSTOM_1_10, "vex2.approx.f32">;
-def VLG2_APPROX_F32     : VENTUS_CustomUnary<0b000001, 0b000, OPC_CUSTOM_1_10, "vlg2.approx.f32">;
-def VRCP_APPROX_F32     : VENTUS_CustomUnary<0b000010, 0b000, OPC_CUSTOM_1_10, "vrcp.approx.f32">;
-def VSQRT_APPROX_F32    : VENTUS_CustomUnary<0b000011, 0b000, OPC_CUSTOM_1_10, "vsqrt.approx.f32">;
-def VRSQRT_APPROX_F32   : VENTUS_CustomUnary<0b000100, 0b000, OPC_CUSTOM_1_10, "vrsqrt.approx.f32">;
-def VSIN_APPROX_F32     : VENTUS_CustomUnary<0b000101, 0b000, OPC_CUSTOM_1_10, "vsin.approx.f32">;
-def VCOS_APPROX_F32     : VENTUS_CustomUnary<0b000110, 0b000, OPC_CUSTOM_1_10, "vcos.approx.f32">;
-def VTANH_APPROX_F32    : VENTUS_CustomUnary<0b000111, 0b000, OPC_CUSTOM_1_10, "vtanh.approx.f32">;
-def VGELU_APPROX_F32    : VENTUS_CustomUnary<0b001000, 0b000, OPC_CUSTOM_1_10, "vgelu.approx.f32">;
-def VSILU_APPROX_F32    : VENTUS_CustomUnary<0b001001, 0b000, OPC_CUSTOM_1_10, "vsilu.approx.f32">;
-
-def VEX2_APPROX_F16X2   : VENTUS_CustomUnary<0b000000, 0b001, OPC_CUSTOM_1_10, "vex2.approx.f16x2">;
-def VRCP_APPROX_F16X2   : VENTUS_CustomUnary<0b000010, 0b001, OPC_CUSTOM_1_10, "vrcp.approx.f16x2">;
-def VSQRT_APPROX_F16X2  : VENTUS_CustomUnary<0b000011, 0b001, OPC_CUSTOM_1_10, "vsqrt.approx.f16x2">;
-def VRSQRT_APPROX_F16X2 : VENTUS_CustomUnary<0b000100, 0b001, OPC_CUSTOM_1_10, "vrsqrt.approx.f16x2">;
-def VTANH_APPROX_F16X2  : VENTUS_CustomUnary<0b000111, 0b001, OPC_CUSTOM_1_10, "vtanh.approx.f16x2">;
-def VGELU_APPROX_F16X2  : VENTUS_CustomUnary<0b001000, 0b001, OPC_CUSTOM_1_10, "vgelu.approx.f16x2">;
-def VSILU_APPROX_F16X2  : VENTUS_CustomUnary<0b001001, 0b001, OPC_CUSTOM_1_10, "vsilu.approx.f16x2">;
-
-def VEX2_APPROX_BF16X2   : VENTUS_CustomUnary<0b000000, 0b010, OPC_CUSTOM_1_10, "vex2.approx.bf16x2">;
-def VRCP_APPROX_BF16X2   : VENTUS_CustomUnary<0b000010, 0b010, OPC_CUSTOM_1_10, "vrcp.approx.bf16x2">;
-def VSQRT_APPROX_BF16X2  : VENTUS_CustomUnary<0b000011, 0b010, OPC_CUSTOM_1_10, "vsqrt.approx.bf16x2">;
-def VRSQRT_APPROX_BF16X2 : VENTUS_CustomUnary<0b000100, 0b010, OPC_CUSTOM_1_10, "vrsqrt.approx.bf16x2">;
-def VTANH_APPROX_BF16X2  : VENTUS_CustomUnary<0b000111, 0b010, OPC_CUSTOM_1_10, "vtanh.approx.bf16x2">;
-def VGELU_APPROX_BF16X2  : VENTUS_CustomUnary<0b001000, 0b010, OPC_CUSTOM_1_10, "vgelu.approx.bf16x2">;
-def VSILU_APPROX_BF16X2  : VENTUS_CustomUnary<0b001001, 0b010, OPC_CUSTOM_1_10, "vsilu.approx.bf16x2">;
-}
-
-class VentusUnaryIToFPat<string intrinsic_name, string inst> :
-    Pat<(f32 (!cast<Intrinsic>(intrinsic_name) (i32 VGPR:$vs2))),
-        (!cast<Instruction>(inst) $vs2)>;
-
-class VentusUnaryFToIPat<string intrinsic_name, string inst> :
-    Pat<(i32 (!cast<Intrinsic>(intrinsic_name) (f32 VGPR:$vs2))),
-        (!cast<Instruction>(inst) $vs2)>;
-
-class VentusUnaryF32Pat<string intrinsic_name, string inst> :
-    Pat<(f32 (!cast<Intrinsic>(intrinsic_name) (f32 VGPR:$vs2))),
-        (!cast<Instruction>(inst) $vs2)>;
-
-class VentusUnaryI32Pat<string intrinsic_name, string inst> :
-    Pat<(i32 (!cast<Intrinsic>(intrinsic_name) (i32 VGPR:$vs2))),
-        (!cast<Instruction>(inst) $vs2)>;
-
-class VentusUnaryI32ImmPat<string intrinsic_name, string inst> :
-    Pat<(i32 (!cast<Intrinsic>(intrinsic_name) (i32 VGPR:$vs2),
-                                             timm:$imm5)),
-        (!cast<Instruction>(inst) $vs2, uimm5:$imm5)>;
-
-class VentusBinaryI32Pat<string intrinsic_name, string inst> :
-    Pat<(i32 (!cast<Intrinsic>(intrinsic_name) (i32 VGPR:$vs1),
-                                             (i32 VGPR:$vs2))),
-        (!cast<Instruction>(inst) $vs1, $vs2)>;
-
-class VentusTernaryI32PseudoPat<string intrinsic_name, string inst> :
-    Pat<(i32 (!cast<Intrinsic>(intrinsic_name) (i32 VGPR:$vs1),
-                                             (i32 VGPR:$vs2),
-                                             (i32 VGPR:$vd))),
-        (!cast<Instruction>(inst) $vd, $vs1, $vs2)>;
-
-def PseudoVFMA_F16X2 : Pseudo<(outs VGPR:$vd_wb),
-                             (ins VGPR:$vd, VGPR:$vs1, VGPR:$vs2),
-                             [(set (i32 VGPR:$vd_wb),
-                               (int_riscv_ventus_vfma_f16x2
-                                 (i32 VGPR:$vs1),
-                                 (i32 VGPR:$vs2),
-                                 (i32 VGPR:$vd)))]> {
-  let Constraints = "$vd_wb = $vd";
-  let Size = 4;
-}
-
-def PseudoVFMA_BF16X2 : Pseudo<(outs VGPR:$vd_wb),
-                              (ins VGPR:$vd, VGPR:$vs1, VGPR:$vs2),
-                              [(set (i32 VGPR:$vd_wb),
-                                (int_riscv_ventus_vfma_bf16x2
-                                  (i32 VGPR:$vs1),
-                                  (i32 VGPR:$vs2),
-                                  (i32 VGPR:$vd)))]> {
-  let Constraints = "$vd_wb = $vd";
-  let Size = 4;
-}
-
-def : VentusUnaryIToFPat<"int_riscv_ventus_vcvt_fp32_fp16", "VCVT_FP32_FP16">;
-def : VentusUnaryFToIPat<"int_riscv_ventus_vcvt_fp16_fp32", "VCVT_FP16_FP32">;
-def : VentusUnaryIToFPat<"int_riscv_ventus_vcvt_fp32_bf16", "VCVT_FP32_BF16">;
-def : VentusUnaryFToIPat<"int_riscv_ventus_vcvt_bf16_fp32", "VCVT_BF16_FP32">;
-def : VentusBinaryI32Pat<"int_riscv_ventus_vadd_f16x2", "VADD_F16X2">;
-def : VentusBinaryI32Pat<"int_riscv_ventus_vmul_f16x2", "VMUL_F16X2">;
-def : VentusTernaryI32PseudoPat<"int_riscv_ventus_vfma_f16x2", "PseudoVFMA_F16X2">;
-def : VentusBinaryI32Pat<"int_riscv_ventus_vadd_bf16x2", "VADD_BF16X2">;
-def : VentusBinaryI32Pat<"int_riscv_ventus_vmul_bf16x2", "VMUL_BF16X2">;
-def : VentusTernaryI32PseudoPat<"int_riscv_ventus_vfma_bf16x2", "PseudoVFMA_BF16X2">;
-def : VentusUnaryF32Pat<"int_riscv_ventus_vex2_approx_f32", "VEX2_APPROX_F32">;
-def : VentusUnaryF32Pat<"int_riscv_ventus_vlg2_approx_f32", "VLG2_APPROX_F32">;
-def : VentusUnaryF32Pat<"int_riscv_ventus_vrcp_approx_f32", "VRCP_APPROX_F32">;
-def : VentusUnaryF32Pat<"int_riscv_ventus_vsqrt_approx_f32", "VSQRT_APPROX_F32">;
-def : VentusUnaryF32Pat<"int_riscv_ventus_vrsqrt_approx_f32", "VRSQRT_APPROX_F32">;
-def : VentusUnaryF32Pat<"int_riscv_ventus_vsin_approx_f32", "VSIN_APPROX_F32">;
-def : VentusUnaryF32Pat<"int_riscv_ventus_vcos_approx_f32", "VCOS_APPROX_F32">;
-def : VentusUnaryF32Pat<"int_riscv_ventus_vtanh_approx_f32", "VTANH_APPROX_F32">;
-def : VentusUnaryF32Pat<"int_riscv_ventus_vgelu_approx_f32", "VGELU_APPROX_F32">;
-def : VentusUnaryF32Pat<"int_riscv_ventus_vsilu_approx_f32", "VSILU_APPROX_F32">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vex2_approx_f16x2", "VEX2_APPROX_F16X2">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vrcp_approx_f16x2", "VRCP_APPROX_F16X2">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vsqrt_approx_f16x2", "VSQRT_APPROX_F16X2">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vrsqrt_approx_f16x2", "VRSQRT_APPROX_F16X2">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vtanh_approx_f16x2", "VTANH_APPROX_F16X2">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vgelu_approx_f16x2", "VGELU_APPROX_F16X2">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vsilu_approx_f16x2", "VSILU_APPROX_F16X2">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vex2_approx_bf16x2", "VEX2_APPROX_BF16X2">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vrcp_approx_bf16x2", "VRCP_APPROX_BF16X2">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vsqrt_approx_bf16x2", "VSQRT_APPROX_BF16X2">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vrsqrt_approx_bf16x2", "VRSQRT_APPROX_BF16X2">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vtanh_approx_bf16x2", "VTANH_APPROX_BF16X2">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vgelu_approx_bf16x2", "VGELU_APPROX_BF16X2">;
-def : VentusUnaryI32Pat<"int_riscv_ventus_vsilu_approx_bf16x2", "VSILU_APPROX_BF16X2">;
-
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
-// shuffle family, opcode = 0x42.
-def SHUFFLE_IDX   : VENTUS_Shuffle<0b001001, "shuffle.idx">;
-def SHUFFLE_UP    : VENTUS_Shuffle<0b001010, "shuffle.up">;
-def SHUFFLE_DOWN  : VENTUS_Shuffle<0b001011, "shuffle.down">;
-def SHUFFLE_BFLY  : VENTUS_Shuffle<0b001000, "shuffle.bfly">;
-}
-
-def : VentusUnaryI32ImmPat<"int_riscv_ventus_shuffle_idx_i32", "SHUFFLE_IDX">;
-def : VentusUnaryI32ImmPat<"int_riscv_ventus_shuffle_up_i32", "SHUFFLE_UP">;
-def : VentusUnaryI32ImmPat<"int_riscv_ventus_shuffle_down_i32", "SHUFFLE_DOWN">;
-def : VentusUnaryI32ImmPat<"int_riscv_ventus_shuffle_bfly_i32", "SHUFFLE_BFLY">;
 
 //===----------------------------------------------------------------------===//
 // Ventus vALU divergent execution patterns
