@@ -15,6 +15,7 @@
 #include "RISCV.h"
 #include "RISCVInstrInfo.h"
 #include "RISCVTargetMachine.h"
+#include "VentusMMAUtils.h"
 
 #include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -100,8 +101,9 @@ bool RISCVExpandPseudo::expandMI(MachineBasicBlock &MBB,
   case RISCV::PseudoVMSGE_VI:
   case RISCV::PseudoVMSGEU_VI:
     return expandCompareSelect(MBB, MBBI, NextMBBI);
+  default:
+    return expandVentusMMAPseudo(MBB, MBBI, *TII);
   }
-  return false;
 }
 
 bool RISCVExpandPseudo::expandVIIMM11(MachineBasicBlock &MBB,

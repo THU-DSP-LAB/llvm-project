@@ -6129,6 +6129,9 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
   SDLoc DL(Op);
   MVT XLenVT = Subtarget.getXLenVT();
 
+  if (isVentusMMAIntrinsic(IntNo))
+    return lowerVentusMMAIntrinsic(Op, DAG);
+
   switch (IntNo) {
   default:
     break; // Don't custom lower most intrinsics.
@@ -8704,6 +8707,10 @@ void RISCVTargetLowering::ReplaceNodeResults(SDNode *N,
   }
   case ISD::INTRINSIC_WO_CHAIN: {
     unsigned IntNo = cast<ConstantSDNode>(N->getOperand(0))->getZExtValue();
+    if (isVentusMMAIntrinsic(IntNo)) {
+      Results.push_back(lowerVentusMMAIntrinsic(SDValue(N, 0), DAG));
+      return;
+    }
     switch (IntNo) {
     default:
       llvm_unreachable(
@@ -13364,6 +13371,7 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(ORC_B)
   NODE_NAME_CASE(ZIP)
   NODE_NAME_CASE(UNZIP)
+  NODE_NAME_CASE(VENTUS_MMA)
   NODE_NAME_CASE(VMV_V_X_VL)
   NODE_NAME_CASE(VFMV_V_F_VL)
   NODE_NAME_CASE(VMV_X_S)

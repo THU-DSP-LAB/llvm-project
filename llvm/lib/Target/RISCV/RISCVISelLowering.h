@@ -128,6 +128,8 @@ enum NodeType : unsigned {
   ORC_B,
   ZIP,
   UNZIP,
+  // Ventus MMA tuple op. Operand 0 is the target pseudo opcode.
+  VENTUS_MMA,
   // Vector Extension
   // VMV_V_X_VL matches the semantics of vmv.v.x but includes an extra operand
   // for the VL value to be used for the operation. The first operand is

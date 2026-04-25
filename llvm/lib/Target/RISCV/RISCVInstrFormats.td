@@ -125,6 +125,7 @@ def lookupRISCVOpcodeByName : SearchIndex {
 }
 def OPC_LOAD      : RISCVOpcode<"LOAD",      0b0000011>;
 def OPC_LOAD_FP   : RISCVOpcode<"LOAD_FP",   0b0000111>;
+def OPC_CUSTOM_0_10 : RISCVOpcode<"CUSTOM_0_10", 0b0001010>;
 def OPC_CUSTOM_0  : RISCVOpcode<"CUSTOM_0",  0b0001011>;
 def OPC_MISC_MEM  : RISCVOpcode<"MISC_MEM",  0b0001111>;
 def OPC_OP_IMM    : RISCVOpcode<"OP_IMM",    0b0010011>;
