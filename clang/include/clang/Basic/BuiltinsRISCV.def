@@ -24,6 +24,138 @@ TARGET_BUILTIN(barrier, "vi", "n", "32bit")
 TARGET_BUILTIN(work_group_barrier, "vi.", "n", "32bit")
 TARGET_BUILTIN(sub_group_barrier, "vi.", "n", "32bit")
 
+// MMA builtins. The software ABI uses tuple/vector window types while the hardware
+// instruction still encodes only the base VGPR of each contiguous window.
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k16_row_row_f32_f16_f16_f32,
+               "V2fV2UiV2UiV2f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k16_row_row_f16_f16_f16_f16,
+               "UiV2UiV2UiUi", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k16_row_row_f32_bf16_bf16_f32,
+               "V2fV2UiV2UiV2f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k16_row_col_f32_f16_f16_f32,
+               "V2fV2UiV2UiV2f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k16_row_col_f16_f16_f16_f16,
+               "UiV2UiV2UiUi", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k16_row_col_f32_bf16_bf16_f32,
+               "V2fV2UiV2UiV2f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k16_col_row_f32_f16_f16_f32,
+               "V2fV2UiV2UiV2f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k16_col_row_f16_f16_f16_f16,
+               "UiV2UiV2UiUi", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k16_col_row_f32_bf16_bf16_f32,
+               "V2fV2UiV2UiV2f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k16_col_col_f32_f16_f16_f32,
+               "V2fV2UiV2UiV2f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k16_col_col_f16_f16_f16_f16,
+               "UiV2UiV2UiUi", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k16_col_col_f32_bf16_bf16_f32,
+               "V2fV2UiV2UiV2f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k16_row_row_f32_f16_f16_f32,
+               "V4fV4UiV2UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k16_row_row_f16_f16_f16_f16,
+               "V2UiV4UiV2UiV2Ui", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k16_row_row_f32_bf16_bf16_f32,
+               "V4fV4UiV2UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k16_row_col_f32_f16_f16_f32,
+               "V4fV4UiV2UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k16_row_col_f16_f16_f16_f16,
+               "V2UiV4UiV2UiV2Ui", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k16_row_col_f32_bf16_bf16_f32,
+               "V4fV4UiV2UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k16_col_row_f32_f16_f16_f32,
+               "V4fV4UiV2UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k16_col_row_f16_f16_f16_f16,
+               "V2UiV4UiV2UiV2Ui", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k16_col_row_f32_bf16_bf16_f32,
+               "V4fV4UiV2UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k16_col_col_f32_f16_f16_f32,
+               "V4fV4UiV2UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k16_col_col_f16_f16_f16_f16,
+               "V2UiV4UiV2UiV2Ui", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k16_col_col_f32_bf16_bf16_f32,
+               "V4fV4UiV2UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k16_row_row_f32_f16_f16_f32,
+               "V4fV2UiV4UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k16_row_row_f16_f16_f16_f16,
+               "V2UiV2UiV4UiV2Ui", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k16_row_row_f32_bf16_bf16_f32,
+               "V4fV2UiV4UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k16_row_col_f32_f16_f16_f32,
+               "V4fV2UiV4UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k16_row_col_f16_f16_f16_f16,
+               "V2UiV2UiV4UiV2Ui", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k16_row_col_f32_bf16_bf16_f32,
+               "V4fV2UiV4UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k16_col_row_f32_f16_f16_f32,
+               "V4fV2UiV4UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k16_col_row_f16_f16_f16_f16,
+               "V2UiV2UiV4UiV2Ui", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k16_col_row_f32_bf16_bf16_f32,
+               "V4fV2UiV4UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k16_col_col_f32_f16_f16_f32,
+               "V4fV2UiV4UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k16_col_col_f16_f16_f16_f16,
+               "V2UiV2UiV4UiV2Ui", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k16_col_col_f32_bf16_bf16_f32,
+               "V4fV2UiV4UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k16_row_row_f32_f16_f16_f32,
+               "V8fV4UiV4UiV8f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k16_row_row_f16_f16_f16_f16,
+               "V4UiV4UiV4UiV4Ui", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k16_row_row_f32_bf16_bf16_f32,
+               "V8fV4UiV4UiV8f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k16_row_col_f32_f16_f16_f32,
+               "V8fV4UiV4UiV8f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k16_row_col_f16_f16_f16_f16,
+               "V4UiV4UiV4UiV4Ui", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k16_row_col_f32_bf16_bf16_f32,
+               "V8fV4UiV4UiV8f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k16_col_row_f32_f16_f16_f32,
+               "V8fV4UiV4UiV8f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k16_col_row_f16_f16_f16_f16,
+               "V4UiV4UiV4UiV4Ui", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k16_col_row_f32_bf16_bf16_f32,
+               "V8fV4UiV4UiV8f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k16_col_col_f32_f16_f16_f32,
+               "V8fV4UiV4UiV8f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k16_col_col_f16_f16_f16_f16,
+               "V4UiV4UiV4UiV4Ui", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k16_col_col_f32_bf16_bf16_f32,
+               "V8fV4UiV4UiV8f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k8_row_row_f32_tf32_tf32_f32,
+               "V2fV2UiV2UiV2f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k8_row_col_f32_tf32_tf32_f32,
+               "V2fV2UiV2UiV2f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k8_col_row_f32_tf32_tf32_f32,
+               "V2fV2UiV2UiV2f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n8k8_col_col_f32_tf32_tf32_f32,
+               "V2fV2UiV2UiV2f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k8_row_row_f32_tf32_tf32_f32,
+               "V4fV4UiV2UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k8_row_col_f32_tf32_tf32_f32,
+               "V4fV4UiV2UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k8_col_row_f32_tf32_tf32_f32,
+               "V4fV4UiV2UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n8k8_col_col_f32_tf32_tf32_f32,
+               "V4fV4UiV2UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k8_row_row_f32_tf32_tf32_f32,
+               "V4fV2UiV4UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k8_row_col_f32_tf32_tf32_f32,
+               "V4fV2UiV4UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k8_col_row_f32_tf32_tf32_f32,
+               "V4fV2UiV4UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m8n16k8_col_col_f32_tf32_tf32_f32,
+               "V4fV2UiV4UiV4f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k8_row_row_f32_tf32_tf32_f32,
+               "V8fV4UiV4UiV8f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k8_row_col_f32_tf32_tf32_f32,
+               "V8fV4UiV4UiV8f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k8_col_row_f32_tf32_tf32_f32,
+               "V8fV4UiV4UiV8f", "nc", "32bit")
+TARGET_BUILTIN(__builtin_riscv_ventus_mma_m16n16k8_col_col_f32_tf32_tf32_f32,
+               "V8fV4UiV4UiV8f", "nc", "32bit")
+
+
 //===----------------------------------------------------------------------===//
 // Standard RISCV instruction builtins.
 //===----------------------------------------------------------------------===//

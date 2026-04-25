@@ -163,6 +163,9 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     addRegisterClass(MVT::i32, &RISCV::VGPRRegClass);
 
     addRegisterClass(MVT::f32, &RISCV::VGPRRegClass);
+    addRegisterClass(MVT::ventus_mma_2x32, &RISCV::VReg_64RegClass);
+    addRegisterClass(MVT::ventus_mma_4x32, &RISCV::VReg_128RegClass);
+    addRegisterClass(MVT::ventus_mma_8x32, &RISCV::VReg_256RegClass);
   }
 
   // Compute derived properties from the register classes.
@@ -464,6 +467,9 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::INTRINSIC_WO_CHAIN, MVT::Other, Custom);
   if (Subtarget.is64Bit())
     setOperationAction(ISD::INTRINSIC_WO_CHAIN, MVT::i32, Custom);
+  for (MVT VT : {MVT::ventus_mma_2x32, MVT::ventus_mma_4x32,
+                 MVT::ventus_mma_8x32})
+    setOperationAction(ISD::INTRINSIC_WO_CHAIN, VT, Custom);
 
   if (Subtarget.hasStdExtA()) {
     setMaxAtomicSizeInBitsSupported(Subtarget.getXLen());
@@ -1747,7 +1753,6 @@ static bool useRVVForFixedLengthVectorVT(MVT VT,
   assert(VT.isFixedLengthVector() && "Expected a fixed length vector type!");
   if (!Subtarget.useRVVForFixedLengthVectors())
     return false;
-
   // We only support a set of vector types with a consistent maximum fixed size
   // across all supported vector element types to avoid legalization issues.
   // Therefore -- since the largest is v1024i8/v512i16/etc -- the largest
@@ -1856,6 +1861,1114 @@ static MVT getContainerForFixedLengthVector(SelectionDAG &DAG, MVT VT,
 
 MVT RISCVTargetLowering::getContainerForFixedLengthVector(MVT VT) const {
   return ::getContainerForFixedLengthVector(*this, VT, getSubtarget());
+}
+
+// Ventus MMA fragments use a tuple-register ABI rather than the standard
+// RVV fixed-length vector pipeline. Keep these few types on a dedicated
+// lowering path so they never fall back to RVV container legalization.
+static bool isVentusTupleVectorVT(MVT VT) {
+  return false;
+}
+
+static bool isVentusMMAType(MVT VT) { return VT.isVentusMMA(); }
+
+static bool isVentusMMAPseudoOpcode(unsigned Opc) {
+  switch (Opc) {
+  default:
+    return false;
+  case RISCV::PseudoMMA_M8N8K16_ROW_ROW_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M8N8K16_ROW_ROW_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M8N8K16_ROW_ROW_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M8N8K16_ROW_COL_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M8N8K16_ROW_COL_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M8N8K16_ROW_COL_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M8N8K16_COL_ROW_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M8N8K16_COL_ROW_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M8N8K16_COL_ROW_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M8N8K16_COL_COL_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M8N8K16_COL_COL_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M8N8K16_COL_COL_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M16N8K16_ROW_ROW_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M16N8K16_ROW_ROW_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M16N8K16_ROW_ROW_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M16N8K16_ROW_COL_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M16N8K16_ROW_COL_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M16N8K16_ROW_COL_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M16N8K16_COL_ROW_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M16N8K16_COL_ROW_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M16N8K16_COL_ROW_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M16N8K16_COL_COL_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M16N8K16_COL_COL_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M16N8K16_COL_COL_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M8N16K16_ROW_ROW_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M8N16K16_ROW_ROW_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M8N16K16_ROW_ROW_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M8N16K16_ROW_COL_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M8N16K16_ROW_COL_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M8N16K16_ROW_COL_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M8N16K16_COL_ROW_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M8N16K16_COL_ROW_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M8N16K16_COL_ROW_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M8N16K16_COL_COL_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M8N16K16_COL_COL_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M8N16K16_COL_COL_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M16N16K16_ROW_ROW_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M16N16K16_ROW_ROW_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M16N16K16_ROW_ROW_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M16N16K16_ROW_COL_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M16N16K16_ROW_COL_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M16N16K16_ROW_COL_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M16N16K16_COL_ROW_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M16N16K16_COL_ROW_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M16N16K16_COL_ROW_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M16N16K16_COL_COL_F32_F16_F16_F32:
+  case RISCV::PseudoMMA_M16N16K16_COL_COL_F16_F16_F16_F16:
+  case RISCV::PseudoMMA_M16N16K16_COL_COL_F32_BF16_BF16_F32:
+  case RISCV::PseudoMMA_M8N8K8_ROW_ROW_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M8N8K8_ROW_COL_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M8N8K8_COL_ROW_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M8N8K8_COL_COL_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M16N8K8_ROW_ROW_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M16N8K8_ROW_COL_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M16N8K8_COL_ROW_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M16N8K8_COL_COL_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M8N16K8_ROW_ROW_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M8N16K8_ROW_COL_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M8N16K8_COL_ROW_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M8N16K8_COL_COL_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M16N16K8_ROW_ROW_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M16N16K8_ROW_COL_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M16N16K8_COL_ROW_F32_TF32_TF32_F32:
+  case RISCV::PseudoMMA_M16N16K8_COL_COL_F32_TF32_TF32_F32:
+    return true;
+  }
+}
+
+static bool isVentusMMAIntrinsic(unsigned IntNo) {
+  switch (IntNo) {
+  default:
+    return false;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k8_row_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k8_row_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k8_col_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k8_col_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k8_row_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k8_row_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k8_col_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k8_col_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k8_row_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k8_row_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k8_col_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k8_col_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k8_row_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k8_row_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k8_col_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k8_col_col_f32_tf32_tf32_f32:
+    return true;
+  }
+}
+
+static bool isVentusDirectCustomIntrinsic(unsigned IntNo) {
+  switch (IntNo) {
+  default:
+    return false;
+  case Intrinsic::riscv_ventus_shuffle_idx_i32:
+  case Intrinsic::riscv_ventus_shuffle_up_i32:
+  case Intrinsic::riscv_ventus_shuffle_down_i32:
+  case Intrinsic::riscv_ventus_shuffle_bfly_i32:
+  case Intrinsic::riscv_ventus_vcvt_fp32_fp16:
+  case Intrinsic::riscv_ventus_vcvt_fp16_fp32:
+  case Intrinsic::riscv_ventus_vcvt_fp32_bf16:
+  case Intrinsic::riscv_ventus_vcvt_bf16_fp32:
+  case Intrinsic::riscv_ventus_vadd_f16x2:
+  case Intrinsic::riscv_ventus_vmul_f16x2:
+  case Intrinsic::riscv_ventus_vfma_f16x2:
+  case Intrinsic::riscv_ventus_vadd_bf16x2:
+  case Intrinsic::riscv_ventus_vmul_bf16x2:
+  case Intrinsic::riscv_ventus_vfma_bf16x2:
+  case Intrinsic::riscv_ventus_vex2_approx_f32:
+  case Intrinsic::riscv_ventus_vlg2_approx_f32:
+  case Intrinsic::riscv_ventus_vrcp_approx_f32:
+  case Intrinsic::riscv_ventus_vsqrt_approx_f32:
+  case Intrinsic::riscv_ventus_vrsqrt_approx_f32:
+  case Intrinsic::riscv_ventus_vsin_approx_f32:
+  case Intrinsic::riscv_ventus_vcos_approx_f32:
+  case Intrinsic::riscv_ventus_vtanh_approx_f32:
+  case Intrinsic::riscv_ventus_vgelu_approx_f32:
+  case Intrinsic::riscv_ventus_vsilu_approx_f32:
+  case Intrinsic::riscv_ventus_vex2_approx_f16x2:
+  case Intrinsic::riscv_ventus_vrcp_approx_f16x2:
+  case Intrinsic::riscv_ventus_vsqrt_approx_f16x2:
+  case Intrinsic::riscv_ventus_vrsqrt_approx_f16x2:
+  case Intrinsic::riscv_ventus_vtanh_approx_f16x2:
+  case Intrinsic::riscv_ventus_vgelu_approx_f16x2:
+  case Intrinsic::riscv_ventus_vsilu_approx_f16x2:
+  case Intrinsic::riscv_ventus_vex2_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vrcp_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vsqrt_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vrsqrt_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vtanh_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vgelu_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vsilu_approx_bf16x2:
+    return true;
+  }
+}
+
+static unsigned getVentusMMAPseudoOpcode(unsigned IntNo) {
+  switch (IntNo) {
+  default:
+    llvm_unreachable("unexpected Ventus MMA intrinsic id");
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N8K16_ROW_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N8K16_ROW_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N8K16_ROW_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N8K16_ROW_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N8K16_ROW_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N8K16_ROW_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N8K16_COL_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N8K16_COL_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N8K16_COL_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N8K16_COL_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N8K16_COL_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N8K16_COL_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N8K16_ROW_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N8K16_ROW_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N8K16_ROW_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N8K16_ROW_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N8K16_ROW_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N8K16_ROW_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N8K16_COL_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N8K16_COL_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N8K16_COL_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N8K16_COL_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N8K16_COL_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N8K16_COL_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N16K16_ROW_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N16K16_ROW_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N16K16_ROW_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N16K16_ROW_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N16K16_ROW_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N16K16_ROW_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N16K16_COL_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N16K16_COL_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N16K16_COL_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N16K16_COL_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N16K16_COL_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N16K16_COL_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N16K16_ROW_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N16K16_ROW_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N16K16_ROW_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N16K16_ROW_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N16K16_ROW_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N16K16_ROW_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N16K16_COL_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N16K16_COL_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N16K16_COL_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N16K16_COL_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N16K16_COL_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N16K16_COL_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_row_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N8K8_ROW_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_row_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N8K8_ROW_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_col_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N8K8_COL_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_col_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N8K8_COL_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_row_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N8K8_ROW_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_row_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N8K8_ROW_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_col_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N8K8_COL_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_col_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N8K8_COL_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_row_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N16K8_ROW_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_row_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N16K8_ROW_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_col_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N16K8_COL_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_col_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N16K8_COL_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_row_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N16K8_ROW_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_row_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N16K8_ROW_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_col_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N16K8_COL_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_col_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N16K8_COL_COL_F32_TF32_TF32_F32;
+  }
+}
+
+static bool isVentusTupleMachineValue(SDValue V) {
+  if (!isVentusTupleVectorVT(V.getSimpleValueType()))
+    return false;
+  if (V.getOpcode() == ISD::CopyFromReg)
+    return true;
+  if (V.getOpcode() == RISCVISD::VENTUS_MMA)
+    return true;
+  if (!V.getNode()->isMachineOpcode())
+    return false;
+  unsigned Opc = V.getMachineOpcode();
+  return Opc == TargetOpcode::REG_SEQUENCE ||
+         Opc == TargetOpcode::INSERT_SUBREG ||
+         Opc == TargetOpcode::IMPLICIT_DEF || isVentusMMAPseudoOpcode(Opc);
+}
+
+static unsigned getVentusTupleRegClassID(MVT VT) {
+  switch (VT.SimpleTy) {
+  default:
+    llvm_unreachable("unexpected Ventus MMA type");
+  case MVT::ventus_mma_2x32:
+    return RISCV::VReg_64RegClassID;
+  case MVT::ventus_mma_4x32:
+    return RISCV::VReg_128RegClassID;
+  case MVT::ventus_mma_8x32:
+    return RISCV::VReg_256RegClassID;
+  }
+}
+
+static unsigned getVentusTupleSubReg(unsigned Index) {
+  switch (Index) {
+  default:
+    llvm_unreachable("unexpected Ventus tuple subregister index");
+  case 0:
+    return RISCV::sub0;
+  case 1:
+    return RISCV::sub1;
+  case 2:
+    return RISCV::sub2;
+  case 3:
+    return RISCV::sub3;
+  case 4:
+    return RISCV::sub4;
+  case 5:
+    return RISCV::sub5;
+  case 6:
+    return RISCV::sub6;
+  case 7:
+    return RISCV::sub7;
+  }
+}
+
+static SDValue createVentusTupleBuildVector(SDValue Op, SelectionDAG &DAG) {
+  MVT VT = Op.getSimpleValueType();
+  assert(isVentusTupleVectorVT(VT) && "expected Ventus tuple vector type");
+
+  SDLoc DL(Op);
+  MVT EltVT = VT.getVectorElementType();
+
+  bool AllZero = true;
+  for (unsigned I = 0, E = Op.getNumOperands(); I != E; ++I) {
+    SDValue Elt = Op.getOperand(I);
+    if (Elt.isUndef())
+      continue;
+    if (auto *C = dyn_cast<ConstantSDNode>(Elt)) {
+      if (C->getAPIntValue().isZero())
+        continue;
+    } else if (auto *CFP = dyn_cast<ConstantFPSDNode>(Elt)) {
+      if (CFP->isExactlyValue(+0.0))
+        continue;
+    }
+    AllZero = false;
+    break;
+  }
+
+  if (AllZero && (EltVT == MVT::i32 || EltVT == MVT::f32)) {
+    SmallVector<SDValue, 17> Ops;
+    Ops.push_back(
+        DAG.getTargetConstant(getVentusTupleRegClassID(VT), DL, MVT::i32));
+    MVT XLenVT = DAG.getTargetLoweringInfo().getPointerTy(DAG.getDataLayout());
+    for (unsigned I = 0, E = VT.getVectorNumElements(); I != E; ++I) {
+      SDValue ZeroLane =
+          SDValue(DAG.getMachineNode(RISCV::VMV_V_X, DL, EltVT,
+                                     DAG.getRegister(RISCV::X0, XLenVT)),
+                  0);
+      Ops.push_back(ZeroLane);
+      Ops.push_back(
+          DAG.getTargetConstant(getVentusTupleSubReg(I), DL, MVT::i32));
+    }
+    return SDValue(DAG.getMachineNode(TargetOpcode::REG_SEQUENCE, DL, VT, Ops),
+                   0);
+  }
+
+  SmallVector<SDValue, 9> Ops;
+  Ops.push_back(
+      DAG.getTargetConstant(getVentusTupleRegClassID(VT), DL, MVT::i32));
+  for (unsigned I = 0, E = Op.getNumOperands(); I != E; ++I) {
+    SDValue Elt = Op.getOperand(I);
+    if (Elt.isUndef())
+      Elt = DAG.getUNDEF(EltVT);
+    Ops.push_back(Elt);
+    Ops.push_back(DAG.getTargetConstant(getVentusTupleSubReg(I), DL, MVT::i32));
+  }
+  return SDValue(DAG.getMachineNode(TargetOpcode::REG_SEQUENCE, DL, VT, Ops),
+                 0);
+}
+
+static SDValue createVentusTupleExtractSubreg(SDValue Vec, EVT EltVT,
+                                              unsigned Index,
+                                              SelectionDAG &DAG) {
+  SDLoc DL(Vec);
+  SDValue SubReg =
+      DAG.getTargetConstant(getVentusTupleSubReg(Index), DL, MVT::i32);
+  return SDValue(
+      DAG.getMachineNode(TargetOpcode::EXTRACT_SUBREG, DL, EltVT, Vec, SubReg),
+      0);
+}
+
+static SDValue copyVentusTupleLaneToVGPR(SDValue Elt, EVT EltVT,
+                                         SelectionDAG &DAG) {
+  SDLoc DL(Elt);
+  SDValue RC = DAG.getTargetConstant(RISCV::VGPRRegClassID, DL, MVT::i32);
+  return SDValue(
+      DAG.getMachineNode(TargetOpcode::COPY_TO_REGCLASS, DL, EltVT, Elt, RC),
+      0);
+}
+
+static SDValue createVentusTupleDynamicExtract(ArrayRef<SDValue> Elts,
+                                               EVT EltVT, SDValue Idx,
+                                               SelectionDAG &DAG) {
+  assert(!Elts.empty() && "expected at least one Ventus tuple lane");
+  SDLoc DL(Idx);
+  EVT IdxVT = Idx.getValueType();
+  EVT CCVT = DAG.getTargetLoweringInfo().getSetCCResultType(
+      DAG.getDataLayout(), *DAG.getContext(), IdxVT);
+
+  SDValue Result = DAG.getUNDEF(EltVT);
+  for (int I = int(Elts.size()) - 1; I >= 0; --I) {
+    SDValue Match =
+        DAG.getNode(ISD::SETCC, DL, CCVT, Idx, DAG.getConstant(I, DL, IdxVT),
+                    DAG.getCondCode(ISD::SETEQ));
+    Result = DAG.getSelect(DL, EltVT, Match, Elts[I], Result);
+  }
+  return Result;
+}
+
+static SDValue createVentusTupleInsertSubreg(SDValue Vec, SDValue Elt,
+                                             MVT VecVT, unsigned Index,
+                                             SelectionDAG &DAG) {
+  assert(isVentusTupleVectorVT(VecVT) && "expected Ventus tuple vector type");
+  SDLoc DL(Vec);
+  if (Vec.isUndef())
+    Vec = SDValue(DAG.getMachineNode(TargetOpcode::IMPLICIT_DEF, DL, VecVT), 0);
+  SDValue SubReg =
+      DAG.getTargetConstant(getVentusTupleSubReg(Index), DL, MVT::i32);
+  return SDValue(DAG.getMachineNode(TargetOpcode::INSERT_SUBREG, DL, VecVT, Vec,
+                                    Elt, SubReg),
+                 0);
+}
+
+static SDValue lowerVentusTupleVectorLoad(SDValue Op, SelectionDAG &DAG) {
+  auto *Load = cast<LoadSDNode>(Op);
+  MVT VT = Op.getSimpleValueType();
+  assert(isVentusTupleVectorVT(VT) && "expected Ventus tuple vector type");
+
+  SDLoc DL(Op);
+  unsigned EltBytes = VT.getScalarSizeInBits() / 8;
+  SmallVector<SDValue, 9> RegSequenceOps;
+  SmallVector<SDValue, 4> Chains;
+  RegSequenceOps.push_back(
+      DAG.getTargetConstant(getVentusTupleRegClassID(VT), DL, MVT::i32));
+
+  for (unsigned I = 0, E = VT.getVectorNumElements(); I != E; ++I) {
+    uint64_t Offset = uint64_t(I) * EltBytes;
+    SDValue Addr = I == 0
+                       ? Load->getBasePtr()
+                       : DAG.getMemBasePlusOffset(Load->getBasePtr(),
+                                                  TypeSize::Fixed(Offset), DL);
+    Align Alignment = commonAlignment(Load->getAlign(), Offset);
+    SDValue ScalarLoad =
+        DAG.getLoad(VT.getVectorElementType(), DL, Load->getChain(), Addr,
+                    Load->getPointerInfo().getWithOffset(Offset), Alignment,
+                    Load->getMemOperand()->getFlags());
+    RegSequenceOps.push_back(ScalarLoad);
+    RegSequenceOps.push_back(
+        DAG.getTargetConstant(getVentusTupleSubReg(I), DL, MVT::i32));
+    Chains.push_back(ScalarLoad.getValue(1));
+  }
+
+  SDValue Tuple = SDValue(
+      DAG.getMachineNode(TargetOpcode::REG_SEQUENCE, DL, VT, RegSequenceOps),
+      0);
+  SDValue Chain = DAG.getNode(ISD::TokenFactor, DL, MVT::Other, Chains);
+  return DAG.getMergeValues({Tuple, Chain}, DL);
+}
+
+static SDValue lowerVentusMMAIntrinsic(SDValue Op, SelectionDAG &DAG);
+static bool matchVentusMMARebuildVector(SDValue V,
+                                        SmallVectorImpl<SDValue> &Elts,
+                                        SDNode *&MMANode);
+
+static SDValue getVentusTupleMachineValue(SDValue V, SelectionDAG &DAG) {
+  if (!isVentusTupleVectorVT(V.getSimpleValueType()))
+    return SDValue();
+  if (isVentusTupleMachineValue(V))
+    return V;
+  return SDValue();
+}
+
+static SDValue materializeVentusTupleOperand(SDValue V, SelectionDAG &DAG) {
+  if (SDValue TupleV = getVentusTupleMachineValue(V, DAG))
+    return TupleV;
+  if (!isVentusTupleVectorVT(V.getSimpleValueType()))
+    return SDValue();
+
+  if (V.getOpcode() == ISD::BUILD_VECTOR)
+    return createVentusTupleBuildVector(V, DAG);
+
+  SDLoc DL(V);
+  MVT VT = V.getSimpleValueType();
+  MVT EltVT = VT.getVectorElementType();
+  MVT IdxVT = DAG.getTargetLoweringInfo().getPointerTy(DAG.getDataLayout());
+  SmallVector<SDValue, 8> Elts;
+  Elts.reserve(VT.getVectorNumElements());
+
+  if (V.getOpcode() == ISD::SPLAT_VECTOR) {
+    SDValue Scalar = V.getOperand(0);
+    Elts.assign(VT.getVectorNumElements(), Scalar);
+  } else {
+    for (unsigned I = 0, E = VT.getVectorNumElements(); I != E; ++I) {
+      Elts.push_back(DAG.getNode(ISD::EXTRACT_VECTOR_ELT, DL, EltVT, V,
+                                 DAG.getConstant(I, DL, IdxVT)));
+    }
+  }
+
+  return createVentusTupleBuildVector(DAG.getBuildVector(VT, DL, Elts), DAG);
+}
+
+static void getVentusMMALaneCounts(unsigned IntNo, unsigned &ALanes,
+                                    unsigned &BLanes, unsigned &DLanes) {
+  switch (IntNo) {
+  default:
+    llvm_unreachable("unexpected Ventus MMA intrinsic");
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 1;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 1;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 1;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 1;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_row_row_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_row_col_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_col_row_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_col_col_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_row_row_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_row_col_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_col_row_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_col_col_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_row_row_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_row_col_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_col_row_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_col_col_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_row_row_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_row_col_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_col_row_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_col_col_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  }
+}
+static void appendVentusMMAOperandScalars(SDValue V,
+                                          SmallVectorImpl<SDValue> &Ops,
+                                          SelectionDAG &DAG) {
+  EVT VT = V.getValueType();
+  MVT XLenVT = DAG.getTargetLoweringInfo().getPointerTy(DAG.getDataLayout());
+  Ops.push_back(
+      DAG.getTargetConstant(VT.getSimpleVT().SimpleTy, SDLoc(V), XLenVT));
+
+  if (!VT.isSimple() || !isVentusTupleVectorVT(VT.getSimpleVT())) {
+    Ops.push_back(V);
+    return;
+  }
+
+  MVT VecVT = VT.getSimpleVT();
+  EVT EltVT = VecVT.getVectorElementType();
+  SDLoc DL(V);
+
+  if (SDValue TupleV = getVentusTupleMachineValue(V, DAG)) {
+    for (unsigned I = 0, E = VecVT.getVectorNumElements(); I != E; ++I)
+      Ops.push_back(createVentusTupleExtractSubreg(TupleV, EltVT, I, DAG));
+    return;
+  }
+
+  SmallVector<SDValue, 8> MMAElts;
+  SDNode *MMANode = nullptr;
+  if (matchVentusMMARebuildVector(V, MMAElts, MMANode)) {
+    append_range(Ops, MMAElts);
+    return;
+  }
+
+  if (V.getOpcode() == ISD::BUILD_VECTOR) {
+    for (unsigned I = 0, E = V.getNumOperands(); I != E; ++I) {
+      SDValue Elt = V.getOperand(I);
+      Ops.push_back(Elt.isUndef() ? DAG.getUNDEF(EltVT) : Elt);
+    }
+    return;
+  }
+
+  if (V.getOpcode() == ISD::SPLAT_VECTOR) {
+    SDValue Scalar = V.getOperand(0);
+    for (unsigned I = 0, E = VecVT.getVectorNumElements(); I != E; ++I)
+      Ops.push_back(Scalar);
+    return;
+  }
+
+  MVT IdxVT = DAG.getTargetLoweringInfo().getPointerTy(DAG.getDataLayout());
+  for (unsigned I = 0, E = VecVT.getVectorNumElements(); I != E; ++I)
+    Ops.push_back(DAG.getNode(ISD::EXTRACT_VECTOR_ELT, DL, EltVT, V,
+                              DAG.getConstant(I, DL, IdxVT)));
+}
+
+static MVT getVentusMMATypeForLaneCount(unsigned NumLanes) {
+  switch (NumLanes) {
+  default:
+    llvm_unreachable("unexpected Ventus MMA lane count");
+  case 1:
+  case 2:
+    return MVT::ventus_mma_2x32;
+  case 4:
+    return MVT::ventus_mma_4x32;
+  case 8:
+    return MVT::ventus_mma_8x32;
+  }
+}
+
+static SDValue buildVentusMMATupleOperand(ArrayRef<SDValue> Lanes,
+                                          SelectionDAG &DAG, const SDLoc &DL) {
+  MVT TupleVT = getVentusMMATypeForLaneCount(Lanes.size());
+  SmallVector<SDValue, 17> Ops;
+  Ops.push_back(DAG.getTargetConstant(getVentusTupleRegClassID(TupleVT), DL,
+                                      MVT::i32));
+  for (unsigned I = 0, E = Lanes.size(); I != E; ++I) {
+    SDValue RC = DAG.getTargetConstant(RISCV::VGPRRegClassID, DL, MVT::i32);
+    SDValue Lane = SDValue(DAG.getMachineNode(TargetOpcode::COPY_TO_REGCLASS,
+                                             DL, MVT::i32, Lanes[I], RC),
+                           0);
+    Ops.push_back(Lane);
+    Ops.push_back(DAG.getTargetConstant(getVentusTupleSubReg(I), DL, MVT::i32));
+  }
+  return SDValue(
+      DAG.getMachineNode(TargetOpcode::REG_SEQUENCE, DL, TupleVT, Ops), 0);
+}
+
+static SDValue collectVentusMMALanes(SDValue Op, unsigned &OpIdx,
+                                     unsigned NumLanes, SelectionDAG &DAG,
+                                     const SDLoc &DL) {
+  SmallVector<SDValue, 8> Lanes;
+  for (unsigned I = 0; I != NumLanes; ++I)
+    Lanes.push_back(Op.getOperand(OpIdx++));
+  if (NumLanes == 1)
+    return Lanes[0];
+  return buildVentusMMATupleOperand(Lanes, DAG, DL);
+}
+
+static SDValue lowerVentusMMAIntrinsic(SDValue Op, SelectionDAG &DAG) {
+  unsigned IntNo = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
+  assert(isVentusMMAIntrinsic(IntNo) && "expected Ventus MMA intrinsic");
+
+  SDLoc DL(Op);
+  unsigned PseudoOpc = getVentusMMAPseudoOpcode(IntNo);
+  MVT XLenVT = DAG.getTargetLoweringInfo().getPointerTy(DAG.getDataLayout());
+  unsigned ALanes = 0;
+  unsigned BLanes = 0;
+  unsigned ResultLanes = 0;
+  getVentusMMALaneCounts(IntNo, ALanes, BLanes, ResultLanes);
+  assert(ResultLanes == Op.getNode()->getNumValues() &&
+         "MMA intrinsic result width mismatch");
+
+  unsigned OpIdx = 1;
+  SDValue A = collectVentusMMALanes(Op, OpIdx, ALanes, DAG, DL);
+  SDValue B = collectVentusMMALanes(Op, OpIdx, BLanes, DAG, DL);
+  SDValue Acc = collectVentusMMALanes(Op, OpIdx, ResultLanes, DAG, DL);
+
+  auto GetOperandVT = [](SDValue V) { return V.getSimpleValueType(); };
+  SmallVector<SDValue, 8> Ops;
+  Ops.push_back(DAG.getTargetConstant(PseudoOpc, DL, XLenVT));
+  Ops.push_back(DAG.getTargetConstant(GetOperandVT(Acc).SimpleTy, DL, MVT::i32));
+  Ops.push_back(Acc);
+  Ops.push_back(DAG.getTargetConstant(GetOperandVT(A).SimpleTy, DL, MVT::i32));
+  Ops.push_back(A);
+  Ops.push_back(DAG.getTargetConstant(GetOperandVT(B).SimpleTy, DL, MVT::i32));
+  Ops.push_back(B);
+
+  if (ResultLanes == 1)
+    return DAG.getNode(RISCVISD::VENTUS_MMA, DL, MVT::i32, Ops);
+  SmallVector<EVT, 8> ResultVTs(ResultLanes, MVT::i32);
+  return DAG.getNode(RISCVISD::VENTUS_MMA, DL, DAG.getVTList(ResultVTs), Ops);
+}
+
+static SDValue lowerVentusTupleVectorStore(SDValue Op, SelectionDAG &DAG) {
+  auto *Store = cast<StoreSDNode>(Op);
+  SDValue Vec = Store->getValue();
+  MVT VT = Vec.getSimpleValueType();
+  assert(isVentusTupleVectorVT(VT) && "expected Ventus tuple vector type");
+
+  {
+    SDValue MatVec = getVentusTupleMachineValue(Vec, DAG);
+    if (MatVec)
+      Vec = MatVec;
+  }
+
+  SDLoc DL(Op);
+  unsigned EltBytes = VT.getScalarSizeInBits() / 8;
+  SmallVector<SDValue, 4> Stores;
+
+  for (unsigned I = 0, E = VT.getVectorNumElements(); I != E; ++I) {
+    uint64_t Offset = uint64_t(I) * EltBytes;
+    SDValue Addr = I == 0
+                       ? Store->getBasePtr()
+                       : DAG.getMemBasePlusOffset(Store->getBasePtr(),
+                                                  TypeSize::Fixed(Offset), DL);
+    Align Alignment = commonAlignment(Store->getAlign(), Offset);
+    SDValue Elt =
+        createVentusTupleExtractSubreg(Vec, VT.getVectorElementType(), I, DAG);
+    Stores.push_back(DAG.getStore(Store->getChain(), DL, Elt, Addr,
+                                  Store->getPointerInfo().getWithOffset(Offset),
+                                  Alignment,
+                                  Store->getMemOperand()->getFlags()));
+  }
+
+  return DAG.getNode(ISD::TokenFactor, DL, MVT::Other, Stores);
+}
+
+static bool matchVentusMMARebuildVector(SDValue V,
+                                        SmallVectorImpl<SDValue> &Elts,
+                                        SDNode *&MMANode) {
+  if (V.getOpcode() == ISD::BUILD_VECTOR) {
+    MVT VT = V.getSimpleValueType();
+    if (!isVentusTupleVectorVT(VT) ||
+        V.getNumOperands() != VT.getVectorNumElements())
+      return false;
+    Elts.assign(V->ops().begin(), V->ops().end());
+  } else if (V.getOpcode() == ISD::INSERT_VECTOR_ELT) {
+    MVT VT = V.getSimpleValueType();
+    if (!isVentusTupleVectorVT(VT))
+      return false;
+    Elts.assign(VT.getVectorNumElements(), SDValue());
+    SDValue Cur = V;
+    while (Cur.getOpcode() == ISD::INSERT_VECTOR_ELT) {
+      auto *CIdx = dyn_cast<ConstantSDNode>(Cur.getOperand(2));
+      if (!CIdx)
+        return false;
+      unsigned Idx = CIdx->getZExtValue();
+      if (Idx >= Elts.size() || Elts[Idx])
+        return false;
+      Elts[Idx] = Cur.getOperand(1);
+      Cur = Cur.getOperand(0);
+    }
+    if (!Cur.isUndef())
+      return false;
+    for (SDValue Elt : Elts)
+      if (!Elt)
+        return false;
+  } else {
+    return false;
+  }
+
+  MMANode = nullptr;
+  for (unsigned I = 0, E = Elts.size(); I != E; ++I) {
+    SDValue Elt = Elts[I];
+    if (Elt.getOpcode() != RISCVISD::VENTUS_MMA || Elt.getResNo() != I)
+      return false;
+    if (!MMANode)
+      MMANode = Elt.getNode();
+    else if (MMANode != Elt.getNode())
+      return false;
+  }
+  return true;
 }
 
 // Grow V to consume an entire RVV register.
