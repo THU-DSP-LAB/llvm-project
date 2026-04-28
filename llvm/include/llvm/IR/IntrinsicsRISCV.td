@@ -165,15 +165,17 @@ class RISCVVIntrinsic {
 
 let TargetPrefix = "riscv" in {
 def int_riscv_ventus_barrier : Intrinsic<[], [llvm_i32_ty],
-                          [ImmArg<ArgIndex<0>>,IntrNoMem, IntrHasSideEffects]>;
+                          [ImmArg<ArgIndex<0>>, IntrNoMem,
+                           IntrHasSideEffects, IntrConvergent]>;
 def int_riscv_ventus_barrier_with_scope : Intrinsic<[], [llvm_i32_ty, llvm_i32_ty],
-                      [ImmArg<ArgIndex<0>>,ImmArg<ArgIndex<1>>,
-                      IntrNoMem, IntrHasSideEffects]>;
+                      [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
+                       IntrNoMem, IntrHasSideEffects, IntrConvergent]>;
 def int_riscv_ventus_subgroup_barrier : Intrinsic<[], [llvm_i32_ty],
-                          [ImmArg<ArgIndex<0>>,IntrNoMem, IntrHasSideEffects]>;
+                          [ImmArg<ArgIndex<0>>, IntrNoMem,
+                           IntrHasSideEffects, IntrConvergent]>;
 def int_riscv_ventus_subgroup_barrier_with_scope : Intrinsic<[], [llvm_i32_ty, llvm_i32_ty],
-                      [ImmArg<ArgIndex<0>>,ImmArg<ArgIndex<1>>,
-                      IntrNoMem, IntrHasSideEffects]>;
+                      [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
+                       IntrNoMem, IntrHasSideEffects, IntrConvergent]>;
   // We use anyint here but we only support XLen.
   def int_riscv_vsetvli   : Intrinsic<[llvm_anyint_ty],
                            /* AVL */  [LLVMMatchType<0>,
