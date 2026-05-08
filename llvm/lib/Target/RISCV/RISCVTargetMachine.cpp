@@ -70,6 +70,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeVentusPrintfRuntimeBindingPass(*PR);
   initializeVentusPromoteAllocaPass(*PR);
   initializeVentusInsertSGPRKeepAlivePass(*PR);
+  initializeVentusSGPRSIMTCheckerPass(*PR);
   initializeVentusRemoveSGPRKeepAlivePass(*PR);
 }
 
@@ -329,6 +330,7 @@ void RISCVPassConfig::addPreRegAlloc() {
 }
 
 void RISCVPassConfig::addPostRegAlloc() {
+  addPass(createVentusSGPRSIMTCheckerPass());
   addPass(createVentusRemoveSGPRKeepAlivePass());
   if (TM->getOptLevel() != CodeGenOpt::None && EnableRedundantCopyElimination)
     addPass(createRISCVRedundantCopyEliminationPass());

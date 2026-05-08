@@ -1,0 +1,46 @@
+# RUN: not --crash llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-sgpr-simt-checker %s -o /dev/null 2>&1 | FileCheck %s
+
+# CHECK: Ventus SGPR SIMT sibling clobber in function 'sgpr_sibling_regmask_clobber'
+# CHECK: register $x7 is used as live-in in sibling block #1 but defined in sibling block #2
+# CHECK: live-in use:
+# CHECK: sibling def: {{.*}}PseudoCALL
+
+--- |
+  target triple = "riscv32"
+
+  declare void @callee()
+
+  define void @sgpr_sibling_regmask_clobber() {
+    ret void
+  }
+...
+---
+name:            sgpr_sibling_regmask_clobber
+tracksRegLiveness: true
+body:             |
+  bb.0:
+    successors: %bb.1, %bb.2
+    liveins: $v0, $v1, $x7
+
+    VBLT $v0, $v1, %bb.1, implicit-def dead $x6
+    PseudoBR %bb.2
+
+  bb.1:
+    successors: %bb.3
+    liveins: $v0, $x7
+
+    $v2 = VADD_VX $v0, killed $x7
+    PseudoBR %bb.3
+
+  bb.2:
+    successors: %bb.3
+
+    PseudoCALL target-flags(riscv-call) @callee, csr_ilp32_lp64, implicit-def dead $x1, implicit-def $x2, implicit-def $x4
+    PseudoBR %bb.3
+
+  bb.3:
+    liveins: $v2, $x7
+
+    PseudoSGPRKeepAlive $x7
+    PseudoRET
+...

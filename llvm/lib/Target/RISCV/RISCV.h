@@ -88,6 +88,9 @@ void initializeVentusInsertSGPRKeepAlivePass(PassRegistry &);
 FunctionPass *createVentusRemoveSGPRKeepAlivePass();
 void initializeVentusRemoveSGPRKeepAlivePass(PassRegistry &);
 
+FunctionPass *createVentusSGPRSIMTCheckerPass();
+void initializeVentusSGPRSIMTCheckerPass(PassRegistry &);
+
 FunctionPass *createVentusPromoteAllocaPass();
 void initializeVentusPromoteAllocaPass(PassRegistry &);
 extern char &VentusPromoteAllocaID;
