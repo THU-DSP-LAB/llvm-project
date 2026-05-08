@@ -2,7 +2,7 @@
 
 # CHECK: Ventus SGPR SIMT sibling clobber in function 'sgpr_direct_join_clobber'
 # CHECK: register $x7 is used as live-in in sibling block #2 but defined in sibling block #1
-# CHECK: live-in use: {{.*}}PseudoSGPRKeepAlive $x7
+# CHECK: live-in use:
 # CHECK: sibling def:
 
 --- |

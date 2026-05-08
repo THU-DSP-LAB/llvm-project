@@ -1,0 +1,154 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=greedy,virtregrewriter,ventus-sgpr-simt-checker %s -o - \
+# RUN:   | FileCheck %s
+
+# CHECK-LABEL: name: simt_shadow_sibling_def
+# CHECK: VADD_VX
+# CHECK: ADDI
+# CHECK-LABEL: name: simt_shadow_regmask
+# CHECK: VADD_VX
+# CHECK: PseudoCALL
+# CHECK-LABEL: name: simt_shadow_regmask_with_virt_interference
+# CHECK: SW $x7
+# CHECK: LW %stack
+# CHECK: VADD_VX
+# CHECK: PseudoCALL
+
+--- |
+  target triple = "riscv32"
+
+  declare void @callee()
+
+  define spir_kernel void @simt_shadow_sibling_def() {
+    ret void
+  }
+
+  define spir_kernel void @simt_shadow_regmask() {
+    ret void
+  }
+
+  define spir_kernel void @simt_shadow_regmask_with_virt_interference() {
+    ret void
+  }
+...
+---
+name:            simt_shadow_sibling_def
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: vgpr }
+  - { id: 2, class: gpr }
+  - { id: 3, class: gpr }
+  - { id: 4, class: vgpr }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+  - { reg: '$v1', virtual-reg: '%1' }
+  - { reg: '$x7', virtual-reg: '%2' }
+body:             |
+  bb.0:
+    successors: %bb.1, %bb.2
+    liveins: $v0, $v1, $x7
+
+    %1:vgpr = COPY $v1
+    %0:vgpr = COPY $v0
+    %2:gpr = COPY $x7
+    VBLT %0:vgpr, %1:vgpr, %bb.1, implicit-def dead $x6
+    PseudoBR %bb.2
+
+  bb.1:
+    successors: %bb.3
+
+    %4:vgpr = VADD_VX %0:vgpr, killed %2:gpr
+    PseudoBR %bb.3
+
+  bb.2:
+    successors: %bb.3
+
+    %3:gpr = ADDI $x0, 7
+    $x28 = COPY killed %3:gpr
+    PseudoBR %bb.3
+
+  bb.3:
+    liveins: $x28
+
+    PseudoRET
+...
+---
+name:            simt_shadow_regmask
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: vgpr }
+  - { id: 2, class: gpr }
+  - { id: 3, class: vgpr }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+  - { reg: '$v1', virtual-reg: '%1' }
+  - { reg: '$x7', virtual-reg: '%2' }
+body:             |
+  bb.0:
+    successors: %bb.1, %bb.2
+    liveins: $v0, $v1, $x7
+
+    %1:vgpr = COPY $v1
+    %0:vgpr = COPY $v0
+    %2:gpr = COPY $x7
+    VBLT %0:vgpr, %1:vgpr, %bb.1, implicit-def dead $x6
+    PseudoBR %bb.2
+
+  bb.1:
+    successors: %bb.3
+
+    %3:vgpr = VADD_VX %0:vgpr, killed %2:gpr
+    PseudoBR %bb.3
+
+  bb.2:
+    successors: %bb.3
+
+    PseudoCALL target-flags(riscv-call) @callee, csr_ilp32_lp64, implicit-def dead $x1, implicit-def $x2, implicit-def $x4
+    PseudoBR %bb.3
+
+  bb.3:
+    PseudoRET
+...
+---
+name:            simt_shadow_regmask_with_virt_interference
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: vgpr }
+  - { id: 2, class: gpr }
+  - { id: 3, class: gpr }
+  - { id: 4, class: vgpr }
+  - { id: 5, class: gpr, preferred-register: '$x5' }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+  - { reg: '$v1', virtual-reg: '%1' }
+  - { reg: '$x7', virtual-reg: '%2' }
+body:             |
+  bb.0:
+    successors: %bb.1, %bb.2
+    liveins: $v0, $v1, $x7
+
+    %1:vgpr = COPY $v1
+    %0:vgpr = COPY $v0
+    %2:gpr = COPY $x7
+    VBLT %0:vgpr, %1:vgpr, %bb.1, implicit-def dead $x6
+    PseudoBR %bb.2
+
+  bb.1:
+    successors: %bb.3
+
+    %5:gpr = ADDI $x0, 7
+    %4:vgpr = VADD_VX %0:vgpr, killed %5:gpr
+    %4:vgpr = VADD_VX %0:vgpr, killed %2:gpr
+    PseudoBR %bb.3
+
+  bb.2:
+    successors: %bb.3
+
+    PseudoCALL target-flags(riscv-call) @callee, csr_ilp32_lp64, implicit-def dead $x1, implicit-def $x2, implicit-def $x4
+    PseudoBR %bb.3
+
+  bb.3:
+    PseudoRET
+...

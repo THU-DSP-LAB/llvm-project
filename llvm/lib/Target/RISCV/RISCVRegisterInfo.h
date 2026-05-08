@@ -14,6 +14,7 @@
 #define LLVM_LIB_TARGET_RISCV_RISCVREGISTERINFO_H
 
 #include "llvm/CodeGen/TargetRegisterInfo.h"
+#include <memory>
 
 #define GET_REGINFO_HEADER
 #include "RISCVGenRegisterInfo.inc"
@@ -148,6 +149,11 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
                              SmallVectorImpl<MCPhysReg> &Hints,
                              const MachineFunction &MF, const VirtRegMap *VRM,
                              const LiveRegMatrix *Matrix) const override;
+
+  std::unique_ptr<RegAllocExtraInterference>
+  createRegAllocExtraInterference(MachineFunction &MF, LiveIntervals &LIS,
+                                  VirtRegMap &VRM,
+                                  LiveRegMatrix &Matrix) const override;
 };
 } // namespace llvm
 

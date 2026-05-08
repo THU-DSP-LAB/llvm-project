@@ -14,11 +14,14 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachinePostDominators.h"
+#include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -53,6 +56,8 @@ struct SiblingSGPRAccessInfo {
   DenseMap<Register, MachineInstr *> LiveInUses;
   DenseMap<Register, MachineInstr *> Defs;
 };
+
+using SGPRDefMap = DenseMap<Register, MachineInstr *>;
 
 static bool isDivergentBranchOpcode(unsigned Opcode) {
   switch (Opcode) {
@@ -134,23 +139,63 @@ static bool isPhysicalSGPR(Register Reg) {
 
 static void recordSGPRDef(Register Reg, MachineInstr &MI,
                           DenseSet<Register> &BlockDefs,
-                          SiblingSGPRAccessInfo &Info) {
+                          SGPRDefMap &Defs) {
   if (!isPhysicalSGPR(Reg))
     return;
 
   BlockDefs.insert(Reg);
-  Info.Defs.try_emplace(Reg, &MI);
+  Defs.try_emplace(Reg, &MI);
 }
 
 static void recordSGPRRegMaskClobbers(const MachineOperand &MO,
                                       MachineInstr &MI,
                                       DenseSet<Register> &BlockDefs,
-                                      SiblingSGPRAccessInfo &Info) {
+                                      SGPRDefMap &Defs) {
   assert(MO.isRegMask() && "expected a regmask operand");
 
   for (MCPhysReg Reg : RISCV::GPRRegClass)
     if (Reg != RISCV::X0 && MO.clobbersPhysReg(Reg))
-      recordSGPRDef(Register(Reg), MI, BlockDefs, Info);
+      recordSGPRDef(Register(Reg), MI, BlockDefs, Defs);
+}
+
+static void eraseRestoredSGPRDef(Register Reg, SGPRDefMap &Defs,
+                                 const TargetRegisterInfo &TRI) {
+  if (!isPhysicalSGPR(Reg))
+    return;
+
+  SmallVector<Register, 4> Restored;
+  for (const auto &Entry : Defs)
+    if (TRI.regsOverlap(Reg.asMCReg(), Entry.first.asMCReg()))
+      Restored.push_back(Entry.first);
+
+  for (Register RestoredReg : Restored)
+    Defs.erase(RestoredReg);
+}
+
+static bool mergeSGPRDefs(SGPRDefMap &Into, const SGPRDefMap &From) {
+  bool Changed = false;
+  for (const auto &Entry : From)
+    Changed |= Into.try_emplace(Entry.first, Entry.second).second;
+  return Changed;
+}
+
+static bool isSGPRSpillReload(const MachineFunction &MF,
+                              const MachineInstr &MI) {
+  if (MI.getOpcode() != RISCV::LW)
+    return false;
+
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
+  for (const MachineMemOperand *MMO : MI.memoperands()) {
+    const PseudoSourceValue *PSV = MMO->getPseudoValue();
+    if (!PSV || PSV->kind() != PseudoSourceValue::FixedStack)
+      continue;
+
+    int FI = cast<FixedStackPseudoSourceValue>(PSV)->getFrameIndex();
+    if (MFI.getStackID(FI) == TargetStackID::SGPRSpill)
+      return true;
+  }
+
+  return false;
 }
 
 static bool hasSeenDef(Register Reg, const DenseSet<Register> &Defs,
@@ -170,55 +215,106 @@ static bool isSiblingRootLiveIn(Register Reg, const SiblingSGPRAccessInfo &Info,
   return false;
 }
 
-static void collectSiblingAccessInfo(SiblingSGPRAccessInfo &Info,
+static SGPRDefMap transferSiblingBlock(MachineFunction &MF,
+                                       SiblingSGPRAccessInfo &Info,
+                                       MachineBasicBlock &MBB,
+                                       const SGPRDefMap &In,
+                                       const TargetRegisterInfo &TRI) {
+  SGPRDefMap State = In;
+  DenseSet<Register> BlockDefs;
+  for (MachineInstr &MI : MBB) {
+    if (MI.isDebugInstr())
+      continue;
+    if (MI.getOpcode() == RISCV::PseudoSGPRKeepAliveBlock)
+      continue;
+
+    for (const MachineOperand &MO : MI.operands()) {
+      if (!MO.isReg() || !MO.isUse())
+        continue;
+
+      Register Reg = MO.getReg();
+      if (!isPhysicalSGPR(Reg) || !MBB.isLiveIn(Reg.asMCReg()))
+        continue;
+      if (!isSiblingRootLiveIn(Reg, Info, TRI))
+        continue;
+      if (hasSeenDef(Reg, BlockDefs, TRI))
+        continue;
+
+      Info.LiveInUses.try_emplace(Reg, &MI);
+    }
+
+    for (const MachineOperand &MO : MI.operands()) {
+      if (MO.isRegMask()) {
+        recordSGPRRegMaskClobbers(MO, MI, BlockDefs, State);
+        continue;
+      }
+
+      if (!MO.isReg() || !MO.isDef())
+        continue;
+
+      Register Reg = MO.getReg();
+      if (isSGPRSpillReload(MF, MI)) {
+        if (isPhysicalSGPR(Reg))
+          BlockDefs.insert(Reg);
+        eraseRestoredSGPRDef(Reg, State, TRI);
+      } else {
+        recordSGPRDef(Reg, MI, BlockDefs, State);
+      }
+    }
+  }
+  return State;
+}
+
+static void collectSiblingAccessInfo(MachineFunction &MF,
+                                     SiblingSGPRAccessInfo &Info,
+                                     MachineBasicBlock &JoinBB,
                                      const TargetRegisterInfo &TRI) {
-  for (MachineBasicBlock *MBB : Info.Blocks) {
-    DenseSet<Register> BlockDefs;
-    for (MachineInstr &MI : *MBB) {
-      if (MI.isDebugInstr())
+  DenseSet<MachineBasicBlock *> ComponentBlocks(Info.Blocks.begin(),
+                                                Info.Blocks.end());
+  DenseMap<MachineBasicBlock *, SGPRDefMap> InDefs;
+  DenseMap<MachineBasicBlock *, SGPRDefMap> OutDefs;
+  SmallVector<MachineBasicBlock *, 8> Worklist;
+  DenseSet<MachineBasicBlock *> Queued;
+  DenseSet<MachineBasicBlock *> Processed;
+  Worklist.push_back(Info.RootBB);
+  Queued.insert(Info.RootBB);
+
+  while (!Worklist.empty()) {
+    MachineBasicBlock *MBB = Worklist.pop_back_val();
+    Queued.erase(MBB);
+
+    SGPRDefMap Out = transferSiblingBlock(MF, Info, *MBB, InDefs[MBB], TRI);
+    bool FirstVisit = Processed.insert(MBB).second;
+    bool OutChanged = mergeSGPRDefs(OutDefs[MBB], Out);
+    if (!FirstVisit && !OutChanged)
+      continue;
+
+    for (MachineBasicBlock *Succ : MBB->successors()) {
+      if (Succ == &JoinBB) {
+        mergeSGPRDefs(Info.Defs, OutDefs[MBB]);
         continue;
-      if (MI.getOpcode() == RISCV::PseudoSGPRKeepAliveBlock)
+      }
+      if (!ComponentBlocks.contains(Succ))
         continue;
-
-      for (const MachineOperand &MO : MI.operands()) {
-        if (!MO.isReg() || !MO.isUse())
-          continue;
-
-        Register Reg = MO.getReg();
-        if (!isPhysicalSGPR(Reg) || !MBB->isLiveIn(Reg.asMCReg()))
-          continue;
-        if (!isSiblingRootLiveIn(Reg, Info, TRI))
-          continue;
-        if (hasSeenDef(Reg, BlockDefs, TRI))
-          continue;
-
-        Info.LiveInUses.try_emplace(Reg, &MI);
-      }
-
-      for (const MachineOperand &MO : MI.operands()) {
-        if (MO.isRegMask()) {
-          recordSGPRRegMaskClobbers(MO, MI, BlockDefs, Info);
-          continue;
-        }
-
-        if (!MO.isReg() || !MO.isDef())
-          continue;
-
-        Register Reg = MO.getReg();
-        recordSGPRDef(Reg, MI, BlockDefs, Info);
-      }
+      bool InChanged = mergeSGPRDefs(InDefs[Succ], OutDefs[MBB]);
+      if (!InChanged && Processed.contains(Succ))
+        continue;
+      if (Queued.insert(Succ).second)
+        Worklist.push_back(Succ);
     }
   }
 }
 
-static void collectJoinKeepAliveAccessInfo(SiblingSGPRAccessInfo &Info,
-                                           MachineBasicBlock &JoinBB) {
+static void collectJoinAccessInfo(SiblingSGPRAccessInfo &Info,
+                                  MachineBasicBlock &JoinBB,
+                                  const TargetRegisterInfo &TRI) {
   Info.RootBB = &JoinBB;
 
+  DenseSet<Register> BlockDefs;
   for (MachineInstr &MI : JoinBB) {
     if (MI.isDebugInstr())
       continue;
-    if (MI.getOpcode() != RISCV::PseudoSGPRKeepAlive)
+    if (MI.getOpcode() == RISCV::PseudoSGPRKeepAliveBlock)
       continue;
 
     for (const MachineOperand &MO : MI.operands()) {
@@ -228,9 +324,15 @@ static void collectJoinKeepAliveAccessInfo(SiblingSGPRAccessInfo &Info,
       Register Reg = MO.getReg();
       if (!isPhysicalSGPR(Reg) || !JoinBB.isLiveIn(Reg.asMCReg()))
         continue;
+      if (hasSeenDef(Reg, BlockDefs, TRI))
+        continue;
 
       Info.LiveInUses.try_emplace(Reg, &MI);
     }
+
+    for (const MachineOperand &MO : MI.operands())
+      if (MO.isReg() && MO.isDef())
+        BlockDefs.insert(MO.getReg());
   }
 }
 
@@ -301,12 +403,12 @@ static void verifyNoSIMTSiblingSGPRClobber(MachineFunction &MF,
       SiblingSGPRAccessInfo Info;
       Info.RootBB = Succ;
       Info.Blocks = collectSiblingBlocks(*Succ, *JoinBB);
-      collectSiblingAccessInfo(Info, TRI);
+      collectSiblingAccessInfo(MF, Info, *JoinBB, TRI);
       Siblings.push_back(std::move(Info));
     }
 
     SiblingSGPRAccessInfo JoinInfo;
-    collectJoinKeepAliveAccessInfo(JoinInfo, *JoinBB);
+    collectJoinAccessInfo(JoinInfo, *JoinBB, TRI);
     Siblings.push_back(std::move(JoinInfo));
 
     for (unsigned I = 0, E = Siblings.size(); I < E; ++I)

@@ -14,15 +14,18 @@
 #include "RISCV.h"
 #include "RISCVMachineFunctionInfo.h"
 #include "RISCVSubtarget.h"
+#include "VentusSIMTInterference.h"
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/RegAllocExtraInterference.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/CallingConv.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
 
@@ -666,4 +669,15 @@ bool RISCVRegisterInfo::getRegAllocationHints(
       Hints.push_back(OrderReg);
 
   return BaseImplRetVal;
+}
+
+std::unique_ptr<RegAllocExtraInterference>
+RISCVRegisterInfo::createRegAllocExtraInterference(
+    MachineFunction &MF, LiveIntervals &LIS, VirtRegMap &VRM,
+    LiveRegMatrix &Matrix) const {
+  CallingConv::ID CC = MF.getFunction().getCallingConv();
+  if (CC != CallingConv::SPIR_KERNEL && CC != CallingConv::VENTUS_KERNEL)
+    return nullptr;
+
+  return createVentusSIMTInterference();
 }

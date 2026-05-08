@@ -21,6 +21,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/RegAllocExtraInterference.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/MC/LaneBitmask.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -30,6 +31,7 @@
 #include "llvm/Support/Printable.h"
 #include <cassert>
 #include <cstdint>
+#include <memory>
 
 namespace llvm {
 
@@ -883,6 +885,14 @@ public:
                         const MachineFunction &MF,
                         const VirtRegMap *VRM = nullptr,
                         const LiveRegMatrix *Matrix = nullptr) const;
+
+  /// Create target-specific extra interference used by register allocation.
+  virtual std::unique_ptr<RegAllocExtraInterference>
+  createRegAllocExtraInterference(MachineFunction &MF, LiveIntervals &LIS,
+                                  VirtRegMap &VRM,
+                                  LiveRegMatrix &Matrix) const {
+    return nullptr;
+  }
 
   /// A callback to allow target a chance to update register allocation hints
   /// when a register is "changed" (e.g. coalesced) to another register.
