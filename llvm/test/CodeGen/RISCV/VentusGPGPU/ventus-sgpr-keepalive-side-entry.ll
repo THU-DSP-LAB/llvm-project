@@ -1,5 +1,5 @@
-; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -stop-after=ventus-sgpr-keepalive < %s -o - | FileCheck %s --check-prefixes=MIR-SIDE,MIR-SYNTH
-; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -stop-after=ventus-remove-sgpr-keepalive < %s -o - | FileCheck %s --check-prefixes=REMOVE-SIDE,REMOVE-SYNTH
+; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -ventus-use-legacy-sgpr-keepalive -stop-after=ventus-sgpr-keepalive < %s -o - | FileCheck %s --check-prefixes=MIR-SIDE,MIR-SYNTH
+; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -ventus-use-legacy-sgpr-keepalive -stop-after=ventus-remove-sgpr-keepalive < %s -o - | FileCheck %s --check-prefixes=REMOVE-SIDE,REMOVE-SYNTH
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs < %s -o /dev/null
 
 target datalayout = "e-m:e-p:32:32-i64:64-n32-S128"

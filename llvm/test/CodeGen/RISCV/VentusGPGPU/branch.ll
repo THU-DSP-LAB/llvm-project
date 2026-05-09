@@ -7,7 +7,6 @@ define i32 @foo(i32 noundef %cond, i32 noundef %a, i32 noundef %b, i32 noundef %
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    vmv.v.x v5, zero
-; VENTUS-NEXT:    regexti zero, zero, 0
 ; VENTUS-NEXT:    vrsub.vi v4, v3, 0
 ; VENTUS-NEXT:  .Lpcrel_hi0:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB0_2)

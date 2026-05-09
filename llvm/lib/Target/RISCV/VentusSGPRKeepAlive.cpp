@@ -25,6 +25,7 @@
 #include "llvm/CodeGen/MachinePostDominators.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/InitializePasses.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
@@ -32,6 +33,11 @@ using namespace llvm;
 #define DEBUG_TYPE "ventus-sgpr-keepalive"
 
 namespace {
+
+static cl::opt<bool> UseLegacySGPRKeepAlive(
+    "ventus-use-legacy-sgpr-keepalive", cl::Hidden, cl::init(false),
+    cl::desc("Enable legacy Ventus SGPR keepalive insertion before register "
+             "allocation"));
 
 class VentusInsertSGPRKeepAlive : public MachineFunctionPass {
 public:
@@ -399,6 +405,9 @@ bool VentusInsertSGPRKeepAlive::runOnMachineFunction(MachineFunction &MF) {
     MDT->getBase().recalculate(MF);
     MPDT->getBase().recalculate(MF);
   }
+
+  if (!UseLegacySGPRKeepAlive)
+    return Changed;
 
   SmallVector<BranchKeepAliveInfo, 8> BranchInfos;
   for (MachineBasicBlock &MBB : MF) {

@@ -1,4 +1,4 @@
-# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-sgpr-keepalive \
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -ventus-use-legacy-sgpr-keepalive -run-pass=ventus-sgpr-keepalive \
 # RUN:   -verify-machineinstrs -simplify-mir %s -o - | FileCheck %s
 
 --- |

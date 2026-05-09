@@ -1,10 +1,13 @@
-; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -stop-after=ventus-sgpr-keepalive < %s -o - | FileCheck %s --check-prefixes=MIR,MIR-NODIV,MIR-LOOP
+; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -stop-after=ventus-sgpr-keepalive < %s -o - | FileCheck %s --check-prefix=DISABLED
+; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -ventus-use-legacy-sgpr-keepalive -stop-after=ventus-sgpr-keepalive < %s -o - | FileCheck %s --check-prefixes=MIR,MIR-NODIV,MIR-LOOP
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs < %s -o /dev/null
 
 target datalayout = "e-m:e-p:32:32-i64:64-n32-S128"
 target triple = "riscv32-unknown-unknown"
 
 declare i32 @_Z13get_global_idj(i32 noundef)
+
+; DISABLED-NOT: PseudoSGPRKeepAlive
 
 define dso_local ventus_kernel void @keepalive_switch(ptr addrspace(1) %out) {
 ; MIR-LABEL: name: keepalive_switch

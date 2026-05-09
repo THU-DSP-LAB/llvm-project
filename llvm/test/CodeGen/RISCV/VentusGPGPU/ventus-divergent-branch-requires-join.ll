@@ -1,4 +1,4 @@
-; RUN: not --crash llc -mtriple=riscv32 -mcpu=ventus-gpgpu -stop-after=ventus-sgpr-keepalive < %s -o /dev/null 2>&1 | FileCheck %s
+; RUN: not --crash llc -mtriple=riscv32 -mcpu=ventus-gpgpu -ventus-use-legacy-sgpr-keepalive -stop-after=ventus-sgpr-keepalive < %s -o /dev/null 2>&1 | FileCheck %s
 
 target datalayout = "e-m:e-p:32:32-i64:64-n32-S128"
 target triple = "riscv32-unknown-unknown"

@@ -4,6 +4,12 @@
 # CHECK-LABEL: name: simt_shadow_sibling_def
 # CHECK: VADD_VX
 # CHECK: ADDI
+# CHECK-LABEL: name: simt_shadow_spir_func_sibling_def
+# CHECK: VADD_VX
+# CHECK: ADDI
+# CHECK-LABEL: name: simt_shadow_c_helper_sibling_def
+# CHECK: VADD_VX
+# CHECK: ADDI
 # CHECK-LABEL: name: simt_shadow_regmask
 # CHECK: VADD_VX
 # CHECK: PseudoCALL
@@ -22,6 +28,14 @@
     ret void
   }
 
+  define spir_func void @simt_shadow_spir_func_sibling_def() {
+    ret void
+  }
+
+  define void @simt_shadow_c_helper_sibling_def() {
+    ret void
+  }
+
   define spir_kernel void @simt_shadow_regmask() {
     ret void
   }
@@ -32,6 +46,90 @@
 ...
 ---
 name:            simt_shadow_sibling_def
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: vgpr }
+  - { id: 2, class: gpr }
+  - { id: 3, class: gpr }
+  - { id: 4, class: vgpr }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+  - { reg: '$v1', virtual-reg: '%1' }
+  - { reg: '$x7', virtual-reg: '%2' }
+body:             |
+  bb.0:
+    successors: %bb.1, %bb.2
+    liveins: $v0, $v1, $x7
+
+    %1:vgpr = COPY $v1
+    %0:vgpr = COPY $v0
+    %2:gpr = COPY $x7
+    VBLT %0:vgpr, %1:vgpr, %bb.1, implicit-def dead $x6
+    PseudoBR %bb.2
+
+  bb.1:
+    successors: %bb.3
+
+    %4:vgpr = VADD_VX %0:vgpr, killed %2:gpr
+    PseudoBR %bb.3
+
+  bb.2:
+    successors: %bb.3
+
+    %3:gpr = ADDI $x0, 7
+    $x28 = COPY killed %3:gpr
+    PseudoBR %bb.3
+
+  bb.3:
+    liveins: $x28
+
+    PseudoRET
+...
+---
+name:            simt_shadow_spir_func_sibling_def
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: vgpr }
+  - { id: 2, class: gpr }
+  - { id: 3, class: gpr }
+  - { id: 4, class: vgpr }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+  - { reg: '$v1', virtual-reg: '%1' }
+  - { reg: '$x7', virtual-reg: '%2' }
+body:             |
+  bb.0:
+    successors: %bb.1, %bb.2
+    liveins: $v0, $v1, $x7
+
+    %1:vgpr = COPY $v1
+    %0:vgpr = COPY $v0
+    %2:gpr = COPY $x7
+    VBLT %0:vgpr, %1:vgpr, %bb.1, implicit-def dead $x6
+    PseudoBR %bb.2
+
+  bb.1:
+    successors: %bb.3
+
+    %4:vgpr = VADD_VX %0:vgpr, killed %2:gpr
+    PseudoBR %bb.3
+
+  bb.2:
+    successors: %bb.3
+
+    %3:gpr = ADDI $x0, 7
+    $x28 = COPY killed %3:gpr
+    PseudoBR %bb.3
+
+  bb.3:
+    liveins: $x28
+
+    PseudoRET
+...
+---
+name:            simt_shadow_c_helper_sibling_def
 tracksRegLiveness: true
 registers:
   - { id: 0, class: vgpr }

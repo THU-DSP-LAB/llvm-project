@@ -36,7 +36,11 @@ public:
   virtual void assign(const LiveInterval &VirtReg, MCRegister PhysReg,
                       LiveRegMatrix &Matrix) = 0;
 
-  virtual void unassign(const LiveInterval &VirtReg, MCRegister PhysReg,
+  /// Remove target-provided matrix entries for \p VirtReg.
+  /// Returns true if the target inserted matrix entries outside VirtReg's
+  /// ordinary live range and LiveRegMatrix must remove all entries owned by
+  /// VirtReg.
+  virtual bool unassign(const LiveInterval &VirtReg, MCRegister PhysReg,
                         LiveRegMatrix &Matrix) = 0;
 
   virtual void invalidateVirtRegs() = 0;

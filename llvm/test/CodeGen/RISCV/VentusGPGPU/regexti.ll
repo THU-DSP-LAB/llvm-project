@@ -70,7 +70,7 @@ define dso_local i32 @regexti3(i32 noundef %a) {
 ; CHECK-LABEL: regexti3:
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    regexti zero, zero, 448
-; CHECK-NEXT:    vnot.v v0, v0
+; CHECK-NEXT:    vxor.vi v0, v0, -1
 ; CHECK-NEXT:    ret
 entry:
   %res = xor i32 %a, 255
@@ -242,8 +242,8 @@ declare dso_local i32 @_Z12get_local_idj(i32 noundef)
 define dso_local i32 @regexti14(i32 noundef %a) {
 ; CHECK-LABEL: regexti14:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    regexti	zero, zero, 0
-; CHECK-NEXT:    vor.vi	v0, v0, -16
+; CHECK-NEXT:    regexti zero, zero, 0
+; CHECK-NEXT:    vor.vi v0, v0, -16
 ; CHECK-NEXT:    ret
 entry:
   %res = or i32 %a, 16
@@ -253,8 +253,8 @@ entry:
 define dso_local i32 @regexti15(i32 noundef %a) {
 ; CHECK-LABEL: regexti15:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    regexti	zero, zero, 64 
-; CHECK-NEXT:    vor.vi	v0, v0, -16
+; CHECK-NEXT:    regexti zero, zero, 64
+; CHECK-NEXT:    vor.vi v0, v0, -16
 ; CHECK-NEXT:    ret
 entry:
   %res = or i32 %a, 48

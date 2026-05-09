@@ -27,7 +27,6 @@
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
-#include "llvm/IR/CallingConv.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -60,7 +59,7 @@ class VentusSIMTInterference final : public RegAllocExtraInterference {
 
   SmallVector<SIMTScope, 8> Scopes;
   DenseMap<const MachineBasicBlock *, SmallVector<unsigned, 2>> ScopesByBlock;
-  DenseMap<Register, CachedShadow> AssignedShadows;
+  DenseSet<Register> AssignedShadowRegs;
 
 public:
   void analyze(MachineFunction &MF, LiveIntervals &LIS, VirtRegMap &VRM,
@@ -70,9 +69,12 @@ public:
                     LiveRegMatrix &Matrix) override;
   void assign(const LiveInterval &VirtReg, MCRegister PhysReg,
               LiveRegMatrix &Matrix) override;
-  void unassign(const LiveInterval &VirtReg, MCRegister PhysReg,
+  bool unassign(const LiveInterval &VirtReg, MCRegister PhysReg,
                 LiveRegMatrix &Matrix) override;
-  void invalidateVirtRegs() override {}
+  void invalidateVirtRegs() override {
+    // AssignedShadowRegs tracks only ownership in LiveRegMatrix. It must
+    // survive query invalidation so later unassign can remove shadow segments.
+  }
 
 private:
   void buildScopes();
@@ -139,11 +141,6 @@ getImmediatePostDominatorOrReport(MachineFunction &MF, MachineBasicBlock &MBB,
       MF.getName() + "', machine block #" + Twine(MBB.getNumber()));
 }
 
-static bool isVentusFunction(const MachineFunction &MF) {
-  CallingConv::ID CC = MF.getFunction().getCallingConv();
-  return CC == CallingConv::SPIR_KERNEL || CC == CallingConv::VENTUS_KERNEL;
-}
-
 static bool isIgnorableUse(const MachineInstr &MI) {
   return MI.isDebugInstr();
 }
@@ -184,9 +181,8 @@ void VentusSIMTInterference::analyze(MachineFunction &MF, LiveIntervals &LIS,
   MRI = &MF.getRegInfo();
   Scopes.clear();
   ScopesByBlock.clear();
-  AssignedShadows.clear();
-  if (isVentusFunction(MF))
-    buildScopes();
+  AssignedShadowRegs.clear();
+  buildScopes();
 }
 
 void VentusSIMTInterference::buildScopes() {
@@ -395,7 +391,10 @@ LiveRegMatrix::InterferenceKind VentusSIMTInterference::checkInterference(
   if (hasRegUnitInterference(Shadow.Range, PhysReg))
     return LiveRegMatrix::IK_RegUnit;
   if (hasVirtualInterference(Shadow.Range, PhysReg, Matrix))
-    return LiveRegMatrix::IK_VirtReg;
+    // Greedy can only enumerate eviction victims for VirtReg's ordinary live
+    // range, not this temporary shadow range, so report shadow virtual conflicts
+    // as non-evictable.
+    return LiveRegMatrix::IK_RegUnit;
   return LiveRegMatrix::IK_Free;
 }
 
@@ -417,16 +416,12 @@ void VentusSIMTInterference::assign(const LiveInterval &VirtReg,
   if (Shadow.Range.empty())
     return;
   insertShadow(VirtReg, PhysReg, Shadow.Range, Matrix);
-  AssignedShadows[VirtReg.reg()] = std::move(Shadow);
+  AssignedShadowRegs.insert(VirtReg.reg());
 }
 
-void VentusSIMTInterference::unassign(const LiveInterval &VirtReg,
-                                      MCRegister PhysReg,
-                                      LiveRegMatrix &Matrix) {
-  auto It = AssignedShadows.find(VirtReg.reg());
-  if (It == AssignedShadows.end())
-    return;
-  AssignedShadows.erase(It);
+bool VentusSIMTInterference::unassign(const LiveInterval &VirtReg, MCRegister,
+                                      LiveRegMatrix &) {
+  return AssignedShadowRegs.erase(VirtReg.reg());
 }
 
 } // end namespace

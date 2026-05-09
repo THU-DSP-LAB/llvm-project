@@ -671,12 +671,11 @@ bool RISCVRegisterInfo::getRegAllocationHints(
   return BaseImplRetVal;
 }
 
-std::unique_ptr<RegAllocExtraInterference>
+  std::unique_ptr<RegAllocExtraInterference>
 RISCVRegisterInfo::createRegAllocExtraInterference(
     MachineFunction &MF, LiveIntervals &LIS, VirtRegMap &VRM,
     LiveRegMatrix &Matrix) const {
-  CallingConv::ID CC = MF.getFunction().getCallingConv();
-  if (CC != CallingConv::SPIR_KERNEL && CC != CallingConv::VENTUS_KERNEL)
+  if (MF.getSubtarget<RISCVSubtarget>().getCPU() != "ventus-gpgpu")
     return nullptr;
 
   return createVentusSIMTInterference();

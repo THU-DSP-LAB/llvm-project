@@ -140,16 +140,17 @@ void LiveRegMatrix::unassign(const LiveInterval &VirtReg) {
   LLVM_DEBUG(dbgs() << "unassigning " << printReg(VirtReg.reg(), TRI)
                     << " from " << printReg(PhysReg, TRI) << ':');
 
-  bool HasExtraInterference = ExtraInterference != nullptr;
-  if (HasExtraInterference)
-    ExtraInterference->unassign(VirtReg, PhysReg.asMCReg(), *this);
+  bool HasExtraSegments = false;
+  if (ExtraInterference)
+    HasExtraSegments =
+        ExtraInterference->unassign(VirtReg, PhysReg.asMCReg(), *this);
 
   VRM->clearVirt(VirtReg.reg());
 
   foreachUnit(TRI, VirtReg, PhysReg,
               [&](unsigned Unit, const LiveRange &Range) {
                 LLVM_DEBUG(dbgs() << ' ' << printRegUnit(Unit, TRI));
-                if (HasExtraInterference)
+                if (HasExtraSegments)
                   Matrix[Unit].extractAll(VirtReg);
                 else
                   Matrix[Unit].extract(VirtReg, Range);
