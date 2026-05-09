@@ -47,6 +47,8 @@ add_llvm_target(RISCVCodeGen
   VentusSIMTInterference.cpp
   VentusInsertJoinToVBranch.cpp
   VentusLegalizeLoad.cpp
+  VentusGenericAddressSpaceNarrowing.cpp
+  VentusGenericAddressSpaceSpecialization.cpp
   VentusPromoteAlloca.cpp
   GISel/RISCVCallLowering.cpp
   GISel/RISCVInstructionSelector.cpp

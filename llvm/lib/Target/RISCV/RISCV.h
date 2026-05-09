@@ -95,6 +95,10 @@ FunctionPass *createVentusPromoteAllocaPass();
 void initializeVentusPromoteAllocaPass(PassRegistry &);
 extern char &VentusPromoteAllocaID;
 
+ModulePass *createVentusGenericAddressSpaceSpecializationPass();
+void initializeVentusGenericAddressSpaceSpecializationPass(PassRegistry &);
+extern char &VentusGenericAddressSpaceSpecializationID;
+
 InstructionSelector *createRISCVInstructionSelector(const RISCVTargetMachine &,
                                                     RISCVSubtarget &,
                                                     RISCVRegisterBankInfo &);

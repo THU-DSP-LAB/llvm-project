@@ -68,6 +68,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVPreRAExpandPseudoPass(*PR);
   initializeRISCVExpandPseudoPass(*PR);
   initializeVentusPrintfRuntimeBindingPass(*PR);
+  initializeVentusGenericAddressSpaceSpecializationPass(*PR);
   initializeVentusPromoteAllocaPass(*PR);
   initializeVentusInsertSGPRKeepAlivePass(*PR);
   initializeVentusSGPRSIMTCheckerPass(*PR);
@@ -231,6 +232,8 @@ void RISCVPassConfig::addIRPasses() {
     addPass(createSROAPass());
     addPass(createInferAddressSpacesPass());
   }
+
+  addPass(createVentusGenericAddressSpaceSpecializationPass());
 
   // Promote allocas to vector or local memory for Ventus GPU
   addPass(createVentusPromoteAllocaPass());
