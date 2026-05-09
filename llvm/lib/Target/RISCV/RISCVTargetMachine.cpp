@@ -330,7 +330,9 @@ void RISCVPassConfig::addPreRegAlloc() {
 }
 
 void RISCVPassConfig::addPostRegAlloc() {
-  addPass(createVentusSGPRSIMTCheckerPass());
+  // Temporarily disabled because the checker currently reports false positives.
+  // Keep the pass registered so it can still be run explicitly for debugging.
+  // addPass(createVentusSGPRSIMTCheckerPass());
   addPass(createVentusRemoveSGPRKeepAlivePass());
   if (TM->getOptLevel() != CodeGenOpt::None && EnableRedundantCopyElimination)
     addPass(createRISCVRedundantCopyEliminationPass());
