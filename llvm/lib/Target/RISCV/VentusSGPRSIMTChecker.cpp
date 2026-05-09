@@ -330,9 +330,21 @@ static void collectJoinAccessInfo(SiblingSGPRAccessInfo &Info,
       Info.LiveInUses.try_emplace(Reg, &MI);
     }
 
-    for (const MachineOperand &MO : MI.operands())
-      if (MO.isReg() && MO.isDef())
-        BlockDefs.insert(MO.getReg());
+    for (const MachineOperand &MO : MI.operands()) {
+      if (MO.isRegMask()) {
+        for (MCPhysReg Reg : RISCV::GPRRegClass)
+          if (Reg != RISCV::X0 && MO.clobbersPhysReg(Reg))
+            BlockDefs.insert(Register(Reg));
+        continue;
+      }
+
+      if (!MO.isReg() || !MO.isDef())
+        continue;
+
+      Register Reg = MO.getReg();
+      if (isPhysicalSGPR(Reg))
+        BlockDefs.insert(Reg);
+    }
   }
 }
 
@@ -421,6 +433,9 @@ static void verifyNoSIMTSiblingSGPRClobber(MachineFunction &MF,
 
 bool VentusSGPRSIMTChecker::runOnMachineFunction(MachineFunction &MF) {
   const RISCVSubtarget &ST = MF.getSubtarget<RISCVSubtarget>();
+  if (!ST.isVentusGPGPU())
+    return false;
+
   verifyNoSIMTSiblingSGPRClobber(MF, *ST.getInstrInfo(),
                                  getAnalysis<MachinePostDominatorTree>(),
                                  *ST.getRegisterInfo());

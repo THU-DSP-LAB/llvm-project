@@ -18,6 +18,9 @@
 # CHECK: LW %stack
 # CHECK: VADD_VX
 # CHECK: PseudoCALL
+# CHECK-LABEL: name: simt_shadow_nested_join
+# CHECK: ADDI
+# CHECK: VADD_VX
 
 --- |
   target triple = "riscv32"
@@ -41,6 +44,10 @@
   }
 
   define spir_kernel void @simt_shadow_regmask_with_virt_interference() {
+    ret void
+  }
+
+  define spir_kernel void @simt_shadow_nested_join() {
     ret void
   }
 ...
@@ -206,6 +213,64 @@ body:             |
     PseudoBR %bb.3
 
   bb.3:
+    PseudoRET
+...
+---
+name:            simt_shadow_nested_join
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: vgpr }
+  - { id: 2, class: gpr }
+  - { id: 3, class: gpr, preferred-register: '$x7' }
+  - { id: 4, class: vgpr }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+  - { reg: '$v1', virtual-reg: '%1' }
+  - { reg: '$x7', virtual-reg: '%2' }
+body:             |
+  bb.0:
+    successors: %bb.1, %bb.5
+    liveins: $v0, $v1, $x7
+
+    %1:vgpr = COPY $v1
+    %0:vgpr = COPY $v0
+    %2:gpr = COPY $x7
+    VBLT %0:vgpr, %1:vgpr, %bb.1, implicit-def dead $x6
+    PseudoBR %bb.5
+
+  bb.1:
+    successors: %bb.2, %bb.3
+
+    VBEQ %0:vgpr, %1:vgpr, %bb.2, implicit-def dead $x6
+    PseudoBR %bb.3
+
+  bb.2:
+    successors: %bb.4
+
+    PseudoBR %bb.4
+
+  bb.3:
+    successors: %bb.4
+
+    %3:gpr = ADDI $x0, 7
+    $x28 = COPY killed %3:gpr
+    PseudoBR %bb.4
+
+  bb.4:
+    successors: %bb.6
+
+    %4:vgpr = VADD_VX %0:vgpr, killed %2:gpr
+    PseudoBR %bb.6
+
+  bb.5:
+    successors: %bb.6
+
+    PseudoBR %bb.6
+
+  bb.6:
+    liveins: $x28
+
     PseudoRET
 ...
 ---

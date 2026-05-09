@@ -675,7 +675,7 @@ bool RISCVRegisterInfo::getRegAllocationHints(
 RISCVRegisterInfo::createRegAllocExtraInterference(
     MachineFunction &MF, LiveIntervals &LIS, VirtRegMap &VRM,
     LiveRegMatrix &Matrix) const {
-  if (MF.getSubtarget<RISCVSubtarget>().getCPU() != "ventus-gpgpu")
+  if (!MF.getSubtarget<RISCVSubtarget>().isVentusGPGPU())
     return nullptr;
 
   return createVentusSIMTInterference();

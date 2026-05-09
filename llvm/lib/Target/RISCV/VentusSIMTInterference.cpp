@@ -59,6 +59,8 @@ class VentusSIMTInterference final : public RegAllocExtraInterference {
 
   SmallVector<SIMTScope, 8> Scopes;
   DenseMap<const MachineBasicBlock *, SmallVector<unsigned, 2>> ScopesByBlock;
+  DenseMap<const MachineBasicBlock *, SmallVector<unsigned, 2>>
+      ScopesByJoinBlock;
   DenseSet<Register> AssignedShadowRegs;
 
 public:
@@ -181,6 +183,7 @@ void VentusSIMTInterference::analyze(MachineFunction &MF, LiveIntervals &LIS,
   MRI = &MF.getRegInfo();
   Scopes.clear();
   ScopesByBlock.clear();
+  ScopesByJoinBlock.clear();
   AssignedShadowRegs.clear();
   buildScopes();
 }
@@ -238,6 +241,7 @@ void VentusSIMTInterference::addScope(MachineBasicBlock &BranchBB,
   for (const auto &CompBlocks : Scope.Components)
     for (MachineBasicBlock *MBB : CompBlocks)
       ScopesByBlock[MBB].push_back(ScopeID);
+  ScopesByJoinBlock[&JoinBB].push_back(ScopeID);
   Scopes.push_back(std::move(Scope));
 }
 
@@ -278,6 +282,9 @@ VentusSIMTInterference::computeShadowRange(const LiveInterval &LI,
 
   DenseMap<unsigned, BitVector> UsedComponents;
   for (const MachineOperand &MO : MRI->use_nodbg_operands(LI.reg())) {
+    if (MO.isUndef())
+      continue;
+
     const MachineInstr &UseMI = *MO.getParent();
     if (isIgnorableUse(UseMI))
       continue;
@@ -297,14 +304,14 @@ VentusSIMTInterference::computeShadowRange(const LiveInterval &LI,
           Comps.resize(Scope.Components.size());
         Comps.set(CompIt->second);
       }
-      continue;
     }
 
-    for (unsigned ScopeID = 0, ScopeE = Scopes.size(); ScopeID != ScopeE;
-         ++ScopeID) {
+    auto JoinScopeIt = ScopesByJoinBlock.find(UseMI.getParent());
+    if (JoinScopeIt == ScopesByJoinBlock.end())
+      continue;
+
+    for (unsigned ScopeID : JoinScopeIt->second) {
       const SIMTScope &Scope = Scopes[ScopeID];
-      if (UseMI.getParent() != Scope.JoinBB)
-        continue;
       if (UseMI.getOpcode() == RISCV::PseudoSGPRKeepAliveBlock)
         continue;
       if (!needsScopeShadow(LI, Scope, MO))

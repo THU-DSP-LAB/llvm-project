@@ -207,6 +207,7 @@ public:
   bool hasLUIADDIFusion() const { return HasLUIADDIFusion; }
   bool hasForcedAtomics() const { return HasForcedAtomics; }
   bool hasOptimizedZeroStrideLoad() const { return HasOptimizedZeroStrideLoad; }
+  bool isVentusGPGPU() const { return getCPU() == "ventus-gpgpu"; }
   MVT getXLenVT() const { return XLenVT; }
   unsigned getXLen() const { return XLen; }
   unsigned getFLen() const {
