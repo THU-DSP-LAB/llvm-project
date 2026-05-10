@@ -4,26 +4,19 @@ LIBCLC_DIR=$1
 LIBCLC_BUILD_DIR=$2
 BINARY_DIR=$3
 
-# Collect all the object files in build directory
-OBJECT_FILE_LIST=""
-for item in $(find ${LIBCLC_BUILD_DIR} -name "*.bc.o")
-do
-    OBJECT_FILE_LIST="${OBJECT_FILE_LIST} ${item}"
-done
+BUILTINS_BC=${LIBCLC_BUILD_DIR}/builtins.link.riscv32--.bc
+OUTPUT_OBJ=${LIBCLC_BUILD_DIR}/riscv32clc.o
 
-# Compile other left IR files
-for item in $(ls ${LIBCLC_DIR}/generic/lib | grep  ll)
-do
-    ${BINARY_DIR}/bin/clang -target riscv32 -mcpu=ventus-gpgpu \
-        -cl-std=CL2.0 \
-        -Wno-override-module \
-        -ffunction-sections -fdata-sections \
-        -c ${LIBCLC_DIR}/generic/lib/${item} \
-        -o ${LIBCLC_BUILD_DIR}/${item}.o
-    OBJECT_FILE_LIST="${OBJECT_FILE_LIST} ${LIBCLC_BUILD_DIR}/${item}.o"
-done
+if [ ! -f "${BUILTINS_BC}" ]; then
+    echo "missing linked libclc bitcode: ${BUILTINS_BC}" >&2
+    exit 1
+fi
 
-${BINARY_DIR}/bin/ld.lld --relocatable ${OBJECT_FILE_LIST} \
-            --allow-multiple-definition \
-             -o ${LIBCLC_BUILD_DIR}/riscv32clc.o
-cp ${LIBCLC_BUILD_DIR}/riscv32clc.o	${BINARY_DIR}/lib
+${BINARY_DIR}/bin/clang -target riscv32 -mcpu=ventus-gpgpu \
+    -cl-std=CL2.0 \
+    -Wno-override-module \
+    -ffunction-sections -fdata-sections \
+    -c "${BUILTINS_BC}" \
+    -o "${OUTPUT_OBJ}"
+
+cp "${OUTPUT_OBJ}"	"${BINARY_DIR}/lib/riscv32clc.o"

@@ -681,6 +681,10 @@ def : Pat<(i32 (UniformBinFrag<riscv_fcvt_x> GPRF32:$rs1, timm:$frm)),
                                           (FCVT_W_S $rs1, timm:$frm)>;
 def : Pat<(i32 (UniformBinFrag<riscv_fcvt_xu> GPRF32:$rs1, timm:$frm)),
                                           (FCVT_WU_S $rs1, timm:$frm)>;
+def : Pat<(i32 (riscv_fcvt_x GPRF32:$rs1, timm:$frm)),
+          (FCVT_W_S $rs1, timm:$frm)>;
+def : Pat<(i32 (riscv_fcvt_xu GPRF32:$rs1, timm:$frm)),
+          (FCVT_WU_S $rs1, timm:$frm)>;
 
 // float->int32 with current rounding mode.
 def : Pat<(i32 (UniformUnaryFrag<any_lrint> GPRF32:$rs1)), (FCVT_W_S $rs1, 0b111)>;
