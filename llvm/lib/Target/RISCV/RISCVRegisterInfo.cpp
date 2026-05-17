@@ -301,20 +301,26 @@ void RISCVRegisterInfo::adjustPriMemRegOffset(MachineFunction &MF,
   auto &MRI = MF.getRegInfo();
   const RISCVSubtarget &ST = MF.getSubtarget<RISCVSubtarget>();
   const RISCVInstrInfo *TII = ST.getInstrInfo();
+  constexpr unsigned PriMemImmBits = 11;
+  constexpr int64_t PriMemSplitStep = 1 << (PriMemImmBits - 1);
   assert(!isSGPRReg(MRI, PriMemReg) && "Private memory base address in VGPR");
-  bool IsNegative = (Offset < -1024);
-  (--MI.getIterator());
+  assert(isInt<12>(Offset) && !isInt<PriMemImmBits>(Offset) &&
+         "Expected a signed 12-bit offset requiring simm11 legalization");
+
+  const bool IsNegative = Offset < 0;
+  const int64_t BaseAdjust = IsNegative ? -PriMemSplitStep : PriMemSplitStep;
+  const int64_t LegalOffset = Offset - BaseAdjust;
+  assert(isInt<PriMemImmBits>(LegalOffset) &&
+         "Legalized private memory offset must fit simm11");
+
   Register ScratchReg = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
-  // FIXME: maybe it is better change offset once rather than insert a new
-  // machine instruction??
-  BuildMI(MBB, --MI.getIterator(), (--MI.getIterator())->getDebugLoc(),
-    TII->get(RISCV::VADD_VI))
-    .addReg(ScratchReg)
-    .addReg(PriMemReg)
-    .addImm(IsNegative ? (Offset / -1024) * 1024 : -(Offset / 1024) * 1024);
-  MI.getOperand(FIOperandNum + 1).ChangeToImmediate(IsNegative ?
-          Offset + (Offset / -1024) * 1024
-          : Offset - (Offset / 1024) * 1024);
+  const unsigned AdjustOpcode = IsNegative ? RISCV::VSUBIMM12
+                                           : RISCV::VADDIMM12;
+  BuildMI(MBB, MI.getIterator(), MI.getDebugLoc(), TII->get(AdjustOpcode),
+          ScratchReg)
+      .addReg(PriMemReg)
+      .addImm(PriMemSplitStep);
+  MI.getOperand(FIOperandNum + 1).ChangeToImmediate(LegalOffset);
   MI.getOperand(FIOperandNum).ChangeToRegister(ScratchReg,
                                             /*IsDef*/false,
                                             /*IsImp*/false,
@@ -406,9 +412,10 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                           /*IsKill*/ false);
     // simm11 locates in range [-1024, 1023], if offset not in this range, then
     // we legalize the offset
-    if (!isInt<12>(Lo11))
+    if (!isInt<11>(Lo11))
       adjustPriMemRegOffset(MF, *MI.getParent(), MI, Lo11,
                             getPrivateMemoryBaseRegister(MF), FIOperandNum);
+    return false;
   }
 
   if (RII->isPrivateMemoryAccess(MI) && FrameReg == RISCV::X2) {
@@ -417,12 +424,9 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                           /*IsDef*/ false,
                           /*IsImp*/ false,
                           /*IsKill*/ false);
-    // simm11 locates in range [-1024, 1023], if offset not in this range, then
-    // we legalize the offset
+    // The converted opcode has a signed 12-bit immediate. The following local
+    // memory case will materialize the SP base as a VGPR.
     MI.setDesc(RII->get(RII->getUniformMemoryOpcode(MI)));
-    if (!isInt<12>(Lo11))
-      adjustPriMemRegOffset(MF, *MI.getParent(), MI, Lo11,
-                            getPrivateMemoryBaseRegister(MF), FIOperandNum);
   }
 
   // else
