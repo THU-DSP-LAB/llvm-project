@@ -108,6 +108,14 @@ __builtin_riscv_workitem_id_x:
   ret
 
 
+  .section	.text.__builtin_riscv_lane_id,"ax",@progbits
+  .global __builtin_riscv_lane_id
+  .type __builtin_riscv_lane_id, @function
+__builtin_riscv_lane_id:
+  vid.v v0
+  ret
+
+
   .section	.text.__builtin_riscv_workitem_id_y,"ax",@progbits
   .global __builtin_riscv_workitem_id_y
   .type __builtin_riscv_workitem_id_y, @function
@@ -302,7 +310,7 @@ __builtin_riscv_printf_alloc:
   .set VENTUS_RESOBJ_MAGIC, 0x5652534f
   .set VENTUS_RESOBJ_VERSION, 3
   .set VENTUS_RESOBJ_FLAGS, 0
-  .set VENTUS_RESOBJ_FUNCTION_COUNT, 24
+  .set VENTUS_RESOBJ_FUNCTION_COUNT, 25
   .set VENTUS_RESOBJ_EDGE_COUNT, 0
   .set VENTUS_RESOBJ_STATIC_REF_COUNT, 0
   .set VENTUS_RESOBJ_HEADER_SIZE, 36
@@ -346,6 +354,7 @@ __builtin_riscv_printf_alloc:
   ventus_resobj_func __builtin_riscv_workgroup_id_y, 1, 11
   ventus_resobj_func __builtin_riscv_workgroup_id_z, 1, 11
   ventus_resobj_func __builtin_riscv_workitem_id_x, 1, 0
+  ventus_resobj_func __builtin_riscv_lane_id, 1, 0
   ventus_resobj_func __builtin_riscv_workitem_id_y, 1, 0
   ventus_resobj_func __builtin_riscv_workitem_id_z, 1, 0
   ventus_resobj_func __builtin_riscv_global_id_x, 1, 0
