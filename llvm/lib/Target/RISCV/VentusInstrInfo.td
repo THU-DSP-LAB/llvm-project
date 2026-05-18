@@ -64,6 +64,33 @@ class DivergentBinFrag<SDPatternOperator Op> : PatFrag<
   (Op $src0, $src1),
   [{ return N->isDivergent(); }]>;
 
+class DivergentBinBothFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{
+    return N->isDivergent() &&
+           N->getOperand(0).getNode()->isDivergent() &&
+           N->getOperand(1).getNode()->isDivergent();
+  }]>;
+
+class DivergentBinUniformRHSFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{
+    return N->isDivergent() &&
+           N->getOperand(0).getNode()->isDivergent() &&
+           !N->getOperand(1).getNode()->isDivergent();
+  }]>;
+
+class DivergentBinUniformLHSFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{
+    return N->isDivergent() &&
+           !N->getOperand(0).getNode()->isDivergent() &&
+           N->getOperand(1).getNode()->isDivergent();
+  }]>;
+
 class ReverseDivergentBinFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
   (Op $src1, $src0),
@@ -114,6 +141,33 @@ class DivergentTernaryFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1, node:$src2),
   (Op $src0, $src1, $src2),
   [{ return N->isDivergent(); }]>;
+
+class DivergentTernaryBothDataFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1, node:$src2),
+  (Op $src0, $src1, $src2),
+  [{
+    return N->isDivergent() &&
+           N->getOperand(0).getNode()->isDivergent() &&
+           N->getOperand(1).getNode()->isDivergent();
+  }]>;
+
+class DivergentTernaryUniformRHSFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1, node:$src2),
+  (Op $src0, $src1, $src2),
+  [{
+    return N->isDivergent() &&
+           N->getOperand(0).getNode()->isDivergent() &&
+           !N->getOperand(1).getNode()->isDivergent();
+  }]>;
+
+class DivergentTernaryUniformLHSFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1, node:$src2),
+  (Op $src0, $src1, $src2),
+  [{
+    return N->isDivergent() &&
+           !N->getOperand(0).getNode()->isDivergent() &&
+           N->getOperand(1).getNode()->isDivergent();
+  }]>;
 
 class UniformTetradFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1, node:$src2, node:$src3),

@@ -33,16 +33,27 @@ multiclass PatVXIBin<SDPatternOperator Op, list<RVInst> Insts,
               (XLenVT (Insts[2] VGPR:$rs1, optype:$imm))>;
 }
 // RVV VV, VF, FV instruction pattern class for floating point binary operations
-multiclass PatVFRBin<SDPatternOperator Op, list<RVInst> Insts> {
-  def : Pat<(Op (f32 VGPR:$rs1), (f32 VGPR:$rs2)),
+multiclass PatVFRBin<SDPatternOperator Op, list<RVInst> Insts,
+                     bit CommutableVF = 0> {
+  def : Pat<(DivergentBinBothFrag<Op> (f32 VGPR:$rs1), (f32 VGPR:$rs2)),
             (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
 
-  def : Pat<(Op (f32 VGPR:$rs1), GPRF32:$rs2),
+  let AddedComplexity = 1 in
+  def : Pat<(DivergentBinUniformRHSFrag<Op> (f32 VGPR:$rs1),
+             GPRF32:$rs2),
             (Insts[1] VGPR:$rs1, GPRF32:$rs2)>;
 
   if !eq(!size(Insts), 3) then
-    def : Pat<(Op (f32 VGPR:$rs1), GPRF32:$rs2),
-              (Insts[2] GPRF32:$rs2, VGPR:$rs1)>;
+    let AddedComplexity = 2 in
+    def : Pat<(DivergentBinUniformLHSFrag<Op> (f32 GPRF32:$rs2),
+               (f32 VGPR:$rs1)),
+              (Insts[2] VGPR:$rs1, GPRF32:$rs2)>;
+
+  if CommutableVF then
+    let AddedComplexity = 2 in
+    def : Pat<(DivergentBinUniformLHSFrag<Op> (f32 GPRF32:$rs2),
+               (f32 VGPR:$rs1)),
+              (Insts[1] VGPR:$rs1, GPRF32:$rs2)>;
 }
 
 multiclass DivergentPriLdPat<PatFrag LoadOp, RVInst Inst,
@@ -134,10 +145,30 @@ class PatIntSetCC<list<DAGOperand> Ty, CondCode Cond, RVInst Inst>
 multiclass PatFloatSetCC<list<DAGOperand> Ty, list<CondCode> Conds, RVInst Inst>
 {
   foreach Cond = Conds in {
-    def : Pat<(DivergentTernaryFrag<any_fsetcc> (f32 Ty[0]:$rs1),
+    def : Pat<(DivergentTernaryBothDataFrag<any_fsetcc> (f32 Ty[0]:$rs1),
               (f32 Ty[1]:$rs2), Cond), (XLenVT (Inst Ty[0]:$rs1, Ty[1]:$rs2))>;
-    def : Pat<(DivergentTernaryFrag<setcc> (f32 Ty[0]:$rs1), (f32 Ty[1]:$rs2),
-              Cond),  (XLenVT (Inst Ty[0]:$rs1, Ty[1]:$rs2))>;
+    def : Pat<(DivergentTernaryBothDataFrag<setcc> (f32 Ty[0]:$rs1),
+              (f32 Ty[1]:$rs2), Cond), (XLenVT (Inst Ty[0]:$rs1, Ty[1]:$rs2))>;
+  }
+}
+
+multiclass PatFloatSetCCVF<list<DAGOperand> Ty, list<CondCode> Conds,
+                           RVInst Inst> {
+  foreach Cond = Conds in {
+    def : Pat<(DivergentTernaryUniformRHSFrag<any_fsetcc> (f32 Ty[0]:$rs1),
+              (f32 Ty[1]:$rs2), Cond), (XLenVT (Inst Ty[0]:$rs1, Ty[1]:$rs2))>;
+    def : Pat<(DivergentTernaryUniformRHSFrag<setcc> (f32 Ty[0]:$rs1),
+              (f32 Ty[1]:$rs2), Cond), (XLenVT (Inst Ty[0]:$rs1, Ty[1]:$rs2))>;
+  }
+}
+
+multiclass PatFloatSetCCReverseVF<list<DAGOperand> Ty, list<CondCode> Conds,
+                                  RVInst Inst> {
+  foreach Cond = Conds in {
+    def : Pat<(DivergentTernaryUniformLHSFrag<any_fsetcc> (f32 Ty[0]:$rs1),
+              (f32 Ty[1]:$rs2), Cond), (XLenVT (Inst Ty[1]:$rs2, Ty[0]:$rs1))>;
+    def : Pat<(DivergentTernaryUniformLHSFrag<setcc> (f32 Ty[0]:$rs1),
+              (f32 Ty[1]:$rs2), Cond), (XLenVT (Inst Ty[1]:$rs2, Ty[0]:$rs1))>;
   }
 }
 
@@ -2051,34 +2082,57 @@ def : Pat<(XLenVT (DivergentBinFrag<sub> simm5:$imm, (XLenVT VGPR:$rs1))),
 
 
 defm : PatFloatSetCC<[VGPR, VGPR], [SETOEQ, SETEQ], VMFEQ_VV>;
-defm : PatFloatSetCC<[VGPR, GPRF32], [SETOEQ, SETEQ], VMFEQ_VF>;
+let AddedComplexity = 1 in
+defm : PatFloatSetCCVF<[VGPR, GPRF32], [SETOEQ, SETEQ], VMFEQ_VF>;
 defm : PatFloatSetCC<[VGPR, VGPR], [SETUNE, SETNE], VMFNE_VV>;
-defm : PatFloatSetCC<[VGPR, GPRF32], [SETUNE, SETNE], VMFNE_VF>;
+let AddedComplexity = 1 in
+defm : PatFloatSetCCVF<[VGPR, GPRF32], [SETUNE, SETNE], VMFNE_VF>;
 defm : PatFloatSetCC<[VGPR, VGPR], [SETOLT, SETLT], VMFLT_VV>;
 defm : PatFloatSetCC<[VGPR, VGPR], [SETOLT, SETLT], VMFLT_VV>;
 defm : PatFloatSetCC<[VGPR, VGPR], [SETLT], VMFLT_VV>;
-defm : PatFloatSetCC<[VGPR, GPRF32], [SETOLT, SETLT], VMFLT_VF>;
+let AddedComplexity = 1 in
+defm : PatFloatSetCCVF<[VGPR, GPRF32], [SETOLT, SETLT], VMFLT_VF>;
+let AddedComplexity = 1 in
+defm : PatFloatSetCCReverseVF<[GPRF32, VGPR], [SETOGT, SETGT], VMFLT_VF>;
 defm : PatFloatSetCC<[VGPR, VGPR], [SETOLE, SETLE], VMFLE_VV>;
-defm : PatFloatSetCC<[VGPR, GPRF32], [SETOLE, SETLE], VMFLE_VV>;
-defm : PatFloatSetCC<[VGPR, GPRF32], [SETOGT, SETGT], VMFGT_VF>;
-defm : PatFloatSetCC<[VGPR, GPRF32], [SETOGE, SETGE], VMFGE_VF>;
+let AddedComplexity = 1 in
+defm : PatFloatSetCCVF<[VGPR, GPRF32], [SETOLE, SETLE], VMFLE_VF>;
+let AddedComplexity = 1 in
+defm : PatFloatSetCCReverseVF<[GPRF32, VGPR], [SETOGE, SETGE], VMFLE_VF>;
+let AddedComplexity = 1 in
+defm : PatFloatSetCCVF<[VGPR, GPRF32], [SETOGT, SETGT], VMFGT_VF>;
+let AddedComplexity = 1 in
+defm : PatFloatSetCCReverseVF<[GPRF32, VGPR], [SETOLT, SETLT], VMFGT_VF>;
+let AddedComplexity = 1 in
+defm : PatFloatSetCCVF<[VGPR, GPRF32], [SETOGE, SETGE], VMFGE_VF>;
+let AddedComplexity = 1 in
+defm : PatFloatSetCCReverseVF<[GPRF32, VGPR], [SETOLE, SETLE], VMFGE_VF>;
 
 def : Pat<(i32 (DivergentUnaryFrag<any_fp_to_sint> (f32 VGPR:$rs1))), 
           (VFCVT_RTZ_X_F_V VGPR:$rs1, 0b001)>;
 def : Pat<(i32 (DivergentUnaryFrag<any_fp_to_uint> (f32 VGPR:$rs1))), 
           (VFCVT_RTZ_XU_F_V VGPR:$rs1, 0b001)>;
+def : Pat<(i32 (DivergentBinFrag<riscv_fcvt_x> (f32 VGPR:$rs1), timm:$frm)),
+          (VFCVT_RTZ_X_F_V VGPR:$rs1, timm:$frm)>;
+def : Pat<(i32 (DivergentBinFrag<riscv_fcvt_xu> (f32 VGPR:$rs1), timm:$frm)),
+          (VFCVT_RTZ_XU_F_V VGPR:$rs1, timm:$frm)>;
 def : PatFXConvert<DivergentUnaryFrag<any_sint_to_fp>,
                           [f32, XLenVT], VFCVT_F_X_V>;
 def : PatFXConvert<DivergentUnaryFrag<any_uint_to_fp>,
                         [f32, XLenVT], VFCVT_F_XU_V>;
-defm : PatVFRBin<DivergentBinFrag<fadd>,  [VFADD_VV, VFADD_VF]>;
+defm : PatVFRBin<fadd,  [VFADD_VV, VFADD_VF], 1>;
 // def : Pat<(fadd GPRF32:$rs1, GPRF32:$rs2), (FADD_S $rs1, $rs2)>;
-defm : PatVFRBin<DivergentBinFrag<fsub>,  [VFSUB_VV, VFSUB_VF]>;
-defm : PatVFRBin<DivergentBinFrag<fmul>,  [VFMUL_VV, VFMUL_VF]>;
-defm : PatVFRBin<DivergentBinFrag<fdiv>,  [VFDIV_VV, VFDIV_VF, VFRDIV_VF]>;
-defm : PatVFRBin<DivergentBinFrag<fminnum>,  [VFMIN_VV, VFMIN_VF]>;
-defm : PatVFRBin<DivergentBinFrag<fmaxnum>,  [VFMAX_VV, VFMAX_VF]>;
-defm : PatVFRBin<DivergentBinFrag<fcopysign>, [VFSGNJ_VV, VFSGNJ_VF]>;
+defm : PatVFRBin<fsub,  [VFSUB_VV, VFSUB_VF, VFRSUB_VF]>;
+defm : PatVFRBin<fmul,  [VFMUL_VV, VFMUL_VF], 1>;
+defm : PatVFRBin<fdiv,  [VFDIV_VV, VFDIV_VF, VFRDIV_VF]>;
+defm : PatVFRBin<fminnum,  [VFMIN_VV, VFMIN_VF], 1>;
+defm : PatVFRBin<fmaxnum,  [VFMAX_VV, VFMAX_VF], 1>;
+defm : PatVFRBin<fcopysign, [VFSGNJ_VV, VFSGNJ_VF]>;
+def : Pat<(DivergentBinUniformLHSFrag<fcopysign> GPRF32:$rs1,
+          (f32 VGPR:$rs2)), (VFSGNJ_VV (VFMV_V_F GPRF32:$rs1), VGPR:$rs2)>;
+def : Pat<(DivergentBinUniformLHSFrag<fcopysign> GPRF32:$rs1,
+          (fneg (f32 VGPR:$rs2))),
+          (VFSGNJN_VV (VFMV_V_F GPRF32:$rs1), VGPR:$rs2)>;
 def : Pat<(fcopysign (f32 VGPR:$rs1), (f32 (fneg VGPR:$rs2))),
                                     (VFSGNJN_VV $rs1, $rs2)>;
 def : Pat<(fcopysign (f32 VGPR:$rs1), (fneg GPRF32:$rs2)),

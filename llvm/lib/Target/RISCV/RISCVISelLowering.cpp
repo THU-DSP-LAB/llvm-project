@@ -10082,6 +10082,9 @@ static SDValue performFP_TO_INT_SATCombine(SDNode *N,
   if (FRM == RISCVFPRndMode::Invalid)
     return SDValue();
 
+  if (Subtarget.isVentusGPGPU() && Src->isDivergent())
+    return SDValue();
+
   bool IsSigned = N->getOpcode() == ISD::FP_TO_SINT_SAT;
 
   unsigned Opc;
@@ -14261,6 +14264,18 @@ bool RISCVTargetLowering::isIntDivCheap(EVT VT, AttributeList Attr) const {
   return OptSize && !VT.isVector();
 }
 
+static std::optional<bool>
+getIRValueDivergence(Register Reg, FunctionLoweringInfo *FLI,
+                     LegacyDivergenceAnalysis *KDA) {
+  if (!Reg.isVirtual() || !FLI || !KDA)
+    return std::nullopt;
+
+  if (const Value *V = FLI->getValueFromVirtualReg(Reg))
+    return KDA->isDivergent(V);
+
+  return std::nullopt;
+}
+
 bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
     const SDNode *N, FunctionLoweringInfo *FLI,
     LegacyDivergenceAnalysis *KDA) const {
@@ -14271,12 +14286,19 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
     const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
     Register Reg = R->getReg();
 
-    // FIXME: Why does this need to consider isLiveIn?
-    if (Reg.isPhysical() || MRI.isLiveIn(Reg))
+    if (std::optional<bool> IRDivergence =
+            getIRValueDivergence(Reg, FLI, KDA)) {
+      if (*IRDivergence)
+        return true;
+      if (MCRegister LiveInPhysReg = MRI.getLiveInPhysReg(Reg))
+        return TRI->isVGPRReg(MRI, LiveInPhysReg);
+      return false;
+    }
+
+    if (Reg.isPhysical())
       return TRI->isVGPRReg(MRI, Reg);
-    // FIXME: Why need to comment below two lines, not the same as AMDGPU
-    // if (const Value *V = FLI->getValueFromVirtualReg(R->getReg()))
-    //   return KDA->isDivergent(V);
+    if (MCRegister LiveInPhysReg = MRI.getLiveInPhysReg(Reg))
+      return TRI->isVGPRReg(MRI, LiveInPhysReg);
 
     return TRI->isVGPRReg(MRI, Reg);
   }
