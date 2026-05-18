@@ -204,7 +204,8 @@ build_libclc() {
   ninja
   ninja install
   echo "************* Building riscv32 libclc object file ************"
-  bash ${DIR}/libclc/build_riscv32clc.sh ${DIR}/libclc ${LIBCLC_BUILD_DIR} ${VENTUS_INSTALL_PREFIX}
+  VENTUS_LIBCLC_DISABLE_PROBLEM_MATH=${VENTUS_LIBCLC_DISABLE_PROBLEM_MATH:-OFF} \
+    bash ${DIR}/libclc/build_riscv32clc.sh ${DIR}/libclc ${LIBCLC_BUILD_DIR} ${VENTUS_INSTALL_PREFIX}
 
   DstDir=${VENTUS_INSTALL_PREFIX}/share/pocl
   if [ ! -d "${DstDir}" ]; then
