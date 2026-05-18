@@ -634,6 +634,14 @@ uint64_t InputSectionBase::getRelocTargetVA(const InputFile *file, RelType type,
   case R_RELAX_GOT_PC_NOPIC:
   case R_RISCV_ADD:
     return sym.getVA(a);
+  case R_RISCV_VENTUS_LDS: {
+    auto it = ctx.ventusLDSStaticOffsets.find(&sym);
+    if (it == ctx.ventusLDSStaticOffsets.end()) {
+      error("missing Ventus LDS static layout entry for symbol " + toString(sym));
+      return 0;
+    }
+    return it->second + a;
+  }
   case R_ADDEND:
     return a;
   case R_RELAX_HINT:
@@ -915,8 +923,11 @@ void InputSection::relocateNonAlloc(uint8_t *buf, ArrayRef<RelTy> rels) {
     // R_ABS/R_DTPREL and some other relocations can be used from non-SHF_ALLOC
     // sections.
     if (expr == R_ABS || expr == R_DTPREL || expr == R_GOTPLTREL ||
-        expr == R_RISCV_ADD) {
-      target.relocateNoSym(bufLoc, type, SignExtend64<bits>(sym.getVA(addend)));
+        expr == R_RISCV_ADD || expr == R_RISCV_VENTUS_LDS) {
+      uint64_t value = expr == R_RISCV_VENTUS_LDS
+                           ? getRelocTargetVA(file, type, addend, 0, sym, expr)
+                           : sym.getVA(addend);
+      target.relocateNoSym(bufLoc, type, SignExtend64<bits>(value));
       continue;
     }
 

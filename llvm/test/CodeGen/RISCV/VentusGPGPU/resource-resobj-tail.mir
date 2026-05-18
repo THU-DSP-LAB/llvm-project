@@ -157,7 +157,7 @@ body:             |
 # RESOBJ: .section	.ventus.resobj,"",@progbits
 # RESOBJ-NEXT: .p2align	3
 # RESOBJ-NEXT: .word	1448235855
-# RESOBJ-NEXT: .word	1
+# RESOBJ-NEXT: .word	3
 # RESOBJ-NEXT: .word	0
 # RESOBJ-NEXT: .word	3
 # RESOBJ-NEXT: .word	2

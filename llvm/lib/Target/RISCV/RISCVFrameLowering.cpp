@@ -552,7 +552,6 @@ StackOffset
 RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
                                            Register &FrameReg) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  const auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
   // Callee-saved registers should be referenced relative to the stack
   // pointer (positive offset), otherwise use the frame pointer (negative
   // offset).

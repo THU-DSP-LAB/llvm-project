@@ -1378,7 +1378,9 @@ RISCVInstrInfo::getSerializableDirectMachineOperandTargetFlags() const {
       {MO_TPREL_HI, "riscv-tprel-hi"},
       {MO_TPREL_ADD, "riscv-tprel-add"},
       {MO_TLS_GOT_HI, "riscv-tls-got-hi"},
-      {MO_TLS_GD_HI, "riscv-tls-gd-hi"}};
+      {MO_TLS_GD_HI, "riscv-tls-gd-hi"},
+      {MO_VENTUS_LDS_LO, "riscv-ventus-lds-lo"},
+      {MO_VENTUS_LDS_HI, "riscv-ventus-lds-hi"}};
   return makeArrayRef(TargetFlags);
 }
 bool RISCVInstrInfo::isFunctionSafeToOutlineFrom(

@@ -300,7 +300,7 @@ __builtin_riscv_printf_alloc:
   // treat these helpers as summarized instead of conservatively marking stack
   // peaks as unavailable.
   .set VENTUS_RESOBJ_MAGIC, 0x5652534f
-  .set VENTUS_RESOBJ_VERSION, 1
+  .set VENTUS_RESOBJ_VERSION, 3
   .set VENTUS_RESOBJ_FLAGS, 0
   .set VENTUS_RESOBJ_FUNCTION_COUNT, 24
   .set VENTUS_RESOBJ_EDGE_COUNT, 0

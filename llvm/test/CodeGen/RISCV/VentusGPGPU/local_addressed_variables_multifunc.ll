@@ -5,9 +5,9 @@
 
 define dso_local void @f1() {
 ; VENTUS-LABEL: f1:
-; VENTUS:       li t0, 1
-; VENTUS-NEXT:  sw t0, -16(s0)
-; VENTUS-NEXT:  addi s0, s0, -16
+; VENTUS:       csrr t0, CSR_LDS
+; VENTUS-NEXT:  li t1, 1
+; VENTUS-NEXT:  sw t1, 0(t0)
 ; VENTUS-NEXT:  ret
 entry:
   store i32 1, ptr addrspace(3) @shared_tmp, align 4
@@ -16,9 +16,9 @@ entry:
 
 define dso_local void @f2() {
 ; VENTUS-LABEL: f2:
-; VENTUS:       li t0, 2
-; VENTUS-NEXT:  sw t0, -16(s0)
-; VENTUS-NEXT:  addi s0, s0, -16
+; VENTUS:       csrr t0, CSR_LDS
+; VENTUS-NEXT:  li t1, 2
+; VENTUS-NEXT:  sw t1, 0(t0)
 ; VENTUS-NEXT:  ret
 entry:
   store i32 2, ptr addrspace(3) @shared_tmp, align 4

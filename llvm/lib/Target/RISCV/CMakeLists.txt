@@ -40,6 +40,7 @@ add_llvm_target(RISCVCodeGen
   RISCVTargetObjectFile.cpp
   RISCVTargetTransformInfo.cpp
   VentusRegextInsertion.cpp
+  VentusLocalMemLayout.cpp
   VentusMMAUtils.cpp
   VentusBroadcastCopyPropagation.cpp
   VentusRegDomainVerifier.cpp

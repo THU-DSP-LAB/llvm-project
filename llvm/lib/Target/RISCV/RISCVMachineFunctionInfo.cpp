@@ -45,16 +45,3 @@ void RISCVMachineFunctionInfo::addSExt32Register(Register Reg) {
 bool RISCVMachineFunctionInfo::isSExt32Register(Register Reg) const {
   return is_contained(SExt32Registers, Reg);
 }
-
-std::optional<int> RISCVMachineFunctionInfo::getLocalMemGlobalFrameIndex(
-    const GlobalVariable *GV) const {
-  auto It = LocalMemGlobalFrameIndices.find(GV);
-  if (It == LocalMemGlobalFrameIndices.end())
-    return std::nullopt;
-  return It->second;
-}
-
-void RISCVMachineFunctionInfo::setLocalMemGlobalFrameIndex(
-    const GlobalVariable *GV, int FrameIndex) {
-  LocalMemGlobalFrameIndices[GV] = FrameIndex;
-}

@@ -45,13 +45,13 @@ using namespace lld::elf;
 
 namespace {
 constexpr uint32_t ventusResObjMagic = 0x5652534fu;
-constexpr uint32_t ventusResObjVersion = 1u;
+constexpr uint32_t ventusResObjVersion = 3u;
 constexpr uint32_t ventusResObjHeaderSize = 9u * sizeof(uint32_t);
 constexpr uint32_t ventusResObjFunctionRecordSize =
     2u * sizeof(uint32_t) + 5u * sizeof(uint64_t) + 4u * sizeof(uint32_t);
 constexpr uint32_t ventusResObjEdgeRecordSize = 2u * sizeof(uint32_t);
 constexpr uint32_t ventusResObjStaticRefRecordSize =
-    2u * sizeof(uint32_t) + sizeof(uint64_t);
+    2u * sizeof(uint32_t) + 2u * sizeof(uint64_t);
 constexpr uint32_t vrofIsEntry = 1u << 0;
 constexpr uint32_t vrofHasDynamicAlloca = 1u << 1;
 constexpr uint32_t vrofHasIndirectCall = 1u << 2;
@@ -90,6 +90,7 @@ struct VentusParsedStaticRefRecord {
   Symbol *resource = nullptr;
   uint32_t flags = 0;
   uint64_t size = 0;
+  uint64_t ldsStaticAlign = 0;
 };
 
 struct VentusParsedObject {
@@ -107,6 +108,37 @@ struct VentusLinkStaticRef {
   Symbol *resource = nullptr;
   uint32_t flags = 0;
   uint64_t size = 0;
+  uint64_t ldsStaticAlign = 0;
+};
+
+struct VentusLDSStaticKey {
+  const SectionBase *section = nullptr;
+  uint64_t value = 0;
+  const Symbol *symbol = nullptr;
+
+  bool operator==(const VentusLDSStaticKey &other) const {
+    return section == other.section && value == other.value &&
+           symbol == other.symbol;
+  }
+};
+
+struct VentusLDSStaticKeyInfo {
+  static inline VentusLDSStaticKey getEmptyKey() {
+    return {DenseMapInfo<const SectionBase *>::getEmptyKey(), 0, nullptr};
+  }
+
+  static inline VentusLDSStaticKey getTombstoneKey() {
+    return {DenseMapInfo<const SectionBase *>::getTombstoneKey(), 0, nullptr};
+  }
+
+  static unsigned getHashValue(const VentusLDSStaticKey &key) {
+    return hash_combine(key.section, key.value, key.symbol);
+  }
+
+  static bool isEqual(const VentusLDSStaticKey &lhs,
+                      const VentusLDSStaticKey &rhs) {
+    return lhs == rhs;
+  }
 };
 
 struct VentusLinkFunction {
@@ -178,6 +210,7 @@ private:
   void optimizeBasicBlockJumps();
   void sortInputSections();
   void finalizeSections();
+  void finalizeVentusLDSStaticLayout();
   void finalizeVentusResources();
   void checkExecuteOnly();
   void setReservedSymbolSections();
@@ -468,7 +501,8 @@ static std::optional<VentusParsedObject> parseVentusResObj(ObjFile<ELFT> &file) 
       parsed.staticRefs.push_back(
           {resource,
            readVentusU32<ELFT::TargetEndianness>(data, off + 4),
-           readVentusU64<ELFT::TargetEndianness>(data, off + 8)});
+           readVentusU64<ELFT::TargetEndianness>(data, off + 8),
+           readVentusU64<ELFT::TargetEndianness>(data, off + 16)});
     }
 
     for (size_t i = functionBase; i != parsed.functions.size(); ++i) {
@@ -527,7 +561,8 @@ static bool collectVentusFunctions(SmallVectorImpl<VentusLinkFunction> &out) {
       for (uint32_t i = 0; i != func.staticRefCount; ++i) {
         const VentusParsedStaticRefRecord &ref =
             parsed->staticRefs[func.staticRefBegin + i];
-        summary.staticRefs.push_back({ref.resource, ref.flags, ref.size});
+        summary.staticRefs.push_back(
+            {ref.resource, ref.flags, ref.size, ref.ldsStaticAlign});
       }
     }
   }
@@ -632,30 +667,129 @@ static uint64_t getVentusStaticRefSize(const VentusLinkStaticRef &ref) {
   return ref.size;
 }
 
-static void collectVentusStaticResources(
-    ArrayRef<unsigned> reachable, ArrayRef<VentusLinkFunction> functions,
-    uint64_t &ldsStaticBytes, uint64_t &pdsStaticBytes) {
-  DenseSet<std::pair<const SectionBase *, uint64_t>> seenDefs;
+static VentusLDSStaticKey getVentusLDSStaticKey(const Symbol &sym) {
+  if (auto *def = dyn_cast<Defined>(&sym)) {
+    if (def->section && def->section != &InputSection::discarded)
+      return {def->section, def->value, nullptr};
+  }
+  return {nullptr, 0, &sym};
+}
+
+static uint64_t getVentusLDSStaticEndOffset(const Symbol &sym, uint64_t size) {
+  auto it = ctx.ventusLDSStaticOffsets.find(&sym);
+  if (it == ctx.ventusLDSStaticOffsets.end()) {
+    error("missing Ventus LDS static layout entry for symbol " + toString(sym));
+    return 0;
+  }
+  return alignTo(it->second + size, uint64_t(4));
+}
+
+static void collectVentusStaticResources(ArrayRef<unsigned> reachable,
+                                         ArrayRef<VentusLinkFunction> functions,
+                                         uint64_t &ldsStaticBytes,
+                                         uint64_t &pdsStaticBytes) {
+  DenseSet<VentusLDSStaticKey, VentusLDSStaticKeyInfo> seenLdsStatic;
+  DenseSet<std::pair<const SectionBase *, uint64_t>> seenPdsDefs;
   DenseSet<const Symbol *> seenOtherSyms;
 
   for (unsigned index : reachable) {
     for (const VentusLinkStaticRef &ref : functions[index].staticRefs) {
-      auto *def = dyn_cast<Defined>(ref.resource);
-      bool inserted = false;
-      if (def && def->section && def->section != &InputSection::discarded)
-        inserted = seenDefs.insert({def->section, def->value}).second;
-      else
-        inserted = seenOtherSyms.insert(ref.resource).second;
-      if (!inserted)
-        continue;
-
       uint64_t size = getVentusStaticRefSize(ref);
-      if (ref.flags & vrosIsLdsStatic)
-        ldsStaticBytes += size;
-      if (ref.flags & vrosIsPdsStatic)
+      if (ref.flags & vrosIsLdsStatic) {
+        if (seenLdsStatic.insert(getVentusLDSStaticKey(*ref.resource)).second)
+          ldsStaticBytes =
+              std::max(ldsStaticBytes,
+                       getVentusLDSStaticEndOffset(*ref.resource, size));
+      }
+
+      if (ref.flags & vrosIsPdsStatic) {
+        auto *def = dyn_cast<Defined>(ref.resource);
+        bool inserted = false;
+        if (def && def->section && def->section != &InputSection::discarded)
+          inserted = seenPdsDefs.insert({def->section, def->value}).second;
+        else
+          inserted = seenOtherSyms.insert(ref.resource).second;
+        if (!inserted)
+          continue;
         pdsStaticBytes += size;
+      }
     }
   }
+}
+
+static void computeVentusLDSStaticLayout(ArrayRef<VentusLinkFunction> functions) {
+  struct LayoutSymbol {
+    Symbol *sym = nullptr;
+    VentusLDSStaticKey key;
+    uint64_t size = 0;
+    Align align;
+    size_t ordinal = 0;
+  };
+  SmallVector<LayoutSymbol, 0> symbols;
+  DenseMap<VentusLDSStaticKey, unsigned, VentusLDSStaticKeyInfo> byKey;
+  for (const VentusLinkFunction &func : functions) {
+    for (const VentusLinkStaticRef &ref : func.staticRefs) {
+      if (!(ref.flags & vrosIsLdsStatic))
+        continue;
+      uint64_t align = std::max<uint64_t>(4, ref.ldsStaticAlign);
+      if (!isPowerOf2_64(align)) {
+        error("invalid Ventus LDS static alignment for symbol " +
+              toString(*ref.resource) + ": " + Twine(ref.ldsStaticAlign));
+        continue;
+      }
+
+      VentusLDSStaticKey key = getVentusLDSStaticKey(*ref.resource);
+      auto [it, inserted] = byKey.try_emplace(key, symbols.size());
+      if (inserted) {
+        symbols.push_back({ref.resource, key, getVentusStaticRefSize(ref),
+                           Align(align), symbols.size()});
+        continue;
+      }
+
+      LayoutSymbol &symbol = symbols[it->second];
+      symbol.size = std::max(symbol.size, getVentusStaticRefSize(ref));
+      symbol.align = std::max(symbol.align, Align(align));
+    }
+  }
+
+  auto getDefinedSectionName = [](const LayoutSymbol &sym) -> StringRef {
+    if (!sym.key.section)
+      return StringRef();
+    return sym.key.section->name;
+  };
+
+  auto getDefinedValue = [](const LayoutSymbol &sym) -> uint64_t {
+    return sym.key.section ? sym.key.value : 0;
+  };
+
+  llvm::sort(symbols, [&](const LayoutSymbol &lhs, const LayoutSymbol &rhs) {
+    if (lhs.sym->getName() != rhs.sym->getName())
+      return lhs.sym->getName() < rhs.sym->getName();
+    StringRef lhsSection = getDefinedSectionName(lhs);
+    StringRef rhsSection = getDefinedSectionName(rhs);
+    if (lhsSection != rhsSection)
+      return lhsSection < rhsSection;
+    if (getDefinedValue(lhs) != getDefinedValue(rhs))
+      return getDefinedValue(lhs) < getDefinedValue(rhs);
+    if (lhs.sym->kind() != rhs.sym->kind())
+      return lhs.sym->kind() < rhs.sym->kind();
+    return lhs.ordinal < rhs.ordinal;
+  });
+
+  ctx.ventusLDSStaticOffsets.clear();
+  uint64_t offset = 0;
+  DenseMap<VentusLDSStaticKey, uint64_t, VentusLDSStaticKeyInfo> offsetsByKey;
+  for (const LayoutSymbol &symbol : symbols) {
+    offset = alignTo(offset, symbol.align);
+    offsetsByKey[symbol.key] = offset;
+    offset += symbol.size;
+  }
+
+  for (const VentusLinkFunction &func : functions)
+    for (const VentusLinkStaticRef &ref : func.staticRefs)
+      if (ref.flags & vrosIsLdsStatic)
+        ctx.ventusLDSStaticOffsets[ref.resource] =
+            offsetsByKey[getVentusLDSStaticKey(*ref.resource)];
 }
 
 static VentusStackSummary makeVentusUnavailable(uint32_t flags) {
@@ -2601,6 +2735,7 @@ template <class ELFT> void Writer<ELFT>::finalizeVentusResources() {
   SmallVector<VentusLinkFunction, 0> functions;
   if (!collectVentusFunctions<ELFT>(functions) || errorCount() != 0)
     return;
+  computeVentusLDSStaticLayout(functions);
 
   DenseMap<Symbol *, unsigned> bySym;
   DenseMap<std::pair<const SectionBase *, uint64_t>, unsigned> bySecValue;
@@ -2669,6 +2804,16 @@ template <class ELFT> void Writer<ELFT>::finalizeVentusResources() {
   }
 
   removeLegacyVentusResourceInputs();
+}
+
+template <class ELFT> void Writer<ELFT>::finalizeVentusLDSStaticLayout() {
+  if (!isVentusFinalizerEnabled<ELFT>())
+    return;
+
+  SmallVector<VentusLinkFunction, 0> functions;
+  if (!collectVentusFunctions<ELFT>(functions) || errorCount() != 0)
+    return;
+  computeVentusLDSStaticLayout(functions);
 }
 
 // Create output section objects and add them to OutputSections.
@@ -2752,6 +2897,7 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
   script->processSymbolAssignments();
 
   if (!config->relocatable) {
+    finalizeVentusLDSStaticLayout();
     llvm::TimeTraceScope timeScope("Scan relocations");
     // Scan relocations. This must be done after every symbol is declared so
     // that we can correctly decide if a dynamic relocation is needed. This is

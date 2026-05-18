@@ -20,6 +20,7 @@
 #include "RISCVRegisterInfo.h"
 #include "RISCVTargetMachine.h"
 #include "TargetInfo/RISCVTargetInfo.h"
+#include "VentusLocalMemLayout.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
@@ -33,6 +34,7 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Module.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCInst.h"
@@ -73,7 +75,7 @@ namespace {
 //   directory in the payload itself.
 // - All `uint64_t` size fields are raw byte counts, not aligned-up words.
 //
-// Version 2 layout:
+// Version 3 layout:
 //   uint32_t Version
 //   uint32_t Flags
 //   uint64_t VGPRUsed
@@ -85,7 +87,7 @@ namespace {
 //
 // Field semantics:
 // - `Version`:
-//   ABI version discriminator. Current value is `2`.
+//   ABI version discriminator. Current value is `3`.
 // - `Flags`:
 //   Bitmask defined by `VentusKernelResourceFlags`.
 //   Bit 0 (`VKRF_HasDynamicAlloca`): visible reachable call graph contains a
@@ -127,10 +129,10 @@ namespace {
 // Unlike `.ventus.resource.<kernel>`, this payload contains function-level
 // facts and graph edges, not final aggregated kernel results.
 //
-// Version 1 layout:
+// Version 3 layout:
 //   ResObjHeader {
 //     uint32_t Magic                // 'VRSO'
-//     uint32_t Version              // 1
+//     uint32_t Version              // 3
 //     uint32_t Flags
 //     uint32_t FunctionCount
 //     uint32_t EdgeCount
@@ -163,19 +165,20 @@ namespace {
 //     uint32_t ResourceSymbol
 //     uint32_t Flags
 //     uint64_t Size
+//     uint64_t LDSStaticAlign
 //   }
 //
 // Symbol fields are emitted as relocatable 32-bit references because Ventus is
 // currently a RISCV32 target.
 constexpr uint32_t VentusResObjMagic = 0x5652534fu; // 'VRSO'
-constexpr uint32_t VentusResObjVersion = 1u;
+constexpr uint32_t VentusResObjVersion = 3u;
 constexpr uint32_t VentusResObjSymbolRefSize = 4u;
 constexpr uint32_t VentusResObjHeaderSize = 9u * sizeof(uint32_t);
 constexpr uint32_t VentusResObjFunctionRecordSize =
     2u * sizeof(uint32_t) + 5u * sizeof(uint64_t) + 4u * sizeof(uint32_t);
 constexpr uint32_t VentusResObjEdgeRecordSize = 2u * sizeof(uint32_t);
 constexpr uint32_t VentusResObjStaticRefRecordSize =
-    2u * sizeof(uint32_t) + sizeof(uint64_t);
+    2u * sizeof(uint32_t) + 2u * sizeof(uint64_t);
 
 enum VentusResObjFunctionFlags : uint32_t {
   VROF_IsEntry = 1u << 0,
@@ -264,7 +267,6 @@ struct VentusStaticResourceSummary {
 };
 
 struct VentusLocalMemUsage {
-  uint64_t StaticBytes = 0;
   uint64_t StackBytes = 0;
 };
 
@@ -382,12 +384,6 @@ static const Function *resolveVentusDirectCallee(const GlobalValue *TargetGV) {
 static VentusLocalMemUsage
 computeVentusLocalMemUsage(const MachineFunction &MF) {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  const auto &LocalMemGlobals =
-      MF.getInfo<RISCVMachineFunctionInfo>()->getLocalMemGlobalFrameIndices();
-  SmallDenseSet<int, 4> StaticFrameIndices;
-  for (const auto &It : LocalMemGlobals)
-    StaticFrameIndices.insert(It.second);
-
   VentusLocalMemUsage Usage;
   uint64_t TotalBytes = 0;
   for (int I = 0; I != MFI.getObjectIndexEnd(); ++I) {
@@ -399,10 +395,7 @@ computeVentusLocalMemUsage(const MachineFunction &MF) {
     const uint64_t NewTotal =
         alignTo(TotalBytes + MFI.getObjectSize(I), Alignment);
     const uint64_t Delta = NewTotal - TotalBytes;
-    if (StaticFrameIndices.contains(I))
-      Usage.StaticBytes += Delta;
-    else
-      Usage.StackBytes += Delta;
+    Usage.StackBytes += Delta;
     TotalBytes = NewTotal;
   }
 
@@ -420,8 +413,6 @@ collectVentusFunctionSummary(const MachineFunction &MF, const Module &M) {
       *MF.getSubtarget<RISCVSubtarget>().getFrameLowering();
   const auto &TRI = *MF.getSubtarget<RISCVSubtarget>().getRegisterInfo();
   const auto &TII = *MF.getSubtarget<RISCVSubtarget>().getInstrInfo();
-  const auto &LocalMemGlobals =
-      MF.getInfo<RISCVMachineFunctionInfo>()->getLocalMemGlobalFrameIndices();
   const VentusLocalMemUsage LocalMemUsage = computeVentusLocalMemUsage(MF);
 
   VentusFunctionSummary Summary;
@@ -434,8 +425,6 @@ collectVentusFunctionSummary(const MachineFunction &MF, const Module &M) {
 
   SmallPtrSet<const GlobalVariable *, 8> ReferencedStaticGlobals;
   SmallPtrSet<const Constant *, 16> VisitedConstants;
-  for (const auto &It : LocalMemGlobals)
-    ReferencedStaticGlobals.insert(It.first);
   for (const BasicBlock &BB : MF.getFunction()) {
     for (const Instruction &I : BB) {
       for (const Value *Operand : I.operand_values()) {
@@ -626,9 +615,16 @@ static void emitVentusResObj(AsmPrinter &AP, MCContext &Ctx, const Module &M,
     for (const GlobalVariable *GV : Summary.ReferencedStaticGlobals) {
       emitVentusResObjSymbolRef(AP, GV, GV->getName());
       AP.emitInt32(getVentusResObjStaticRefFlags(*GV));
-      AP.emitInt64(GV->getValueType()->isSized()
-                       ? M.getDataLayout().getTypeAllocSize(GV->getValueType())
-                       : 0);
+      uint64_t Size = 0;
+      uint64_t LDSStaticAlign = 0;
+      if (GV->getValueType()->isSized()) {
+        Size = M.getDataLayout().getTypeAllocSize(GV->getValueType());
+        if (GV->getAddressSpace() == RISCVAS::LOCAL_ADDRESS)
+          LDSStaticAlign =
+              getVentusLocalMemStaticAlignValue(*GV, M.getDataLayout());
+      }
+      AP.emitInt64(Size);
+      AP.emitInt64(LDSStaticAlign);
     }
   }
 }
@@ -679,6 +675,8 @@ static VentusStaticResourceSummary collectVentusStaticResources(
   SmallPtrSet<const GlobalVariable *, 8> ReferencedGlobals;
   SmallVector<const Function *, 8> Worklist = {&Entry};
   VentusStaticResourceSummary Result;
+  const DenseMap<const GlobalVariable *, uint64_t> LocalStaticOffsets =
+      computeVentusLocalMemStaticOffsets(*Entry.getParent(), DL);
 
   while (!Worklist.empty()) {
     const Function *F = Worklist.pop_back_val();
@@ -707,13 +705,16 @@ static VentusStaticResourceSummary collectVentusStaticResources(
     if (GV->isDeclarationForLinker() || !GV->getValueType()->isSized())
       continue;
 
-    const uint64_t Size = DL.getTypeAllocSize(GV->getValueType());
     switch (GV->getAddressSpace()) {
-    case RISCVAS::LOCAL_ADDRESS:
-      Result.LDSStaticBytes += Size;
+    case RISCVAS::LOCAL_ADDRESS: {
+      if (!LocalStaticOffsets.count(GV))
+        break;
+      Result.LDSStaticBytes = std::max(
+          Result.LDSStaticBytes, getVentusLocalMemStaticEndOffset(*GV, DL));
       break;
+    }
     case RISCVAS::PRIVATE_ADDRESS:
-      Result.PDSStaticBytes += Size;
+      Result.PDSStaticBytes += DL.getTypeAllocSize(GV->getValueType());
       break;
     default:
       break;

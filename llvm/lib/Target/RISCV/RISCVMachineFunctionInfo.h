@@ -68,10 +68,6 @@ private:
 
   /// Registers that have been sign extended from i32.
   SmallVector<Register, 8> SExt32Registers;
-  /// Per-function lowering state for addrspace(3) globals that are currently
-  /// materialized as LocalMemSpill frame objects.
-  DenseMap<const GlobalVariable *, int> LocalMemGlobalFrameIndices;
-
 public:
   RISCVMachineFunctionInfo(const MachineFunction &MF) {
     CallingConv::ID CC = MF.getFunction().getCallingConv();
@@ -122,13 +118,6 @@ public:
   void addSExt32Register(Register Reg);
   bool isSExt32Register(Register Reg) const;
 
-  std::optional<int>
-  getLocalMemGlobalFrameIndex(const GlobalVariable *GV) const;
-  void setLocalMemGlobalFrameIndex(const GlobalVariable *GV, int FrameIndex);
-  const DenseMap<const GlobalVariable *, int> &
-  getLocalMemGlobalFrameIndices() const {
-    return LocalMemGlobalFrameIndices;
-  }
 };
 
 } // end namespace llvm

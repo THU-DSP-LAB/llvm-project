@@ -9,8 +9,6 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 8
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 8
-; VENTUS-NEXT:    addi s0, s0, 20
-; VENTUS-NEXT:    .cfi_def_cfa_offset 8
 ; VENTUS-NEXT:    addi tp, tp, 20
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 20
 ; VENTUS-NEXT:    regext zero, zero, 1
@@ -18,10 +16,10 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    lw t2, 0(a0)
-; VENTUS-NEXT:    addi t0, tp, -20
-; VENTUS-NEXT:    addi t1, s0, -20
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    vmv.v.x v1, t1
+; VENTUS-NEXT:    csrr t0, CSR_LDS
+; VENTUS-NEXT:    addi t1, tp, -20
+; VENTUS-NEXT:    vmv.v.x v0, t1
+; VENTUS-NEXT:    vmv.v.x v1, t0
 ; VENTUS-NEXT:    sw t2, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    vmv.v.x v2, t2
 ; VENTUS-NEXT:    call bar
@@ -40,7 +38,7 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    # kill: def $v1 killed $x5
 ; VENTUS-NEXT:    vadd.vx v1, v0, t0
 ; VENTUS-NEXT:    vlw.v v1, 0(v1)
-; VENTUS-NEXT:    addi t0, s0, -20
+; VENTUS-NEXT:    csrr t0, CSR_LDS
 ; VENTUS-NEXT:    vadd.vx v2, v0, t0
 ; VENTUS-NEXT:    vlw12.v v2, 0(v2)
 ; VENTUS-NEXT:    lw t1, -4(sp) # 4-byte Folded Reload
@@ -63,7 +61,6 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    join zero, zero, 0
 ; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -8
-; VENTUS-NEXT:    addi s0, s0, -20
 ; VENTUS-NEXT:    addi tp, tp, -20
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp

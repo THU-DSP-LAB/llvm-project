@@ -8,8 +8,7 @@ define ventus_kernel void @test_localmem_big_offset(ptr addrspace(1) nocapture n
 ; VENTUS:       call _Z12get_local_idj
 ; VENTUS:       vadd12.vi v1, v0, 520
 ; VENTUS-NEXT:  vsll.vi v1, v1, 2
-; VENTUS-NEXT:  addi [[BASE:[a-z0-9]+]], s0, -2048
-; VENTUS-NEXT:  addi [[BASE]], [[BASE]], -352
+; VENTUS-NEXT:  csrr [[BASE:[a-z0-9]+]], CSR_LDS
 ; VENTUS-NEXT:  vadd.vx v1, v1, [[BASE]]
 ; VENTUS-NEXT:  vsw12.v v0, 0(v1)
 entry:

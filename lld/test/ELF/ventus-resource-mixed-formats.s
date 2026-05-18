@@ -16,7 +16,7 @@ kernel:
   .section .ventus.resobj,"",@progbits
   .balign 8
   .long 0x5652534f
-  .long 1
+  .long 3
   .long 0
   .long 1
   .long 0

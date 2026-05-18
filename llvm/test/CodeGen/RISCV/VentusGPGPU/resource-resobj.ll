@@ -7,7 +7,7 @@
 ; RESOBJ: .section	.ventus.resobj,"",@progbits
 ; RESOBJ-NEXT: .p2align	3
 ; RESOBJ-NEXT: .word	1448235855
-; RESOBJ-NEXT: .word	1
+; RESOBJ-NEXT: .word	3
 ; RESOBJ-NEXT: .word	0
 ; RESOBJ-NEXT: .word	5
 ; RESOBJ-NEXT: .word	3
@@ -18,7 +18,7 @@
 ; RESOBJ-NEXT: .word	helper
 ; RESOBJ-NEXT: .word	0
 ; RESOBJ-NEXT: .quad	0
-; RESOBJ-NEXT: .quad	9
+; RESOBJ-NEXT: .quad	7
 ; RESOBJ-NEXT: .quad	0
 ; RESOBJ-NEXT: .quad	0
 ; RESOBJ-NEXT: .quad	0
@@ -79,9 +79,11 @@
 ; RESOBJ-NEXT: .word	helper.tmp
 ; RESOBJ-NEXT: .word	1
 ; RESOBJ-NEXT: .quad	40
+; RESOBJ-NEXT: .quad	4
 ; RESOBJ-NEXT: .word	private.tmp
 ; RESOBJ-NEXT: .word	2
 ; RESOBJ-NEXT: .quad	4
+; RESOBJ-NEXT: .quad	0
 
 declare void @ext()
 

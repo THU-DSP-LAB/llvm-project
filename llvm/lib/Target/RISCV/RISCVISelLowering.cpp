@@ -5010,20 +5010,25 @@ SDValue RISCVTargetLowering::lowerGlobalAddress(SDValue Op,
 /// TODO: Remove the address allocating in '.sbss' section
 SDValue RISCVTargetLowering::lowerGlobalLocalAddress(GlobalAddressSDNode *Op,
                                                      SelectionDAG &DAG) const {
-  MachineFunction &MF = DAG.getMachineFunction();
-  auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
-  MachineFrameInfo &MFI = MF.getFrameInfo();
-  const DataLayout &DL = DAG.getDataLayout();
+  const SDLoc SL(Op);
+  MVT XLenVT = Subtarget.getXLenVT();
   auto *GV = cast<GlobalVariable>(Op->getGlobal());
-  if (std::optional<int> FI = RVFI->getLocalMemGlobalFrameIndex(GV))
-    return DAG.getFrameIndex(*FI, MVT::i32);
+  if (!GV->getValueType()->isSized())
+    report_fatal_error("Ventus cannot lower unsized addrspace(3) globals");
 
-  unsigned AlignValue = DL.getABITypeAlignment(GV->getValueType());
-  int FI = MFI.CreateStackObject(DL.getTypeAllocSize(GV->getValueType())
-      /*Offset need to be modified too*/,
-      Align(AlignValue), false, nullptr, RISCVStackID::LocalMemSpill);
-  RVFI->setLocalMemGlobalFrameIndex(GV, FI);
-  return DAG.getFrameIndex(FI, MVT::i32);
+  SDValue SysRegNo = DAG.getTargetConstant(
+      RISCVSysReg::lookupSysRegByName("CSR_LDS")->Encoding, SL, XLenVT);
+  SDVTList VTs = DAG.getVTList(XLenVT, MVT::Other);
+  SDValue Base = DAG.getNode(RISCVISD::READ_CSR, SL, VTs, DAG.getEntryNode(),
+                             SysRegNo);
+  SDValue AddrHi = DAG.getTargetGlobalAddress(
+      GV, SL, XLenVT, 0, RISCVII::MO_VENTUS_LDS_HI);
+  SDValue AddrLo = DAG.getTargetGlobalAddress(
+      GV, SL, XLenVT, 0, RISCVII::MO_VENTUS_LDS_LO);
+  SDValue OffsetHi = DAG.getNode(RISCVISD::HI, SL, XLenVT, AddrHi);
+  SDValue BaseWithHi = DAG.getNode(ISD::ADD, SL, XLenVT, Base.getValue(0),
+                                   OffsetHi);
+  return DAG.getNode(RISCVISD::ADD_LO, SL, XLenVT, BaseWithHi, AddrLo);
 }
 
 SDValue RISCVTargetLowering::lowerBlockAddress(SDValue Op,
@@ -8285,14 +8290,18 @@ static bool isKernelLocalPointerArg(MachineFunction &MF,
          OrigArgTy->getPointerAddressSpace() == RISCVAS::LOCAL_ADDRESS;
 }
 
-static SDValue getKernelLocalBase(SelectionDAG &DAG, const SDLoc &DL,
-                                  SDValue Chain) {
+static SDValue getVentusCsrValue(SelectionDAG &DAG, const SDLoc &DL,
+                                 SDValue Chain, StringRef CsrName) {
   MVT XLenVT = DAG.getSubtarget<RISCVSubtarget>().getXLenVT();
   SDValue SysRegNo = DAG.getTargetConstant(
-      RISCVSysReg::lookupSysRegByName("CSR_LDS")->Encoding, DL, XLenVT);
+      RISCVSysReg::lookupSysRegByName(CsrName)->Encoding, DL, XLenVT);
   SDVTList VTs = DAG.getVTList(XLenVT, MVT::Other);
-  SDValue Base = DAG.getNode(RISCVISD::READ_CSR, DL, VTs, Chain, SysRegNo);
-  return Base.getValue(0);
+  return DAG.getNode(RISCVISD::READ_CSR, DL, VTs, Chain, SysRegNo).getValue(0);
+}
+
+static SDValue getKernelLocalBase(SelectionDAG &DAG, const SDLoc &DL,
+                                  SDValue Chain) {
+  return getVentusCsrValue(DAG, DL, Chain, "CSR_LDS");
 }
 
 // Returns the opcode of the target-specific SDNode that implements the 32-bit

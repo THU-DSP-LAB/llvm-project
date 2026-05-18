@@ -31,7 +31,7 @@ lds_obj:
   .section .ventus.resobj,"",@progbits
   .balign 8
   .long 0x5652534f
-  .long 1
+  .long 3
   .long 0
   .long 1
   .long 1
@@ -58,6 +58,7 @@ lds_obj:
   .long lds_obj
   .long 1
   .quad 32
+  .quad 64
 
 #--- helper.s
   .text
@@ -75,7 +76,7 @@ pds_obj:
   .section .ventus.resobj,"",@progbits
   .balign 8
   .long 0x5652534f
-  .long 1
+  .long 3
   .long 0
   .long 1
   .long 0
@@ -99,3 +100,4 @@ pds_obj:
   .long pds_obj
   .long 2
   .quad 20
+  .quad 0
