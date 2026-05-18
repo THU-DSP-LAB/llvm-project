@@ -2063,10 +2063,6 @@ defm : PatFloatSetCC<[VGPR, GPRF32], [SETOLE, SETLE], VMFLE_VV>;
 defm : PatFloatSetCC<[VGPR, GPRF32], [SETOGT, SETGT], VMFGT_VF>;
 defm : PatFloatSetCC<[VGPR, GPRF32], [SETOGE, SETGE], VMFGE_VF>;
 
-// def : Pat<(i32 (DivergentBinFrag<riscv_fcvt_x> (f32 VGPR:$rs1), timm:$frm)),
-//                 (VFCVT_RTZ_X_F_V (f32 VGPR:$rs1), $frm)>;
-// def : Pat<(i32 (DivergentBinFrag<riscv_fcvt_xu> (f32 VGPR:$rs1), timm:$frm)),
-//                 (VFCVT_RTZ_XU_F_V (f32 VGPR:$rs1), $frm)>;
 def : Pat<(i32 (DivergentUnaryFrag<any_fp_to_sint> (f32 VGPR:$rs1))), 
           (VFCVT_RTZ_X_F_V VGPR:$rs1, 0b001)>;
 def : Pat<(i32 (DivergentUnaryFrag<any_fp_to_uint> (f32 VGPR:$rs1))), 

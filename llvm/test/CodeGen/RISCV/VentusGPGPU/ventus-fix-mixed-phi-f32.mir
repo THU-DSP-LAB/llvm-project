@@ -1,0 +1,38 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-fix-mixed-phi %s -o - | FileCheck %s
+
+# CHECK-LABEL: name: mixed_phi_gprf32_to_vgpr
+# CHECK: %1:gprf32 = COPY %0
+# CHECK-NEXT: %3:vgpr = VFMV_V_F %1
+# CHECK-NEXT: PseudoBR %bb.1
+# CHECK: %2:vgpr = PHI %3, %bb.0
+# CHECK-NOT: VMV_V_X %1
+
+--- |
+  target triple = "riscv32"
+
+  define void @mixed_phi_gprf32_to_vgpr() {
+    ret void
+  }
+...
+---
+name:            mixed_phi_gprf32_to_vgpr
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: gpr }
+  - { id: 1, class: gprf32 }
+  - { id: 2, class: vgpr }
+liveins:
+  - { reg: '$x5', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    successors: %bb.1(0x80000000)
+    liveins: $x5
+
+    %0:gpr = COPY $x5
+    %1:gprf32 = COPY %0
+    PseudoBR %bb.1
+
+  bb.1:
+    %2:vgpr = PHI %1, %bb.0
+    PseudoRET
+...

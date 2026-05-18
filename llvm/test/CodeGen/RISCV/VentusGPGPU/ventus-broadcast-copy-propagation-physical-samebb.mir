@@ -1,0 +1,29 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-broadcast-copy-propagation %s -o - | FileCheck %s
+
+# CHECK-LABEL: name: same_block_physical_broadcast
+# CHECK: %0:vgpr = VMV_V_X $x5
+# CHECK: %1:gpr = COPY %0
+
+--- |
+  target triple = "riscv32"
+
+  define void @same_block_physical_broadcast() {
+    ret void
+  }
+...
+---
+name:            same_block_physical_broadcast
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: gpr }
+liveins:
+  - { reg: '$x5' }
+body:             |
+  bb.0:
+    liveins: $x5
+
+    %0:vgpr = VMV_V_X $x5
+    %1:gpr = COPY %0
+    PseudoRET
+...

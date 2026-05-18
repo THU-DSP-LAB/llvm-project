@@ -18,6 +18,7 @@
 #include "RISCVRegisterInfo.h"
 #include "RISCVSubtarget.h"
 #include "RISCVTargetMachine.h"
+#include "VentusRegisterDomain.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -158,7 +159,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   //     addRegisterClass(VT, &RISCV::VReg_96RegClass);
   // }
   // Use RVV as fixed length vector on Ventus GPGPU
-  if (Subtarget.hasVInstructions()) {
+  if (Subtarget.isVentusGPGPU()) {
     // TODO: add more data type mapping
     addRegisterClass(MVT::i32, &RISCV::VGPRRegClass);
 
@@ -10029,6 +10030,9 @@ static SDValue performFP_TO_INTCombine(SDNode *N,
   if (FRM == RISCVFPRndMode::Invalid)
     return SDValue();
 
+  if (Subtarget.isVentusGPGPU() && Src->isDivergent())
+    return SDValue();
+
   bool IsSigned = N->getOpcode() == ISD::FP_TO_SINT;
 
   unsigned Opc;
@@ -14317,6 +14321,15 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
 const TargetRegisterClass *
 RISCVTargetLowering::getRegClassFor(MVT VT, bool isDivergent) const {
   const TargetRegisterClass *RC = TargetLoweringBase::getRegClassFor(VT, false);
+  if (const TargetRegisterClass *DomainRC = getRegClassForDomain(
+          VT, isDivergent ? VentusRegDomain::Divergent
+                          : VentusRegDomain::Uniform,
+          Subtarget))
+    return DomainRC;
+
+  if (!Subtarget.isVentusGPGPU())
+    return RC;
+
   const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
   if (!TRI->isSGPRClass(RC) && !isDivergent)
     // FIXME: use VGPR for f32 type, cause vmv.vx has problem for f32

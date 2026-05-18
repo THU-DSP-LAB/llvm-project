@@ -1,0 +1,33 @@
+# RUN: not llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-reg-domain-verifier %s -o - 2>&1 | FileCheck %s
+
+# CHECK: Ventus register domain verifier failed in function 'illegal_phi_vgpr_to_gpr'
+# CHECK: illegal VGPR to scalar PHI input at operand 1: dst class GPR, src class VGPR
+# CHECK: %1:gpr = PHI %0:vgpr, %bb.0
+
+--- |
+  target triple = "riscv32"
+
+  define void @illegal_phi_vgpr_to_gpr() {
+    ret void
+  }
+...
+---
+name:            illegal_phi_vgpr_to_gpr
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: gpr }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    successors: %bb.1(0x80000000)
+    liveins: $v0
+
+    %0:vgpr = COPY $v0
+    PseudoBR %bb.1
+
+  bb.1:
+    %1:gpr = PHI %0, %bb.0
+    PseudoRET
+...

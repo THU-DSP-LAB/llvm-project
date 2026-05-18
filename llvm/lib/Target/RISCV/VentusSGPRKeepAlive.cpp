@@ -392,6 +392,9 @@ bool VentusInsertSGPRKeepAlive::collectRegionRegs(
 
 bool VentusInsertSGPRKeepAlive::runOnMachineFunction(MachineFunction &MF) {
   const RISCVSubtarget &ST = MF.getSubtarget<RISCVSubtarget>();
+  if (!ST.isVentusGPGPU())
+    return false;
+
   MRI = &MF.getRegInfo();
   TII = ST.getInstrInfo();
   MDT = &getAnalysis<MachineDominatorTree>();
@@ -489,6 +492,10 @@ bool VentusInsertSGPRKeepAlive::runOnMachineFunction(MachineFunction &MF) {
 }
 
 bool VentusRemoveSGPRKeepAlive::runOnMachineFunction(MachineFunction &MF) {
+  const RISCVSubtarget &ST = MF.getSubtarget<RISCVSubtarget>();
+  if (!ST.isVentusGPGPU())
+    return false;
+
   bool Changed = false;
   DenseSet<const MachineBasicBlock *> MarkedKeepAliveBlocks;
   for (MachineBasicBlock &MBB : MF) {

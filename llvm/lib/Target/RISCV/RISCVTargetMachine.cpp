@@ -70,6 +70,11 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeVentusPrintfRuntimeBindingPass(*PR);
   initializeVentusGenericAddressSpaceSpecializationPass(*PR);
   initializeVentusPromoteAllocaPass(*PR);
+  initializeVentusFixMixedPHIPass(*PR);
+  initializeVentusBroadcastCopyPropagationPass(*PR);
+  initializeVentusRegDomainVerifierPass(*PR);
+  initializeVentusVVInstrConversionPass(*PR);
+  initializeVentusLegalizeLoadPass(*PR);
   initializeVentusInsertSGPRKeepAlivePass(*PR);
   initializeVentusSGPRSIMTCheckerPass(*PR);
   initializeVentusRemoveSGPRKeepAlivePass(*PR);
@@ -266,6 +271,8 @@ bool RISCVPassConfig::addPreISel() {
 bool RISCVPassConfig::addInstSelector() {
   addPass(createRISCVISelDag(getRISCVTargetMachine(), getOptLevel()));
   addPass(createVentusFixMixedPHIPass());
+  addPass(createVentusBroadcastCopyPropagationPass());
+  addPass(createVentusRegDomainVerifierPass());
 
   return false;
 }
@@ -330,9 +337,12 @@ void RISCVPassConfig::addPreRegAlloc() {
   addPass(createVentusVVInstrConversionPass());
   addPass(createVentusLegalizeLoadPass());
   addPass(createVentusInsertSGPRKeepAlivePass());
+  addPass(createVentusBroadcastCopyPropagationPass());
+  addPass(createVentusRegDomainVerifierPass());
 }
 
 void RISCVPassConfig::addPostRegAlloc() {
+  addPass(createVentusRegDomainVerifierPass());
   // Temporarily disabled because the checker currently reports false positives.
   // Keep the pass registered so it can still be run explicitly for debugging.
   // addPass(createVentusSGPRSIMTCheckerPass());

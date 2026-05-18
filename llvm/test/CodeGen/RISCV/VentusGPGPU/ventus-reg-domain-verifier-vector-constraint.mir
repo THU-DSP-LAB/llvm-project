@@ -1,0 +1,38 @@
+# RUN: not --crash llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-reg-domain-verifier %s -o - 2>&1 | FileCheck %s
+
+# Explicit operand register-class violations are rejected by the MIR parser's
+# MachineVerifier before -run-pass can execute the Ventus verifier. The Ventus
+# verifier's fatal error path is covered by the COPY/PHI domain tests; this
+# test locks the parser boundary for expected-VGPR/actual-scalar operands.
+# CHECK: Bad machine code: Illegal virtual register for instruction
+# CHECK: instruction: %2:vgpr = VADD_VV %0:vgpr, %1:gpr
+# CHECK: Expected a VGPR register, but got a GPR register
+# CHECK-NOT: Ventus register domain verifier failed
+
+--- |
+  target triple = "riscv32"
+
+  define void @vector_operand_uses_scalar() {
+    ret void
+  }
+...
+---
+name:            vector_operand_uses_scalar
+tracksRegLiveness: true
+failsVerification: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: vgpr }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+  - { reg: '$x5', virtual-reg: '%1' }
+body:             |
+  bb.0:
+    liveins: $v0, $x5
+
+    %0:vgpr = COPY $v0
+    %1:gpr = COPY $x5
+    %2:vgpr = VADD_VV %0, %1
+    PseudoRET
+...

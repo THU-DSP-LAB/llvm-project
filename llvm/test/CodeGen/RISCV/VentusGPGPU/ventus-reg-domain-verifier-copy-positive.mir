@@ -1,0 +1,29 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-reg-domain-verifier %s -o - | FileCheck %s
+
+# CHECK-LABEL: name: legal_broadcast_copy
+# CHECK: %0:gpr = COPY $x5
+# CHECK: %1:vgpr = COPY %0
+
+--- |
+  target triple = "riscv32"
+
+  define void @legal_broadcast_copy() {
+    ret void
+  }
+...
+---
+name:            legal_broadcast_copy
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: gpr }
+  - { id: 1, class: vgpr }
+liveins:
+  - { reg: '$x5', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    liveins: $x5
+
+    %0:gpr = COPY $x5
+    %1:vgpr = COPY %0
+    PseudoRET
+...
