@@ -203,9 +203,8 @@ build_libclc() {
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
   ninja
   ninja install
-  # TODO: There are bugs in linking all libclc object files now
   echo "************* Building riscv32 libclc object file ************"
-  bash ${DIR}/libclc/build_riscv32clc.sh ${DIR}/libclc ${LIBCLC_BUILD_DIR} ${VENTUS_INSTALL_PREFIX} || true
+  bash ${DIR}/libclc/build_riscv32clc.sh ${DIR}/libclc ${LIBCLC_BUILD_DIR} ${VENTUS_INSTALL_PREFIX}
 
   DstDir=${VENTUS_INSTALL_PREFIX}/share/pocl
   if [ ! -d "${DstDir}" ]; then

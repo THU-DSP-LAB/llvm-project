@@ -44,7 +44,7 @@ llvm::getRegClassForDomain(MVT VT, VentusRegDomain Domain,
     return nullptr;
 
   if (Domain == VentusRegDomain::Divergent &&
-      (VT == MVT::i32 || VT == MVT::f32))
+      (VT == MVT::i32 || VT == MVT::f16 || VT == MVT::f32))
     return &RISCV::VGPRRegClass;
 
   if (VT == MVT::f16)
