@@ -44,6 +44,8 @@ _start:
   csrr t1, CSR_WID
   csrr t2, CSR_LDS
   csrr t0, CSR_KNL
+  lw t6, KNL_LDS_NON_STACK_SIZE(t0)
+  add t2, t2, t6        # LDS stack starts after static LDS and runtime local args
   lw t3, KNL_LDS_STACK_SIZE_PER_WF(t0)
   mul t1, t1, t3        # sp wid * warp_size
   add sp, t1, t2        # sp points to baseaddr of local memory of each SM
