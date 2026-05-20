@@ -349,9 +349,10 @@ void RISCVInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
     llvm_unreachable("Can't store this register to stack slot");
 
   // VGPR spills to per-thread stack, SGPR spills to local mem stack
-  if (Opcode != RISCV::VSW) {
+  if (Opcode == RISCV::VSW)
+    MFI.setStackID(FI, RISCVStackID::VGPRSpill);
+  else
     MFI.setStackID(FI, TargetStackID::SGPRSpill);
-  }
 
   MachineMemOperand *MMO = MF->getMachineMemOperand(
       MachinePointerInfo::getFixedStack(*MF, FI), MachineMemOperand::MOStore,
@@ -384,6 +385,11 @@ void RISCVInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
     Opcode = RISCV::VLW;
   } else
     llvm_unreachable("Can't load this register from stack slot");
+
+  if (Opcode == RISCV::VLW)
+    MFI.setStackID(FI, RISCVStackID::VGPRSpill);
+  else
+    MFI.setStackID(FI, TargetStackID::SGPRSpill);
 
   MachineMemOperand *MMO = MF->getMachineMemOperand(
       MachinePointerInfo::getFixedStack(*MF, FI), MachineMemOperand::MOLoad,

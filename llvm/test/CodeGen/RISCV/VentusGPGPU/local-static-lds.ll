@@ -48,13 +48,13 @@ entry:
 
 define void @static_and_stack() {
 ; CHECK-LABEL: static_and_stack:
-; CHECK: addi tp, tp, 16
+; CHECK: addi tp, tp, 24
 ; CHECK: lui [[OFF:[a-z0-9]+]], %ventus_lds_hi(b)
 ; CHECK-NEXT: csrr [[LDS:[a-z0-9]+]], CSR_LDS
 ; CHECK-NEXT: add [[ADDR:[a-z0-9]+]], [[LDS]], [[OFF]]
 ; CHECK: sw {{[a-z0-9]+}}, %ventus_lds_lo(b)([[ADDR]])
-; CHECK: addi t0, tp, -16
-; CHECK: addi tp, tp, -16
+; CHECK: addi t0, tp, -24
+; CHECK: addi tp, tp, -24
 entry:
   %tmp = alloca [4 x i32], align 4, addrspace(3)
   store i32 1, ptr addrspace(3) @b, align 4
@@ -102,7 +102,7 @@ declare void @use_local(ptr addrspace(3))
 ; CHECK-NEXT: .quad 196
 ; CHECK-NEXT: .quad 0
 ; CHECK-NEXT: .quad 8
-; CHECK-NEXT: .quad 4
+; CHECK-NEXT: .quad 12
 
 ; RELOC:      Section ({{.*}}) .rela.text {
 ; RELOC-NEXT:   0x0 R_RISCV_VENTUS_LDS_HI20 a 0x0

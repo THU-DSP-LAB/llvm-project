@@ -110,6 +110,12 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
                            unsigned FIOperandNum,
                            RegScavenger *RS = nullptr) const override;
 
+  bool saveScavengerRegister(MachineBasicBlock &MBB,
+                             MachineBasicBlock::iterator I,
+                             MachineBasicBlock::iterator &UseMI,
+                             const TargetRegisterClass *RC,
+                             Register Reg) const override;
+
   Register getFrameRegister(const MachineFunction &MF) const override;
 
   /// In Ventus, private memory access are based on TP, but the memory access

@@ -28,6 +28,7 @@
 #include "llvm/IR/CallingConv.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
+#include <iterator>
 
 #define GET_REGINFO_TARGET_DESC
 #include "RISCVGenRegisterInfo.inc"
@@ -325,6 +326,101 @@ void RISCVRegisterInfo::adjustPriMemRegOffset(MachineFunction &MF,
                                             /*IsDef*/false,
                                             /*IsImp*/false,
                                             /*IsKill*/true);
+}
+
+static unsigned getFrameIndexOperandNum(const MachineInstr &MI) {
+  unsigned I = 0;
+  while (!MI.getOperand(I).isFI()) {
+    ++I;
+    assert(I < MI.getNumOperands() && "Instr doesn't have FrameIndex operand!");
+  }
+  return I;
+}
+
+static bool isBeforeInBlock(MachineBasicBlock::iterator LHS,
+                            MachineBasicBlock::iterator RHS) {
+  if (LHS == RHS)
+    return false;
+  MachineBasicBlock *MBB = LHS->getParent();
+  if (RHS == MBB->end())
+    return true;
+  for (auto I = LHS, E = LHS->getParent()->end(); I != E; ++I)
+    if (I == RHS)
+      return true;
+  return false;
+}
+
+static bool insertionIntervalOverlaps(
+    MachineBasicBlock::iterator ExistingStore,
+    MachineBasicBlock::iterator ExistingLoad,
+    MachineBasicBlock::iterator NewStorePoint,
+    MachineBasicBlock::iterator NewLoadPoint) {
+  // The new store/reload will be inserted before the supplied points. Inserting
+  // the new store before an existing reload would clobber the existing slot
+  // contents before they are restored, so equality at that boundary overlaps.
+  return !isBeforeInBlock(ExistingLoad, NewStorePoint) &&
+         isBeforeInBlock(ExistingStore, NewLoadPoint);
+}
+
+static RISCVMachineFunctionInfo::VGPRScavengingSlot *
+findAvailableVGPRScavengingSlot(
+    RISCVMachineFunctionInfo &RVFI, MachineBasicBlock::iterator StoreMI,
+    MachineBasicBlock::iterator LoadMI) {
+  MachineBasicBlock *MBB = StoreMI->getParent();
+  assert((LoadMI == MBB->end() || LoadMI->getParent() == MBB) &&
+         "VGPR scavenging interval should stay in one basic block");
+
+  for (auto &Slot : RVFI.getVGPRScavengingSlots()) {
+    bool IsAvailable = true;
+    for (const auto &Interval : Slot.Intervals) {
+      assert(Interval.StoreMI->getParent() == Interval.LoadMI->getParent() &&
+             "VGPR scavenging interval should stay in one basic block");
+      if (Interval.StoreMI->getParent() != MBB)
+        continue;
+
+      if (insertionIntervalOverlaps(
+              MachineBasicBlock::iterator(Interval.StoreMI),
+              MachineBasicBlock::iterator(Interval.LoadMI), StoreMI, LoadMI)) {
+        IsAvailable = false;
+        break;
+      }
+    }
+    if (!IsAvailable)
+      continue;
+
+    return &Slot;
+  }
+
+  report_fatal_error("Cannot scavenge overlapping VGPRs with available private "
+                     "spill slots");
+}
+
+bool RISCVRegisterInfo::saveScavengerRegister(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
+    MachineBasicBlock::iterator &UseMI, const TargetRegisterClass *RC,
+    Register Reg) const {
+  if (!RISCV::VGPRRegClass.hasSubClassEq(RC))
+    return false;
+
+  MachineFunction &MF = *MBB.getParent();
+  auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
+  if (RVFI->getVGPRScavengingSlots().empty())
+    report_fatal_error("Cannot scavenge VGPR without a private spill slot");
+
+  const RISCVInstrInfo *TII = MF.getSubtarget<RISCVSubtarget>().getInstrInfo();
+  auto *Slot = findAvailableVGPRScavengingSlot(*RVFI, I, UseMI);
+  int FI = Slot->FrameIndex;
+  TII->storeRegToStackSlot(MBB, I, Reg, /*IsKill=*/true, FI, RC, this);
+  MachineBasicBlock::iterator StoreMI = std::prev(I);
+  eliminateFrameIndex(StoreMI, /*SPAdj=*/0, getFrameIndexOperandNum(*StoreMI),
+                      nullptr);
+
+  TII->loadRegFromStackSlot(MBB, UseMI, Reg, FI, RC, this);
+  MachineBasicBlock::iterator LoadMI = std::prev(UseMI);
+  eliminateFrameIndex(LoadMI, /*SPAdj=*/0, getFrameIndexOperandNum(*LoadMI),
+                      nullptr);
+  Slot->Intervals.push_back({&*StoreMI, &*LoadMI});
+  return true;
 }
 
 /// This function is to eliminate frame index for MachineInstruction in

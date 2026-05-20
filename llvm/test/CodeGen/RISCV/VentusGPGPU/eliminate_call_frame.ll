@@ -8,135 +8,135 @@ define dso_local <16 x double> @func(<16 x double> noundef %x, <16 x double> nou
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 4
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 4
-; VENTUS-NEXT:    addi tp, tp, 248
-; VENTUS-NEXT:    .cfi_def_cfa_offset 248
+; VENTUS-NEXT:    addi tp, tp, 256
+; VENTUS-NEXT:    .cfi_def_cfa_offset 256
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v33, -4(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v33, -12(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v34, -8(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v34, -16(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v35, -12(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v35, -20(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v36, -16(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v36, -24(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v37, -20(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v37, -28(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v38, -24(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v38, -32(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v39, -28(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v39, -36(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v40, -32(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v40, -40(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v41, -36(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v41, -44(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v42, -40(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v42, -48(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v43, -44(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v43, -52(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v44, -48(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v44, -56(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v45, -52(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v45, -60(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v46, -56(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v46, -64(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v47, -60(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v47, -68(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v48, -64(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v48, -72(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v49, -68(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v49, -76(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v50, -72(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v50, -80(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v51, -76(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v51, -84(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v52, -80(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v52, -88(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v53, -84(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v53, -92(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v54, -88(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v54, -96(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v55, -92(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v55, -100(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v56, -96(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v56, -104(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v57, -100(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v57, -108(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v58, -104(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v58, -112(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v59, -108(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v59, -116(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v60, -112(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v60, -120(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v61, -116(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v61, -124(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v62, -120(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v62, -128(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v63, -124(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v63, -132(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v64, -128(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v64, -136(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v65, -132(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v65, -140(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v66, -136(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v66, -144(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v67, -140(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v67, -148(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v68, -144(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v68, -152(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v69, -148(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v69, -156(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v70, -152(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v70, -160(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v71, -156(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v71, -164(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v72, -160(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v72, -168(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v73, -164(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v73, -172(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v74, -168(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v74, -176(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v75, -172(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v75, -180(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v76, -176(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v76, -184(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v77, -180(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v77, -188(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v78, -184(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v78, -192(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v79, -188(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v79, -196(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v80, -192(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v80, -200(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v81, -196(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v81, -204(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v82, -200(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v82, -208(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v83, -204(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v83, -212(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v84, -208(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v84, -216(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v85, -212(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v85, -220(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v86, -216(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v86, -224(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v87, -220(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v87, -228(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v88, -224(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v88, -232(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v89, -228(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v89, -236(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v90, -232(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v90, -240(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v91, -236(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v91, -244(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v92, -240(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v92, -248(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v93, -244(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v93, -252(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v94, -248(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v94, -256(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    .cfi_offset v33.l, 0
 ; VENTUS-NEXT:    .cfi_offset v34.l, 0
@@ -261,69 +261,69 @@ define dso_local <16 x double> @func(<16 x double> noundef %x, <16 x double> nou
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vadd.vx v62, v2, zero
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v63, -256(v32)
+; VENTUS-NEXT:    vlw.v v63, -264(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v64, -252(v32)
+; VENTUS-NEXT:    vlw.v v64, -260(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v65, -264(v32)
+; VENTUS-NEXT:    vlw.v v65, -272(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v66, -260(v32)
+; VENTUS-NEXT:    vlw.v v66, -268(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v67, -272(v32)
+; VENTUS-NEXT:    vlw.v v67, -280(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v68, -268(v32)
+; VENTUS-NEXT:    vlw.v v68, -276(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v69, -280(v32)
+; VENTUS-NEXT:    vlw.v v69, -288(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v70, -276(v32)
+; VENTUS-NEXT:    vlw.v v70, -284(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v71, -288(v32)
+; VENTUS-NEXT:    vlw.v v71, -296(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v72, -284(v32)
+; VENTUS-NEXT:    vlw.v v72, -292(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v73, -296(v32)
+; VENTUS-NEXT:    vlw.v v73, -304(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v74, -292(v32)
+; VENTUS-NEXT:    vlw.v v74, -300(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v75, -304(v32)
+; VENTUS-NEXT:    vlw.v v75, -312(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v76, -300(v32)
+; VENTUS-NEXT:    vlw.v v76, -308(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v77, -312(v32)
+; VENTUS-NEXT:    vlw.v v77, -320(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v78, -308(v32)
+; VENTUS-NEXT:    vlw.v v78, -316(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v79, -320(v32)
+; VENTUS-NEXT:    vlw.v v79, -328(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v80, -316(v32)
+; VENTUS-NEXT:    vlw.v v80, -324(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v81, -328(v32)
+; VENTUS-NEXT:    vlw.v v81, -336(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v82, -324(v32)
+; VENTUS-NEXT:    vlw.v v82, -332(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v83, -336(v32)
+; VENTUS-NEXT:    vlw.v v83, -344(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v84, -332(v32)
+; VENTUS-NEXT:    vlw.v v84, -340(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v85, -344(v32)
+; VENTUS-NEXT:    vlw.v v85, -352(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v86, -340(v32)
+; VENTUS-NEXT:    vlw.v v86, -348(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v87, -352(v32)
+; VENTUS-NEXT:    vlw.v v87, -360(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v88, -348(v32)
+; VENTUS-NEXT:    vlw.v v88, -356(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v89, -360(v32)
+; VENTUS-NEXT:    vlw.v v89, -368(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v90, -356(v32)
+; VENTUS-NEXT:    vlw.v v90, -364(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v91, -368(v32)
+; VENTUS-NEXT:    vlw.v v91, -376(v32)
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v92, -364(v32)
+; VENTUS-NEXT:    vlw.v v92, -372(v32)
 ; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vlw.v v2, -376(v32)
+; VENTUS-NEXT:    vlw.v v2, -384(v32)
 ; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vlw.v v3, -372(v32)
+; VENTUS-NEXT:    vlw.v v3, -380(v32)
 ; VENTUS-NEXT:    call __adddf3@plt
 ; VENTUS-NEXT:    regext zero, zero, 2
 ; VENTUS-NEXT:    vadd.vx v93, v0, zero
@@ -584,131 +584,131 @@ define dso_local <16 x double> @func(<16 x double> noundef %x, <16 x double> nou
 ; VENTUS-NEXT:    vadd.vx v29, v36, zero
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v33, -4(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v33, -12(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v34, -8(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v34, -16(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v35, -12(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v35, -20(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v36, -16(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v36, -24(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v37, -20(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v37, -28(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v38, -24(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v38, -32(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v39, -28(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v39, -36(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v40, -32(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v40, -40(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v41, -36(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v41, -44(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v42, -40(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v42, -48(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v43, -44(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v43, -52(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v44, -48(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v44, -56(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v45, -52(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v45, -60(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v46, -56(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v46, -64(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v47, -60(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v47, -68(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v48, -64(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v48, -72(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v49, -68(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v49, -76(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v50, -72(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v50, -80(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v51, -76(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v51, -84(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v52, -80(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v52, -88(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v53, -84(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v53, -92(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v54, -88(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v54, -96(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v55, -92(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v55, -100(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v56, -96(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v56, -104(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v57, -100(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v57, -108(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v58, -104(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v58, -112(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v59, -108(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v59, -116(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v60, -112(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v60, -120(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v61, -116(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v61, -124(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v62, -120(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v62, -128(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v63, -124(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v63, -132(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v64, -128(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v64, -136(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v65, -132(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v65, -140(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v66, -136(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v66, -144(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v67, -140(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v67, -148(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v68, -144(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v68, -152(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v69, -148(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v69, -156(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v70, -152(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v70, -160(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v71, -156(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v71, -164(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v72, -160(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v72, -168(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v73, -164(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v73, -172(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v74, -168(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v74, -176(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v75, -172(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v75, -180(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v76, -176(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v76, -184(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v77, -180(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v77, -188(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v78, -184(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v78, -192(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v79, -188(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v79, -196(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v80, -192(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v80, -200(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v81, -196(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v81, -204(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v82, -200(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v82, -208(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v83, -204(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v83, -212(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v84, -208(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v84, -216(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v85, -212(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v85, -220(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v86, -216(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v86, -224(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v87, -220(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v87, -228(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v88, -224(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v88, -232(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v89, -228(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v89, -236(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v90, -232(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v90, -240(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v91, -236(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v91, -244(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v92, -240(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v92, -248(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v93, -244(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v93, -252(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v94, -248(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v94, -256(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
-; VENTUS-NEXT:    addi tp, tp, -248
+; VENTUS-NEXT:    addi tp, tp, -256
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    ret
@@ -723,79 +723,79 @@ define dso_local ventus_kernel void @test_fn(ptr addrspace(1) nocapture noundef 
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 16
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 16
-; VENTUS-NEXT:    addi tp, tp, 136
-; VENTUS-NEXT:    .cfi_def_cfa_offset 136
+; VENTUS-NEXT:    addi tp, tp, 144
+; VENTUS-NEXT:    .cfi_def_cfa_offset 144
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    sw ra, -16(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v33, -4(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v33, -12(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v34, -8(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v34, -16(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v35, -12(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v35, -20(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v36, -16(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v36, -24(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v37, -20(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v37, -28(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v38, -24(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v38, -32(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v39, -28(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v39, -36(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v40, -32(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v40, -40(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v41, -36(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v41, -44(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v42, -40(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v42, -48(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v43, -44(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v43, -52(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v44, -48(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v44, -56(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v45, -52(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v45, -60(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v46, -56(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v46, -64(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v47, -60(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v47, -68(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v48, -64(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v48, -72(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v49, -68(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v49, -76(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v50, -72(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v50, -80(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v51, -76(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v51, -84(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v52, -80(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v52, -88(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v53, -84(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v53, -92(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v54, -88(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v54, -96(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v55, -92(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v55, -100(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v56, -96(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v56, -104(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v57, -100(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v57, -108(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v58, -104(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v58, -112(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v59, -108(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v59, -116(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v60, -112(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v60, -120(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v61, -116(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v61, -124(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v62, -120(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v62, -128(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v63, -124(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v63, -132(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v64, -128(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v64, -136(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v65, -132(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v65, -140(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    regext zero, zero, 136
-; VENTUS-NEXT:    vsw.v v66, -136(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v66, -144(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    .cfi_offset v33.l, 0
 ; VENTUS-NEXT:    .cfi_offset v34.l, 0
@@ -1209,75 +1209,75 @@ define dso_local ventus_kernel void @test_fn(ptr addrspace(1) nocapture noundef 
 ; VENTUS-NEXT:    vsw12.v v0, 0(v33)
 ; VENTUS-NEXT:    lw ra, -16(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v33, -4(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v33, -12(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v34, -8(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v34, -16(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v35, -12(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v35, -20(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v36, -16(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v36, -24(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v37, -20(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v37, -28(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v38, -24(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v38, -32(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v39, -28(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v39, -36(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v40, -32(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v40, -40(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v41, -36(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v41, -44(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v42, -40(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v42, -48(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v43, -44(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v43, -52(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v44, -48(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v44, -56(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v45, -52(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v45, -60(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v46, -56(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v46, -64(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v47, -60(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v47, -68(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v48, -64(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v48, -72(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v49, -68(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v49, -76(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v50, -72(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v50, -80(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v51, -76(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v51, -84(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v52, -80(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v52, -88(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v53, -84(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v53, -92(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v54, -88(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v54, -96(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v55, -92(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v55, -100(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v56, -96(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v56, -104(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v57, -100(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v57, -108(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v58, -104(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v58, -112(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v59, -108(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v59, -116(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v60, -112(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v60, -120(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v61, -116(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v61, -124(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v62, -120(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v62, -128(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v63, -124(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v63, -132(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v64, -128(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v64, -136(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v65, -132(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v65, -140(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 10
-; VENTUS-NEXT:    vlw.v v66, -136(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v66, -144(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -16
-; VENTUS-NEXT:    addi tp, tp, -136
+; VENTUS-NEXT:    addi tp, tp, -144
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    ret

@@ -56,6 +56,7 @@ body:             |
     ; CHECK-LABEL: name: fi_large_local
     ; CHECK: bb.0.entry:
     ; CHECK: $x5 = LUI 2
+    ; CHECK-NEXT: $x5 = ADDI killed $x5, 8
     ; CHECK-NEXT: $x5 = SUB $x4, killed $x5
     ; CHECK-NEXT: dead renamable $v1 = COPY renamable $x5
     renamable $x5 = ADDI %stack.0, 0

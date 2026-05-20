@@ -137,8 +137,8 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 4
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 4
-; VENTUS-NEXT:    addi tp, tp, 4
-; VENTUS-NEXT:    .cfi_def_cfa_offset 4
+; VENTUS-NEXT:    addi tp, tp, 12
+; VENTUS-NEXT:    .cfi_def_cfa_offset 12
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
@@ -167,12 +167,12 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    li t0, 1
 ; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v2, -4(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    vsw.v v2, -12(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    li t0, 23
 ; VENTUS-NEXT:    li t2, 12
 ; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vlw.v v1, -4(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:    vlw.v v1, -12(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:  .Lpcrel_hi6:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB2_5)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi6)
@@ -195,7 +195,7 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    join zero, zero, 0
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
-; VENTUS-NEXT:    addi tp, tp, -4
+; VENTUS-NEXT:    addi tp, tp, -12
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    ret
@@ -363,6 +363,7 @@ define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:  .LBB4_3: # %for.body
 ; VENTUS-NEXT:    # =>This Inner Loop Header: Depth=1
 ; VENTUS-NEXT:    vmv.v.x v4, zero
+; VENTUS-NEXT:    li s1, 2
 ; VENTUS-NEXT:  .Lpcrel_hi11:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB4_9)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi11)
@@ -373,8 +374,7 @@ define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    li t1, 1
 ; VENTUS-NEXT:    vmv.v.x v6, t1
 ; VENTUS-NEXT:    vmv.v.x v4, t2
-; VENTUS-NEXT:    li t1, 2
-; VENTUS-NEXT:    vmv.v.x v5, t1
+; VENTUS-NEXT:    vmv.v.x v5, s1
 ; VENTUS-NEXT:  .Lpcrel_hi12:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB4_8)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi12)

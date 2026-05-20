@@ -8,11 +8,14 @@
 define dso_local ventus_kernel void @compute_sum_with_localmem(ptr addrspace(1) noundef align 4 %a, i32 noundef %n, ptr addrspace(1) noundef align 4 %sum) {
 ; VENTUS-LABEL: compute_sum_with_localmem:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    csrr t0, CSR_LDS
-; VENTUS-NEXT:    li t1, 12
-; VENTUS-NEXT:    sw t1, 24(t0)
-; VENTUS-NEXT:    sw t1, 0(t0)
-; VENTUS-NEXT:    sw t1, 36(t0)
+; VENTUS-NEXT:    lui t0, %ventus_lds_hi(compute_sum_with_localmem.tmp_sum)
+; VENTUS-NEXT:    csrr t1, CSR_LDS
+; VENTUS-NEXT:    add t0, t1, t0
+; VENTUS-NEXT:    addi t1, t0, %ventus_lds_lo(compute_sum_with_localmem.tmp_sum)
+; VENTUS-NEXT:    li t2, 12
+; VENTUS-NEXT:    sw t2, 24(t1)
+; VENTUS-NEXT:    sw t2, %ventus_lds_lo(compute_sum_with_localmem.tmp_sum)(t0)
+; VENTUS-NEXT:    sw t2, 36(t1)
 ; VENTUS-NEXT:    ret
 entry:
   %a.addr = alloca ptr addrspace(1), align 4, addrspace(5)
@@ -32,7 +35,7 @@ entry:
 ; VENTUS-NEXT: .word	3
 ; VENTUS-NEXT: .word	0
 ; VENTUS-NEXT: .quad	0
-; VENTUS-NEXT: .quad	7
+; VENTUS-NEXT: .quad	8
 ; VENTUS-NEXT: .quad	40
 ; VENTUS-NEXT: .quad	0
 ; VENTUS-NEXT: .quad	0

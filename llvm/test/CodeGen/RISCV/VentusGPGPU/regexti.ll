@@ -181,13 +181,13 @@ define dso_local ventus_kernel void @regexti13(ptr addrspace(1) nocapture
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    addi sp, sp, 12
 ; CHECK-NEXT:    .cfi_def_cfa_offset 12
-; CHECK-NEXT:    addi tp, tp, 4
-; CHECK-NEXT:    .cfi_def_cfa_offset 4
+; CHECK-NEXT:    addi tp, tp, 12
+; CHECK-NEXT:    .cfi_def_cfa_offset 12
 ; CHECK-NEXT:    regext zero, zero, 1
 ; CHECK-NEXT:    vmv.v.x v32, tp
 ; CHECK-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
 ; CHECK-NEXT:    regext zero, zero, 72
-; CHECK-NEXT:    vsw.v v33, -4(v32) # 4-byte Folded Spill
+; CHECK-NEXT:    vsw.v v33, -12(v32) # 4-byte Folded Spill
 ; CHECK-NEXT:    .cfi_offset ra, 0
 ; CHECK-NEXT:    .cfi_offset v33.l, 0
 ; CHECK-NEXT:    lw t0, 4(a0)
@@ -215,9 +215,9 @@ define dso_local ventus_kernel void @regexti13(ptr addrspace(1) nocapture
 ; CHECK-NEXT:    vsw12.v v0, 0(v1)
 ; CHECK-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
 ; CHECK-NEXT:    regext zero, zero, 9
-; CHECK-NEXT:    vlw.v v33, -4(v32) # 4-byte Folded Reload
+; CHECK-NEXT:    vlw.v v33, -12(v32) # 4-byte Folded Reload
 ; CHECK-NEXT:    addi sp, sp, -12
-; CHECK-NEXT:    addi tp, tp, -4
+; CHECK-NEXT:    addi tp, tp, -12
 ; CHECK-NEXT:    regext zero, zero, 1
 ; CHECK-NEXT:    vmv.v.x v32, tp
 ; CHECK-NEXT:    ret

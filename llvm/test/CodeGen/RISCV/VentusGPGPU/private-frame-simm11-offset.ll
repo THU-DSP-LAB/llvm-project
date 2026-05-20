@@ -7,7 +7,7 @@ target triple = "riscv32"
 define dso_local ventus_kernel void @private_frame_offset_neg1028(i32 %x) #0 {
 ; CHECK-LABEL: private_frame_offset_neg1028:
 ; CHECK:       vsub12.vi {{v[0-9]+}}, v32, 1024
-; CHECK-NEXT:  vsw.v {{v[0-9]+}}, -4({{v[0-9]+}})
+; CHECK-NEXT:  vsw.v {{v[0-9]+}}, -12({{v[0-9]+}})
 entry:
   %buf = alloca [257 x i32], align 4, addrspace(5)
   call void @llvm.lifetime.start.p5(i64 1028, ptr addrspace(5) %buf)

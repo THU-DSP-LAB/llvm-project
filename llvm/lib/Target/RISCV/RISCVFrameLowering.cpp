@@ -170,6 +170,28 @@ static int getLibCallID(const MachineFunction &MF,
   }
 }
 
+static Align getVentusStackObjectAlign(const MachineFrameInfo &MFI, int FI) {
+  return MFI.getObjectAlign(FI).value() <= 4 ? Align(4)
+                                             : MFI.getObjectAlign(FI);
+}
+
+static uint64_t addVentusStackObject(const MachineFrameInfo &MFI, int FI,
+                                     uint64_t StackSize) {
+  StackSize += MFI.getObjectSize(FI);
+  return alignTo(StackSize, getVentusStackObjectAlign(MFI, FI));
+}
+
+static uint64_t addVGPRScavengingStackObjects(
+    const MachineFrameInfo &MFI, const RISCVMachineFunctionInfo &RVFI,
+    uint64_t StackSize, int StopFI = -1) {
+  for (const auto &Slot : RVFI.getVGPRScavengingSlots()) {
+    StackSize = addVentusStackObject(MFI, Slot.FrameIndex, StackSize);
+    if (Slot.FrameIndex == StopFI)
+      break;
+  }
+  return StackSize;
+}
+
 // Get the name of the libcall used for spilling callee saved registers.
 // If this function will not use save/restore libcalls, then return a nullptr.
 static const char *
@@ -525,17 +547,23 @@ uint64_t RISCVFrameLowering::getStackOffset(const MachineFunction &MF,
                                             RISCVStackID::Value Stack) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   uint64_t StackSize = 0;
+  const auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
+
+  if (Stack == RISCVStackID::VGPRSpill && RVFI->isVGPRScavengingFrameIndex(FI))
+    return addVGPRScavengingStackObjects(MFI, *RVFI, 0, FI);
+
+  if (Stack == RISCVStackID::VGPRSpill && FI >= 0)
+    StackSize = addVGPRScavengingStackObjects(MFI, *RVFI, StackSize);
 
   // because the parameters spilling to the stack are not in the current TP
   // stack, the offset in the current stack should not be calculated from a
   // negative FI.
   for (int I = FI < 0 ? MFI.getObjectIndexBegin() : 0; I != FI + 1; I++) {
+    if (RVFI->isVGPRScavengingFrameIndex(I))
+      continue;
     if (static_cast<unsigned>(MFI.getStackID(I)) == Stack) {
-      // Need to consider the alignment for different frame index
-      Align Alignment =
-          MFI.getObjectAlign(I).value() <= 4 ? Align(4) : MFI.getObjectAlign(I);
-      StackSize += MFI.getObjectSize(I);
-      StackSize = alignTo(StackSize, Alignment);
+      // Need to consider the alignment for different frame index.
+      StackSize = addVentusStackObject(MFI, I, StackSize);
     }
   }
 
@@ -574,12 +602,52 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
   else
     FrameReg = RISCV::X8;
   return -StackOffset::getFixed(
-                          getStackOffset(MF, FI, (RISCVStackID::Value)StackID));
+      getStackOffset(MF, FI, (RISCVStackID::Value)StackID));
 }
 
 void RISCVFrameLowering::processFunctionBeforeFrameFinalized(
-  MachineFunction &MF,
-  RegScavenger *RS) const {}
+    MachineFunction &MF, RegScavenger *RS) const {
+  if (!RS)
+    return;
+
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  bool HasVGPRStackObject = false;
+  for (int I = MFI.getObjectIndexBegin(); I != MFI.getObjectIndexEnd(); I++) {
+    MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF, I);
+    if (MFI.getStackID(I) == RISCVStackID::VGPRSpill ||
+        (MFI.getStackID(I) == RISCVStackID::Default &&
+         PtrInfo.getAddrSpace() == RISCVAS::PRIVATE_ADDRESS)) {
+      HasVGPRStackObject = true;
+      break;
+    }
+  }
+  if (!HasVGPRStackObject)
+    return;
+
+  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
+  auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
+  // Frame layout is finalized before frame-index scavenging inserts these
+  // VGPR spills, so private emergency slots must be reserved up front rather
+  // than pushed dynamically. Two slots cover the currently supported nested
+  // private-address legalization cases; if all slots overlap,
+  // saveScavengerRegister fails explicitly instead of reusing a live slot.
+  constexpr unsigned NumVGPRScavengingSlots = 2;
+  RVFI->getVGPRScavengingSlots().clear();
+  for (unsigned I = 0; I != NumVGPRScavengingSlots; ++I) {
+    int FI = MFI.CreateStackObject(TRI->getSpillSize(RISCV::VGPRRegClass),
+                                   TRI->getSpillAlign(RISCV::VGPRRegClass),
+                                   /*isSpillSlot=*/true, nullptr,
+                                   RISCVStackID::VGPRSpill);
+    RVFI->addVGPRScavengingFrameIndex(FI);
+  }
+  // RISCVRegisterInfo::saveScavengerRegister owns these slots. getStackSize()
+  // and getStackOffset() lay them out at the top of the VGPR stack even though
+  // they are created after normal frame objects. If an emergency slot is placed
+  // after a large private frame, its vlw/vsw offset may need another VGPR
+  // scratch to legalize the address, recursively triggering scavenging and
+  // failing PEI. Do not add them to the generic scavenger pool, which may also
+  // be used for SGPRs.
+}
 
 void RISCVFrameLowering::determineCalleeSaves(MachineFunction &MF,
                                               BitVector &SavedRegs,
@@ -731,13 +799,16 @@ uint64_t RISCVFrameLowering::getStackSize(const MachineFunction &MF,
                                           RISCVStackID::Value ID) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   uint64_t StackSize = 0;
+  const auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
+
+  if (ID == RISCVStackID::VGPRSpill)
+    StackSize = addVGPRScavengingStackObjects(MFI, *RVFI, StackSize);
 
   for(int I = 0; I != MFI.getObjectIndexEnd(); I++) {
+    if (RVFI->isVGPRScavengingFrameIndex(I))
+      continue;
     if(static_cast<unsigned>(MFI.getStackID(I)) == ID) {
-      Align Alignment = MFI.getObjectAlign(I).value() <= 4 ?
-                        Align(4) : MFI.getObjectAlign(I);
-      StackSize += MFI.getObjectSize(I);
-      StackSize = alignTo(StackSize, Alignment);
+      StackSize = addVentusStackObject(MFI, I, StackSize);
     }
   }
 
