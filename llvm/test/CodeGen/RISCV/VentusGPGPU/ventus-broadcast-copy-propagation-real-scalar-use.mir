@@ -1,0 +1,33 @@
+# RUN: not llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-broadcast-copy-propagation,ventus-reg-domain-verifier %s -o - 2>&1 | FileCheck %s
+
+# CHECK: Ventus register domain verifier failed in function 'real_scalar_use'
+# CHECK: illegal VGPR to scalar COPY: dst class GPR, src class VGPR
+# CHECK: %1:gpr = COPY %0:vgpr
+
+--- |
+  target triple = "riscv32"
+
+  define void @real_scalar_use() {
+    ret void
+  }
+...
+---
+name:            real_scalar_use
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: vgpr }
+  - { id: 3, class: gpr }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    liveins: $v0
+
+    %0:vgpr = COPY $v0
+    %1:gpr = COPY %0
+    %2:vgpr = COPY %1
+    %3:gpr = ADDI %1, 1
+    PseudoRET
+...

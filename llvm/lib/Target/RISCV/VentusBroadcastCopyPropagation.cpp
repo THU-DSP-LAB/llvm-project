@@ -123,6 +123,43 @@ getSingleNonDebugUser(const BroadcastCopyPropagationContext &Ctx,
   return &*Ctx.MRI.use_instr_nodbg_begin(Reg);
 }
 
+static bool rewriteVGPRScalarRoundTrip(BroadcastCopyPropagationContext &Ctx,
+                                       MachineInstr &MI) {
+  if (!MI.isCopy())
+    return false;
+
+  Register ScalarReg = MI.getOperand(0).getReg();
+  Register VGPRSrc = MI.getOperand(1).getReg();
+  const TargetRegisterClass *ScalarRC = getRegClass(Ctx, ScalarReg);
+  const TargetRegisterClass *VGPRSrcRC = getRegClass(Ctx, VGPRSrc);
+  if (isLegalCopyDirection(ScalarRC, VGPRSrcRC))
+    return false;
+
+  if (VGPRSrcRC != &RISCV::VGPRRegClass || MI.getOperand(0).getSubReg() ||
+      MI.getOperand(1).getSubReg())
+    return false;
+
+  MachineInstr *CopyToVGPR = getSingleNonDebugUser(Ctx, ScalarReg);
+  if (!CopyToVGPR || !CopyToVGPR->isCopy())
+    return false;
+
+  if (CopyToVGPR->getOperand(1).getReg() != ScalarReg ||
+      CopyToVGPR->getOperand(0).getSubReg() ||
+      CopyToVGPR->getOperand(1).getSubReg())
+    return false;
+
+  Register FinalDst = CopyToVGPR->getOperand(0).getReg();
+  if (getRegClass(Ctx, FinalDst) != &RISCV::VGPRRegClass)
+    return false;
+
+  Ctx.MRI.clearKillFlags(VGPRSrc);
+  CopyToVGPR->getOperand(1).setReg(VGPRSrc);
+  CopyToVGPR->getOperand(1).setIsKill(false);
+  MI.eraseFromParent();
+  LLVM_DEBUG(dbgs() << "Rewrote VGPR scalar round trip: " << *CopyToVGPR);
+  return true;
+}
+
 static bool rewriteF16ScalarRoundTrip(BroadcastCopyPropagationContext &Ctx,
                                       MachineInstr &MI) {
   if (!MI.isCopy())
@@ -197,6 +234,10 @@ bool VentusBroadcastCopyPropagation::runOnMachineFunction(MachineFunction &MF) {
 
   bool Changed = false;
   for (MachineInstr *MI : Copies) {
+    if (rewriteVGPRScalarRoundTrip(Ctx, *MI)) {
+      Changed = true;
+      continue;
+    }
     if (rewriteF16ScalarRoundTrip(Ctx, *MI)) {
       Changed = true;
       continue;
