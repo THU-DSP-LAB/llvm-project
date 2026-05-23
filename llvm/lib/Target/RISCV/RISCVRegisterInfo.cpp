@@ -501,16 +501,23 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   }
 
   if (RII->isPrivateMemoryAccess(MI) && FrameReg == RISCV::X4) {
+    Register PrivateBaseReg = getPrivateMemoryBaseRegister(MF);
+    if (HasFrameAdjustment) {
+      PrivateBaseReg = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
+      BuildMI(*MBB, II, DL, RII->get(RISCV::VMV_V_X), PrivateBaseReg)
+          .addReg(DestReg, RegState::Kill);
+    }
+
     MI.getOperand(FIOperandNum)
-        .ChangeToRegister(getPrivateMemoryBaseRegister(MF),
+        .ChangeToRegister(PrivateBaseReg,
                           /*IsDef*/ false,
                           /*IsImp*/ false,
-                          /*IsKill*/ false);
+                          /*IsKill*/ HasFrameAdjustment);
     // simm11 locates in range [-1024, 1023], if offset not in this range, then
     // we legalize the offset
     if (!isInt<11>(Lo11))
       adjustPriMemRegOffset(MF, *MI.getParent(), MI, Lo11,
-                            getPrivateMemoryBaseRegister(MF), FIOperandNum);
+                            PrivateBaseReg, FIOperandNum);
     return false;
   }
 
