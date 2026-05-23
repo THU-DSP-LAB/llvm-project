@@ -10,6 +10,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
+#include "llvm/IR/IntrinsicsRISCV.h"
 
 using namespace llvm;
 using namespace llvm::ventus;
@@ -283,7 +284,6 @@ bool NarrowingContext::rewritePointerCompare(ICmpInst &Cmp, Value *Source) {
   Value *OldLHS = Cmp.getOperand(0);
   Value *OldRHS = Cmp.getOperand(1);
   Type *PrivatePtrTy = PointerType::get(F.getContext(), ASPrivate);
-
   auto narrowCompareOperand = [&](Value *Operand) -> Value * {
     if (Operand == Source || isKnownPrivateDerived(Operand))
       return getOrCreateNarrow(Operand, &Cmp);
@@ -314,6 +314,20 @@ bool NarrowingContext::rewriteCall(CallBase &CB, Value *OldPtr, Value *NewPtr) {
   Function *Callee = CB.getCalledFunction();
   if (!Callee)
     diagnose(CB, "private-derived generic pointer passed to indirect call");
+  if (!Callee->isVarArg() && Callee->getName() == "_Z17wait_group_eventsiP9ocl_event" &&
+      Callee->getReturnType()->isVoidTy() && Callee->arg_size() == 2 &&
+      Callee->getArg(0)->getType()->isIntegerTy(32) &&
+      isFlatPointer(Callee->getArg(1)->getType())) {
+    IRBuilder<> B(&CB);
+    CallInst *NewCall = B.CreateIntrinsic(
+        Intrinsic::riscv_ventus_barrier, {}, {B.getInt32(3)});
+    NewCall->setDebugLoc(CB.getDebugLoc());
+    NewCall->copyMetadata(CB);
+    RewrittenInsts.insert(cast<Instruction>(&CB));
+    DeadInsts.push_back(cast<Instruction>(&CB));
+    Changed = true;
+    return true;
+  }
   if (Callee->isIntrinsic())
     diagnose(CB,
              "unsupported intrinsic consumes private-derived generic pointer");

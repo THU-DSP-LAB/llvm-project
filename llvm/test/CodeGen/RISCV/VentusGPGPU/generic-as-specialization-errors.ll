@@ -1,5 +1,6 @@
 ; RUN: split-file %s %t
 ; RUN: not llc -mtriple=riscv32 -mcpu=ventus-gpgpu -stop-after=ventus-generic-as-specialization < %t/external.ll 2>&1 | FileCheck %s --check-prefix=EXTERNAL
+; RUN: not llc -mtriple=riscv32 -mcpu=ventus-gpgpu -stop-after=ventus-generic-as-specialization < %t/wait-group-events-near-miss.ll 2>&1 | FileCheck %s --check-prefix=WAITNEARMISS
 ; RUN: not llc -mtriple=riscv32 -mcpu=ventus-gpgpu -stop-after=ventus-generic-as-specialization < %t/indirect.ll 2>&1 | FileCheck %s --check-prefix=INDIRECT
 ; RUN: not llc -mtriple=riscv32 -mcpu=ventus-gpgpu -stop-after=ventus-generic-as-specialization < %t/variadic.ll 2>&1 | FileCheck %s --check-prefix=VARIADIC
 ; RUN: not llc -mtriple=riscv32 -mcpu=ventus-gpgpu -stop-after=ventus-generic-as-specialization < %t/return.ll 2>&1 | FileCheck %s --check-prefix=RETURN
@@ -11,6 +12,7 @@
 ; RUN: not llc -mtriple=riscv32 -mcpu=ventus-gpgpu -stop-after=ventus-generic-as-specialization < %t/byval.ll 2>&1 | FileCheck %s --check-prefix=BYVAL
 
 ; EXTERNAL: private-derived generic pointer passed to external call
+; WAITNEARMISS: private-derived generic pointer passed to external call
 ; INDIRECT: private-derived generic pointer passed to indirect call
 ; VARIADIC: private-derived generic pointer passed to variadic call
 ; RETURN: private-derived generic pointer returned
@@ -32,6 +34,18 @@ entry:
   ret void
 }
 declare void @external(ptr)
+
+;--- wait-group-events-near-miss.ll
+target datalayout = "e-m:e-p:32:32-i64:64-n32-S128-A5-G1"
+target triple = "riscv32-unknown-unknown"
+define dso_local ventus_kernel void @kernel_wait_group_events_near_miss() {
+entry:
+  %event = alloca ptr, align 4, addrspace(5)
+  %event.flat = addrspacecast ptr addrspace(5) %event to ptr
+  call void @_Z17wait_group_eventsiP9ocl_event_extra(i32 1, ptr %event.flat)
+  ret void
+}
+declare void @_Z17wait_group_eventsiP9ocl_event_extra(i32, ptr)
 
 ;--- indirect.ll
 target datalayout = "e-m:e-p:32:32-i64:64-n32-S128-A5-G1"

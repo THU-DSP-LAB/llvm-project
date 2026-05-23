@@ -174,6 +174,20 @@ entry:
   ret void
 }
 
+define dso_local ventus_kernel void @kernel_wait_group_events() {
+; CHECK-LABEL: define dso_local ventus_kernel void @kernel_wait_group_events(
+; CHECK: %event = alloca ptr, align 4, addrspace(5)
+; CHECK-NOT: addrspacecast ptr addrspace(5) %event to ptr
+; CHECK: call void @llvm.riscv.ventus.barrier(i32 3)
+; CHECK-NOT: call void @_Z17wait_group_eventsiP9ocl_event
+; CHECK: ret void
+entry:
+  %event = alloca ptr, align 4, addrspace(5)
+  %event.flat = addrspacecast ptr addrspace(5) %event to ptr
+  call void @_Z17wait_group_eventsiP9ocl_event(i32 1, ptr %event.flat)
+  ret void
+}
+
 define dso_local i32 @vararg_va_list(ptr addrspace(2) %fmt, ...) {
 ; CHECK-LABEL: define dso_local i32 @vararg_va_list(
 ; CHECK: %va = alloca ptr, align 4, addrspace(5)
@@ -213,6 +227,7 @@ entry:
 
 declare void @llvm.memset.p0.i32(ptr nocapture writeonly, i8, i32, i1 immarg)
 declare void @llvm.lifetime.start.p0(i64 immarg, ptr nocapture)
+declare void @_Z17wait_group_eventsiP9ocl_event(i32, ptr)
 declare void @llvm.va_start(ptr)
 declare void @llvm.va_end(ptr)
 
