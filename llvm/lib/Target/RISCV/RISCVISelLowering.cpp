@@ -12582,6 +12582,12 @@ static SDValue convertValVTToLocVT(SelectionDAG &DAG, SDValue Val,
   return Val;
 }
 
+static int64_t getSignedLocMemOffset(const CCValAssign &VA) {
+  // CCValAssign stores memory offsets as unsigned. CC_Ventus encodes
+  // downward-growing stack argument slots as wrapped 32-bit negative offsets.
+  return SignExtend64<32>(VA.getLocMemOffset());
+}
+
 // The caller is responsible for loading the full value if the argument is
 // passed with CCValAssign::Indirect.
 static SDValue unpackFromMemLoc(SelectionDAG &DAG, SDValue Chain,
@@ -12600,8 +12606,9 @@ static SDValue unpackFromMemLoc(SelectionDAG &DAG, SDValue Chain,
 
   // Just align to 4 bytes, because parameters more than 4 bytes will be split
   // into 4-byte parameters
-  int FI = MFI.CreateFixedObject(ValVT.getStoreSize(), 0,
-                                 /*IsImmutable=*/true);
+  int FI =
+      MFI.CreateFixedObject(ValVT.getStoreSize(), getSignedLocMemOffset(VA),
+                            /*IsImmutable=*/true);
   MFI.setObjectAlignment(FI, Align(4));
   // This is essential for calculating stack size for VGPRSpill
   MFI.setStackID(FI, RISCVStackID::VGPRSpill);
@@ -12637,7 +12644,8 @@ static SDValue unpackF64OnRV32DSoftABI(SelectionDAG &DAG, SDValue Chain,
   if (VA.isMemLoc()) {
     // f64 is passed on the stack.
     int FI =
-        MFI.CreateFixedObject(8, VA.getLocMemOffset(), /*IsImmutable=*/true);
+        MFI.CreateFixedObject(8, getSignedLocMemOffset(VA),
+                              /*IsImmutable=*/true);
     SDValue FIN = DAG.getFrameIndex(FI, MVT::i32);
     return DAG.getLoad(MVT::f64, DL, Chain, FIN,
                        MachinePointerInfo::getFixedStack(MF, FI));
