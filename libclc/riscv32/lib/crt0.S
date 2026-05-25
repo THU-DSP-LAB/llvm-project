@@ -55,14 +55,14 @@ _start:
   mul t5, t5, t3
   add s0, t2, t5        # s0 points to local memory base addr in a workgroup
 
-  # clear BSS segment
-  la      a0, _edata
-  la      a2, _end
-  beq     a0, a2, 2f
-1:
-  sw      zero, (a0)
-  addi    a0, a0, 4
-  bltu    a0, a2, 1b
+  # clear BSS segment (Not needed on device code)
+  # la      a0, _edata
+  # la      a2, _end
+  # beq     a0, a2, 2f
+  # 1:
+  # sw      zero, (a0)
+  # addi    a0, a0, 4
+  # bltu    a0, a2, 1b
 
 2:
   csrr t0, CSR_KNL	                 # get addr of kernel metadata
