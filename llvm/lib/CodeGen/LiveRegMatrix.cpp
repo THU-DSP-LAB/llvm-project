@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/LiveIntervalUnion.h"
 #include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/RegAllocExtraInterference.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
@@ -45,6 +46,8 @@ INITIALIZE_PASS_END(LiveRegMatrix, "liveregmatrix",
 
 LiveRegMatrix::LiveRegMatrix() : MachineFunctionPass(ID) {}
 
+LiveRegMatrix::~LiveRegMatrix() = default;
+
 void LiveRegMatrix::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
   AU.addRequiredTransitive<LiveIntervals>();
@@ -56,6 +59,7 @@ bool LiveRegMatrix::runOnMachineFunction(MachineFunction &MF) {
   TRI = MF.getSubtarget().getRegisterInfo();
   LIS = &getAnalysis<LiveIntervals>();
   VRM = &getAnalysis<VirtRegMap>();
+  ExtraInterference.reset();
 
   unsigned NumRegUnits = TRI->getNumRegUnits();
   if (NumRegUnits != Matrix.size())
@@ -64,16 +68,26 @@ bool LiveRegMatrix::runOnMachineFunction(MachineFunction &MF) {
 
   // Make sure no stale queries get reused.
   invalidateVirtRegs();
+  ExtraInterference = TRI->createRegAllocExtraInterference(MF, *LIS, *VRM, *this);
+  if (ExtraInterference)
+    ExtraInterference->analyze(MF, *LIS, *VRM, *this);
   return false;
 }
 
 void LiveRegMatrix::releaseMemory() {
+  ExtraInterference.reset();
   for (unsigned i = 0, e = Matrix.size(); i != e; ++i) {
     Matrix[i].clear();
     // No need to clear Queries here, since LiveIntervalUnion::Query doesn't
     // have anything important to clear and LiveRegMatrix's runOnFunction()
     // does a std::unique_ptr::reset anyways.
   }
+}
+
+void LiveRegMatrix::invalidateVirtRegs() {
+  ++UserTag;
+  if (ExtraInterference)
+    ExtraInterference->invalidateVirtRegs();
 }
 
 template <typename Callable>
@@ -114,6 +128,9 @@ void LiveRegMatrix::assign(const LiveInterval &VirtReg, MCRegister PhysReg) {
         return false;
       });
 
+  if (ExtraInterference)
+    ExtraInterference->assign(VirtReg, PhysReg, *this);
+
   ++NumAssigned;
   LLVM_DEBUG(dbgs() << '\n');
 }
@@ -122,12 +139,21 @@ void LiveRegMatrix::unassign(const LiveInterval &VirtReg) {
   Register PhysReg = VRM->getPhys(VirtReg.reg());
   LLVM_DEBUG(dbgs() << "unassigning " << printReg(VirtReg.reg(), TRI)
                     << " from " << printReg(PhysReg, TRI) << ':');
+
+  bool HasExtraSegments = false;
+  if (ExtraInterference)
+    HasExtraSegments =
+        ExtraInterference->unassign(VirtReg, PhysReg.asMCReg(), *this);
+
   VRM->clearVirt(VirtReg.reg());
 
   foreachUnit(TRI, VirtReg, PhysReg,
               [&](unsigned Unit, const LiveRange &Range) {
                 LLVM_DEBUG(dbgs() << ' ' << printRegUnit(Unit, TRI));
-                Matrix[Unit].extract(VirtReg, Range);
+                if (HasExtraSegments)
+                  Matrix[Unit].extractAll(VirtReg);
+                else
+                  Matrix[Unit].extract(VirtReg, Range);
                 return false;
               });
 
@@ -188,23 +214,31 @@ LiveRegMatrix::checkInterference(const LiveInterval &VirtReg,
   if (VirtReg.empty())
     return IK_Free;
 
+  InterferenceKind Kind = IK_Free;
+
   // Regmask interference is the fastest check.
   if (checkRegMaskInterference(VirtReg, PhysReg))
     return IK_RegMask;
 
   // Check for fixed interference.
   if (checkRegUnitInterference(VirtReg, PhysReg))
-    return IK_RegUnit;
+    Kind = IK_RegUnit;
 
   // Check the matrix for virtual register interference.
-  bool Interference = foreachUnit(TRI, VirtReg, PhysReg,
-                                  [&](MCRegister Unit, const LiveRange &LR) {
-                                    return query(LR, Unit).checkInterference();
-                                  });
-  if (Interference)
-    return IK_VirtReg;
+  if (Kind < IK_VirtReg) {
+    bool Interference = foreachUnit(TRI, VirtReg, PhysReg,
+                                    [&](MCRegister Unit, const LiveRange &LR) {
+                                      return query(LR, Unit).checkInterference();
+                                    });
+    if (Interference)
+      Kind = IK_VirtReg;
+  }
 
-  return IK_Free;
+  if (ExtraInterference)
+    Kind = std::max(
+        Kind, ExtraInterference->checkInterference(VirtReg, PhysReg, *this));
+
+  return Kind;
 }
 
 bool LiveRegMatrix::checkInterference(SlotIndex Start, SlotIndex End,

@@ -17,8 +17,6 @@
 #include "RISCVFrameLowering.h"
 #include "RISCVISelLowering.h"
 #include "RISCVInstrInfo.h"
-#include "VentusProgramInfo.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/CodeGen/GlobalISel/CallLowering.h"
 #include "llvm/CodeGen/GlobalISel/InstructionSelector.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
@@ -119,7 +117,6 @@ private:
   RISCVRegisterInfo RegInfo;
   RISCVTargetLowering TLInfo;
   SelectionDAGTargetInfo TSInfo;
-  VentusProgramInfo CurrentProgramInfo = VentusProgramInfo();
 
   /// Initializes using the passed in CPU and feature strings so that we can
   /// use initializer lists for subtarget initialization.
@@ -142,15 +139,6 @@ public:
     return &FrameLowering;
   }
   const RISCVInstrInfo *getInstrInfo() const override { return &InstrInfo; }
-  const VentusProgramInfo *getVentusProgramInfo() const {
-    return &CurrentProgramInfo;
-  }
-  const DenseSet<unsigned> *getCurrentRegisterAddedSet() const { 
-    return &CurrentProgramInfo.RegisterAddedSetVec[CurrentProgramInfo.RegisterAddedSetVec.size() - 1];
-  }
-  const SubVentusProgramInfo *getCurrentSubProgramInfo() const {
-    return &CurrentProgramInfo.SubProgramInfoVec[CurrentProgramInfo.SubProgramInfoVec.size() - 1];
-  }
   const RISCVRegisterInfo *getRegisterInfo() const override { return &RegInfo; }
   const RISCVTargetLowering *getTargetLowering() const override {
     return &TLInfo;
@@ -219,6 +207,7 @@ public:
   bool hasLUIADDIFusion() const { return HasLUIADDIFusion; }
   bool hasForcedAtomics() const { return HasForcedAtomics; }
   bool hasOptimizedZeroStrideLoad() const { return HasOptimizedZeroStrideLoad; }
+  bool isVentusGPGPU() const { return getCPU() == "ventus-gpgpu"; }
   MVT getXLenVT() const { return XLenVT; }
   unsigned getXLen() const { return XLen; }
   unsigned getFLen() const {
@@ -306,7 +295,6 @@ public:
                               &Mutations) const override;
 };
 
-// VentusProgramInfo RISCVSubtarget::CurrentProgramInfo = VentusProgramInfo();
 } // namespace llvm
 
 #endif

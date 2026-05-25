@@ -29,6 +29,52 @@ using namespace llvm;
 
 #define DEBUG_TYPE "riscv-isel"
 
+static unsigned getVentusMMASubReg(unsigned Index) {
+  switch (Index) {
+  default:
+    llvm_unreachable("unexpected Ventus tuple subregister index");
+  case 0:
+    return RISCV::sub0;
+  case 1:
+    return RISCV::sub1;
+  case 2:
+    return RISCV::sub2;
+  case 3:
+    return RISCV::sub3;
+  case 4:
+    return RISCV::sub4;
+  case 5:
+    return RISCV::sub5;
+  case 6:
+    return RISCV::sub6;
+  case 7:
+    return RISCV::sub7;
+  }
+}
+
+static MVT getVentusMMAResultVT(unsigned NumResults) {
+  switch (NumResults) {
+  default:
+    llvm_unreachable("unexpected Ventus MMA result width");
+  case 1:
+  case 2:
+    return MVT::ventus_mma_2x32;
+  case 4:
+    return MVT::ventus_mma_4x32;
+  case 8:
+    return MVT::ventus_mma_8x32;
+  }
+}
+
+static SDValue decodeVentusMMAOperand(SDNode *Node, unsigned &OpIdx) {
+  auto VT = MVT(static_cast<MVT::SimpleValueType>(
+      cast<ConstantSDNode>(Node->getOperand(OpIdx++))->getZExtValue()));
+  assert((VT == MVT::i32 || VT.isVentusMMA()) &&
+         "unexpected Ventus MMA operand type");
+  (void)VT;
+  return Node->getOperand(OpIdx++);
+}
+
 static unsigned getLastNonGlueOrChainOpIdx(const SDNode *Node) {
   assert(Node->getNumOperands() > 0 && "Node with no operands");
   unsigned LastOpIdx = Node->getNumOperands() - 1;
@@ -194,6 +240,31 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   SDLoc DL(Node);
   MVT VT = Node->getSimpleValueType(0);
   switch (Opcode) {
+  case RISCVISD::VENTUS_MMA: {
+    unsigned PseudoOpc =
+        cast<ConstantSDNode>(Node->getOperand(0))->getZExtValue();
+    unsigned OpIdx = 1;
+    SDValue Acc = decodeVentusMMAOperand(Node, OpIdx);
+    SDValue A = decodeVentusMMAOperand(Node, OpIdx);
+    SDValue B = decodeVentusMMAOperand(Node, OpIdx);
+    if (Node->getNumValues() == 1) {
+      SDNode *Res = CurDAG->getMachineNode(PseudoOpc, DL, Node->getValueType(0),
+                                           Acc, A, B);
+      ReplaceNode(Node, Res);
+      return;
+    }
+
+    MVT ResultVT = getVentusMMAResultVT(Node->getNumValues());
+    SDValue Tuple =
+        SDValue(CurDAG->getMachineNode(PseudoOpc, DL, ResultVT, Acc, A, B), 0);
+    for (unsigned I = 0, E = Node->getNumValues(); I != E; ++I) {
+      SDValue Lane = CurDAG->getTargetExtractSubreg(
+          getVentusMMASubReg(I), DL, Node->getValueType(I), Tuple);
+      CurDAG->ReplaceAllUsesOfValueWith(SDValue(Node, I), Lane);
+    }
+    CurDAG->RemoveDeadNode(Node);
+    return;
+  }
   case ISD::Constant: {
     auto *ConstNode = cast<ConstantSDNode>(Node);
     if (VT == XLenVT && ConstNode->isZero()) {

@@ -36,7 +36,9 @@ let hasSideEffects = 0, mayLoad = 1, mayStore = 1 in
 class AMO_rr<bits<5> funct5, bit aq, bit rl, bits<3> funct3, string opcodestr>
     : RVInstRAtomic<funct5, aq, rl, funct3, OPC_AMO,
                     (outs VGPR:$rd), (ins VGPRMemZeroOffset:$rs1, VGPR:$rs2),
-                    opcodestr, "$rd, $rs2, $rs1">;
+                    opcodestr, "$rd, $rs2, $rs1"> {
+  let CustomConstraints = "$rd = 0,$rs1 = 1,$rs2 = 2";
+}
 
 multiclass AMO_rr_aq_rl<bits<5> funct5, bits<3> funct3, string opcodestr> {
   def ""     : AMO_rr<funct5, 0, 0, funct3, opcodestr>;

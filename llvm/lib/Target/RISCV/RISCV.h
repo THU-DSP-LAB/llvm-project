@@ -82,9 +82,28 @@ void initializeVentusInsertJoinToVBranchPass(PassRegistry &);
 FunctionPass *createVentusFixMixedPHIPass();
 void initializeVentusFixMixedPHIPass(PassRegistry &);
 
+FunctionPass *createVentusBroadcastCopyPropagationPass();
+void initializeVentusBroadcastCopyPropagationPass(PassRegistry &);
+
+FunctionPass *createVentusRegDomainVerifierPass();
+void initializeVentusRegDomainVerifierPass(PassRegistry &);
+
+FunctionPass *createVentusInsertSGPRKeepAlivePass();
+void initializeVentusInsertSGPRKeepAlivePass(PassRegistry &);
+
+FunctionPass *createVentusRemoveSGPRKeepAlivePass();
+void initializeVentusRemoveSGPRKeepAlivePass(PassRegistry &);
+
+FunctionPass *createVentusSGPRSIMTCheckerPass();
+void initializeVentusSGPRSIMTCheckerPass(PassRegistry &);
+
 FunctionPass *createVentusPromoteAllocaPass();
 void initializeVentusPromoteAllocaPass(PassRegistry &);
 extern char &VentusPromoteAllocaID;
+
+ModulePass *createVentusGenericAddressSpaceSpecializationPass();
+void initializeVentusGenericAddressSpaceSpecializationPass(PassRegistry &);
+extern char &VentusGenericAddressSpaceSpecializationID;
 
 InstructionSelector *createRISCVInstructionSelector(const RISCVTargetMachine &,
                                                     RISCVSubtarget &,

@@ -8,6 +8,10 @@
 // VENTUS-NEXT:    tail call void @llvm.riscv.ventus.barrier(i32 3)
 // VENTUS-NEXT:    tail call void @llvm.riscv.ventus.subgroup.barrier(i32 3)
 // VENTUS-NEXT:    ret void
+// VENTUS: Function Attrs: convergent nounwind
+// VENTUS-NEXT: declare void @llvm.riscv.ventus.barrier(i32 immarg) #[[BARRIER_ATTR:[0-9]+]]
+// VENTUS: Function Attrs: convergent nounwind
+// VENTUS-NEXT: declare void @llvm.riscv.ventus.subgroup.barrier(i32 immarg) #[[BARRIER_ATTR]]
 //
 
 void test_barrier()
@@ -22,6 +26,11 @@ void test_barrier()
 // VENTUS-NEXT:    tail call void @llvm.riscv.ventus.barrier.with.scope(i32 3, i32 3)
 // VENTUS-NEXT:    tail call void @llvm.riscv.ventus.subgroup.barrier.with.scope(i32 3, i32 3)
 // VENTUS-NEXT:    ret void
+// VENTUS: Function Attrs: convergent nounwind
+// VENTUS-NEXT: declare void @llvm.riscv.ventus.barrier.with.scope(i32 immarg, i32 immarg) #[[BARRIER_ATTR]]
+// VENTUS: Function Attrs: convergent nounwind
+// VENTUS-NEXT: declare void @llvm.riscv.ventus.subgroup.barrier.with.scope(i32 immarg, i32 immarg) #[[BARRIER_ATTR]]
+// VENTUS: attributes #[[BARRIER_ATTR]] = { {{.*}}convergent{{.*}} }
 //
 void test_memory_scope_barrier()
 {

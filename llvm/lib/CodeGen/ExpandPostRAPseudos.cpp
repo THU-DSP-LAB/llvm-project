@@ -148,8 +148,16 @@ bool ExpandPostRA::LowerCopy(MachineInstr *MI) {
 
   MachineOperand &DstMO = MI->getOperand(0);
   MachineOperand &SrcMO = MI->getOperand(1);
+  Register SrcReg = SrcMO.getReg();
 
-  bool IdentityCopy = (SrcMO.getReg() == DstMO.getReg());
+  if (unsigned SrcSubReg = SrcMO.getSubReg()) {
+    assert(Register::isPhysicalRegister(SrcReg) &&
+           "Unexpected virtual subreg copy after register allocation");
+    SrcReg = TRI->getSubReg(SrcReg, SrcSubReg);
+    assert(SrcReg && "Invalid physical subregister in post-RA copy");
+  }
+
+  bool IdentityCopy = (SrcReg == DstMO.getReg());
   if (IdentityCopy || SrcMO.isUndef()) {
     LLVM_DEBUG(dbgs() << (IdentityCopy ? "identity copy: " : "undef copy:    ")
                       << *MI);
@@ -169,7 +177,7 @@ bool ExpandPostRA::LowerCopy(MachineInstr *MI) {
 
   LLVM_DEBUG(dbgs() << "real copy:   " << *MI);
   TII->copyPhysReg(*MI->getParent(), MI, MI->getDebugLoc(),
-                   DstMO.getReg(), SrcMO.getReg(), SrcMO.isKill());
+                   DstMO.getReg(), SrcReg, SrcMO.isKill());
 
   if (MI->getNumOperands() > 2)
     TransferImplicitOperands(MI);

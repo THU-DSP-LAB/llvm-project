@@ -1,0 +1,31 @@
+# RUN: not --crash llc -mtriple=riscv32 -mcpu=ventus-gpgpu -mattr=+f -run-pass=ventus-fix-mixed-phi %s -o - 2>&1 | FileCheck %s
+
+# CHECK: VentusFixMixedPHI unsupported scalar-to-VGPR PHI broadcast in 'mixed_phi_fpr32_to_vgpr': source class FPR32
+
+--- |
+  target triple = "riscv32"
+
+  define void @mixed_phi_fpr32_to_vgpr() {
+    ret void
+  }
+...
+---
+name:            mixed_phi_fpr32_to_vgpr
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: fpr32 }
+  - { id: 1, class: vgpr }
+liveins:
+  - { reg: '$f10_f', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    successors: %bb.1(0x80000000)
+    liveins: $f10_f
+
+    %0:fpr32 = COPY $f10_f
+    PseudoBR %bb.1
+
+  bb.1:
+    %1:vgpr = PHI %0, %bb.0
+    PseudoRET
+...

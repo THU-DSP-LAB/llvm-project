@@ -1,0 +1,104 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-broadcast-copy-propagation,ventus-reg-domain-verifier %s -o - | FileCheck %s
+
+# CHECK-LABEL: name: scalar_use_of_copy_broadcast
+# CHECK: %1:vgpr = COPY %0
+# CHECK: %2:gpr = COPY %0
+
+# CHECK-LABEL: name: scalar_use_of_vmv_broadcast
+# CHECK: %1:vgpr = VMV_V_X %0
+# CHECK: %2:gpr = COPY %0
+
+# CHECK-LABEL: name: zero_physical_broadcast
+# CHECK: %0:vgpr = VMV_V_X $x0
+# CHECK: %1:gpr = COPY $x0
+
+# CHECK-LABEL: name: vgpr_scalar_round_trip
+# CHECK: %0:vgpr = COPY $v0
+# CHECK-NOT: :gpr = COPY %0
+# CHECK: %2:vgpr = COPY %0
+
+--- |
+  target triple = "riscv32"
+
+  define void @scalar_use_of_copy_broadcast() {
+    ret void
+  }
+
+  define void @scalar_use_of_vmv_broadcast() {
+    ret void
+  }
+
+  define void @zero_physical_broadcast() {
+    ret void
+  }
+
+  define void @vgpr_scalar_round_trip() {
+    ret void
+  }
+...
+---
+name:            scalar_use_of_copy_broadcast
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: gpr }
+  - { id: 1, class: vgpr }
+  - { id: 2, class: gpr }
+liveins:
+  - { reg: '$x5', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    liveins: $x5
+
+    %0:gpr = COPY $x5
+    %1:vgpr = COPY %0
+    %2:gpr = COPY %1
+    PseudoRET
+...
+---
+name:            zero_physical_broadcast
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: gpr }
+body:             |
+  bb.0:
+    %0:vgpr = VMV_V_X $x0
+    %1:gpr = COPY %0
+    PseudoRET
+...
+---
+name:            scalar_use_of_vmv_broadcast
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: gpr }
+  - { id: 1, class: vgpr }
+  - { id: 2, class: gpr }
+liveins:
+  - { reg: '$x5', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    liveins: $x5
+
+    %0:gpr = COPY $x5
+    %1:vgpr = VMV_V_X %0
+    %2:gpr = COPY %1
+    PseudoRET
+...
+---
+name:            vgpr_scalar_round_trip
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: vgpr }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    liveins: $v0
+
+    %0:vgpr = COPY $v0
+    %1:gpr = COPY %0
+    %2:vgpr = COPY %1
+    PseudoRET
+...

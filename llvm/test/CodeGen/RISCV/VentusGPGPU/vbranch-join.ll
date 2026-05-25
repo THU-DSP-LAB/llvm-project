@@ -20,7 +20,8 @@ define dso_local i32 @branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB0_3)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi0)
 ; VENTUS-NEXT:    vblt v0, v2, .LBB0_3
-; VENTUS-NEXT:  # %bb.1: # %if.else
+; VENTUS-NEXT:    j .LBB0_1
+; VENTUS-NEXT:  .LBB0_1: # %if.else
 ; VENTUS-NEXT:    li t0, 18
 ; VENTUS-NEXT:    vmv.v.x v2, t0
 ; VENTUS-NEXT:    vmv.v.x v1, t0
@@ -28,7 +29,8 @@ define dso_local i32 @branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB0_3)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi1)
 ; VENTUS-NEXT:    vbltu v0, v2, .LBB0_3
-; VENTUS-NEXT:  # %bb.2: # %if.end3
+; VENTUS-NEXT:    j .LBB0_2
+; VENTUS-NEXT:  .LBB0_2: # %if.end3
 ; VENTUS-NEXT:    li t0, 4
 ; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:    call _Z13get_global_idj
@@ -61,45 +63,50 @@ cleanup:                                          ; preds = %if.else, %entry, %i
 define dso_local ventus_kernel void @loop_branch(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
 ; VENTUS-LABEL: loop_branch:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 8
-; VENTUS-NEXT:    .cfi_def_cfa_offset 8
-; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    addi sp, sp, 12
+; VENTUS-NEXT:    .cfi_def_cfa_offset 12
+; VENTUS-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
-; VENTUS-NEXT:    sw a0, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    lw t0, 4(a0)
+; VENTUS-NEXT:    sw t0, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    lw t0, 0(a0)
+; VENTUS-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vmv.v.x v1, zero
 ; VENTUS-NEXT:  .Lpcrel_hi2:
-; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB1_3)
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB1_2)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi2)
-; VENTUS-NEXT:    vbeq v0, v1, .LBB1_3
-; VENTUS-NEXT:  # %bb.1: # %for.body.lr.ph
-; VENTUS-NEXT:    lw t1, -4(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw t0, 0(t1)
-; VENTUS-NEXT:    lw t1, 4(t1)
-; VENTUS-NEXT:    vmv.v.x v1, t0
+; VENTUS-NEXT:    vbeq v0, v1, .LBB1_2
+; VENTUS-NEXT:    j .LBB1_1
+; VENTUS-NEXT:  .LBB1_1: # %for.body.lr.ph
 ; VENTUS-NEXT:    vsll.vi v3, v0, 2
-; VENTUS-NEXT:    vadd.vv v1, v1, v3
+; VENTUS-NEXT:    lw t0, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    # kill: def $v1 killed $x5
+; VENTUS-NEXT:    lw t1, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vadd.vx v1, v3, t1
 ; VENTUS-NEXT:    vlw12.v v2, 0(v1)
-; VENTUS-NEXT:    vmv.v.x v4, t1
-; VENTUS-NEXT:    vadd.vv v3, v4, v3
+; VENTUS-NEXT:    vadd.vx v3, v3, t0
+; VENTUS-NEXT:    # kill: def $v4 killed $x6
 ; VENTUS-NEXT:    vmv.v.x v5, zero
-; VENTUS-NEXT:  .LBB1_2: # %for.body
+; VENTUS-NEXT:    j .LBB1_3
+; VENTUS-NEXT:  .LBB1_2: # %for.cond.cleanup
+; VENTUS-NEXT:    # Label of block must be emitted
+; VENTUS-NEXT:    join zero, zero, 0
+; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -12
+; VENTUS-NEXT:    ret
+; VENTUS-NEXT:  .LBB1_3: # %for.body
 ; VENTUS-NEXT:    # =>This Inner Loop Header: Depth=1
 ; VENTUS-NEXT:    vlw12.v v4, 0(v3)
 ; VENTUS-NEXT:    vadd.vv v2, v2, v4
 ; VENTUS-NEXT:    vsub12.vi v0, v0, 1
 ; VENTUS-NEXT:    vsw12.v v2, 0(v1)
 ; VENTUS-NEXT:  .Lpcrel_hi3:
-; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB1_3)
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB1_2)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi3)
-; VENTUS-NEXT:    vbne v0, v5, .LBB1_2
-; VENTUS-NEXT:  .LBB1_3: # %for.cond.cleanup
-; VENTUS-NEXT:    # Label of block must be emitted
-; VENTUS-NEXT:    join zero, zero, 0
-; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi sp, sp, -8
-; VENTUS-NEXT:    ret
+; VENTUS-NEXT:    vbeq v0, v5, .LBB1_2
+; VENTUS-NEXT:    j .LBB1_3
 entry:
   %call = call i32 @_Z13get_global_idj(i32 noundef 0)
   %cmp5.not = icmp eq i32 %call, 0
@@ -130,19 +137,15 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 4
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 4
-; VENTUS-NEXT:    addi tp, tp, 4
-; VENTUS-NEXT:    .cfi_def_cfa_offset 4
+; VENTUS-NEXT:    addi tp, tp, 12
+; VENTUS-NEXT:    .cfi_def_cfa_offset 12
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v33, -4(v32) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
-; VENTUS-NEXT:    .cfi_offset v33.l, 0
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
-; VENTUS-NEXT:    regext zero, zero, 1
-; VENTUS-NEXT:    vadd.vx v33, v0, zero
+; VENTUS-NEXT:    vadd.vx v2, v0, zero
 ; VENTUS-NEXT:    li t0, 13
 ; VENTUS-NEXT:    li t1, 14
 ; VENTUS-NEXT:    vmv.v.x v1, t1
@@ -150,47 +153,49 @@ define dso_local i32 @branch_in_branch(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:  .Lpcrel_hi4:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB2_7)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi4)
-; VENTUS-NEXT:    regext zero, zero, 64
-; VENTUS-NEXT:    vblt v33, v1, .LBB2_7
-; VENTUS-NEXT:  # %bb.1: # %if.else
+; VENTUS-NEXT:    vblt v2, v1, .LBB2_7
+; VENTUS-NEXT:    j .LBB2_1
+; VENTUS-NEXT:  .LBB2_1: # %if.else
 ; VENTUS-NEXT:    li t0, 17
 ; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:  .Lpcrel_hi5:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB2_7)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi5)
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vbltu v0, v33, .LBB2_4
-; VENTUS-NEXT:  # %bb.2: # %if.then2
+; VENTUS-NEXT:    vbltu v0, v2, .LBB2_6
+; VENTUS-NEXT:    j .LBB2_2
+; VENTUS-NEXT:  .LBB2_2: # %if.then2
 ; VENTUS-NEXT:    li t0, 1
 ; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    call _Z13get_global_idj
-; VENTUS-NEXT:  .Lpcrel_hi6:
-; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB2_6)
-; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi6)
 ; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vblt v0, v33, .LBB2_5
-; VENTUS-NEXT:  # %bb.3: # %if.then2
+; VENTUS-NEXT:    vsw.v v2, -12(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    li t0, 23
-; VENTUS-NEXT:    j .LBB2_6
-; VENTUS-NEXT:  .LBB2_4: # %if.end7
+; VENTUS-NEXT:    li t2, 12
+; VENTUS-NEXT:    regext zero, zero, 8
+; VENTUS-NEXT:    vlw.v v1, -12(v32) # 4-byte Folded Reload
+; VENTUS-NEXT:  .Lpcrel_hi6:
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB2_5)
+; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi6)
+; VENTUS-NEXT:    vbge v0, v1, .LBB2_4
+; VENTUS-NEXT:  # %bb.3:
+; VENTUS-NEXT:    vmv.v.x v0, t2
+; VENTUS-NEXT:    j .LBB2_5
+; VENTUS-NEXT:  .LBB2_4: # %if.then2
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:  .LBB2_5: # %if.then2
+; VENTUS-NEXT:    # Label of block must be emitted
+; VENTUS-NEXT:    join zero, zero, 0
+; VENTUS-NEXT:    j .LBB2_7
+; VENTUS-NEXT:  .LBB2_6: # %if.end7
 ; VENTUS-NEXT:    li t0, 4
 ; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:    call _Z13get_global_idj
-; VENTUS-NEXT:    j .LBB2_7
-; VENTUS-NEXT:  .LBB2_5:
-; VENTUS-NEXT:    li t0, 12
-; VENTUS-NEXT:  .LBB2_6: # %cleanup9
-; VENTUS-NEXT:    # Label of block must be emitted
-; VENTUS-NEXT:    join zero, zero, 0
-; VENTUS-NEXT:    vmv.v.x v0, t0
 ; VENTUS-NEXT:  .LBB2_7: # %cleanup9
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v33, -4(v32) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
-; VENTUS-NEXT:    addi tp, tp, -4
+; VENTUS-NEXT:    addi tp, tp, -12
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    ret
@@ -222,61 +227,66 @@ cleanup9:                                         ; preds = %entry, %if.end7, %i
 define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
 ; VENTUS-LABEL: double_loop:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 8
-; VENTUS-NEXT:    .cfi_def_cfa_offset 8
-; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    addi sp, sp, 12
+; VENTUS-NEXT:    .cfi_def_cfa_offset 12
+; VENTUS-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
-; VENTUS-NEXT:    sw a0, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    lw t0, 4(a0)
+; VENTUS-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    lw t0, 0(a0)
+; VENTUS-NEXT:    sw t0, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vmv.v.x v1, zero
 ; VENTUS-NEXT:  .Lpcrel_hi7:
-; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB3_5)
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB3_3)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi7)
-; VENTUS-NEXT:    vbeq v0, v1, .LBB3_5
-; VENTUS-NEXT:  # %bb.1: # %for.cond1.preheader.lr.ph
-; VENTUS-NEXT:    li t0, 0
-; VENTUS-NEXT:    lw t2, -4(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw t1, 0(t2)
-; VENTUS-NEXT:    lw t2, 4(t2)
-; VENTUS-NEXT:    vmv.v.x v1, t1
-; VENTUS-NEXT:    vsll.vi v3, v0, 2
-; VENTUS-NEXT:    vadd.vv v1, v1, v3
-; VENTUS-NEXT:    vlw12.v v2, 0(v1)
-; VENTUS-NEXT:    vmv.v.x v4, t2
-; VENTUS-NEXT:    vadd.vv v3, v4, v3
-; VENTUS-NEXT:    vmv.v.x v6, zero
+; VENTUS-NEXT:    vbeq v0, v1, .LBB3_3
+; VENTUS-NEXT:    j .LBB3_1
+; VENTUS-NEXT:  .LBB3_1: # %for.cond1.preheader.lr.ph
+; VENTUS-NEXT:    vsll.vi v2, v0, 2
+; VENTUS-NEXT:    lw t0, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    # kill: def $v1 killed $x5
+; VENTUS-NEXT:    vadd.vx v1, v2, t0
+; VENTUS-NEXT:    lw t0, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vadd.vx v2, v2, t0
+; VENTUS-NEXT:    vlw12.v v3, 0(v2)
+; VENTUS-NEXT:    # kill: def $v4 killed $x5
+; VENTUS-NEXT:    vmv.v.x v4, zero
+; VENTUS-NEXT:    vmv.v.x v7, zero
 ; VENTUS-NEXT:  .LBB3_2: # %for.cond1.preheader
 ; VENTUS-NEXT:    # =>This Loop Header: Depth=1
-; VENTUS-NEXT:    # Child Loop BB3_3 Depth 2
-; VENTUS-NEXT:    vadd.vx v4, v0, zero
-; VENTUS-NEXT:  .LBB3_3: # %for.body4
-; VENTUS-NEXT:    # Parent Loop BB3_2 Depth=1
-; VENTUS-NEXT:    # => This Inner Loop Header: Depth=2
-; VENTUS-NEXT:    vlw12.v v5, 0(v3)
-; VENTUS-NEXT:    vadd.vv v2, v2, v5
-; VENTUS-NEXT:    vsub12.vi v4, v4, 1
-; VENTUS-NEXT:    vsw12.v v2, 0(v1)
-; VENTUS-NEXT:  .Lpcrel_hi8:
-; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB3_4)
-; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi8)
-; VENTUS-NEXT:    vbne v4, v6, .LBB3_3
+; VENTUS-NEXT:    # Child Loop BB3_5 Depth 2
+; VENTUS-NEXT:    vadd.vx v5, v0, zero
+; VENTUS-NEXT:    j .LBB3_5
+; VENTUS-NEXT:  .LBB3_3: # %for.cond.cleanup
+; VENTUS-NEXT:    # Label of block must be emitted
+; VENTUS-NEXT:    join zero, zero, 0
+; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -12
+; VENTUS-NEXT:    ret
 ; VENTUS-NEXT:  .LBB3_4: # %for.cond1.for.cond.cleanup3_crit_edge
 ; VENTUS-NEXT:    # in Loop: Header=BB3_2 Depth=1
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
-; VENTUS-NEXT:    addi t0, t0, 1
-; VENTUS-NEXT:    vmv.v.x v4, t0
+; VENTUS-NEXT:    vadd.vi v4, v4, 1
+; VENTUS-NEXT:  .Lpcrel_hi8:
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB3_3)
+; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi8)
+; VENTUS-NEXT:    vbeq v4, v0, .LBB3_3
+; VENTUS-NEXT:    j .LBB3_2
+; VENTUS-NEXT:  .LBB3_5: # %for.body4
+; VENTUS-NEXT:    # Parent Loop BB3_2 Depth=1
+; VENTUS-NEXT:    # => This Inner Loop Header: Depth=2
+; VENTUS-NEXT:    vlw12.v v6, 0(v1)
+; VENTUS-NEXT:    vadd.vv v3, v3, v6
+; VENTUS-NEXT:    vsub12.vi v5, v5, 1
+; VENTUS-NEXT:    vsw12.v v3, 0(v2)
 ; VENTUS-NEXT:  .Lpcrel_hi9:
-; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB3_5)
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB3_4)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi9)
-; VENTUS-NEXT:    vbne v4, v0, .LBB3_2
-; VENTUS-NEXT:  .LBB3_5: # %for.cond.cleanup
-; VENTUS-NEXT:    # Label of block must be emitted
-; VENTUS-NEXT:    join zero, zero, 0
-; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi sp, sp, -8
-; VENTUS-NEXT:    ret
+; VENTUS-NEXT:    vbeq v5, v7, .LBB3_4
+; VENTUS-NEXT:    j .LBB3_5
 entry:
   %call = call i32 @_Z13get_global_idj(i32 noundef 0)
   %cmp16.not = icmp eq i32 %call, 0
@@ -316,73 +326,96 @@ for.body4:                                        ; preds = %for.cond1.preheader
 define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noundef align 4 %A, ptr addrspace(1) nocapture noundef readonly align 4 %B) {
 ; VENTUS-LABEL: loop_switch:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 8
-; VENTUS-NEXT:    .cfi_def_cfa_offset 8
-; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    addi sp, sp, 12
+; VENTUS-NEXT:    .cfi_def_cfa_offset 12
+; VENTUS-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
-; VENTUS-NEXT:    sw a0, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    lw t0, 4(a0)
+; VENTUS-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    lw t0, 0(a0)
+; VENTUS-NEXT:    sw t0, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vmv.v.x v1, zero
 ; VENTUS-NEXT:  .Lpcrel_hi10:
-; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB4_9)
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB4_2)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi10)
-; VENTUS-NEXT:    vbeq v0, v1, .LBB4_9
-; VENTUS-NEXT:  # %bb.1: # %for.body.lr.ph
-; VENTUS-NEXT:    li t0, 0
-; VENTUS-NEXT:    lw t2, -4(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    lw t1, 4(t2)
-; VENTUS-NEXT:    lw t2, 0(t2)
-; VENTUS-NEXT:    vmv.v.x v1, t1
-; VENTUS-NEXT:    vmv.v.x v4, t2
+; VENTUS-NEXT:    vbeq v0, v1, .LBB4_2
+; VENTUS-NEXT:    j .LBB4_1
+; VENTUS-NEXT:  .LBB4_1: # %for.body.lr.ph
 ; VENTUS-NEXT:    vsll.vi v2, v0, 2
-; VENTUS-NEXT:    vadd.vv v1, v1, v2
-; VENTUS-NEXT:    vadd.vv v2, v4, v2
-; VENTUS-NEXT:    vadd.vi v3, v4, 8
-; VENTUS-NEXT:    vadd.vi v4, v4, 4
-; VENTUS-NEXT:    li t2, 1
+; VENTUS-NEXT:    lw t0, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    # kill: def $v1 killed $x5
+; VENTUS-NEXT:    vadd.vx v1, v2, t0
+; VENTUS-NEXT:    lw t2, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    # kill: def $v3 killed $x7
+; VENTUS-NEXT:    vadd.vx v2, v2, t2
+; VENTUS-NEXT:    addi t0, t2, 8
+; VENTUS-NEXT:    addi t2, t2, 4
+; VENTUS-NEXT:    vmv.v.x v3, zero
+; VENTUS-NEXT:    j .LBB4_3
+; VENTUS-NEXT:  .LBB4_2: # %for.cond.cleanup
+; VENTUS-NEXT:    # Label of block must be emitted
+; VENTUS-NEXT:    join zero, zero, 0
+; VENTUS-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -12
+; VENTUS-NEXT:    ret
+; VENTUS-NEXT:  .LBB4_3: # %for.body
+; VENTUS-NEXT:    # =>This Inner Loop Header: Depth=1
+; VENTUS-NEXT:    vmv.v.x v4, zero
 ; VENTUS-NEXT:    li s1, 2
-; VENTUS-NEXT:    j .LBB4_5
-; VENTUS-NEXT:  .LBB4_2: # %sw.default
-; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
-; VENTUS-NEXT:    vlw12.v v6, 0(v1)
-; VENTUS-NEXT:    vadd.vx v5, v2, zero
-; VENTUS-NEXT:  .LBB4_3: # %for.inc.sink.split
-; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
-; VENTUS-NEXT:    vlw12.v v7, 0(v5)
-; VENTUS-NEXT:    vadd.vv v6, v7, v6
-; VENTUS-NEXT:    vsw12.v v6, 0(v5)
-; VENTUS-NEXT:  .LBB4_4: # %for.inc
-; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
-; VENTUS-NEXT:    addi t0, t0, 1
-; VENTUS-NEXT:    vmv.v.x v5, t0
 ; VENTUS-NEXT:  .Lpcrel_hi11:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB4_9)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi11)
-; VENTUS-NEXT:    vbeq v0, v5, .LBB4_9
-; VENTUS-NEXT:  .LBB4_5: # %for.body
-; VENTUS-NEXT:    # =>This Inner Loop Header: Depth=1
-; VENTUS-NEXT:    beqz t0, .LBB4_4
-; VENTUS-NEXT:  # %bb.6: # %for.body
-; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
-; VENTUS-NEXT:    vadd.vx v5, v4, zero
-; VENTUS-NEXT:    vmv.v.x v6, s1
-; VENTUS-NEXT:    beq t0, t2, .LBB4_3
-; VENTUS-NEXT:  # %bb.7: # %for.body
-; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
-; VENTUS-NEXT:    bne t0, s1, .LBB4_2
-; VENTUS-NEXT:  # %bb.8: # %sw.bb4
-; VENTUS-NEXT:    # in Loop: Header=BB4_5 Depth=1
-; VENTUS-NEXT:    li t1, 23
-; VENTUS-NEXT:    vadd.vx v5, v3, zero
+; VENTUS-NEXT:    vbeq v3, v4, .LBB4_9
+; VENTUS-NEXT:    j .LBB4_4
+; VENTUS-NEXT:  .LBB4_4: # %for.body
+; VENTUS-NEXT:    # in Loop: Header=BB4_3 Depth=1
+; VENTUS-NEXT:    li t1, 1
 ; VENTUS-NEXT:    vmv.v.x v6, t1
-; VENTUS-NEXT:    j .LBB4_3
-; VENTUS-NEXT:  .LBB4_9: # %for.cond.cleanup
+; VENTUS-NEXT:    vmv.v.x v4, t2
+; VENTUS-NEXT:    vmv.v.x v5, s1
+; VENTUS-NEXT:  .Lpcrel_hi12:
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB4_8)
+; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi12)
+; VENTUS-NEXT:    vbeq v3, v6, .LBB4_8
+; VENTUS-NEXT:    j .LBB4_5
+; VENTUS-NEXT:  .LBB4_5: # %for.body
+; VENTUS-NEXT:    # in Loop: Header=BB4_3 Depth=1
+; VENTUS-NEXT:    li t1, 2
+; VENTUS-NEXT:    vmv.v.x v4, t1
+; VENTUS-NEXT:  .Lpcrel_hi13:
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB4_8)
+; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi13)
+; VENTUS-NEXT:    vbne v3, v4, .LBB4_7
+; VENTUS-NEXT:    j .LBB4_6
+; VENTUS-NEXT:  .LBB4_6: # %sw.bb4
+; VENTUS-NEXT:    # in Loop: Header=BB4_3 Depth=1
+; VENTUS-NEXT:    li t1, 23
+; VENTUS-NEXT:    vmv.v.x v4, t0
+; VENTUS-NEXT:    vmv.v.x v5, t1
+; VENTUS-NEXT:    j .LBB4_8
+; VENTUS-NEXT:  .LBB4_7: # %sw.default
+; VENTUS-NEXT:    # in Loop: Header=BB4_3 Depth=1
+; VENTUS-NEXT:    vlw12.v v5, 0(v1)
+; VENTUS-NEXT:    vadd.vx v4, v2, zero
+; VENTUS-NEXT:  .LBB4_8: # %for.inc.sink.split
+; VENTUS-NEXT:    # in Loop: Header=BB4_3 Depth=1
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
-; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi sp, sp, -8
-; VENTUS-NEXT:    ret
+; VENTUS-NEXT:    vlw12.v v6, 0(v4)
+; VENTUS-NEXT:    vadd.vv v5, v6, v5
+; VENTUS-NEXT:    vsw12.v v5, 0(v4)
+; VENTUS-NEXT:  .LBB4_9: # %for.inc
+; VENTUS-NEXT:    # in Loop: Header=BB4_3 Depth=1
+; VENTUS-NEXT:    # Label of block must be emitted
+; VENTUS-NEXT:    join zero, zero, 0
+; VENTUS-NEXT:    vadd.vi v3, v3, 1
+; VENTUS-NEXT:  .Lpcrel_hi14:
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB4_2)
+; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi14)
+; VENTUS-NEXT:    vbeq v0, v3, .LBB4_2
+; VENTUS-NEXT:    j .LBB4_3
 entry:
   %call = call i32 @_Z13get_global_idj(i32 noundef 0)
   %cmp21.not = icmp eq i32 %call, 0
@@ -434,37 +467,39 @@ define dso_local i32 @_Z13get_global_idj(i32 noundef %dim) local_unnamed_addr {
 ; VENTUS-NEXT:    .cfi_def_cfa_offset 4
 ; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
+; VENTUS-NEXT:    vadd.vx v1, v0, zero
 ; VENTUS-NEXT:    li t0, 2
-; VENTUS-NEXT:    vmv.v.x v1, t0
-; VENTUS-NEXT:  .Lpcrel_hi12:
-; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB5_7)
-; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi12)
-; VENTUS-NEXT:    vbeq v0, v1, .LBB5_4
-; VENTUS-NEXT:  # %bb.1: # %entry
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:  .Lpcrel_hi15:
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB5_6)
+; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi15)
+; VENTUS-NEXT:    vbeq v1, v0, .LBB5_5
+; VENTUS-NEXT:    j .LBB5_1
+; VENTUS-NEXT:  .LBB5_1: # %entry
 ; VENTUS-NEXT:    li t0, 1
-; VENTUS-NEXT:    vmv.v.x v1, t0
-; VENTUS-NEXT:  .Lpcrel_hi13:
-; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB5_7)
-; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi13)
-; VENTUS-NEXT:    vbeq v0, v1, .LBB5_5
-; VENTUS-NEXT:  # %bb.2: # %entry
-; VENTUS-NEXT:    vmv.v.x v1, zero
-; VENTUS-NEXT:  .Lpcrel_hi14:
-; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB5_7)
-; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi14)
-; VENTUS-NEXT:    vbne v0, v1, .LBB5_6
-; VENTUS-NEXT:  # %bb.3: # %sw.bb
-; VENTUS-NEXT:    call __builtin_riscv_global_id_x
-; VENTUS-NEXT:    j .LBB5_7
-; VENTUS-NEXT:  .LBB5_4: # %sw.bb3
-; VENTUS-NEXT:    call __builtin_riscv_global_id_z
-; VENTUS-NEXT:    j .LBB5_7
-; VENTUS-NEXT:  .LBB5_5: # %sw.bb1
-; VENTUS-NEXT:    call __builtin_riscv_global_id_y
-; VENTUS-NEXT:    j .LBB5_7
-; VENTUS-NEXT:  .LBB5_6:
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:  .Lpcrel_hi16:
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB5_6)
+; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi16)
+; VENTUS-NEXT:    vbeq v1, v0, .LBB5_4
+; VENTUS-NEXT:    j .LBB5_2
+; VENTUS-NEXT:  .LBB5_2: # %entry
+; VENTUS-NEXT:    vmv.v.x v2, zero
 ; VENTUS-NEXT:    vmv.v.x v0, zero
-; VENTUS-NEXT:  .LBB5_7: # %return
+; VENTUS-NEXT:  .Lpcrel_hi17:
+; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB5_6)
+; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi17)
+; VENTUS-NEXT:    vbne v1, v2, .LBB5_6
+; VENTUS-NEXT:    j .LBB5_3
+; VENTUS-NEXT:  .LBB5_3: # %sw.bb
+; VENTUS-NEXT:    call __builtin_riscv_global_id_x
+; VENTUS-NEXT:    j .LBB5_6
+; VENTUS-NEXT:  .LBB5_4: # %sw.bb1
+; VENTUS-NEXT:    call __builtin_riscv_global_id_y
+; VENTUS-NEXT:    j .LBB5_6
+; VENTUS-NEXT:  .LBB5_5: # %sw.bb3
+; VENTUS-NEXT:    call __builtin_riscv_global_id_z
+; VENTUS-NEXT:  .LBB5_6: # %return
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload

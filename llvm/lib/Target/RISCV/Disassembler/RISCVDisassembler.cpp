@@ -374,6 +374,19 @@ static DecodeStatus decodeRVCInstrRdRs1Rs2(MCInst &Inst, unsigned Insn,
   return MCDisassembler::Success;
 }
 
+static bool isVentusCustom32Opcode(uint8_t FirstByte) {
+  switch (FirstByte & 0x7f) {
+  case 0b0001010: // custom-0 (..10), used by MMA.
+  case 0b0101010: // custom-1 (..10), planned for SFU.
+  case 0b1011010: // custom-2 (..10), planned for packed vector ops.
+  case 0b1111010: // custom-3 (..10), planned for vector convert ops.
+  case 0b1000010: // dedicated shuffle opcode.
+    return true;
+  default:
+    return false;
+  }
+}
+
 DecodeStatus RISCVDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
                                                ArrayRef<uint8_t> Bytes,
                                                uint64_t Address,
@@ -383,9 +396,11 @@ DecodeStatus RISCVDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
   uint32_t Insn;
   DecodeStatus Result;
   bool IsRV32C = STI.getFeatureBits()[RISCV::FeatureStdExtC];
+  bool IsVentusCustom32 = isVentusCustom32Opcode(Bytes[0]);
 
-  // It's a 32 bit instruction if bit 0 and 1 are 1.
-  if (!IsRV32C || (Bytes[0] & 0x3) == 0x3) {
+  // For RV32C, most instructions are 32-bit when bits [1:0] are 0b11.
+  // Ventus also reserves selected '..10' opcodes as 32-bit custom instructions.
+  if (!IsRV32C || (Bytes[0] & 0x3) == 0x3 || IsVentusCustom32) {
     if (Bytes.size() < 4) {
       Size = 0;
       return MCDisassembler::Fail;

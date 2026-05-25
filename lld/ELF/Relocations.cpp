@@ -946,7 +946,8 @@ bool RelocationScanner::isStaticLinkTimeConstant(RelExpr e, RelType type,
             R_MIPS_GOTREL, R_MIPS_GOT_OFF, R_MIPS_GOT_OFF32, R_MIPS_GOT_GP_PC,
             R_AARCH64_GOT_PAGE_PC, R_GOT_PC, R_GOTONLY_PC, R_GOTPLTONLY_PC,
             R_PLT_PC, R_PLT_GOTPLT, R_PPC32_PLTREL, R_PPC64_CALL_PLT,
-            R_PPC64_RELAX_TOC, R_RISCV_ADD, R_AARCH64_GOT_PAGE>(e))
+            R_PPC64_RELAX_TOC, R_RISCV_ADD, R_RISCV_VENTUS_LDS,
+            R_AARCH64_GOT_PAGE>(e))
     return true;
 
   // These never do, except if the entire file is position dependent or if

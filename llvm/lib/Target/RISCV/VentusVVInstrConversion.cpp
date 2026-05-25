@@ -18,6 +18,7 @@
 #include "RISCV.h"
 #include "RISCVInstrInfo.h"
 #include "RISCVRegisterInfo.h"
+#include "RISCVSubtarget.h"
 #include "RISCVTargetMachine.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
@@ -153,9 +154,13 @@ bool VentusVVInstrConversion::swapRegOperands(MachineInstr &MI) {
 }
 
 bool VentusVVInstrConversion::runOnMachineFunction(MachineFunction &MF) {
+  const RISCVSubtarget &ST = MF.getSubtarget<RISCVSubtarget>();
+  if (!ST.isVentusGPGPU())
+    return false;
+
   bool isChanged = false;
-  TII = static_cast<const RISCVInstrInfo *>(MF.getSubtarget().getInstrInfo());
-  MRI = MF.getSubtarget<RISCVSubtarget>().getRegisterInfo();
+  TII = ST.getInstrInfo();
+  MRI = ST.getRegisterInfo();
   MR = &MF.getRegInfo();
   for (auto &MBB : MF)
     isChanged |= runOnMachineBasicBlock(MBB);

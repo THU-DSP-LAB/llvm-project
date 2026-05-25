@@ -70,7 +70,7 @@ define dso_local i32 @regexti3(i32 noundef %a) {
 ; CHECK-LABEL: regexti3:
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    regexti zero, zero, 448
-; CHECK-NEXT:    vnot.v v0, v0
+; CHECK-NEXT:    vxor.vi v0, v0, -1
 ; CHECK-NEXT:    ret
 entry:
   %res = xor i32 %a, 255
@@ -181,18 +181,20 @@ define dso_local ventus_kernel void @regexti13(ptr addrspace(1) nocapture
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    addi sp, sp, 12
 ; CHECK-NEXT:    .cfi_def_cfa_offset 12
-; CHECK-NEXT:    addi tp, tp, 4
-; CHECK-NEXT:    .cfi_def_cfa_offset 4
+; CHECK-NEXT:    addi tp, tp, 12
+; CHECK-NEXT:    .cfi_def_cfa_offset 12
 ; CHECK-NEXT:    regext zero, zero, 1
 ; CHECK-NEXT:    vmv.v.x v32, tp
 ; CHECK-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
 ; CHECK-NEXT:    regext zero, zero, 72
-; CHECK-NEXT:    vsw.v v33, -4(v32) # 4-byte Folded Spill
+; CHECK-NEXT:    vsw.v v33, -12(v32) # 4-byte Folded Spill
 ; CHECK-NEXT:    .cfi_offset ra, 0
 ; CHECK-NEXT:    .cfi_offset v33.l, 0
-; CHECK-NEXT:    lw t0, 0(a0)
-; CHECK-NEXT:    sw t0, -4(sp) # 4-byte Folded Spill
 ; CHECK-NEXT:    lw t0, 4(a0)
+; CHECK-NEXT:    csrr t1, CSR_LDS
+; CHECK-NEXT:    lw t2, 0(a0)
+; CHECK-NEXT:    sw t2, -4(sp) # 4-byte Folded Spill
+; CHECK-NEXT:    add t0, t1, t0
 ; CHECK-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
 ; CHECK-NEXT:    vmv.v.x v0, zero
 ; CHECK-NEXT:    call _Z13get_global_idj
@@ -213,9 +215,9 @@ define dso_local ventus_kernel void @regexti13(ptr addrspace(1) nocapture
 ; CHECK-NEXT:    vsw12.v v0, 0(v1)
 ; CHECK-NEXT:    lw ra, -12(sp) # 4-byte Folded Reload
 ; CHECK-NEXT:    regext zero, zero, 9
-; CHECK-NEXT:    vlw.v v33, -4(v32) # 4-byte Folded Reload
+; CHECK-NEXT:    vlw.v v33, -12(v32) # 4-byte Folded Reload
 ; CHECK-NEXT:    addi sp, sp, -12
-; CHECK-NEXT:    addi tp, tp, -4
+; CHECK-NEXT:    addi tp, tp, -12
 ; CHECK-NEXT:    regext zero, zero, 1
 ; CHECK-NEXT:    vmv.v.x v32, tp
 ; CHECK-NEXT:    ret
@@ -240,8 +242,8 @@ declare dso_local i32 @_Z12get_local_idj(i32 noundef)
 define dso_local i32 @regexti14(i32 noundef %a) {
 ; CHECK-LABEL: regexti14:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    regexti	zero, zero, 0
-; CHECK-NEXT:    vor.vi	v0, v0, -16
+; CHECK-NEXT:    regexti zero, zero, 0
+; CHECK-NEXT:    vor.vi v0, v0, -16
 ; CHECK-NEXT:    ret
 entry:
   %res = or i32 %a, 16
@@ -251,8 +253,8 @@ entry:
 define dso_local i32 @regexti15(i32 noundef %a) {
 ; CHECK-LABEL: regexti15:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    regexti	zero, zero, 64 
-; CHECK-NEXT:    vor.vi	v0, v0, -16
+; CHECK-NEXT:    regexti zero, zero, 64
+; CHECK-NEXT:    vor.vi v0, v0, -16
 ; CHECK-NEXT:    ret
 entry:
   %res = or i32 %a, 48

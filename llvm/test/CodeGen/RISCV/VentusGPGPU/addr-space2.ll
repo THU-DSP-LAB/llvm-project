@@ -7,27 +7,24 @@
 define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-LABEL: foo:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi sp, sp, 4
-; VENTUS-NEXT:    .cfi_def_cfa_offset 4
-; VENTUS-NEXT:    addi s0, s0, 20
-; VENTUS-NEXT:    .cfi_def_cfa_offset 4
-; VENTUS-NEXT:    addi tp, tp, 24
-; VENTUS-NEXT:    .cfi_def_cfa_offset 24
+; VENTUS-NEXT:    addi sp, sp, 8
+; VENTUS-NEXT:    .cfi_def_cfa_offset 8
+; VENTUS-NEXT:    addi tp, tp, 28
+; VENTUS-NEXT:    .cfi_def_cfa_offset 28
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
-; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    regext zero, zero, 72
-; VENTUS-NEXT:    vsw.v v33, -24(v32) # 4-byte Folded Spill
+; VENTUS-NEXT:    sw ra, -8(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
-; VENTUS-NEXT:    .cfi_offset v33.l, 0
-; VENTUS-NEXT:    lw t0, 0(a0)
-; VENTUS-NEXT:    regext zero, zero, 1
-; VENTUS-NEXT:    vmv.v.x v33, t0
-; VENTUS-NEXT:    addi t1, tp, -20
-; VENTUS-NEXT:    addi t2, s0, -20
+; VENTUS-NEXT:    lw t2, 0(a0)
+; VENTUS-NEXT:    lui t0, %ventus_lds_hi(foo.b)
+; VENTUS-NEXT:    csrr t1, CSR_LDS
+; VENTUS-NEXT:    add t0, t1, t0
+; VENTUS-NEXT:    addi t0, t0, %ventus_lds_lo(foo.b)
+; VENTUS-NEXT:    addi t1, tp, -28
 ; VENTUS-NEXT:    vmv.v.x v0, t1
-; VENTUS-NEXT:    vmv.v.x v1, t2
-; VENTUS-NEXT:    vmv.v.x v2, t0
+; VENTUS-NEXT:    vmv.v.x v1, t0
+; VENTUS-NEXT:    sw t2, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    vmv.v.x v2, t2
 ; VENTUS-NEXT:    call bar
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z12get_local_idj
@@ -37,16 +34,21 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB0_3)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi0)
 ; VENTUS-NEXT:    vbltu v1, v0, .LBB0_2
-; VENTUS-NEXT:  # %bb.1: # %if.then
+; VENTUS-NEXT:    j .LBB0_1
+; VENTUS-NEXT:  .LBB0_1: # %if.then
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
-; VENTUS-NEXT:    addi t0, tp, -20
+; VENTUS-NEXT:    addi t0, tp, -28
+; VENTUS-NEXT:    # kill: def $v1 killed $x5
 ; VENTUS-NEXT:    vadd.vx v1, v0, t0
 ; VENTUS-NEXT:    vlw.v v1, 0(v1)
-; VENTUS-NEXT:    addi t1, s0, -20
-; VENTUS-NEXT:    vadd.vx v2, v0, t1
+; VENTUS-NEXT:    lui t0, %ventus_lds_hi(foo.b)
+; VENTUS-NEXT:    csrr t1, CSR_LDS
+; VENTUS-NEXT:    add t0, t1, t0
+; VENTUS-NEXT:    addi t0, t0, %ventus_lds_lo(foo.b)
+; VENTUS-NEXT:    vadd.vx v2, v0, t0
 ; VENTUS-NEXT:    vlw12.v v2, 0(v2)
-; VENTUS-NEXT:    regext zero, zero, 64
-; VENTUS-NEXT:    vadd.vv v0, v33, v0
+; VENTUS-NEXT:    lw t1, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vadd.vx v0, v0, t1
 ; VENTUS-NEXT:    vlw12.v v3, 0(v0)
 ; VENTUS-NEXT:    # kill: def $v4 killed $x5
 ; VENTUS-NEXT:    # kill: def $v4 killed $x6
@@ -56,18 +58,16 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:  .LBB0_2: # %if.else
 ; VENTUS-NEXT:    vmv.v.x v1, zero
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
-; VENTUS-NEXT:    regext zero, zero, 64
-; VENTUS-NEXT:    vadd.vv v0, v33, v0
+; VENTUS-NEXT:    lw t0, -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    # kill: def $v2 killed $x5
+; VENTUS-NEXT:    vadd.vx v0, v0, t0
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
 ; VENTUS-NEXT:  .LBB0_3: # %if.end
 ; VENTUS-NEXT:    # Label of block must be emitted
 ; VENTUS-NEXT:    join zero, zero, 0
-; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    regext zero, zero, 9
-; VENTUS-NEXT:    vlw.v v33, -24(v32) # 4-byte Folded Reload
-; VENTUS-NEXT:    addi sp, sp, -4
-; VENTUS-NEXT:    addi s0, s0, -20
-; VENTUS-NEXT:    addi tp, tp, -24
+; VENTUS-NEXT:    lw ra, -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    addi sp, sp, -8
+; VENTUS-NEXT:    addi tp, tp, -28
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    ret
@@ -249,6 +249,8 @@ define dso_local ventus_kernel void @local_memmory1(ptr addrspace(3) nocapture n
 ; VENTUS-LABEL: local_memmory1:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    lw t0, 0(a0)
+; VENTUS-NEXT:    csrr t1, CSR_LDS
+; VENTUS-NEXT:    add t0, t1, t0
 ; VENTUS-NEXT:    lw t1, 0(t0)
 ; VENTUS-NEXT:    addi t1, t1, 1
 ; VENTUS-NEXT:    sw t1, 0(t0)
@@ -264,63 +266,64 @@ entry:
 define dso_local i32 @stack_space(ptr addrspace(3) nocapture noundef readnone %a, ptr addrspace(3) nocapture noundef readonly %b) {
 ; VENTUS-LABEL: stack_space:
 ; VENTUS:       # %bb.0: # %entry
-; VENTUS-NEXT:    addi tp, tp, 48
-; VENTUS-NEXT:    .cfi_def_cfa_offset 48
+; VENTUS-NEXT:    addi tp, tp, 72
+; VENTUS-NEXT:    .cfi_def_cfa_offset 72
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    vmv.v.x v0, zero
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v0, -48(v32)
-; VENTUS-NEXT:    li t0, 1
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v0, -44(v32)
-; VENTUS-NEXT:    li t0, 2
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v0, -40(v32)
-; VENTUS-NEXT:    li t0, 3
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v0, -36(v32)
-; VENTUS-NEXT:    li t0, 4
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v0, -32(v32)
-; VENTUS-NEXT:    li t0, 5
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v0, -28(v32)
-; VENTUS-NEXT:    li t0, 6
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v0, -24(v32)
-; VENTUS-NEXT:    li t0, 7
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v0, -20(v32)
-; VENTUS-NEXT:    li t0, 8
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v0, -16(v32)
-; VENTUS-NEXT:    li t0, 9
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v0, -12(v32)
-; VENTUS-NEXT:    li t0, 10
-; VENTUS-NEXT:    vmv.v.x v0, t0
-; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v0, -8(v32)
+; VENTUS-NEXT:    vlw12.v v1, 0(v1)
 ; VENTUS-NEXT:    li t0, 11
-; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vmv.v.x v2, t0
 ; VENTUS-NEXT:    regext zero, zero, 8
-; VENTUS-NEXT:    vsw.v v0, -4(v32)
-; VENTUS-NEXT:    vlw12.v v0, 0(v1)
-; VENTUS-NEXT:    vsll.vi v0, v0, 2
-; VENTUS-NEXT:    addi t0, tp, -48
-; VENTUS-NEXT:    vadd.vx v0, v0, t0
-; VENTUS-NEXT:    vlw.v v0, 0(v0)
-; VENTUS-NEXT:    addi tp, tp, -48
+; VENTUS-NEXT:    vsw.v v2, -28(v32)
+; VENTUS-NEXT:    li t0, 10
+; VENTUS-NEXT:    vmv.v.x v2, t0
+; VENTUS-NEXT:    regext zero, zero, 8
+; VENTUS-NEXT:    vsw.v v2, -32(v32)
+; VENTUS-NEXT:    li t0, 9
+; VENTUS-NEXT:    vmv.v.x v2, t0
+; VENTUS-NEXT:    regext zero, zero, 8
+; VENTUS-NEXT:    vsw.v v2, -36(v32)
+; VENTUS-NEXT:    li t0, 8
+; VENTUS-NEXT:    vmv.v.x v2, t0
+; VENTUS-NEXT:    regext zero, zero, 8
+; VENTUS-NEXT:    vsw.v v2, -40(v32)
+; VENTUS-NEXT:    li t0, 7
+; VENTUS-NEXT:    vmv.v.x v2, t0
+; VENTUS-NEXT:    regext zero, zero, 8
+; VENTUS-NEXT:    vsw.v v2, -44(v32)
+; VENTUS-NEXT:    li t0, 6
+; VENTUS-NEXT:    vmv.v.x v2, t0
+; VENTUS-NEXT:    regext zero, zero, 8
+; VENTUS-NEXT:    vsw.v v2, -48(v32)
+; VENTUS-NEXT:    li t0, 5
+; VENTUS-NEXT:    vmv.v.x v2, t0
+; VENTUS-NEXT:    regext zero, zero, 8
+; VENTUS-NEXT:    vsw.v v2, -52(v32)
+; VENTUS-NEXT:    li t0, 4
+; VENTUS-NEXT:    vmv.v.x v2, t0
+; VENTUS-NEXT:    regext zero, zero, 8
+; VENTUS-NEXT:    vsw.v v2, -56(v32)
+; VENTUS-NEXT:    li t0, 3
+; VENTUS-NEXT:    vmv.v.x v2, t0
+; VENTUS-NEXT:    regext zero, zero, 8
+; VENTUS-NEXT:    vsw.v v2, -60(v32)
+; VENTUS-NEXT:    li t0, 2
+; VENTUS-NEXT:    vmv.v.x v2, t0
+; VENTUS-NEXT:    regext zero, zero, 8
+; VENTUS-NEXT:    vsw.v v2, -64(v32)
+; VENTUS-NEXT:    li t0, 1
+; VENTUS-NEXT:    vmv.v.x v2, t0
+; VENTUS-NEXT:    regext zero, zero, 8
+; VENTUS-NEXT:    vsw.v v2, -68(v32)
+; VENTUS-NEXT:    vand.vi v1, v1, 15
+; VENTUS-NEXT:    vsll.vi v1, v1, 2
+; VENTUS-NEXT:    addi t0, tp, -72
+; VENTUS-NEXT:    vadd.vx v1, v1, t0
+; VENTUS-NEXT:    regext zero, zero, 8
+; VENTUS-NEXT:    vsw.v v0, -72(v32)
+; VENTUS-NEXT:    vlw.v v0, 0(v1)
+; VENTUS-NEXT:    addi tp, tp, -72
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    ret

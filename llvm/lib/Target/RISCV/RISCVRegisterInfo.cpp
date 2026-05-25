@@ -14,16 +14,21 @@
 #include "RISCV.h"
 #include "RISCVMachineFunctionInfo.h"
 #include "RISCVSubtarget.h"
+#include "VentusSIMTInterference.h"
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/RegAllocExtraInterference.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/CallingConv.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <algorithm>
+#include <iterator>
 
 #define GET_REGINFO_TARGET_DESC
 #include "RISCVGenRegisterInfo.inc"
@@ -49,6 +54,8 @@ static_assert(RISCV::F31_D == RISCV::F0_D + 31,
               "Register list not consecutive");
 static_assert(RISCV::V1 == RISCV::V0 + 1, "Register list not consecutive");
 static_assert(RISCV::V31 == RISCV::V0 + 31, "Register list not consecutive");
+static_assert(RISCV::V255 == RISCV::V0 + 255, "Register list not consecutive");
+static_assert(RISCV::X63 == RISCV::X0 + 63, "Register list not consecutive");
 
 RISCVRegisterInfo::RISCVRegisterInfo(unsigned HwMode)
     : RISCVGenRegisterInfo(RISCV::X1, /*DwarfFlavour*/0, /*EHFlavor*/0,
@@ -189,25 +196,6 @@ bool RISCVRegisterInfo::isVGPRReg(const MachineRegisterInfo &MRI,
   return RC ? isVGPRClass(RC) : false;
 }
 
-void RISCVRegisterInfo::insertRegToSet(const MachineRegisterInfo &MRI,
-                    DenseSet<unsigned int> *CurrentRegisterAddedSet,
-                    SubVentusProgramInfo *CurrentSubProgramInfo,
-                    Register Reg) const {
-  if (CurrentRegisterAddedSet->contains(Reg))
-    return;
-
-  // Beyond the limits of SGPR and VGPR
-  if (Reg.id() < RISCV::V0 || Reg.id() > RISCV::X63)
-    return;
-
-  CurrentRegisterAddedSet->insert(Reg);
-
-  if (!isSGPRReg(MRI, Reg))
-    CurrentSubProgramInfo->VGPRUsage++;
-  else
-    CurrentSubProgramInfo->SGPRUsage++;
-}
-
 const Register RISCVRegisterInfo::getPrivateMemoryBaseRegister(
                         const MachineFunction &MF) const {
   // FIXME: V0-V31 are used for argument registers, so here we use V32 for
@@ -314,24 +302,125 @@ void RISCVRegisterInfo::adjustPriMemRegOffset(MachineFunction &MF,
   auto &MRI = MF.getRegInfo();
   const RISCVSubtarget &ST = MF.getSubtarget<RISCVSubtarget>();
   const RISCVInstrInfo *TII = ST.getInstrInfo();
+  constexpr unsigned PriMemImmBits = 11;
+  constexpr int64_t PriMemSplitStep = 1 << (PriMemImmBits - 1);
   assert(!isSGPRReg(MRI, PriMemReg) && "Private memory base address in VGPR");
-  bool IsNegative = (Offset < -1024);
-  (--MI.getIterator());
+  assert(isInt<12>(Offset) && !isInt<PriMemImmBits>(Offset) &&
+         "Expected a signed 12-bit offset requiring simm11 legalization");
+
+  const bool IsNegative = Offset < 0;
+  const int64_t BaseAdjust = IsNegative ? -PriMemSplitStep : PriMemSplitStep;
+  const int64_t LegalOffset = Offset - BaseAdjust;
+  assert(isInt<PriMemImmBits>(LegalOffset) &&
+         "Legalized private memory offset must fit simm11");
+
   Register ScratchReg = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
-  // FIXME: maybe it is better change offset once rather than insert a new
-  // machine instruction??
-  BuildMI(MBB, --MI.getIterator(), (--MI.getIterator())->getDebugLoc(),
-    TII->get(RISCV::VADD_VI))
-    .addReg(ScratchReg)
-    .addReg(PriMemReg)
-    .addImm(IsNegative ? (Offset / -1024) * 1024 : -(Offset / 1024) * 1024);
-  MI.getOperand(FIOperandNum + 1).ChangeToImmediate(IsNegative ?
-          Offset + (Offset / -1024) * 1024
-          : Offset - (Offset / 1024) * 1024);
+  const unsigned AdjustOpcode = IsNegative ? RISCV::VSUBIMM12
+                                           : RISCV::VADDIMM12;
+  BuildMI(MBB, MI.getIterator(), MI.getDebugLoc(), TII->get(AdjustOpcode),
+          ScratchReg)
+      .addReg(PriMemReg)
+      .addImm(PriMemSplitStep);
+  MI.getOperand(FIOperandNum + 1).ChangeToImmediate(LegalOffset);
   MI.getOperand(FIOperandNum).ChangeToRegister(ScratchReg,
                                             /*IsDef*/false,
                                             /*IsImp*/false,
                                             /*IsKill*/true);
+}
+
+static unsigned getFrameIndexOperandNum(const MachineInstr &MI) {
+  unsigned I = 0;
+  while (!MI.getOperand(I).isFI()) {
+    ++I;
+    assert(I < MI.getNumOperands() && "Instr doesn't have FrameIndex operand!");
+  }
+  return I;
+}
+
+static bool isBeforeInBlock(MachineBasicBlock::iterator LHS,
+                            MachineBasicBlock::iterator RHS) {
+  if (LHS == RHS)
+    return false;
+  MachineBasicBlock *MBB = LHS->getParent();
+  if (RHS == MBB->end())
+    return true;
+  for (auto I = LHS, E = LHS->getParent()->end(); I != E; ++I)
+    if (I == RHS)
+      return true;
+  return false;
+}
+
+static bool insertionIntervalOverlaps(
+    MachineBasicBlock::iterator ExistingStore,
+    MachineBasicBlock::iterator ExistingLoad,
+    MachineBasicBlock::iterator NewStorePoint,
+    MachineBasicBlock::iterator NewLoadPoint) {
+  // The new store/reload will be inserted before the supplied points. Inserting
+  // the new store before an existing reload would clobber the existing slot
+  // contents before they are restored, so equality at that boundary overlaps.
+  return !isBeforeInBlock(ExistingLoad, NewStorePoint) &&
+         isBeforeInBlock(ExistingStore, NewLoadPoint);
+}
+
+static RISCVMachineFunctionInfo::VGPRScavengingSlot *
+findAvailableVGPRScavengingSlot(
+    RISCVMachineFunctionInfo &RVFI, MachineBasicBlock::iterator StoreMI,
+    MachineBasicBlock::iterator LoadMI) {
+  MachineBasicBlock *MBB = StoreMI->getParent();
+  assert((LoadMI == MBB->end() || LoadMI->getParent() == MBB) &&
+         "VGPR scavenging interval should stay in one basic block");
+
+  for (auto &Slot : RVFI.getVGPRScavengingSlots()) {
+    bool IsAvailable = true;
+    for (const auto &Interval : Slot.Intervals) {
+      assert(Interval.StoreMI->getParent() == Interval.LoadMI->getParent() &&
+             "VGPR scavenging interval should stay in one basic block");
+      if (Interval.StoreMI->getParent() != MBB)
+        continue;
+
+      if (insertionIntervalOverlaps(
+              MachineBasicBlock::iterator(Interval.StoreMI),
+              MachineBasicBlock::iterator(Interval.LoadMI), StoreMI, LoadMI)) {
+        IsAvailable = false;
+        break;
+      }
+    }
+    if (!IsAvailable)
+      continue;
+
+    return &Slot;
+  }
+
+  report_fatal_error("Cannot scavenge overlapping VGPRs with available private "
+                     "spill slots");
+}
+
+bool RISCVRegisterInfo::saveScavengerRegister(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
+    MachineBasicBlock::iterator &UseMI, const TargetRegisterClass *RC,
+    Register Reg) const {
+  if (!RISCV::VGPRRegClass.hasSubClassEq(RC))
+    return false;
+
+  MachineFunction &MF = *MBB.getParent();
+  auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
+  if (RVFI->getVGPRScavengingSlots().empty())
+    report_fatal_error("Cannot scavenge VGPR without a private spill slot");
+
+  const RISCVInstrInfo *TII = MF.getSubtarget<RISCVSubtarget>().getInstrInfo();
+  auto *Slot = findAvailableVGPRScavengingSlot(*RVFI, I, UseMI);
+  int FI = Slot->FrameIndex;
+  TII->storeRegToStackSlot(MBB, I, Reg, /*IsKill=*/true, FI, RC, this);
+  MachineBasicBlock::iterator StoreMI = std::prev(I);
+  eliminateFrameIndex(StoreMI, /*SPAdj=*/0, getFrameIndexOperandNum(*StoreMI),
+                      nullptr);
+
+  TII->loadRegFromStackSlot(MBB, UseMI, Reg, FI, RC, this);
+  MachineBasicBlock::iterator LoadMI = std::prev(UseMI);
+  eliminateFrameIndex(LoadMI, /*SPAdj=*/0, getFrameIndexOperandNum(*LoadMI),
+                      nullptr);
+  Slot->Intervals.push_back({&*StoreMI, &*LoadMI});
+  return true;
 }
 
 /// This function is to eliminate frame index for MachineInstruction in
@@ -391,7 +480,8 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     //   MachineInstr::NoFlags, std::nullopt);
   }
   Register DestReg = MI.getOperand(0).getReg();
-  if (Offset.getScalable() || Offset.getFixed()) {
+  const bool HasFrameAdjustment = Offset.getScalable() || Offset.getFixed();
+  if (HasFrameAdjustment) {
 
     if (MI.getOpcode() == RISCV::ADDI)
       DestReg = MI.getOperand(0).getReg();
@@ -411,16 +501,24 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   }
 
   if (RII->isPrivateMemoryAccess(MI) && FrameReg == RISCV::X4) {
+    Register PrivateBaseReg = getPrivateMemoryBaseRegister(MF);
+    if (HasFrameAdjustment) {
+      PrivateBaseReg = MRI.createVirtualRegister(&RISCV::VGPRRegClass);
+      BuildMI(*MBB, II, DL, RII->get(RISCV::VMV_V_X), PrivateBaseReg)
+          .addReg(DestReg, RegState::Kill);
+    }
+
     MI.getOperand(FIOperandNum)
-        .ChangeToRegister(getPrivateMemoryBaseRegister(MF),
+        .ChangeToRegister(PrivateBaseReg,
                           /*IsDef*/ false,
                           /*IsImp*/ false,
-                          /*IsKill*/ false);
+                          /*IsKill*/ HasFrameAdjustment);
     // simm11 locates in range [-1024, 1023], if offset not in this range, then
     // we legalize the offset
-    if (!isInt<12>(Lo11))
+    if (!isInt<11>(Lo11))
       adjustPriMemRegOffset(MF, *MI.getParent(), MI, Lo11,
-                            getPrivateMemoryBaseRegister(MF), FIOperandNum);
+                            PrivateBaseReg, FIOperandNum);
+    return false;
   }
 
   if (RII->isPrivateMemoryAccess(MI) && FrameReg == RISCV::X2) {
@@ -429,12 +527,9 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                           /*IsDef*/ false,
                           /*IsImp*/ false,
                           /*IsKill*/ false);
-    // simm11 locates in range [-1024, 1023], if offset not in this range, then
-    // we legalize the offset
+    // The converted opcode has a signed 12-bit immediate. The following local
+    // memory case will materialize the SP base as a VGPR.
     MI.setDesc(RII->get(RII->getUniformMemoryOpcode(MI)));
-    if (!isInt<12>(Lo11))
-      adjustPriMemRegOffset(MF, *MI.getParent(), MI, Lo11,
-                            getPrivateMemoryBaseRegister(MF), FIOperandNum);
   }
 
   // else
@@ -500,12 +595,11 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                           /*IsImp*/ false,
                           /*IsKill*/ false);
   else
-    MI.getOperand(FIOperandNum)
-        .ChangeToRegister(DestReg == MI.getOperand(0).getReg() ? FrameReg
-                                                               : DestReg,
-                          /*IsDef*/ false,
-                          /*IsImp*/ false,
-                          /*IsKill*/ false);
+    MI.getOperand(FIOperandNum).ChangeToRegister(HasFrameAdjustment ? DestReg
+                                                                    : FrameReg,
+                                                 /*IsDef*/ false,
+                                                 /*IsImp*/ false,
+                                                 /*IsKill*/ false);
 
   // If after materializing the adjustment, we have a pointless ADDI, remove it
   if (MI.getOpcode() == RISCV::ADDI &&
@@ -682,4 +776,14 @@ bool RISCVRegisterInfo::getRegAllocationHints(
       Hints.push_back(OrderReg);
 
   return BaseImplRetVal;
+}
+
+  std::unique_ptr<RegAllocExtraInterference>
+RISCVRegisterInfo::createRegAllocExtraInterference(
+    MachineFunction &MF, LiveIntervals &LIS, VirtRegMap &VRM,
+    LiveRegMatrix &Matrix) const {
+  if (!MF.getSubtarget<RISCVSubtarget>().isVentusGPGPU())
+    return nullptr;
+
+  return createVentusSIMTInterference();
 }

@@ -68,7 +68,16 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   initializeRISCVPreRAExpandPseudoPass(*PR);
   initializeRISCVExpandPseudoPass(*PR);
   initializeVentusPrintfRuntimeBindingPass(*PR);
+  initializeVentusGenericAddressSpaceSpecializationPass(*PR);
   initializeVentusPromoteAllocaPass(*PR);
+  initializeVentusFixMixedPHIPass(*PR);
+  initializeVentusBroadcastCopyPropagationPass(*PR);
+  initializeVentusRegDomainVerifierPass(*PR);
+  initializeVentusVVInstrConversionPass(*PR);
+  initializeVentusLegalizeLoadPass(*PR);
+  initializeVentusInsertSGPRKeepAlivePass(*PR);
+  initializeVentusSGPRSIMTCheckerPass(*PR);
+  initializeVentusRemoveSGPRKeepAlivePass(*PR);
 }
 
 static StringRef computeDataLayout(const Triple &TT, StringRef CPU) {
@@ -229,6 +238,8 @@ void RISCVPassConfig::addIRPasses() {
     addPass(createInferAddressSpacesPass());
   }
 
+  addPass(createVentusGenericAddressSpaceSpecializationPass());
+
   // Promote allocas to vector or local memory for Ventus GPU
   addPass(createVentusPromoteAllocaPass());
 
@@ -260,6 +271,8 @@ bool RISCVPassConfig::addPreISel() {
 bool RISCVPassConfig::addInstSelector() {
   addPass(createRISCVISelDag(getRISCVTargetMachine(), getOptLevel()));
   addPass(createVentusFixMixedPHIPass());
+  addPass(createVentusBroadcastCopyPropagationPass());
+  addPass(createVentusRegDomainVerifierPass());
 
   return false;
 }
@@ -323,9 +336,17 @@ void RISCVPassConfig::addPreRegAlloc() {
     addPass(createRISCVMergeBaseOffsetOptPass());
   addPass(createVentusVVInstrConversionPass());
   addPass(createVentusLegalizeLoadPass());
+  addPass(createVentusInsertSGPRKeepAlivePass());
+  addPass(createVentusBroadcastCopyPropagationPass());
+  addPass(createVentusRegDomainVerifierPass());
 }
 
 void RISCVPassConfig::addPostRegAlloc() {
+  addPass(createVentusRegDomainVerifierPass());
+  // Temporarily disabled because the checker currently reports false positives.
+  // Keep the pass registered so it can still be run explicitly for debugging.
+  // addPass(createVentusSGPRSIMTCheckerPass());
+  addPass(createVentusRemoveSGPRKeepAlivePass());
   if (TM->getOptLevel() != CodeGenOpt::None && EnableRedundantCopyElimination)
     addPass(createRISCVRedundantCopyEliminationPass());
 

@@ -169,6 +169,9 @@ std::string EVT::getEVTString() const {
   case MVT::x86mmx:    return "x86mmx";
   case MVT::x86amx:    return "x86amx";
   case MVT::i64x8:     return "i64x8";
+  case MVT::ventus_mma_2x32: return "ventus_mma_2x32";
+  case MVT::ventus_mma_4x32: return "ventus_mma_4x32";
+  case MVT::ventus_mma_8x32: return "ventus_mma_8x32";
   case MVT::Metadata:  return "Metadata";
   case MVT::Untyped:   return "Untyped";
   case MVT::funcref:   return "funcref";
@@ -204,6 +207,9 @@ Type *EVT::getTypeForEVT(LLVMContext &Context) const {
   case MVT::x86mmx:  return Type::getX86_MMXTy(Context);
   case MVT::x86amx:  return Type::getX86_AMXTy(Context);
   case MVT::i64x8:   return IntegerType::get(Context, 512);
+  case MVT::ventus_mma_2x32: return IntegerType::get(Context, 64);
+  case MVT::ventus_mma_4x32: return IntegerType::get(Context, 128);
+  case MVT::ventus_mma_8x32: return IntegerType::get(Context, 256);
   case MVT::externref:
     // pointer to opaque struct in addrspace(10)
     return PointerType::get(StructType::create(Context), 10);

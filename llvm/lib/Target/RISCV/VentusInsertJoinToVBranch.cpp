@@ -19,6 +19,7 @@
 #include "llvm/CodeGen/MachinePostDominators.h"
 #include "llvm/CodeGen/Register.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/Support/ErrorHandling.h"
 
 #define VENTUS_INSERT_JOIN_TO_BRANCH "Insert join to VBranch"
 #define DEBUG_TYPE "Insert_join_to_VBranch"
@@ -26,6 +27,11 @@
 using namespace llvm;
 
 namespace {
+
+static MachineBasicBlock *
+getImmediatePostDominatorOrReport(MachineFunction &MF, MachineBasicBlock &MBB,
+                                  MachinePostDominatorTree &MPDT,
+                                  StringRef PassName);
 
 class VentusInsertJoinToVBranch : public MachineFunctionPass {
 
@@ -78,8 +84,8 @@ bool VentusInsertJoinToVBranch::runOnMachineFunction(MachineFunction &MF) {
 
   for (auto &MBB : MF) {
     if (auto *VBranch = getDivergentBranchInstr(MBB)) {
-      auto *PostIDomBB = MPDT->getNode(&MBB)->getIDom()->getBlock();
-      assert(PostIDomBB);
+      auto *PostIDomBB = getImmediatePostDominatorOrReport(
+          MF, MBB, *MPDT, VENTUS_INSERT_JOIN_TO_BRANCH);
 
       PostIDomBB->setLabelMustBeEmitted();
 
@@ -119,6 +125,23 @@ static bool isDivergentBranch(MachineInstr &MI) {
   case RISCV::VBGEU:
     return true;
   }
+}
+
+static MachineBasicBlock *
+getImmediatePostDominatorOrReport(MachineFunction &MF, MachineBasicBlock &MBB,
+                                  MachinePostDominatorTree &MPDT,
+                                  StringRef PassName) {
+  auto *Node = MPDT.getNode(&MBB);
+  auto *IDom = Node ? Node->getIDom() : nullptr;
+  MachineBasicBlock *JoinBB = IDom ? IDom->getBlock() : nullptr;
+  if (JoinBB)
+    return JoinBB;
+
+  report_fatal_error(Twine(PassName) +
+                     " requires every divergent branch to converge; missing "
+                     "immediate post-dominator in function '" +
+                     MF.getName() + "', machine block #" +
+                     Twine(MBB.getNumber()));
 }
 
 MachineInstr *

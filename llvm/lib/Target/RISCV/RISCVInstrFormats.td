@@ -125,6 +125,7 @@ def lookupRISCVOpcodeByName : SearchIndex {
 }
 def OPC_LOAD      : RISCVOpcode<"LOAD",      0b0000011>;
 def OPC_LOAD_FP   : RISCVOpcode<"LOAD_FP",   0b0000111>;
+def OPC_CUSTOM_0_10 : RISCVOpcode<"CUSTOM_0_10", 0b0001010>;
 def OPC_CUSTOM_0  : RISCVOpcode<"CUSTOM_0",  0b0001011>;
 def OPC_MISC_MEM  : RISCVOpcode<"MISC_MEM",  0b0001111>;
 def OPC_OP_IMM    : RISCVOpcode<"OP_IMM",    0b0010011>;
@@ -132,23 +133,28 @@ def OPC_AUIPC     : RISCVOpcode<"AUIPC",     0b0010111>;
 def OPC_OP_IMM_32 : RISCVOpcode<"OP_IMM_32", 0b0011011>;
 def OPC_STORE     : RISCVOpcode<"STORE",     0b0100011>;
 def OPC_STORE_FP  : RISCVOpcode<"STORE_FP",  0b0100111>;
+def OPC_CUSTOM_1_10 : RISCVOpcode<"CUSTOM_1_10", 0b0101010>;
 def OPC_CUSTOM_1  : RISCVOpcode<"CUSTOM_1",  0b0101011>;
 def OPC_AMO       : RISCVOpcode<"AMO",       0b0101111>;
 def OPC_OP        : RISCVOpcode<"OP",        0b0110011>;
 def OPC_LUI       : RISCVOpcode<"LUI",       0b0110111>;
 def OPC_OP_32     : RISCVOpcode<"OP_32",     0b0111011>;
+def OPC_CUSTOM_SHFL : RISCVOpcode<"CUSTOM_SHFL", 0b1000010>;
 def OPC_MADD      : RISCVOpcode<"MADD",      0b1000011>;
 def OPC_MSUB      : RISCVOpcode<"MSUB",      0b1000111>;
 def OPC_NMSUB     : RISCVOpcode<"NMSUB",     0b1001011>;
 def OPC_NMADD     : RISCVOpcode<"NMADD",     0b1001111>;
 def OPC_OP_FP     : RISCVOpcode<"OP_FP",     0b1010011>;
 def OPC_OP_V      : RISCVOpcode<"OP_V",      0b1010111>;
+def OPC_CUSTOM_2_10 : RISCVOpcode<"CUSTOM_2_10", 0b1011010>;
 def OPC_CUSTOM_2  : RISCVOpcode<"CUSTOM_2",  0b1011011>;
 def OPC_CUSTOM_4  : RISCVOpcode<"CUSTOM_4",  0b1011111>;
 def OPC_BRANCH    : RISCVOpcode<"BRANCH",    0b1100011>;
 def OPC_JALR      : RISCVOpcode<"JALR",      0b1100111>;
 def OPC_JAL       : RISCVOpcode<"JAL",       0b1101111>;
+def OPC_SYSTEM_V  : RISCVOpcode<"SYSTEM_V",  0b1110010>;
 def OPC_SYSTEM    : RISCVOpcode<"SYSTEM",    0b1110011>;
+def OPC_CUSTOM_3_10 : RISCVOpcode<"CUSTOM_3_10", 0b1111010>;
 def OPC_CUSTOM_3  : RISCVOpcode<"CUSTOM_3",  0b1111011>;
 
 class RVInst<dag outs, dag ins, string opcodestr, string argstr,
@@ -375,6 +381,22 @@ class RVInstI<bits<3> funct3, RISCVOpcode opcode, dag outs, dag ins,
   let Opcode = opcode.Value;
 
   let CustomConstraints = "$rd = 0,$rs1 = 1";
+}
+
+class RVInstIV<bits<3> funct3, RISCVOpcode opcode, dag outs, dag ins,
+              string opcodestr, string argstr>
+    : RVInst<outs, ins, opcodestr, argstr, [], InstFormatI> {
+  bits<12> imm12;
+  bits<5> rs1;
+  bits<5> vd;
+
+  let Inst{31-20} = imm12;
+  let Inst{19-15} = rs1;
+  let Inst{14-12} = funct3;
+  let Inst{11-7} = vd;
+  let Opcode = opcode.Value;
+
+  let CustomConstraints = "$vd = 0,$rs1 = 1";
 }
 
 class RVInstIShift<bits<5> imm11_7, bits<3> funct3, RISCVOpcode opcode,

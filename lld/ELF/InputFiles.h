@@ -263,6 +263,12 @@ public:
   // SHT_LLVM_CALL_GRAPH_PROFILE section index.
   uint32_t cgProfileSectionIndex = 0;
 
+  // Object-local Ventus link-time resource summary section and its relocation
+  // section. These are only used for final non-relocatable links.
+  uint32_t ventusResObjSecIndex = 0;
+  uint32_t ventusResObjRelSecIndex = 0;
+  bool hasLegacyVentusResource = false;
+
   // MIPS GP0 value defined by this file. This value represents the gp value
   // used to create the relocatable object and required to support
   // R_MIPS_GPREL16 / R_MIPS_GPREL32 relocations.

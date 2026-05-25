@@ -90,13 +90,13 @@ define dso_local ventus_kernel void @test_kernel3(<2 x i8> noundef %c, <2 x i8> 
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    addi sp, sp, 56
 ; CHECK-NEXT:    .cfi_def_cfa_offset 56
-; CHECK-NEXT:    addi tp, tp, 4
-; CHECK-NEXT:    .cfi_def_cfa_offset 4
+; CHECK-NEXT:    addi tp, tp, 12
+; CHECK-NEXT:    .cfi_def_cfa_offset 12
 ; CHECK-NEXT:    regext zero, zero, 1
 ; CHECK-NEXT:    vmv.v.x v32, tp
 ; CHECK-NEXT:    sw ra, -56(sp) # 4-byte Folded Spill
 ; CHECK-NEXT:    regext zero, zero, 72
-; CHECK-NEXT:    vsw.v v33, -4(v32) # 4-byte Folded Spill
+; CHECK-NEXT:    vsw.v v33, -12(v32) # 4-byte Folded Spill
 ; CHECK-NEXT:    .cfi_offset ra, 0
 ; CHECK-NEXT:    .cfi_offset v33.l, 0
 ; CHECK-NEXT:    lw t0, 36(a0)
@@ -193,9 +193,9 @@ define dso_local ventus_kernel void @test_kernel3(<2 x i8> noundef %c, <2 x i8> 
 ; CHECK-NEXT:    vsw12.v v0, 48(v33)
 ; CHECK-NEXT:    lw ra, -56(sp) # 4-byte Folded Reload
 ; CHECK-NEXT:    regext zero, zero, 9
-; CHECK-NEXT:    vlw.v v33, -4(v32) # 4-byte Folded Reload
+; CHECK-NEXT:    vlw.v v33, -12(v32) # 4-byte Folded Reload
 ; CHECK-NEXT:    addi sp, sp, -56
-; CHECK-NEXT:    addi tp, tp, -4
+; CHECK-NEXT:    addi tp, tp, -12
 ; CHECK-NEXT:    regext zero, zero, 1
 ; CHECK-NEXT:    vmv.v.x v32, tp
 ; CHECK-NEXT:    ret
@@ -238,13 +238,13 @@ define dso_local ventus_kernel void @test_kernel4(<4 x i8> noundef %c, <4 x i8> 
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    addi sp, sp, 104
 ; CHECK-NEXT:    .cfi_def_cfa_offset 104
-; CHECK-NEXT:    addi tp, tp, 4
-; CHECK-NEXT:    .cfi_def_cfa_offset 4
+; CHECK-NEXT:    addi tp, tp, 12
+; CHECK-NEXT:    .cfi_def_cfa_offset 12
 ; CHECK-NEXT:    regext zero, zero, 1
 ; CHECK-NEXT:    vmv.v.x v32, tp
 ; CHECK-NEXT:    sw ra, -104(sp) # 4-byte Folded Spill
 ; CHECK-NEXT:    regext zero, zero, 72
-; CHECK-NEXT:    vsw.v v33, -4(v32) # 4-byte Folded Spill
+; CHECK-NEXT:    vsw.v v33, -12(v32) # 4-byte Folded Spill
 ; CHECK-NEXT:    .cfi_offset ra, 0
 ; CHECK-NEXT:    .cfi_offset v33.l, 0
 ; CHECK-NEXT:    lw t0, 76(a0)
@@ -427,9 +427,9 @@ define dso_local ventus_kernel void @test_kernel4(<4 x i8> noundef %c, <4 x i8> 
 ; CHECK-NEXT:    vsw12.v v0, 96(v33)
 ; CHECK-NEXT:    lw ra, -104(sp) # 4-byte Folded Reload
 ; CHECK-NEXT:    regext zero, zero, 9
-; CHECK-NEXT:    vlw.v v33, -4(v32) # 4-byte Folded Reload
+; CHECK-NEXT:    vlw.v v33, -12(v32) # 4-byte Folded Reload
 ; CHECK-NEXT:    addi sp, sp, -104
-; CHECK-NEXT:    addi tp, tp, -4
+; CHECK-NEXT:    addi tp, tp, -12
 ; CHECK-NEXT:    regext zero, zero, 1
 ; CHECK-NEXT:    vmv.v.x v32, tp
 ; CHECK-NEXT:    ret

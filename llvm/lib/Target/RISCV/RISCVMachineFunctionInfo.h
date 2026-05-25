@@ -14,12 +14,16 @@
 #define LLVM_LIB_TARGET_RISCV_RISCVMACHINEFUNCTIONINFO_H
 
 #include "RISCVSubtarget.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/CodeGen/MIRYamlMapping.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include <optional>
 
 namespace llvm {
 
+class GlobalVariable;
+class MachineInstr;
 class RISCVMachineFunctionInfo;
 
 namespace yaml {
@@ -47,6 +51,17 @@ template <> struct MappingTraits<RISCVMachineFunctionInfo> {
 /// RISCVMachineFunctionInfo - This class is derived from MachineFunctionInfo
 /// and contains private RISCV-specific information for each MachineFunction.
 class RISCVMachineFunctionInfo : public MachineFunctionInfo {
+public:
+  struct VGPRScavengingInterval {
+    MachineInstr *StoreMI = nullptr;
+    MachineInstr *LoadMI = nullptr;
+  };
+
+  struct VGPRScavengingSlot {
+    int FrameIndex = -1;
+    SmallVector<VGPRScavengingInterval, 4> Intervals;
+  };
+
 private:
   /// FrameIndex for start of varargs area
   int VarArgsFrameIndex = 0;
@@ -60,18 +75,19 @@ private:
   int MoveF64FrameIndex = -1;
   /// FrameIndex of the spill slot for the scratch register in BranchRelaxation.
   int BranchRelaxationScratchFrameIndex = -1;
+  /// Private-stack slots used by RegScavenger for VGPRs.
+  SmallVector<VGPRScavengingSlot, 2> VGPRScavengingSlots;
   /// Size of any opaque stack adjustment due to save/restore libcalls.
   unsigned LibCallStackSize = 0;
 
   /// Registers that have been sign extended from i32.
   SmallVector<Register, 8> SExt32Registers;
-
 public:
   RISCVMachineFunctionInfo(const MachineFunction &MF) {
-        CallingConv::ID CC = MF.getFunction().getCallingConv();
-        IsEntryFunction = CC == CallingConv::SPIR_KERNEL ||
-                          CC == CallingConv::VENTUS_KERNEL;
-      }
+    CallingConv::ID CC = MF.getFunction().getCallingConv();
+    IsEntryFunction =
+        CC == CallingConv::SPIR_KERNEL || CC == CallingConv::VENTUS_KERNEL;
+  }
 
   MachineFunctionInfo *
   clone(BumpPtrAllocator &Allocator, MachineFunction &DestMF,
@@ -100,6 +116,31 @@ public:
     BranchRelaxationScratchFrameIndex = Index;
   }
 
+  const SmallVectorImpl<VGPRScavengingSlot> &getVGPRScavengingSlots() const {
+    return VGPRScavengingSlots;
+  }
+  SmallVectorImpl<VGPRScavengingSlot> &getVGPRScavengingSlots() {
+    return VGPRScavengingSlots;
+  }
+  void addVGPRScavengingFrameIndex(int Index) {
+    VGPRScavengingSlots.emplace_back();
+    VGPRScavengingSlots.back().FrameIndex = Index;
+  }
+  bool isVGPRScavengingFrameIndex(int Index) const {
+    for (const VGPRScavengingSlot &Slot : VGPRScavengingSlots)
+      if (Slot.FrameIndex == Index)
+        return true;
+    return false;
+  }
+  int getVGPRScavengingFrameIndex() const {
+    return VGPRScavengingSlots.empty() ? -1
+                                       : VGPRScavengingSlots.front().FrameIndex;
+  }
+  void setVGPRScavengingFrameIndex(int Index) {
+    VGPRScavengingSlots.clear();
+    addVGPRScavengingFrameIndex(Index);
+  }
+
   unsigned getLibCallStackSize() const { return LibCallStackSize; }
   void setLibCallStackSize(unsigned Size) { LibCallStackSize = Size; }
 
@@ -115,6 +156,7 @@ public:
 
   void addSExt32Register(Register Reg);
   bool isSExt32Register(Register Reg) const;
+
 };
 
 } // end namespace llvm
