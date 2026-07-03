@@ -2,6 +2,14 @@
 
 declare i32 @llvm.riscv.ventus.rt.traverse.i32(i32)
 declare void @llvm.riscv.ventus.rt.release.i32(i32)
+declare i32 @llvm.riscv.ventus.kernel.metadata()
+
+define i32 @test_kernel_metadata() {
+; CHECK-LABEL: test_kernel_metadata:
+; CHECK: csrr {{[a-z0-9]+}}, CSR_KNL
+  %metadata = call i32 @llvm.riscv.ventus.kernel.metadata()
+  ret i32 %metadata
+}
 
 define i32 @test_rt_traverse(i32 %slot) {
 ; CHECK-LABEL: test_rt_traverse:

@@ -6217,6 +6217,14 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
   case Intrinsic::riscv_vfmv_v_f:
     return DAG.getNode(RISCVISD::VFMV_V_F_VL, DL, Op.getValueType(),
                        Op.getOperand(1), Op.getOperand(2), Op.getOperand(3));
+  case Intrinsic::riscv_ventus_kernel_metadata: {
+    SDValue SysRegNo = DAG.getTargetConstant(
+        RISCVSysReg::lookupSysRegByName("CSR_KNL")->Encoding, DL, XLenVT);
+    SDVTList VTs = DAG.getVTList(XLenVT, MVT::Other);
+    return DAG.getNode(RISCVISD::READ_CSR, DL, VTs, DAG.getEntryNode(),
+                       SysRegNo)
+        .getValue(0);
+  }
   case Intrinsic::riscv_vmv_s_x: {
     SDValue Scalar = Op.getOperand(2);
 
