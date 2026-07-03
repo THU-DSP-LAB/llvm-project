@@ -4317,6 +4317,12 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
       SDValue FPConv = DAG.getNode(RISCVISD::FMV_H_X, DL, MVT::f16, NewOp0);
       return FPConv;
     }
+    if (VT == MVT::f32 && Op0VT == MVT::i32 && !Subtarget.is64Bit() &&
+        (Subtarget.hasStdExtF() || Subtarget.hasStdExtZfinx()))
+      return DAG.getNode(RISCVISD::FMV_W_X, DL, MVT::f32, Op0);
+    if (VT == MVT::i32 && Op0VT == MVT::f32 && !Subtarget.is64Bit() &&
+        (Subtarget.hasStdExtF() || Subtarget.hasStdExtZfinx()))
+      return DAG.getNode(RISCVISD::FMV_X_ANYEXTW, DL, MVT::i32, Op0);
     // // f16 = bitcast i16
     // // f32 = fmv i32
     // if (VT == MVT::f16 && Op0VT == MVT::i16 && Subtarget.hasStdExtZfinx()) {
@@ -6217,6 +6223,21 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
   case Intrinsic::riscv_vfmv_v_f:
     return DAG.getNode(RISCVISD::VFMV_V_F_VL, DL, Op.getValueType(),
                        Op.getOperand(1), Op.getOperand(2), Op.getOperand(3));
+  case Intrinsic::riscv_workitem_id_x:
+  case Intrinsic::riscv_workitem_id_y:
+  case Intrinsic::riscv_workitem_id_z: {
+    const char *CSRName = IntNo == Intrinsic::riscv_workitem_id_x
+                              ? "CSR_GL_ID_X"
+                              : IntNo == Intrinsic::riscv_workitem_id_y
+                                    ? "CSR_GL_ID_Y"
+                                    : "CSR_GL_ID_Z";
+    SDValue SysRegNo = DAG.getTargetConstant(
+        RISCVSysReg::lookupSysRegByName(CSRName)->Encoding, DL, XLenVT);
+    SDVTList VTs = DAG.getVTList(XLenVT, MVT::Other);
+    return DAG.getNode(RISCVISD::READ_CSR_V, DL, VTs, DAG.getEntryNode(),
+                       SysRegNo)
+        .getValue(0);
+  }
   case Intrinsic::riscv_ventus_kernel_metadata: {
     SDValue SysRegNo = DAG.getTargetConstant(
         RISCVSysReg::lookupSysRegByName("CSR_KNL")->Encoding, DL, XLenVT);
@@ -8688,6 +8709,9 @@ void RISCVTargetLowering::ReplaceNodeResults(SDNode *N,
     if (VT == MVT::i16 && Op0VT == MVT::f16 && Subtarget.hasStdExtZfh()) {
       SDValue FPConv = DAG.getNode(RISCVISD::FMV_X_ANYEXTH, DL, XLenVT, Op0);
       Results.push_back(DAG.getNode(ISD::TRUNCATE, DL, MVT::i16, FPConv));
+    } else if (VT == MVT::i32 && Op0VT == MVT::f32 && !Subtarget.is64Bit() &&
+               (Subtarget.hasStdExtF() || Subtarget.hasStdExtZfinx())) {
+      Results.push_back(DAG.getNode(RISCVISD::FMV_X_ANYEXTW, DL, MVT::i32, Op0));
     } else if (VT == MVT::i32 && Op0VT == MVT::f32 && Subtarget.is64Bit() &&
                Subtarget.hasStdExtF()) {
       SDValue FPConv =
@@ -13461,6 +13485,8 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(FMV_H_X)
   NODE_NAME_CASE(FMV_X_ANYEXTH)
   NODE_NAME_CASE(FMV_X_SIGNEXTH)
+  NODE_NAME_CASE(FMV_W_X)
+  NODE_NAME_CASE(FMV_X_ANYEXTW)
   NODE_NAME_CASE(FMV_W_X_RV64)
   NODE_NAME_CASE(FMV_X_ANYEXTW_RV64)
   NODE_NAME_CASE(FCVT_X)
@@ -13575,6 +13601,7 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(VZEXT_VL)
   NODE_NAME_CASE(VCPOP_VL)
   NODE_NAME_CASE(READ_CSR)
+  NODE_NAME_CASE(READ_CSR_V)
   NODE_NAME_CASE(WRITE_CSR)
   NODE_NAME_CASE(SWAP_CSR)
   NODE_NAME_CASE(VENTUS_RT_TRAVERSE)
@@ -14368,6 +14395,10 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
     if(auto *BaseBase = dyn_cast<FrameIndexSDNode>(Store->getOperand(1)))
       if(MFI.getStackID(BaseBase->getIndex()) == RISCVStackID::SGPRSpill)
         return false;
+    if (Subtarget.isVentusGPGPU() &&
+        Store->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS &&
+        Store->getAddressSpace() != RISCVAS::FLAT_ADDRESS)
+      return true;
     return Store->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
            Store->getPointerInfo().StackID == RISCVStackID::VGPRSpill;
   }
