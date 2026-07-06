@@ -525,6 +525,14 @@ def VGPR : RVRegisterClass<"RISCV",
   let IsVGPR = 1;
 }
 
+def VGPRNoV0 : RVRegisterClass<"RISCV",
+                            !listconcat(Reg32Types.types, Reg16Types.types),
+                            32,
+                            (add (sequence "V%u", 1, 255))> {
+  let Size = 32;
+  let IsVGPR = 1;
+}
+
 // VGPR 64-bit registers
 def VGPR_64 : VentusRegisterTuples<getSubRegs<2>.ret, VGPR, 255, 1, 2, "v">;
 
