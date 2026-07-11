@@ -199,12 +199,17 @@ class VentusImageStoreRGBA8Intrinsic
                 [IntrWriteMem, IntrConvergent]>;
 class VentusKernelMetadataIntrinsic
     : Intrinsic<[llvm_i32_ty], [], [IntrNoMem, IntrWillReturn]>;
+class VentusRTDispatchIdIntrinsic
+    : Intrinsic<[llvm_i32_ty], [], [IntrNoMem, IntrWillReturn]>;
 
 def int_riscv_ventus_shuffle_idx_i32 : VentusI32ImmUnaryIntrinsic;
 def int_riscv_ventus_shuffle_up_i32 : VentusI32ImmUnaryIntrinsic;
 def int_riscv_ventus_shuffle_down_i32 : VentusI32ImmUnaryIntrinsic;
 def int_riscv_ventus_shuffle_bfly_i32 : VentusI32ImmUnaryIntrinsic;
 def int_riscv_ventus_kernel_metadata : VentusKernelMetadataIntrinsic;
+def int_riscv_ventus_rt_dispatch_id_x : VentusRTDispatchIdIntrinsic;
+def int_riscv_ventus_rt_dispatch_id_y : VentusRTDispatchIdIntrinsic;
+def int_riscv_ventus_rt_dispatch_id_z : VentusRTDispatchIdIntrinsic;
 def int_riscv_ventus_rt_traverse_i32 : VentusRTTraverseIntrinsic;
 def int_riscv_ventus_rt_release_i32 : VentusRTReleaseIntrinsic;
 def int_riscv_ventus_image_store_rgba8 : VentusImageStoreRGBA8Intrinsic;

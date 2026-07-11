@@ -1942,6 +1942,9 @@ static bool isVentusDirectCustomIntrinsic(unsigned IntNo) {
   switch (IntNo) {
   default:
     return false;
+  case Intrinsic::riscv_ventus_rt_dispatch_id_x:
+  case Intrinsic::riscv_ventus_rt_dispatch_id_y:
+  case Intrinsic::riscv_ventus_rt_dispatch_id_z:
   case Intrinsic::riscv_ventus_shuffle_idx_i32:
   case Intrinsic::riscv_ventus_shuffle_up_i32:
   case Intrinsic::riscv_ventus_shuffle_down_i32:
@@ -6223,21 +6226,6 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
   case Intrinsic::riscv_vfmv_v_f:
     return DAG.getNode(RISCVISD::VFMV_V_F_VL, DL, Op.getValueType(),
                        Op.getOperand(1), Op.getOperand(2), Op.getOperand(3));
-  case Intrinsic::riscv_workitem_id_x:
-  case Intrinsic::riscv_workitem_id_y:
-  case Intrinsic::riscv_workitem_id_z: {
-    const char *CSRName = IntNo == Intrinsic::riscv_workitem_id_x
-                              ? "CSR_GL_ID_X"
-                              : IntNo == Intrinsic::riscv_workitem_id_y
-                                    ? "CSR_GL_ID_Y"
-                                    : "CSR_GL_ID_Z";
-    SDValue SysRegNo = DAG.getTargetConstant(
-        RISCVSysReg::lookupSysRegByName(CSRName)->Encoding, DL, XLenVT);
-    SDVTList VTs = DAG.getVTList(XLenVT, MVT::Other);
-    return DAG.getNode(RISCVISD::READ_CSR_V, DL, VTs, DAG.getEntryNode(),
-                       SysRegNo)
-        .getValue(0);
-  }
   case Intrinsic::riscv_ventus_kernel_metadata: {
     SDValue SysRegNo = DAG.getTargetConstant(
         RISCVSysReg::lookupSysRegByName("CSR_KNL")->Encoding, DL, XLenVT);
@@ -13601,7 +13589,6 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(VZEXT_VL)
   NODE_NAME_CASE(VCPOP_VL)
   NODE_NAME_CASE(READ_CSR)
-  NODE_NAME_CASE(READ_CSR_V)
   NODE_NAME_CASE(WRITE_CSR)
   NODE_NAME_CASE(SWAP_CSR)
   NODE_NAME_CASE(VENTUS_RT_TRAVERSE)

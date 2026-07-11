@@ -30,6 +30,19 @@ using namespace llvm;
 
 #define DEBUG_TYPE "riscv-isel"
 
+static unsigned getVentusRTDispatchIdCSR(unsigned IntrinsicOpcode) {
+  switch (IntrinsicOpcode) {
+  default:
+    return 0;
+  case Intrinsic::riscv_ventus_rt_dispatch_id_x:
+    return 0x80d;
+  case Intrinsic::riscv_ventus_rt_dispatch_id_y:
+    return 0x80e;
+  case Intrinsic::riscv_ventus_rt_dispatch_id_z:
+    return 0x80f;
+  }
+}
+
 static unsigned getVentusMMASubReg(unsigned Index) {
   switch (Index) {
   default:
@@ -289,6 +302,12 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   }
   case ISD::INTRINSIC_WO_CHAIN: {
     unsigned IntrinsicOpcode = Node->getConstantOperandVal(0);
+    if (unsigned CSR = getVentusRTDispatchIdCSR(IntrinsicOpcode)) {
+      SDValue SysRegNo = CurDAG->getTargetConstant(CSR, DL, XLenVT);
+      SDValue X0 = CurDAG->getRegister(RISCV::X0, XLenVT);
+      CurDAG->SelectNodeTo(Node, RISCV::CSRRSV, MVT::i32, SysRegNo, X0);
+      return;
+    }
     if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_traverse_i32) {
       SDValue Slot = materializeVentusRTSlot(Node->getOperand(1), DL);
       CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, Slot);
