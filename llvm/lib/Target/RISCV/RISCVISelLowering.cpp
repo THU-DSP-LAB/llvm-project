@@ -14391,6 +14391,8 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
   }
   case ISD::CALLSEQ_END:
     return true;
+  case RISCVISD::VENTUS_RT_TRAVERSE:
+    return true;
   case ISD::INTRINSIC_WO_CHAIN:
     return RISCVII::isIntrinsicSourceOfDivergence(
         cast<ConstantSDNode>(N->getOperand(0))->getZExtValue());
