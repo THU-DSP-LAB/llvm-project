@@ -130,7 +130,7 @@ private:
   bool isVALUCommutableInstr(MachineInstr &MI);
 
   bool convertInstr(MachineBasicBlock &MBB, MachineInstr &CopyMI,
-                    MachineInstr &VVMI);
+                    MachineInstr &VVMI, bool &ErasedVVMI);
 
   bool lowerFloatVFInstr(MachineBasicBlock &MBB, MachineInstr &MI);
 
@@ -175,9 +175,11 @@ bool VentusVVInstrConversion::runOnMachineFunction(MachineFunction &MF) {
 bool VentusVVInstrConversion::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
   bool isMBBChanged = false;
   for (auto I = MBB.begin(), E = MBB.end(); I != E;) {
-    MachineInstr &MI = *I++;
+    MachineInstr &MI = *I;
+    auto NextI = std::next(I);
     if (lowerFloatVFInstr(MBB, MI)) {
       isMBBChanged = true;
+      I = NextI;
       continue;
     }
 
@@ -186,8 +188,14 @@ bool VentusVVInstrConversion::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
     if (EnableLegacyVXConversion && isGPR2VGPRCopy(MI) && NextMI &&
         isVVALUInstruction(*NextMI)) {
       // When met here, we can ensure the coding logic goes to the conversion
-      isMBBChanged |= convertInstr(MBB, MI, *NextMI);
+      auto AfterNextI = std::next(NextI);
+      bool ErasedVVMI = false;
+      isMBBChanged |= convertInstr(MBB, MI, *NextMI, ErasedVVMI);
+      I = ErasedVVMI ? AfterNextI : NextI;
+      continue;
     }
+
+    I = NextI;
   }
   isMBBChanged |= removeDeadScalarizationInstrs(MBB);
   return isMBBChanged;
@@ -353,7 +361,8 @@ bool VentusVVInstrConversion::removeDeadScalarizationInstrs(
 /// TODO: vrsub has VX and VI version, need to deal with this specifically?
 bool VentusVVInstrConversion::convertInstr(MachineBasicBlock &MBB,
                                            MachineInstr &CopyMI,
-                                           MachineInstr &VVMI) {
+                                           MachineInstr &VVMI,
+                                           bool &ErasedVVMI) {
   bool isMBBChanged = false;
   if (isVALUCommutableInstr(VVMI) &&
       CopyMI.getOperand(0).getReg() != VVMI.getOperand(2).getReg())
@@ -373,6 +382,7 @@ bool VentusVVInstrConversion::convertInstr(MachineBasicBlock &MBB,
         .addReg(VVMI.getOperand(1).getReg())
         .addReg(CopyMI.getOperand(1).getReg());
     VVMI.eraseFromParent();
+    ErasedVVMI = true;
   }
   // Three-operands VV ALU instruction conversion
   else if (VVMI.getNumExplicitOperands() == 4 &&
@@ -382,6 +392,7 @@ bool VentusVVInstrConversion::convertInstr(MachineBasicBlock &MBB,
         .addReg(CopyMI.getOperand(1).getReg())
         .addReg(VVMI.getOperand(3).getReg());
     VVMI.eraseFromParent();
+    ErasedVVMI = true;
   }
   // FIXME: maybe we need to take other unsupported instructions into
   // consideration, so we add an else statement here and return false directly

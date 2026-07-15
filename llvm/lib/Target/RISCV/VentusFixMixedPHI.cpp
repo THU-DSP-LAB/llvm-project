@@ -51,6 +51,8 @@ public:
   }
 
   bool runOnMachineFunction(MachineFunction &MF) override;
+  bool promoteDivergentPHI(MachineInstr &MI);
+  bool removeInvalidVGPRBroadcasts(MachineFunction &MF);
   bool processPHINode(MachineInstr &MI);
 
   StringRef getPassName() const override {
@@ -86,6 +88,89 @@ static unsigned getBroadcastOpcodeOrReport(const MachineFunction &MF,
   report_fatal_error(
       Twine("VentusFixMixedPHI unsupported scalar-to-VGPR PHI broadcast in '") +
       MF.getName() + "': source class " + TRI.getRegClassName(SrcRC));
+}
+
+static Register copiedVGPRSource(const MachineRegisterInfo &MRI,
+                                 Register Reg) {
+  if (!Reg.isVirtual())
+    return Register();
+
+  const MachineInstr *Def = MRI.getVRegDef(Reg);
+  if (!Def || !Def->isCopy() || Def->getNumOperands() < 2 ||
+      !Def->getOperand(1).isReg())
+    return Register();
+
+  Register Source = Def->getOperand(1).getReg();
+  if (!Source.isVirtual() || !isVentusVGPRClass(MRI.getRegClass(Source)))
+    return Register();
+
+  return Source;
+}
+
+bool VentusFixMixedPHI::promoteDivergentPHI(MachineInstr &MI) {
+  Register PHIRes = MI.getOperand(0).getReg();
+  const TargetRegisterClass *ResultRC = MRI->getRegClass(PHIRes);
+  if (!isGPRLikeScalarClass(ResultRC))
+    return false;
+
+  bool HasVGPRInput = false;
+  for (unsigned I = 1, N = MI.getNumOperands(); I != N; I += 2) {
+    MachineOperand &RegOp = MI.getOperand(I);
+    if (!RegOp.isReg() || !RegOp.getReg().isVirtual())
+      continue;
+
+    Register Source = RegOp.getReg();
+    if (isVentusVGPRClass(MRI->getRegClass(Source)) ||
+        copiedVGPRSource(*MRI, Source)) {
+      HasVGPRInput = true;
+      break;
+    }
+  }
+
+  if (!HasVGPRInput)
+    return false;
+
+  /*
+   * A divergent boolean PHI can arrive here as a scalar i32 PHI even though
+   * its incoming comparisons already live in VGPRs.  Retain its lane-private
+   * representation and bypass the invalid VGPR-to-GPR edge copies.
+   */
+  MRI->setRegClass(PHIRes, &RISCV::VGPRRegClass);
+  for (unsigned I = 1, N = MI.getNumOperands(); I != N; I += 2) {
+    MachineOperand &RegOp = MI.getOperand(I);
+    if (!RegOp.isReg())
+      continue;
+    if (Register Source = copiedVGPRSource(*MRI, RegOp.getReg()))
+      RegOp.setReg(Source);
+  }
+
+  return true;
+}
+
+bool VentusFixMixedPHI::removeInvalidVGPRBroadcasts(MachineFunction &MF) {
+  bool Changed = false;
+
+  for (MachineBasicBlock &MBB : MF) {
+    for (auto It = MBB.begin(), End = MBB.end(); It != End;) {
+      MachineInstr &MI = *It++;
+      if (MI.getOpcode() != RISCV::VMV_V_X || MI.getNumOperands() < 2 ||
+          !MI.getOperand(0).isReg() || !MI.getOperand(1).isReg())
+        continue;
+
+      Register Dst = MI.getOperand(0).getReg();
+      Register Src = MI.getOperand(1).getReg();
+      if (!Dst.isVirtual() || !Src.isVirtual() ||
+          !isVentusVGPRClass(MRI->getRegClass(Dst)) ||
+          !isVentusVGPRClass(MRI->getRegClass(Src)))
+        continue;
+
+      MRI->replaceRegWith(Dst, Src);
+      MI.eraseFromParent();
+      Changed = true;
+    }
+  }
+
+  return Changed;
 }
 
 bool VentusFixMixedPHI::processPHINode(MachineInstr &MI) {
@@ -166,12 +251,20 @@ bool VentusFixMixedPHI::runOnMachineFunction(MachineFunction &MF) {
   
   LLVM_DEBUG(dbgs() << "Found " << PHINodes.size() << " PHI nodes\n");
   
+  // Promote the PHI result before fixing its inputs.  This makes a boolean
+  // PHI with divergent comparisons use the same lane-private domain as those
+  // comparisons instead of forcing an invalid VGPR-to-GPR copy.
+  for (MachineInstr *MI : PHINodes)
+    Changed |= promoteDivergentPHI(*MI);
+
   // Process all PHI nodes
   for (MachineInstr *MI : PHINodes) {
     if (processPHINode(*MI)) {
       Changed = true;
     }
   }
+
+  Changed |= removeInvalidVGPRBroadcasts(MF);
   
   return Changed;
-} 
+}

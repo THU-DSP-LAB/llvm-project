@@ -272,7 +272,6 @@ bool RISCVPassConfig::addInstSelector() {
   addPass(createRISCVISelDag(getRISCVTargetMachine(), getOptLevel()));
   addPass(createVentusFixMixedPHIPass());
   addPass(createVentusBroadcastCopyPropagationPass());
-  addPass(createVentusRegDomainVerifierPass());
 
   return false;
 }
