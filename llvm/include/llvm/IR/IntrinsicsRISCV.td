@@ -193,11 +193,14 @@ class VentusRTTraverseIntrinsic
 class VentusRTReleaseIntrinsic
     : Intrinsic<[], [llvm_i32_ty],
                 [IntrHasSideEffects, IntrConvergent]>;
+class VentusKernelMetadataIntrinsic
+    : Intrinsic<[llvm_i32_ty], [], [IntrNoMem, IntrWillReturn]>;
 
 def int_riscv_ventus_shuffle_idx_i32 : VentusI32ImmUnaryIntrinsic;
 def int_riscv_ventus_shuffle_up_i32 : VentusI32ImmUnaryIntrinsic;
 def int_riscv_ventus_shuffle_down_i32 : VentusI32ImmUnaryIntrinsic;
 def int_riscv_ventus_shuffle_bfly_i32 : VentusI32ImmUnaryIntrinsic;
+def int_riscv_ventus_kernel_metadata : VentusKernelMetadataIntrinsic;
 def int_riscv_ventus_rt_traverse_i32 : VentusRTTraverseIntrinsic;
 def int_riscv_ventus_rt_release_i32 : VentusRTReleaseIntrinsic;
 def int_riscv_ventus_vcvt_fp32_fp16 : VentusI32ToF32Intrinsic;
