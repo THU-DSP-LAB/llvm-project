@@ -40,6 +40,9 @@ static unsigned getVentusRTDispatchIdCSR(unsigned IntrinsicOpcode) {
     return 0x80e;
   case Intrinsic::riscv_ventus_rt_dispatch_id_z:
     return 0x80f;
+  case Intrinsic::riscv_ventus_rt_worker_id:
+    /* Current compatibility carrier for (SM, hardware-warp). */
+    return 0xf14; // mhartid
   }
 }
 
@@ -239,14 +242,14 @@ bool RISCVDAGToDAGISel::tryShrinkShlLogicImm(SDNode *Node) {
   return true;
 }
 
-SDValue RISCVDAGToDAGISel::materializeVentusRTSlot(SDValue Slot, SDLoc DL) {
-  MVT VT = Slot.getSimpleValueType();
+SDValue RISCVDAGToDAGISel::materializeVentusRTVGPR(SDValue Value, SDLoc DL) {
+  MVT VT = Value.getSimpleValueType();
   auto SplatGPR = [&](SDValue Scalar) {
     return SDValue(
         CurDAG->getMachineNode(RISCV::VMV_V_X, DL, VT, Scalar), 0);
   };
 
-  if (auto *CN = dyn_cast<ConstantSDNode>(Slot)) {
+  if (auto *CN = dyn_cast<ConstantSDNode>(Value)) {
     int64_t Offset = CN->getSExtValue();
     if (Offset == 0)
       return SplatGPR(CurDAG->getRegister(RISCV::X0, VT));
@@ -256,7 +259,7 @@ SDValue RISCVDAGToDAGISel::materializeVentusRTSlot(SDValue Slot, SDLoc DL) {
     return SplatGPR(SDValue(selectImmSeq(CurDAG, DL, VT, Seq), 0));
   }
 
-  return Slot;
+  return Value;
 }
 
 void RISCVDAGToDAGISel::Select(SDNode *Node) {
@@ -303,7 +306,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       return;
     }
     if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_traverse_i32) {
-      SDValue Slot = materializeVentusRTSlot(Node->getOperand(1), DL);
+      SDValue Slot = materializeVentusRTVGPR(Node->getOperand(1), DL);
       CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, Slot);
       return;
     }
@@ -313,7 +316,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     unsigned IntrinsicOpcode = Node->getConstantOperandVal(1);
     if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_traverse_i32) {
       SDValue Chain = Node->getOperand(0);
-      SDValue Slot = materializeVentusRTSlot(Node->getOperand(2), DL);
+      SDValue Slot = materializeVentusRTVGPR(Node->getOperand(2), DL);
       CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, MVT::Other,
                            Slot, Chain);
       return;
@@ -324,16 +327,23 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     unsigned IntrinsicOpcode = Node->getConstantOperandVal(1);
     if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_release_i32) {
       SDValue Chain = Node->getOperand(0);
-      SDValue Slot = materializeVentusRTSlot(Node->getOperand(2), DL);
+      SDValue Slot = materializeVentusRTVGPR(Node->getOperand(2), DL);
       CurDAG->SelectNodeTo(Node, RISCV::VT_RT_RELEASE, Node->getVTList(),
                            {Slot, Chain});
+      return;
+    }
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_enqueue_i32) {
+      SDValue Chain = Node->getOperand(0);
+      SDValue Mailbox = materializeVentusRTVGPR(Node->getOperand(2), DL);
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_ENQUEUE, Node->getVTList(),
+                           {Mailbox, Chain});
       return;
     }
     break;
   }
   case RISCVISD::VENTUS_RT_TRAVERSE: {
     SDValue Chain = Node->getOperand(0);
-    SDValue Slot = materializeVentusRTSlot(Node->getOperand(1), DL);
+    SDValue Slot = materializeVentusRTVGPR(Node->getOperand(1), DL);
     CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, MVT::Other,
                          Slot, Chain);
     return;

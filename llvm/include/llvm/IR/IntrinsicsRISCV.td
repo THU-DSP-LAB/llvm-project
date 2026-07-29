@@ -193,12 +193,17 @@ class VentusRTTraverseIntrinsic
 class VentusRTReleaseIntrinsic
     : Intrinsic<[], [llvm_i32_ty],
                 [IntrHasSideEffects, IntrConvergent]>;
+class VentusRTEnqueueIntrinsic
+    : Intrinsic<[], [llvm_i32_ty],
+                // No Intr*Mem property: enqueue reads its mailbox and writes
+                // the global queue, so LLVM must assume read-write memory.
+                [IntrHasSideEffects, IntrConvergent]>;
 class VentusImageStoreRGBA8Intrinsic
     : Intrinsic<[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
                     llvm_i32_ty, llvm_i32_ty],
                 [IntrWriteMem, IntrConvergent]>;
 class VentusKernelMetadataIntrinsic
-    : Intrinsic<[llvm_i32_ty], [], [IntrNoMem, IntrWillReturn]>;
+    : Intrinsic<[llvm_anyint_ty], [], [IntrNoMem, IntrWillReturn]>;
 class VentusRTDispatchIdIntrinsic
     : Intrinsic<[llvm_i32_ty], [], [IntrNoMem, IntrWillReturn]>;
 
@@ -210,8 +215,10 @@ def int_riscv_ventus_kernel_metadata : VentusKernelMetadataIntrinsic;
 def int_riscv_ventus_rt_dispatch_id_x : VentusRTDispatchIdIntrinsic;
 def int_riscv_ventus_rt_dispatch_id_y : VentusRTDispatchIdIntrinsic;
 def int_riscv_ventus_rt_dispatch_id_z : VentusRTDispatchIdIntrinsic;
+def int_riscv_ventus_rt_worker_id : VentusRTDispatchIdIntrinsic;
 def int_riscv_ventus_rt_traverse_i32 : VentusRTTraverseIntrinsic;
 def int_riscv_ventus_rt_release_i32 : VentusRTReleaseIntrinsic;
+def int_riscv_ventus_rt_enqueue_i32 : VentusRTEnqueueIntrinsic;
 def int_riscv_ventus_image_store_rgba8 : VentusImageStoreRGBA8Intrinsic;
 def int_riscv_ventus_vcvt_fp32_fp16 : VentusI32ToF32Intrinsic;
 def int_riscv_ventus_vcvt_fp16_fp32 : VentusF32ToI32Intrinsic;

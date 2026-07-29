@@ -644,6 +644,14 @@ def : ProcessorModel<"ventus-gpgpu", RocketModel, [Feature32Bit,
                                                    FeatureStdExtZdinx,
                                                    FeatureStdExtZve32f]>;
 
+def : ProcessorModel<"ventus-gpgpu-rv64", RocketModel, [Feature64Bit,
+                                                        FeatureStdExtM,
+                                                        FeatureStdExtA,
+                                                        FeatureStdExtZhinx,
+                                                        FeatureStdExtZfinx,
+                                                        FeatureStdExtZdinx,
+                                                        FeatureStdExtZve32f]>;
+
 //===----------------------------------------------------------------------===//
 // Define the RISC-V target.
 //===----------------------------------------------------------------------===//

@@ -1907,6 +1907,21 @@ class VENTUS_RTRelease<bits<6> funct6, bits<3> funct3, RISCVOpcode opcode,
   let CustomConstraints = "$vs2 = 2";
 }
 
+class VENTUS_RTEnqueue<bits<6> funct6, bits<3> funct3, RISCVOpcode opcode,
+                       string opcodestr>
+    : RVInst<(outs), (ins VGPR:$vs2), opcodestr, "$vs2", [], InstFormatR> {
+  bits<5> vs2;
+
+  let Inst{31-26} = funct6;
+  let Inst{25} = 1;
+  let Inst{24-20} = vs2;
+  let Inst{19-15} = 0;
+  let Inst{14-12} = funct3;
+  let Inst{11-7} = 0;
+  let Opcode = opcode.Value;
+  let CustomConstraints = "$vs2 = 2";
+}
+
 def VT_RT_TRAVERSE : VENTUS_RTTraverse<0b111000, 0b000, OPC_CUSTOM_0_10,
                                        "vt.rt.traverse">;
 }
@@ -1914,6 +1929,8 @@ def VT_RT_TRAVERSE : VENTUS_RTTraverse<0b111000, 0b000, OPC_CUSTOM_0_10,
 let hasSideEffects = 1, mayLoad = 1, mayStore = 1 in {
 def VT_RT_RELEASE : VENTUS_RTRelease<0b111000, 0b001, OPC_CUSTOM_0_10,
                                      "vt.rt.release">;
+def VT_RT_ENQUEUE : VENTUS_RTEnqueue<0b111000, 0b010, OPC_CUSTOM_0_10,
+                                     "vt.rt.enqueue">;
 }
 
 let Predicates = [HasVInstructionsAnyF], hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {

@@ -1945,6 +1945,7 @@ static bool isVentusDirectCustomIntrinsic(unsigned IntNo) {
   case Intrinsic::riscv_ventus_rt_dispatch_id_x:
   case Intrinsic::riscv_ventus_rt_dispatch_id_y:
   case Intrinsic::riscv_ventus_rt_dispatch_id_z:
+  case Intrinsic::riscv_ventus_rt_worker_id:
   case Intrinsic::riscv_ventus_shuffle_idx_i32:
   case Intrinsic::riscv_ventus_shuffle_up_i32:
   case Intrinsic::riscv_ventus_shuffle_down_i32:

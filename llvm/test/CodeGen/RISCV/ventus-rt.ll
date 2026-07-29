@@ -2,6 +2,8 @@
 
 declare i32 @llvm.riscv.ventus.rt.traverse.i32(i32)
 declare void @llvm.riscv.ventus.rt.release.i32(i32)
+declare void @llvm.riscv.ventus.rt.enqueue.i32(i32)
+declare i32 @llvm.riscv.ventus.rt.worker.id()
 declare i32 @llvm.riscv.ventus.kernel.metadata()
 
 define i32 @test_kernel_metadata() {
@@ -23,6 +25,20 @@ define void @test_rt_release(i32 %slot) {
 ; CHECK: vt.rt.release v{{[0-9]+}}
   call void @llvm.riscv.ventus.rt.release.i32(i32 %slot)
   ret void
+}
+
+define void @test_rt_enqueue(i32 %mailbox) {
+; CHECK-LABEL: test_rt_enqueue:
+; CHECK: vt.rt.enqueue v{{[0-9]+}}
+  call void @llvm.riscv.ventus.rt.enqueue.i32(i32 %mailbox)
+  ret void
+}
+
+define i32 @test_rt_worker_id() {
+; CHECK-LABEL: test_rt_worker_id:
+; CHECK: csrr.v v{{[0-9]+}}, mhartid
+  %worker = call i32 @llvm.riscv.ventus.rt.worker.id()
+  ret i32 %worker
 }
 
 define void @test_rt_order(ptr addrspace(3) %scratch, i32 %slot, i32 %value) {

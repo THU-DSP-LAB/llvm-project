@@ -15,6 +15,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
   ptx-nvidiacl/lib/SOURCES;
   r600/lib/SOURCES;
   riscv32/lib/SOURCES;
+  riscv64/lib/SOURCES;
   spirv/lib/SOURCES;
   spirv64/lib/SOURCES
 )
@@ -27,6 +28,7 @@ set( LIBCLC_TARGETS_ALL
   clspv64--
   r600--
   riscv32--
+  riscv64--
   nvptx--
   nvptx64--
   nvptx--nvidiacl
@@ -129,6 +131,7 @@ set( amdgcn--_devices tahiti )
 set( amdgcn-mesa-mesa3d_devices ${amdgcn--_devices} )
 set( amdgcn--amdhsa_devices none )
 set( riscv32--_devices none)
+set( riscv64--_devices none)
 set( clspv--_devices none )
 set( clspv64--_devices none )
 set( nvptx--_devices none )
@@ -201,6 +204,9 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
         # Build Ventus GPGPU specific runtime and builtins
 	if( ${ARCH} STREQUAL riscv32 )
                 add_subdirectory(riscv32/lib)
+        endif()
+	if( ${ARCH} STREQUAL riscv64 )
+                add_subdirectory(riscv64/lib)
         endif()
 
 	#nvptx is special
