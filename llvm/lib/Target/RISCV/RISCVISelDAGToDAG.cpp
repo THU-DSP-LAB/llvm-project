@@ -241,28 +241,22 @@ bool RISCVDAGToDAGISel::tryShrinkShlLogicImm(SDNode *Node) {
 
 SDValue RISCVDAGToDAGISel::materializeVentusRTSlot(SDValue Slot, SDLoc DL) {
   MVT VT = Slot.getSimpleValueType();
-  SDValue Base = CurDAG->getRegister(
-      Subtarget->getRegisterInfo()->getPrivateMemoryBaseRegister(
-          CurDAG->getMachineFunction()),
-      VT);
+  auto SplatGPR = [&](SDValue Scalar) {
+    return SDValue(
+        CurDAG->getMachineNode(RISCV::VMV_V_X, DL, VT, Scalar), 0);
+  };
 
   if (auto *CN = dyn_cast<ConstantSDNode>(Slot)) {
     int64_t Offset = CN->getSExtValue();
     if (Offset == 0)
-      return Base;
-    if (Offset > 0 && isUInt<12>(Offset))
-      return SDValue(CurDAG->getMachineNode(
-                         RISCV::VADDIMM12, DL, VT, Base,
-                         CurDAG->getTargetConstant(Offset, DL, VT)),
-                     0);
-    if (Offset < 0 && isUInt<12>(-Offset))
-      return SDValue(CurDAG->getMachineNode(
-                         RISCV::VSUBIMM12, DL, VT, Base,
-                         CurDAG->getTargetConstant(-Offset, DL, VT)),
-                     0);
+      return SplatGPR(CurDAG->getRegister(RISCV::X0, VT));
+
+    RISCVMatInt::InstSeq Seq =
+        RISCVMatInt::generateInstSeq(Offset, Subtarget->getFeatureBits());
+    return SplatGPR(SDValue(selectImmSeq(CurDAG, DL, VT, Seq), 0));
   }
 
-  return SDValue(CurDAG->getMachineNode(RISCV::VADD_VV, DL, VT, Base, Slot), 0);
+  return Slot;
 }
 
 void RISCVDAGToDAGISel::Select(SDNode *Node) {
