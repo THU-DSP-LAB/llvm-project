@@ -1852,6 +1852,47 @@ class VENTUS_Shuffle<bits<6> funct6, string opcodestr>
 }
 }
 
+let hasSideEffects = 1, mayLoad = 1, mayStore = 1 in {
+class VENTUS_RTTraverse<bits<6> funct6, bits<3> funct3, RISCVOpcode opcode,
+                        string opcodestr>
+    : RVInst<(outs VGPR:$vd), (ins VGPR:$vs2),
+             opcodestr, "$vd, $vs2", [], InstFormatR> {
+  bits<5> vs2;
+  bits<5> vd;
+
+  let Inst{31-26} = funct6;
+  let Inst{25} = 1;
+  let Inst{24-20} = vs2;
+  let Inst{19-15} = 0;
+  let Inst{14-12} = funct3;
+  let Inst{11-7} = vd;
+  let Opcode = opcode.Value;
+}
+
+class VENTUS_RTRelease<bits<6> funct6, bits<3> funct3, RISCVOpcode opcode,
+                       string opcodestr>
+    : RVInst<(outs), (ins VGPR:$vs2),
+             opcodestr, "$vs2", [], InstFormatR> {
+  bits<5> vs2;
+
+  let Inst{31-26} = funct6;
+  let Inst{25} = 1;
+  let Inst{24-20} = vs2;
+  let Inst{19-15} = 0;
+  let Inst{14-12} = funct3;
+  let Inst{11-7} = 0;
+  let Opcode = opcode.Value;
+}
+
+def VT_RT_TRAVERSE : VENTUS_RTTraverse<0b111000, 0b000, OPC_CUSTOM_0_10,
+                                       "vt.rt.traverse">;
+}
+
+let hasSideEffects = 1, mayLoad = 1, mayStore = 1 in {
+def VT_RT_RELEASE : VENTUS_RTRelease<0b111000, 0b001, OPC_CUSTOM_0_10,
+                                     "vt.rt.release">;
+}
+
 let Predicates = [HasVInstructionsAnyF], hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 // vcvt family, opcode = 0x7A, funct3 = 000, vm fixed to 1.
 def VCVT_FP32_FP16   : VENTUS_CustomUnary<0b000000, 0b000, OPC_CUSTOM_3_10, "vcvt.fp32.fp16">;

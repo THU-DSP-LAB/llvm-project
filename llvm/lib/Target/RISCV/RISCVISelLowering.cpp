@@ -1752,6 +1752,8 @@ static SDValue getVLOperand(SDValue Op) {
 static bool useRVVForFixedLengthVectorVT(MVT VT,
                                          const RISCVSubtarget &Subtarget) {
   assert(VT.isFixedLengthVector() && "Expected a fixed length vector type!");
+  if (!VT.isFixedLengthVector())
+    return false;
   if (!Subtarget.useRVVForFixedLengthVectors())
     return false;
   // We only support a set of vector types with a consistent maximum fixed size
@@ -6273,6 +6275,13 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
   switch (IntNo) {
   default:
     break;
+  case Intrinsic::riscv_ventus_rt_traverse_i32: {
+    SDLoc DL(Op);
+    SDValue Chain = Op.getOperand(0);
+    SDValue Slot = Op.getOperand(2);
+    SmallVector<EVT, 2> VTs = {MVT::i32, MVT::Other};
+    return DAG.getNode(RISCVISD::VENTUS_RT_TRAVERSE, DL, VTs, {Chain, Slot});
+  }
   case Intrinsic::riscv_masked_strided_load: {
     SDLoc DL(Op);
     MVT XLenVT = Subtarget.getXLenVT();
@@ -8852,6 +8861,9 @@ void RISCVTargetLowering::ReplaceNodeResults(SDNode *N,
 
 // Try to fold (<bop> x, (reduction.<bop> vec, start))
 static SDValue combineBinOpToReduce(SDNode *N, SelectionDAG &DAG) {
+  if (N->getNumOperands() < 2)
+    return SDValue();
+
   auto BinOpToRVVReduce = [](unsigned Opc) {
     switch (Opc) {
     default:
@@ -8882,6 +8894,10 @@ static SDValue combineBinOpToReduce(SDNode *N, SelectionDAG &DAG) {
   };
 
   auto IsReduction = [&BinOpToRVVReduce](SDValue V, unsigned Opc) {
+    if (V.getOpcode() != ISD::EXTRACT_VECTOR_ELT || V->getNumOperands() < 2)
+      return false;
+    if (V.getOperand(0)->getNumOperands() < 5)
+      return false;
     return V.getOpcode() == ISD::EXTRACT_VECTOR_ELT &&
            isNullConstant(V.getOperand(1)) &&
            V.getOperand(0).getOpcode() == BinOpToRVVReduce(Opc);
@@ -8911,6 +8927,9 @@ static SDValue combineBinOpToReduce(SDNode *N, SelectionDAG &DAG) {
   if (ScalarV.getOpcode() != RISCVISD::VFMV_S_F_VL &&
       ScalarV.getOpcode() != RISCVISD::VMV_S_X_VL &&
       ScalarV.getOpcode() != RISCVISD::VMV_V_X_VL)
+    return SDValue();
+
+  if (ScalarV->getNumOperands() < 3)
     return SDValue();
 
   if (!isOneConstant(ScalarV.getOperand(2)))
@@ -11018,6 +11037,9 @@ bool RISCVTargetLowering::isDesirableToCommuteWithShift(
   assert((N->getOpcode() == ISD::SHL || N->getOpcode() == ISD::SRA ||
           N->getOpcode() == ISD::SRL) &&
          "Expected shift op");
+  if (N->getOpcode() != ISD::SHL && N->getOpcode() != ISD::SRA &&
+      N->getOpcode() != ISD::SRL)
+    return TargetLowering::isDesirableToCommuteWithShift(N, Level);
 
   // The following folds are only desirable if `(OP _, c1 << c2)` can be
   // materialised in fewer instructions than `(OP _, c1)`:
@@ -11028,6 +11050,9 @@ bool RISCVTargetLowering::isDesirableToCommuteWithShift(
   EVT Ty = N0.getValueType();
   if (Ty.isScalarInteger() &&
       (N0.getOpcode() == ISD::ADD || N0.getOpcode() == ISD::OR)) {
+    if (N0->getNumOperands() < 2 || N->getNumOperands() < 2)
+      return TargetLowering::isDesirableToCommuteWithShift(N, Level);
+
     auto *C1 = dyn_cast<ConstantSDNode>(N0->getOperand(1));
     auto *C2 = dyn_cast<ConstantSDNode>(N->getOperand(1));
     if (C1 && C2) {
@@ -13544,6 +13569,7 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(READ_CSR)
   NODE_NAME_CASE(WRITE_CSR)
   NODE_NAME_CASE(SWAP_CSR)
+  NODE_NAME_CASE(VENTUS_RT_TRAVERSE)
   }
   // clang-format on
   return nullptr;

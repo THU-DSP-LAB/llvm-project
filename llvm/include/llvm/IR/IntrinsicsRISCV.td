@@ -187,11 +187,19 @@ class VentusI32ImmUnaryIntrinsic
                 [IntrNoMem, IntrWillReturn, ImmArg<ArgIndex<1>>]>;
 class VentusI32ToF32Intrinsic : VentusNoMemIntrinsic<[llvm_float_ty], [llvm_i32_ty]>;
 class VentusF32ToI32Intrinsic : VentusNoMemIntrinsic<[llvm_i32_ty], [llvm_float_ty]>;
+class VentusRTTraverseIntrinsic
+    : Intrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                [IntrHasSideEffects, IntrConvergent]>;
+class VentusRTReleaseIntrinsic
+    : Intrinsic<[], [llvm_i32_ty],
+                [IntrHasSideEffects, IntrConvergent]>;
 
 def int_riscv_ventus_shuffle_idx_i32 : VentusI32ImmUnaryIntrinsic;
 def int_riscv_ventus_shuffle_up_i32 : VentusI32ImmUnaryIntrinsic;
 def int_riscv_ventus_shuffle_down_i32 : VentusI32ImmUnaryIntrinsic;
 def int_riscv_ventus_shuffle_bfly_i32 : VentusI32ImmUnaryIntrinsic;
+def int_riscv_ventus_rt_traverse_i32 : VentusRTTraverseIntrinsic;
+def int_riscv_ventus_rt_release_i32 : VentusRTReleaseIntrinsic;
 def int_riscv_ventus_vcvt_fp32_fp16 : VentusI32ToF32Intrinsic;
 def int_riscv_ventus_vcvt_fp16_fp32 : VentusF32ToI32Intrinsic;
 def int_riscv_ventus_vcvt_fp32_bf16 : VentusI32ToF32Intrinsic;

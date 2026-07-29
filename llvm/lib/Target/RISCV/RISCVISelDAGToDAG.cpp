@@ -238,8 +238,46 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   unsigned Opcode = Node->getOpcode();
   MVT XLenVT = Subtarget->getXLenVT();
   SDLoc DL(Node);
-  MVT VT = Node->getSimpleValueType(0);
+  MVT VT = Node->getNumValues() ? Node->getSimpleValueType(0) : MVT::Other;
   switch (Opcode) {
+  case ISD::INTRINSIC_WO_CHAIN: {
+    unsigned IntrinsicOpcode = Node->getConstantOperandVal(0);
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_traverse_i32) {
+      SDValue Slot = Node->getOperand(1);
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, Slot);
+      return;
+    }
+    break;
+  }
+  case ISD::INTRINSIC_W_CHAIN: {
+    unsigned IntrinsicOpcode = Node->getConstantOperandVal(1);
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_traverse_i32) {
+      SDValue Chain = Node->getOperand(0);
+      SDValue Slot = Node->getOperand(2);
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, MVT::Other,
+                           Slot, Chain);
+      return;
+    }
+    break;
+  }
+  case ISD::INTRINSIC_VOID: {
+    unsigned IntrinsicOpcode = Node->getConstantOperandVal(1);
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_release_i32) {
+      SDValue Chain = Node->getOperand(0);
+      SDValue Slot = Node->getOperand(2);
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_RELEASE, Node->getVTList(),
+                           {Slot, Chain});
+      return;
+    }
+    break;
+  }
+  case RISCVISD::VENTUS_RT_TRAVERSE: {
+    SDValue Chain = Node->getOperand(0);
+    SDValue Slot = Node->getOperand(1);
+    CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, MVT::Other,
+                         Slot, Chain);
+    return;
+  }
   case RISCVISD::VENTUS_MMA: {
     unsigned PseudoOpc =
         cast<ConstantSDNode>(Node->getOperand(0))->getZExtValue();
