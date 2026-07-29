@@ -288,8 +288,6 @@ def riscv_sraw      : SDNode<"RISCVISD::SRAW", SDT_RISCVIntBinOpW>;
 def riscv_srlw      : SDNode<"RISCVISD::SRLW", SDT_RISCVIntBinOpW>;
 def riscv_read_csr  : SDNode<"RISCVISD::READ_CSR", SDT_RISCVReadCSR,
                              [SDNPHasChain]>;
-def riscv_read_csr_v : SDNode<"RISCVISD::READ_CSR_V", SDT_RISCVReadCSR,
-                              [SDNPHasChain]>;
 def riscv_write_csr : SDNode<"RISCVISD::WRITE_CSR", SDT_RISCVWriteCSR,
                              [SDNPHasChain]>;
 def riscv_swap_csr  : SDNode<"RISCVISD::SWAP_CSR", SDT_RISCVSwapCSR,
@@ -1956,14 +1954,6 @@ class ReadSysReg<SysReg SR, list<Register> Regs>
   let Uses = Regs;
 }
 
-class ReadSysRegV<SysReg SR, list<Register> Regs>
-  : Pseudo<(outs VGPR:$rd), (ins),
-           [(set (XLenVT VGPR:$rd), (riscv_read_csr_v (XLenVT SR.Encoding)))]>,
-    PseudoInstExpansion<(CSRRSV VGPR:$rd, SR.Encoding, X0)> {
-  let hasSideEffects = 0;
-  let Uses = Regs;
-}
-
 class WriteSysReg<SysReg SR, list<Register> Regs>
   : Pseudo<(outs), (ins GPR:$val),
            [(riscv_write_csr (XLenVT SR.Encoding), GPR:$val)]>,
@@ -2004,9 +1994,6 @@ def WriteFRMImm : WriteSysRegImm<SysRegFRM, [FRM]>;
 def SwapFRMImm : SwapSysRegImm<SysRegFRM, [FRM]>;
 def ReadCSR_KNL : ReadSysReg<SysRegKNL, []>;
 def ReadCSR_LDS : ReadSysReg<SysRegLDS, []>;
-def ReadCSR_GL_ID_X : ReadSysRegV<SysRegGLIDX, []>;
-def ReadCSR_GL_ID_Y : ReadSysRegV<SysRegGLIDY, []>;
-def ReadCSR_GL_ID_Z : ReadSysRegV<SysRegGLIDZ, []>;
 
 let hasSideEffects = true in {
 def ReadFFLAGS : ReadSysReg<SysRegFFLAGS, [FFLAGS]>;
