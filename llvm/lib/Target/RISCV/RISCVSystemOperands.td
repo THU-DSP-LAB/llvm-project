@@ -387,4 +387,7 @@ def SysRegNUMW : SysReg<"CSR_NUMW", 0x801>;
 def SysRegKNL  : SysReg<"CSR_KNL", 0x803>;
 def SysRegWID  : SysReg<"CSR_WID", 0x805>;
 def SysRegLDS  : SysReg<"CSR_LDS", 0x806>;
+def SysRegGLIDX : SysReg<"CSR_GL_ID_X", 0x80d>;
+def SysRegGLIDY : SysReg<"CSR_GL_ID_Y", 0x80e>;
+def SysRegGLIDZ : SysReg<"CSR_GL_ID_Z", 0x80f>;
 def : SysReg<"rpc", 0x80C>;

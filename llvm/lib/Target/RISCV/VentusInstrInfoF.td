@@ -19,6 +19,10 @@ def SDT_RISCVFMV_W_X_RV64
     : SDTypeProfile<1, 1, [SDTCisVT<0, f32>, SDTCisVT<1, i64>]>;
 def SDT_RISCVFMV_X_ANYEXTW_RV64
     : SDTypeProfile<1, 1, [SDTCisVT<0, i64>, SDTCisVT<1, f32>]>;
+def SDT_RISCVFMV_W_X
+    : SDTypeProfile<1, 1, [SDTCisVT<0, f32>, SDTCisVT<1, i32>]>;
+def SDT_RISCVFMV_X_ANYEXTW
+    : SDTypeProfile<1, 1, [SDTCisVT<0, i32>, SDTCisVT<1, f32>]>;
 def SDT_RISCVFCVT_W_RV64
     : SDTypeProfile<1, 2, [SDTCisVT<0, i64>, SDTCisFP<1>,
                            SDTCisVT<2, i64>]>;
@@ -37,6 +41,10 @@ def riscv_fmv_w_x_rv64
     : SDNode<"RISCVISD::FMV_W_X_RV64", SDT_RISCVFMV_W_X_RV64>;
 def riscv_fmv_x_anyextw_rv64
     : SDNode<"RISCVISD::FMV_X_ANYEXTW_RV64", SDT_RISCVFMV_X_ANYEXTW_RV64>;
+def riscv_fmv_w_x
+    : SDNode<"RISCVISD::FMV_W_X", SDT_RISCVFMV_W_X>;
+def riscv_fmv_x_anyextw
+    : SDNode<"RISCVISD::FMV_X_ANYEXTW", SDT_RISCVFMV_X_ANYEXTW>;
 def riscv_fcvt_w_rv64
     : SDNode<"RISCVISD::FCVT_W_RV64", SDT_RISCVFCVT_W_RV64>;
 def riscv_fcvt_wu_rv64
@@ -669,8 +677,14 @@ def : Pat<(store (f32 FPR32INX:$rs2), (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm
 
 let Predicates = [HasStdExtZfinx, IsRV32] in {
 // Moves (no conversion)
-// def : Pat<(bitconvert (i32 GPR:$rs1)), (FMV_W_X GPR:$rs1)>;
-// def : Pat<(i32 (bitconvert GPRF32:$rs1)), (FMV_X_W GPRF32:$rs1)>;
+def : Pat<(riscv_fmv_w_x GPR:$rs1), (COPY_TO_REGCLASS GPR:$rs1, GPRF32)>;
+def : Pat<(riscv_fmv_x_anyextw GPRF32:$rs1), (COPY_TO_REGCLASS GPRF32:$rs1, GPR)>;
+def : Pat<(f32 (UniformUnaryFrag<bitconvert> i32:$rs1)),
+          (COPY_TO_REGCLASS GPR:$rs1, GPRF32)>;
+def : Pat<(i32 (UniformUnaryFrag<bitconvert> (f32 GPRF32:$rs1))),
+          (COPY_TO_REGCLASS GPRF32:$rs1, GPR)>;
+def : Pat<(bitconvert (i32 GPR:$rs1)), (COPY_TO_REGCLASS GPR:$rs1, GPRF32)>;
+def : Pat<(i32 (bitconvert GPRF32:$rs1)), (COPY_TO_REGCLASS GPRF32:$rs1, GPR)>;
 
 // float->[u]int. Round-to-zero must be used.
 def : Pat<(i32 (UniformUnaryFrag<any_fp_to_sint> GPRF32:$rs1)), (FCVT_W_S $rs1, 0b001)>;
@@ -694,6 +708,21 @@ def : Pat<(UniformUnaryFrag<any_uint_to_fp> (i32 GPR:$rs1)), (FCVT_S_WU $rs1, 0b
 def : Pat<(any_sint_to_fp (sub simm5:$imm, (i32 GPR:$rs1))),
           (FCVT_S_W (ADDI (SUB X0, GPR:$rs1), simm5:$imm), 0b111)>;
 } // Predicates = [HasStdExtZfinx, IsRV32]
+
+let Predicates = [HasStdExtF, IsRV32] in {
+def : Pat<(f32 (load (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12))),
+          (COPY_TO_REGCLASS (LW GPR:$rs1, simm12:$imm12), GPRF32)>;
+def : Pat<(store (f32 GPRF32:$rs2), (AddrRegImm (XLenVT GPR:$rs1), simm12:$imm12)),
+          (SW (COPY_TO_REGCLASS GPRF32:$rs2, GPR), GPR:$rs1, simm12:$imm12)>;
+def : Pat<(riscv_fmv_w_x GPR:$rs1), (COPY_TO_REGCLASS GPR:$rs1, GPRF32)>;
+def : Pat<(riscv_fmv_x_anyextw GPRF32:$rs1), (COPY_TO_REGCLASS GPRF32:$rs1, GPR)>;
+def : Pat<(f32 (UniformUnaryFrag<bitconvert> i32:$rs1)),
+          (COPY_TO_REGCLASS GPR:$rs1, GPRF32)>;
+def : Pat<(i32 (UniformUnaryFrag<bitconvert> (f32 GPRF32:$rs1))),
+          (COPY_TO_REGCLASS GPRF32:$rs1, GPR)>;
+def : Pat<(any_sint_to_fp (i32 GPR:$rs1)), (FCVT_S_W $rs1, 0b111)>;
+def : Pat<(any_uint_to_fp (i32 GPR:$rs1)), (FCVT_S_WU $rs1, 0b111)>;
+} // Predicates = [HasStdExtF, IsRV32]
 
 let Predicates = [HasStdExtZfinx, IsRV64] in {
 // Moves (no conversion)

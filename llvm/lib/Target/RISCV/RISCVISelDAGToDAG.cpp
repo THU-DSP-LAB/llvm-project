@@ -240,6 +240,26 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   SDLoc DL(Node);
   MVT VT = Node->getNumValues() ? Node->getSimpleValueType(0) : MVT::Other;
   switch (Opcode) {
+  case ISD::BITCAST: {
+    SDValue Src = Node->getOperand(0);
+    MVT SrcVT = Src.getSimpleValueType();
+    bool HasF32Bits = Subtarget->hasStdExtF() || Subtarget->hasStdExtZfinx();
+    if (!Subtarget->is64Bit() && HasF32Bits &&
+        VT == MVT::f32 && SrcVT == MVT::i32) {
+      SDValue RC = CurDAG->getTargetConstant(RISCV::GPRF32RegClassID, DL,
+                                             MVT::i32);
+      CurDAG->SelectNodeTo(Node, TargetOpcode::COPY_TO_REGCLASS, VT, Src, RC);
+      return;
+    }
+    if (!Subtarget->is64Bit() && HasF32Bits &&
+        VT == MVT::i32 && SrcVT == MVT::f32) {
+      SDValue RC = CurDAG->getTargetConstant(RISCV::GPRRegClassID, DL,
+                                             MVT::i32);
+      CurDAG->SelectNodeTo(Node, TargetOpcode::COPY_TO_REGCLASS, VT, Src, RC);
+      return;
+    }
+    break;
+  }
   case ISD::INTRINSIC_WO_CHAIN: {
     unsigned IntrinsicOpcode = Node->getConstantOperandVal(0);
     if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_traverse_i32) {

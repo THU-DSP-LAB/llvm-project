@@ -56,6 +56,27 @@ multiclass PatVFRBin<SDPatternOperator Op, list<RVInst> Insts,
               (Insts[1] VGPR:$rs1, GPRF32:$rs2)>;
 }
 
+multiclass PatVFRBinMixedFallback<SDPatternOperator Op, list<RVInst> Insts,
+                                  bit CommutableVF = 0> {
+  let AddedComplexity = 1 in
+  def : Pat<(Op (f32 VGPR:$rs1), (f32 VGPR:$rs2)),
+            (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
+
+  let AddedComplexity = 2 in
+  def : Pat<(Op (f32 VGPR:$rs1), GPRF32:$rs2),
+            (Insts[1] VGPR:$rs1, GPRF32:$rs2)>;
+
+  if !eq(!size(Insts), 3) then
+    let AddedComplexity = 3 in
+    def : Pat<(Op (f32 GPRF32:$rs2), (f32 VGPR:$rs1)),
+              (Insts[2] VGPR:$rs1, GPRF32:$rs2)>;
+
+  if CommutableVF then
+    let AddedComplexity = 3 in
+    def : Pat<(Op (f32 GPRF32:$rs2), (f32 VGPR:$rs1)),
+              (Insts[1] VGPR:$rs1, GPRF32:$rs2)>;
+}
+
 multiclass DivergentPriLdPat<PatFrag LoadOp, RVInst Inst,
                                   list<ValueType> ValueTypes = [XLenVT, f32]> {
   foreach val = ValueTypes in {
@@ -2079,6 +2100,15 @@ def : DivergentNonPriStPat<truncstorei8, VSUXEI8>;
 def : DivergentNonPriStPat<truncstorei16, VSUXEI16>;
 def : DivergentNonPriStPat<store, VSUXEI32>;
 
+def : Pat<(int_riscv_ventus_image_store_rgba8 GPR:$base,
+                                              (i32 VGPR:$x),
+                                              (i32 VGPR:$y),
+                                              GPR:$stride,
+                                              (i32 VGPR:$rgba)),
+          (VSUXEI32 VGPR:$rgba, GPR:$base,
+             (VADD_VV (VSLL_VI VGPR:$x, 2),
+                      (VMUL_VX VGPR:$y, GPR:$stride)))>;
+
 // FIXME: check this review: https://reviews.llvm.org/D131729#inline-1269307
 def : PatIntSetCC<[VGPR, VGPR], SETLE, VMSLE_VV>;
 def : PatIntSetCC<[VGPR, GPR], SETLE, VMSLE_VX>;
@@ -2162,10 +2192,14 @@ def : PatFXConvert<DivergentUnaryFrag<any_sint_to_fp>,
 def : PatFXConvert<DivergentUnaryFrag<any_uint_to_fp>,
                         [f32, XLenVT], VFCVT_F_XU_V>;
 defm : PatVFRBin<fadd,  [VFADD_VV, VFADD_VF], 1>;
+defm : PatVFRBinMixedFallback<fadd, [VFADD_VV, VFADD_VF], 1>;
 // def : Pat<(fadd GPRF32:$rs1, GPRF32:$rs2), (FADD_S $rs1, $rs2)>;
 defm : PatVFRBin<fsub,  [VFSUB_VV, VFSUB_VF, VFRSUB_VF]>;
+defm : PatVFRBinMixedFallback<fsub, [VFSUB_VV, VFSUB_VF, VFRSUB_VF]>;
 defm : PatVFRBin<fmul,  [VFMUL_VV, VFMUL_VF], 1>;
+defm : PatVFRBinMixedFallback<fmul, [VFMUL_VV, VFMUL_VF], 1>;
 defm : PatVFRBin<fdiv,  [VFDIV_VV, VFDIV_VF, VFRDIV_VF]>;
+defm : PatVFRBinMixedFallback<fdiv, [VFDIV_VV, VFDIV_VF, VFRDIV_VF]>;
 defm : PatVFRBin<fminnum,  [VFMIN_VV, VFMIN_VF], 1>;
 defm : PatVFRBin<fmaxnum,  [VFMAX_VV, VFMAX_VF], 1>;
 defm : PatVFRBin<fcopysign, [VFSGNJ_VV, VFSGNJ_VF]>;

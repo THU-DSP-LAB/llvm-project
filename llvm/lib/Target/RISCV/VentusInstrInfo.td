@@ -23,7 +23,8 @@ def shiftMask32   : ComplexPattern<i64, 1, "selectShiftMask32", [], [], 0>;
 class UniformUnaryFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0),
   (Op $src0),
-  [{ return !N->isDivergent(); }]>;
+  [{ return !N->isDivergent() &&
+            !N->getOperand(0).getNode()->isDivergent(); }]>;
 
 class UniformLoadFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0),
@@ -34,7 +35,8 @@ class UniformLoadFrag<SDPatternOperator Op> : PatFrag<
 class DivergentUnaryFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0),
   (Op $src0),
-  [{ return N->isDivergent(); }]>;
+  [{ return N->isDivergent() ||
+            N->getOperand(0).getNode()->isDivergent(); }]>;
 
 class DivergentPrivateLoadFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0),
@@ -57,12 +59,16 @@ class DivergentNonPrivateLoadFrag<SDPatternOperator Op> : PatFrag<
 class UniformBinFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
   (Op $src0, $src1),
-  [{ return !N->isDivergent(); }]>;
+  [{ return !N->isDivergent() &&
+            !N->getOperand(0).getNode()->isDivergent() &&
+            !N->getOperand(1).getNode()->isDivergent(); }]>;
 
 class DivergentBinFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
   (Op $src0, $src1),
-  [{ return N->isDivergent(); }]>;
+  [{ return N->isDivergent() ||
+            N->getOperand(0).getNode()->isDivergent() ||
+            N->getOperand(1).getNode()->isDivergent(); }]>;
 
 class DivergentBinBothFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
@@ -94,7 +100,9 @@ class DivergentBinUniformLHSFrag<SDPatternOperator Op> : PatFrag<
 class ReverseDivergentBinFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
   (Op $src1, $src0),
-  [{ return N->isDivergent(); }]>;
+  [{ return N->isDivergent() ||
+            N->getOperand(0).getNode()->isDivergent() ||
+            N->getOperand(1).getNode()->isDivergent(); }]>;
 
 class DivergentPrivateStoreFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
@@ -112,14 +120,20 @@ class UniformStoreFrag<SDPatternOperator Op> : PatFrag<
   (Op $src0, $src1),
   [{
     return !N->isDivergent() &&
-      cast<StoreSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS;
+      !N->getOperand(1).getNode()->isDivergent() &&
+      !N->getOperand(2).getNode()->isDivergent() &&
+      cast<StoreSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS &&
+      cast<StoreSDNode>(N)->getAddressSpace() == RISCVAS::FLAT_ADDRESS;
   }]>;
 
 class DivergentNonPrivateStoreFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
   (Op $src0, $src1),
   [{
-    return N->isDivergent() &&
+    return (cast<StoreSDNode>(N)->getAddressSpace() != RISCVAS::FLAT_ADDRESS ||
+      N->isDivergent() ||
+      N->getOperand(1).getNode()->isDivergent() ||
+      N->getOperand(2).getNode()->isDivergent()) &&
       cast<StoreSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS &&
       cast<StoreSDNode>(N)->getPointerInfo().StackID != RISCVStackID::VGPRSpill
       ;
@@ -135,12 +149,18 @@ class UniformWBinFrag<SDPatternOperator Op> : PatFrag<
 class UniformTernaryFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1, node:$src2),
   (Op $src0, $src1, $src2),
-  [{ return !N->isDivergent(); }]>;
+  [{ return !N->isDivergent() &&
+            !N->getOperand(0).getNode()->isDivergent() &&
+            !N->getOperand(1).getNode()->isDivergent() &&
+            !N->getOperand(2).getNode()->isDivergent(); }]>;
 
 class DivergentTernaryFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1, node:$src2),
   (Op $src0, $src1, $src2),
-  [{ return N->isDivergent(); }]>;
+  [{ return N->isDivergent() ||
+            N->getOperand(0).getNode()->isDivergent() ||
+            N->getOperand(1).getNode()->isDivergent() ||
+            N->getOperand(2).getNode()->isDivergent(); }]>;
 
 class DivergentTernaryBothDataFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1, node:$src2),
@@ -268,6 +288,8 @@ def riscv_sraw      : SDNode<"RISCVISD::SRAW", SDT_RISCVIntBinOpW>;
 def riscv_srlw      : SDNode<"RISCVISD::SRLW", SDT_RISCVIntBinOpW>;
 def riscv_read_csr  : SDNode<"RISCVISD::READ_CSR", SDT_RISCVReadCSR,
                              [SDNPHasChain]>;
+def riscv_read_csr_v : SDNode<"RISCVISD::READ_CSR_V", SDT_RISCVReadCSR,
+                              [SDNPHasChain]>;
 def riscv_write_csr : SDNode<"RISCVISD::WRITE_CSR", SDT_RISCVWriteCSR,
                              [SDNPHasChain]>;
 def riscv_swap_csr  : SDNode<"RISCVISD::SWAP_CSR", SDT_RISCVSwapCSR,
@@ -1934,6 +1956,14 @@ class ReadSysReg<SysReg SR, list<Register> Regs>
   let Uses = Regs;
 }
 
+class ReadSysRegV<SysReg SR, list<Register> Regs>
+  : Pseudo<(outs VGPR:$rd), (ins),
+           [(set (XLenVT VGPR:$rd), (riscv_read_csr_v (XLenVT SR.Encoding)))]>,
+    PseudoInstExpansion<(CSRRSV VGPR:$rd, SR.Encoding, X0)> {
+  let hasSideEffects = 0;
+  let Uses = Regs;
+}
+
 class WriteSysReg<SysReg SR, list<Register> Regs>
   : Pseudo<(outs), (ins GPR:$val),
            [(riscv_write_csr (XLenVT SR.Encoding), GPR:$val)]>,
@@ -1974,6 +2004,9 @@ def WriteFRMImm : WriteSysRegImm<SysRegFRM, [FRM]>;
 def SwapFRMImm : SwapSysRegImm<SysRegFRM, [FRM]>;
 def ReadCSR_KNL : ReadSysReg<SysRegKNL, []>;
 def ReadCSR_LDS : ReadSysReg<SysRegLDS, []>;
+def ReadCSR_GL_ID_X : ReadSysRegV<SysRegGLIDX, []>;
+def ReadCSR_GL_ID_Y : ReadSysRegV<SysRegGLIDY, []>;
+def ReadCSR_GL_ID_Z : ReadSysRegV<SysRegGLIDZ, []>;
 
 let hasSideEffects = true in {
 def ReadFFLAGS : ReadSysReg<SysRegFFLAGS, [FFLAGS]>;
