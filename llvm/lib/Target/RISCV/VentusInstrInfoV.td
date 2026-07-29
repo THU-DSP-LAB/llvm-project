@@ -1888,6 +1888,7 @@ class VENTUS_RTTraverse<bits<6> funct6, bits<3> funct3, RISCVOpcode opcode,
   let Inst{14-12} = funct3;
   let Inst{11-7} = vd;
   let Opcode = opcode.Value;
+  let CustomConstraints = "$vd = 0,$vs2 = 2";
 }
 
 class VENTUS_RTRelease<bits<6> funct6, bits<3> funct3, RISCVOpcode opcode,
@@ -1903,6 +1904,7 @@ class VENTUS_RTRelease<bits<6> funct6, bits<3> funct3, RISCVOpcode opcode,
   let Inst{14-12} = funct3;
   let Inst{11-7} = 0;
   let Opcode = opcode.Value;
+  let CustomConstraints = "$vs2 = 2";
 }
 
 def VT_RT_TRAVERSE : VENTUS_RTTraverse<0b111000, 0b000, OPC_CUSTOM_0_10,

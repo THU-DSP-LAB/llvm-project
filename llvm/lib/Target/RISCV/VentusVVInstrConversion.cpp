@@ -106,7 +106,8 @@ public:
   const RISCVInstrInfo *TII;
   static char ID;
   const RISCVRegisterInfo *MRI;
-  const MachineRegisterInfo *MR;
+  MachineRegisterInfo *MR;
+  bool EnableLegacyVXConversion;
 
   VentusVVInstrConversion() : MachineFunctionPass(ID) {
     initializeVentusVVInstrConversionPass(*PassRegistry::getPassRegistry());
@@ -130,6 +131,12 @@ private:
 
   bool convertInstr(MachineBasicBlock &MBB, MachineInstr &CopyMI,
                     MachineInstr &VVMI);
+
+  bool lowerFloatVFInstr(MachineBasicBlock &MBB, MachineInstr &MI);
+
+  bool removeDeadScalarizationInstrs(MachineBasicBlock &MBB);
+
+  const TargetRegisterClass *getRegClass(Register Reg) const;
 
   bool swapRegOperands(MachineInstr &MI);
 
@@ -155,13 +162,11 @@ bool VentusVVInstrConversion::swapRegOperands(MachineInstr &MI) {
 
 bool VentusVVInstrConversion::runOnMachineFunction(MachineFunction &MF) {
   const RISCVSubtarget &ST = MF.getSubtarget<RISCVSubtarget>();
-  if (!ST.isVentusGPGPU())
-    return false;
-
   bool isChanged = false;
   TII = ST.getInstrInfo();
   MRI = ST.getRegisterInfo();
   MR = &MF.getRegInfo();
+  EnableLegacyVXConversion = ST.isVentusGPGPU();
   for (auto &MBB : MF)
     isChanged |= runOnMachineBasicBlock(MBB);
   return isChanged;
@@ -169,15 +174,169 @@ bool VentusVVInstrConversion::runOnMachineFunction(MachineFunction &MF) {
 
 bool VentusVVInstrConversion::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
   bool isMBBChanged = false;
-  for (auto &MI : MBB) {
+  for (auto I = MBB.begin(), E = MBB.end(); I != E;) {
+    MachineInstr &MI = *I++;
+    if (lowerFloatVFInstr(MBB, MI)) {
+      isMBBChanged = true;
+      continue;
+    }
+
     MachineInstr *NextMI = MI.getNextNode();
     // Check RISCV::COPY instructions' format and its next instruction's format
-    if (isGPR2VGPRCopy(MI) && NextMI && isVVALUInstruction(*NextMI)) {
+    if (EnableLegacyVXConversion && isGPR2VGPRCopy(MI) && NextMI &&
+        isVVALUInstruction(*NextMI)) {
       // When met here, we can ensure the coding logic goes to the conversion
       isMBBChanged |= convertInstr(MBB, MI, *NextMI);
     }
   }
+  isMBBChanged |= removeDeadScalarizationInstrs(MBB);
   return isMBBChanged;
+}
+
+const TargetRegisterClass *
+VentusVVInstrConversion::getRegClass(Register Reg) const {
+  if (!Reg)
+    return nullptr;
+  if (Reg.isVirtual())
+    return MR->getRegClass(Reg);
+  return MRI->getPhysRegClass(Reg.asMCReg());
+}
+
+bool VentusVVInstrConversion::lowerFloatVFInstr(MachineBasicBlock &MBB,
+                                                MachineInstr &MI) {
+  unsigned VVOpcode = 0;
+  bool Reverse = false;
+  switch (MI.getOpcode()) {
+  default:
+    return false;
+  case RISCV::VFADD_VF:
+    VVOpcode = RISCV::VFADD_VV;
+    break;
+  case RISCV::VFMUL_VF:
+    VVOpcode = RISCV::VFMUL_VV;
+    break;
+  case RISCV::VFSUB_VF:
+    VVOpcode = RISCV::VFSUB_VV;
+    break;
+  case RISCV::VFDIV_VF:
+    VVOpcode = RISCV::VFDIV_VV;
+    break;
+  case RISCV::VFRSUB_VF:
+    VVOpcode = RISCV::VFSUB_VV;
+    Reverse = true;
+    break;
+  case RISCV::VFRDIV_VF:
+    VVOpcode = RISCV::VFDIV_VV;
+    Reverse = true;
+    break;
+  }
+
+  if (MI.getNumOperands() < 3 || !MI.getOperand(0).isReg() ||
+      !MI.getOperand(1).isReg() || !MI.getOperand(2).isReg())
+    return false;
+
+  Register Dst = MI.getOperand(0).getReg();
+  Register Vec = MI.getOperand(1).getReg();
+  Register Scalar = MI.getOperand(2).getReg();
+  const TargetRegisterClass *VecRC = getRegClass(Vec);
+  const TargetRegisterClass *ScalarRC = getRegClass(Scalar);
+  if (!VecRC || !ScalarRC || !RISCVRegisterInfo::isVGPRClass(VecRC))
+    return false;
+
+  DebugLoc DL = MI.getDebugLoc();
+  Register ScalarVec;
+  if (Scalar.isVirtual()) {
+    MachineInstr *ScalarDef = MR->getVRegDef(Scalar);
+    if (ScalarDef && ScalarDef->getOpcode() == RISCV::COPY &&
+        ScalarDef->getOperand(1).isReg()) {
+      Register CopySrc = ScalarDef->getOperand(1).getReg();
+      const TargetRegisterClass *CopySrcRC = getRegClass(CopySrc);
+      if (CopySrcRC && RISCVRegisterInfo::isVGPRClass(CopySrcRC))
+        ScalarVec = CopySrc;
+    }
+  }
+
+  if (!ScalarVec) {
+    bool IsUniformScalar = RISCVRegisterInfo::isSGPRClass(ScalarRC) ||
+                           RISCVRegisterInfo::isFPRClass(ScalarRC);
+    if (!IsUniformScalar)
+      return false;
+
+    ScalarVec = MR->createVirtualRegister(&RISCV::VGPRNoV0RegClass);
+    unsigned MoveOpcode = RISCVRegisterInfo::isFPRClass(ScalarRC)
+                              ? RISCV::VFMV_V_F
+                              : RISCV::VMV_V_X;
+
+    bool MaterializedScalarVec = false;
+    if (RISCVRegisterInfo::isFPRClass(ScalarRC) && Scalar.isVirtual()) {
+      MachineInstr *FCvt = MR->getVRegDef(Scalar);
+      unsigned VecCvtOpcode = 0;
+      if (FCvt && FCvt->getOpcode() == RISCV::FCVT_S_WU)
+        VecCvtOpcode = RISCV::VFCVT_F_XU_V;
+      else if (FCvt && FCvt->getOpcode() == RISCV::FCVT_S_W)
+        VecCvtOpcode = RISCV::VFCVT_F_X_V;
+
+      if (VecCvtOpcode && FCvt->getNumOperands() > 1 &&
+          FCvt->getOperand(1).isReg()) {
+        Register IntScalar = FCvt->getOperand(1).getReg();
+        MachineInstr *Copy = IntScalar.isVirtual() ? MR->getVRegDef(IntScalar)
+                                                   : nullptr;
+        if (Copy && Copy->getOpcode() == RISCV::COPY &&
+            Copy->getNumOperands() > 1 && Copy->getOperand(1).isReg()) {
+          Register CopySrc = Copy->getOperand(1).getReg();
+          const TargetRegisterClass *CopySrcRC = getRegClass(CopySrc);
+          if (CopySrcRC && RISCVRegisterInfo::isVGPRClass(CopySrcRC)) {
+            BuildMI(MBB, MI, DL, TII->get(VecCvtOpcode), ScalarVec)
+                .addReg(CopySrc);
+            MaterializedScalarVec = true;
+          }
+        }
+      }
+    }
+
+    if (!MaterializedScalarVec)
+      BuildMI(MBB, MI, DL, TII->get(MoveOpcode), ScalarVec).addReg(Scalar);
+  }
+
+  MachineInstrBuilder NewMI = BuildMI(MBB, MI, DL, TII->get(VVOpcode), Dst);
+  if (Reverse)
+    NewMI.addReg(ScalarVec).addReg(Vec);
+  else
+    NewMI.addReg(Vec).addReg(ScalarVec);
+  MI.eraseFromParent();
+  return true;
+}
+
+bool VentusVVInstrConversion::removeDeadScalarizationInstrs(
+    MachineBasicBlock &MBB) {
+  bool Changed = false;
+  bool Removed;
+  do {
+    Removed = false;
+    for (auto I = MBB.begin(), E = MBB.end(); I != E;) {
+      MachineInstr &MI = *I++;
+      switch (MI.getOpcode()) {
+      default:
+        continue;
+      case RISCV::COPY:
+      case RISCV::FCVT_S_W:
+      case RISCV::FCVT_S_WU:
+        break;
+      }
+
+      if (MI.getNumOperands() == 0 || !MI.getOperand(0).isReg())
+        continue;
+
+      Register Dst = MI.getOperand(0).getReg();
+      if (!Dst.isVirtual() || !MR->use_empty(Dst))
+        continue;
+
+      MI.eraseFromParent();
+      Removed = true;
+      Changed = true;
+    }
+  } while (Removed);
+  return Changed;
 }
 
 /// This function tries to convert

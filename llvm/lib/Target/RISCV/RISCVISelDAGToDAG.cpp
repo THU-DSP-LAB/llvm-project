@@ -15,6 +15,7 @@
 #include "MCTargetDesc/RISCVMatInt.h"
 #include "RISCVISelLowering.h"
 #include "RISCVMachineFunctionInfo.h"
+#include "RISCVRegisterInfo.h"
 #include "llvm/Analysis/LegacyDivergenceAnalysis.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/IR/IntrinsicsRISCV.h"
@@ -225,6 +226,32 @@ bool RISCVDAGToDAGISel::tryShrinkShlLogicImm(SDNode *Node) {
   return true;
 }
 
+SDValue RISCVDAGToDAGISel::materializeVentusRTSlot(SDValue Slot, SDLoc DL) {
+  MVT VT = Slot.getSimpleValueType();
+  SDValue Base = CurDAG->getRegister(
+      Subtarget->getRegisterInfo()->getPrivateMemoryBaseRegister(
+          CurDAG->getMachineFunction()),
+      VT);
+
+  if (auto *CN = dyn_cast<ConstantSDNode>(Slot)) {
+    int64_t Offset = CN->getSExtValue();
+    if (Offset == 0)
+      return Base;
+    if (Offset > 0 && isUInt<12>(Offset))
+      return SDValue(CurDAG->getMachineNode(
+                         RISCV::VADDIMM12, DL, VT, Base,
+                         CurDAG->getTargetConstant(Offset, DL, VT)),
+                     0);
+    if (Offset < 0 && isUInt<12>(-Offset))
+      return SDValue(CurDAG->getMachineNode(
+                         RISCV::VSUBIMM12, DL, VT, Base,
+                         CurDAG->getTargetConstant(-Offset, DL, VT)),
+                     0);
+  }
+
+  return SDValue(CurDAG->getMachineNode(RISCV::VADD_VV, DL, VT, Base, Slot), 0);
+}
+
 void RISCVDAGToDAGISel::Select(SDNode *Node) {
   // If we have a custom node, we have already selected.
   if (Node->isMachineOpcode()) {
@@ -263,7 +290,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   case ISD::INTRINSIC_WO_CHAIN: {
     unsigned IntrinsicOpcode = Node->getConstantOperandVal(0);
     if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_traverse_i32) {
-      SDValue Slot = Node->getOperand(1);
+      SDValue Slot = materializeVentusRTSlot(Node->getOperand(1), DL);
       CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, Slot);
       return;
     }
@@ -273,7 +300,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     unsigned IntrinsicOpcode = Node->getConstantOperandVal(1);
     if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_traverse_i32) {
       SDValue Chain = Node->getOperand(0);
-      SDValue Slot = Node->getOperand(2);
+      SDValue Slot = materializeVentusRTSlot(Node->getOperand(2), DL);
       CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, MVT::Other,
                            Slot, Chain);
       return;
@@ -284,7 +311,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     unsigned IntrinsicOpcode = Node->getConstantOperandVal(1);
     if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_release_i32) {
       SDValue Chain = Node->getOperand(0);
-      SDValue Slot = Node->getOperand(2);
+      SDValue Slot = materializeVentusRTSlot(Node->getOperand(2), DL);
       CurDAG->SelectNodeTo(Node, RISCV::VT_RT_RELEASE, Node->getVTList(),
                            {Slot, Chain});
       return;
@@ -293,7 +320,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   }
   case RISCVISD::VENTUS_RT_TRAVERSE: {
     SDValue Chain = Node->getOperand(0);
-    SDValue Slot = Node->getOperand(1);
+    SDValue Slot = materializeVentusRTSlot(Node->getOperand(1), DL);
     CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, MVT::Other,
                          Slot, Chain);
     return;
@@ -986,6 +1013,18 @@ bool RISCVDAGToDAGISel::SelectPriAddrRegImm(SDValue Addr, SDValue &Base,
 
   SDLoc DL(Addr);
   MVT VT = Addr.getSimpleValueType();
+
+  if (auto *CN = dyn_cast<ConstantSDNode>(Addr)) {
+    int64_t CVal = CN->getSExtValue();
+    if (isInt<11>(CVal)) {
+      Base = CurDAG->getRegister(
+          Subtarget->getRegisterInfo()->getPrivateMemoryBaseRegister(
+              CurDAG->getMachineFunction()),
+          VT);
+      Offset = CurDAG->getTargetConstant(CVal, DL, VT);
+      return true;
+    }
+  }
 
   if (Addr.getOpcode() == RISCVISD::ADD_LO) {
     Base = Addr.getOperand(0);
