@@ -11,5 +11,6 @@
 #define KNL_ARG_BASE 8
 #define KNL_LDS_STACK_SIZE_PER_WF 68
 #define KNL_LDS_NON_STACK_SIZE 72
+#define KNL_PDS_SIZE_PER_THREAD 80
 
 #endif

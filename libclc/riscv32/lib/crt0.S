@@ -49,7 +49,7 @@ _start:
   lw t3, KNL_LDS_STACK_SIZE_PER_WF(t0)
   mul t1, t1, t3        # sp wid * warp_size
   add sp, t1, t2        # sp points to baseaddr of local memory of each SM
-  li tp, 0              # tp points to baseaddr for lower bound of private memory(1K) of each thread
+  lw tp, KNL_PDS_SIZE_PER_THREAD(t0) # top of this lane's private frame
   csrr t5, CSR_NUMW
   lw t3, KNL_LDS_STACK_SIZE_PER_WF(t0)
   mul t5, t5, t3

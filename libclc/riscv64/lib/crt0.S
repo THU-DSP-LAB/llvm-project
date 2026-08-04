@@ -31,7 +31,7 @@ _start:
   lw t3, KNL_LDS_STACK_SIZE_PER_WF(t0)
   mul t1, t1, t3
   add sp, t1, t2
-  li tp, 0
+  ld tp, KNL_PDS_SIZE_PER_THREAD(t0)
   csrr t5, CSR_NUMW
   lw t3, KNL_LDS_STACK_SIZE_PER_WF(t0)
   mul t5, t5, t3
