@@ -1,0 +1,35 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-broadcast-copy-propagation,ventus-reg-domain-verifier %s -o - | FileCheck %s
+
+# CHECK-LABEL: name: scalarized_uniform_vrsub
+# CHECK: %{{[0-9]+}}:gpr = ADDI $x0, 150
+# CHECK: %{{[0-9]+}}:gpr = SUB %{{[0-9]+}}, %0
+# CHECK-NOT: PseudoVRSUB_VI_IMM11
+# CHECK-NOT: COPY %{{[0-9]+}}:vgpr
+
+--- |
+  target triple = "riscv32"
+
+  define void @scalarized_uniform_vrsub() {
+    ret void
+  }
+...
+---
+name:            scalarized_uniform_vrsub
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: gpr }
+  - { id: 1, class: vgpr }
+  - { id: 2, class: vgpr }
+  - { id: 3, class: gpr }
+liveins:
+  - { reg: '$x5', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    liveins: $x5
+
+    %0:gpr = COPY $x5
+    %1:vgpr = COPY %0
+    %2:vgpr = PseudoVRSUB_VI_IMM11 %1, 150
+    %3:gpr = COPY %2
+    PseudoRET
+...

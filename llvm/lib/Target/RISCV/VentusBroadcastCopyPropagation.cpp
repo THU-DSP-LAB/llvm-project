@@ -335,6 +335,57 @@ static bool rewriteF16ScalarRoundTrip(BroadcastCopyPropagationContext &Ctx,
   return true;
 }
 
+/* A scalar value can temporarily enter a vector ALU through an explicit
+ * broadcast.  SelectionDAG currently recognizes the vector reverse-subtract
+ * form before it has recovered that the source is uniform, then materializes
+ * the result back into a scalar COPY.  Recreate the scalar operation instead
+ * of accepting a VGPR-to-GPR transfer. */
+static bool rewriteVRSUBBroadcastCopy(BroadcastCopyPropagationContext &Ctx,
+                                      MachineInstr &MI) {
+  if (!MI.isCopy())
+    return false;
+
+  Register Dst = MI.getOperand(0).getReg();
+  Register VectorResult = MI.getOperand(1).getReg();
+  if (!isGPRLikeScalarClass(getRegClass(Ctx, Dst)) ||
+      !isVentusVGPRClass(getRegClass(Ctx, VectorResult)) ||
+      !VectorResult.isVirtual() || !Ctx.MRI.hasOneDef(VectorResult))
+    return false;
+
+  MachineInstr *VRSUB = Ctx.MRI.getVRegDef(VectorResult);
+  if (!VRSUB || VRSUB->getOpcode() != RISCV::PseudoVRSUB_VI_IMM11 ||
+      VRSUB->getNumOperands() < 3 || !VRSUB->getOperand(1).isReg() ||
+      !VRSUB->getOperand(2).isImm())
+    return false;
+
+  Register VectorInput = VRSUB->getOperand(1).getReg();
+  Register ScalarInput = findScalarSourceForBroadcast(Ctx, MI, VectorInput);
+  if (!ScalarInput)
+    return false;
+
+  int64_t Imm = VRSUB->getOperand(2).getImm();
+  if (Imm < -2048 || Imm > 2047)
+    return false;
+
+  MachineBasicBlock &MBB = *MI.getParent();
+  DebugLoc DL = MI.getDebugLoc();
+  Register ImmReg = Ctx.MRI.createVirtualRegister(&RISCV::GPRRegClass);
+  Register ScalarResult = Ctx.MRI.createVirtualRegister(
+      Ctx.MRI.getRegClass(Dst));
+  BuildMI(MBB, MI, DL, Ctx.TII.get(RISCV::ADDI), ImmReg)
+      .addReg(RISCV::X0)
+      .addImm(Imm);
+  BuildMI(MBB, MI, DL, Ctx.TII.get(RISCV::SUB), ScalarResult)
+      .addReg(ImmReg)
+      .addReg(ScalarInput);
+  MI.getOperand(1).setReg(ScalarResult);
+  MI.getOperand(1).setIsKill(false);
+  if (Ctx.MRI.use_empty(VectorResult))
+    VRSUB->eraseFromParent();
+  LLVM_DEBUG(dbgs() << "Scalarized uniform VRSUB before illegal COPY\n");
+  return true;
+}
+
 static bool rewriteIllegalCopy(BroadcastCopyPropagationContext &Ctx,
                                MachineInstr &MI) {
   if (!MI.isCopy())
@@ -389,6 +440,10 @@ bool VentusBroadcastCopyPropagation::runOnMachineFunction(MachineFunction &MF) {
       continue;
     }
     if (rewriteF16ScalarRoundTrip(Ctx, *MI)) {
+      Changed = true;
+      continue;
+    }
+    if (rewriteVRSUBBroadcastCopy(Ctx, *MI)) {
       Changed = true;
       continue;
     }
