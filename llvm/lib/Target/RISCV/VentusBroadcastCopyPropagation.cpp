@@ -441,6 +441,28 @@ static bool rewriteIllegalCopy(BroadcastCopyPropagationContext &Ctx,
   return true;
 }
 
+static bool removeDeadIllegalCopy(BroadcastCopyPropagationContext &Ctx,
+                                  MachineInstr &MI) {
+  if (!MI.isCopy() || MI.getNumOperands() < 2 ||
+      !MI.getOperand(0).isReg() || !MI.getOperand(1).isReg())
+    return false;
+
+  Register DstReg = MI.getOperand(0).getReg();
+  Register SrcReg = MI.getOperand(1).getReg();
+  if (!DstReg.isVirtual() || !Ctx.MRI.use_nodbg_empty(DstReg))
+    return false;
+
+  const TargetRegisterClass *DstRC = getRegClass(Ctx, DstReg);
+  const TargetRegisterClass *SrcRC = getRegClass(Ctx, SrcReg);
+  if (isLegalCopyDirection(DstRC, SrcRC))
+    return false;
+
+  Ctx.MRI.markUsesInDebugValueAsUndef(DstReg);
+  MI.eraseFromParent();
+  LLVM_DEBUG(dbgs() << "Removed dead illegal VGPR-to-scalar COPY\n");
+  return true;
+}
+
 bool VentusBroadcastCopyPropagation::runOnMachineFunction(MachineFunction &MF) {
   const RISCVSubtarget &ST = MF.getSubtarget<RISCVSubtarget>();
   if (!ST.isVentusGPGPU())
@@ -479,7 +501,11 @@ bool VentusBroadcastCopyPropagation::runOnMachineFunction(MachineFunction &MF) {
       Changed = true;
       continue;
     }
-    Changed |= rewriteIllegalCopy(Ctx, *MI);
+    if (rewriteIllegalCopy(Ctx, *MI)) {
+      Changed = true;
+      continue;
+    }
+    Changed |= removeDeadIllegalCopy(Ctx, *MI);
   }
 
   return Changed;

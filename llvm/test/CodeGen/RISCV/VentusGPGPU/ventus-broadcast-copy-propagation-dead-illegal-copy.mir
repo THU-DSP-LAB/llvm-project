@@ -1,0 +1,30 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-broadcast-copy-propagation,ventus-reg-domain-verifier %s -o - | FileCheck %s
+
+# CHECK-LABEL: name: dead_illegal_copy
+# CHECK: %0:vgpr = COPY $v0
+# CHECK-NOT: :gprf32 = COPY %0
+# CHECK: PseudoRET
+
+--- |
+  target triple = "riscv32"
+
+  define void @dead_illegal_copy() {
+    ret void
+  }
+...
+---
+name:            dead_illegal_copy
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: gprf32 }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    liveins: $v0
+
+    %0:vgpr = COPY $v0
+    %1:gprf32 = COPY %0
+    PseudoRET
+...
