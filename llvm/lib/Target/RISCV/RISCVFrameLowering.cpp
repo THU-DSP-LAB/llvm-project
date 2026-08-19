@@ -27,6 +27,18 @@
 
 using namespace llvm;
 
+static uint64_t getVentusRTPrivatePrefix(const MachineFunction &MF) {
+  Attribute Prefix =
+      MF.getFunction().getFnAttribute("ventus-rt-private-prefix");
+  if (!Prefix.isValid())
+    return 0;
+
+  uint64_t Bytes = 0;
+  if (Prefix.getValueAsString().getAsInteger(10, Bytes))
+    report_fatal_error("invalid ventus-rt-private-prefix attribute");
+  return Bytes;
+}
+
 // For now we use x18, a.k.a s2, as pointer to shadow call stack.
 // User should explicitly set -ffixed-x18 and not use x18 in their asm.
 static void emitSCSPrologue(MachineFunction &MF, MachineBasicBlock &MBB,
@@ -798,6 +810,13 @@ RISCVFrameLowering::getFirstSPAdjustAmount(const MachineFunction &MF) const {
 uint64_t RISCVFrameLowering::getStackSize(const MachineFunction &MF,
                                           RISCVStackID::Value ID) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
+  // TP grows up before private frame objects use negative offsets.  Lay out
+  // ordinary AS5 objects from zero first, then append the RT prefix to the
+  // total allocation.  Starting the layout at the prefix would let object
+  // alignment change the final delta relative to getStackOffset(), which is
+  // still measured from zero and could put a frame object inside the prefix.
+  // Do not add the prefix to getStackOffset(): that would cancel the physical
+  // shift produced by the larger TP allocation.
   uint64_t StackSize = 0;
   const auto *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
 
@@ -810,6 +829,12 @@ uint64_t RISCVFrameLowering::getStackSize(const MachineFunction &MF,
     if(static_cast<unsigned>(MFI.getStackID(I)) == ID) {
       StackSize = addVentusStackObject(MFI, I, StackSize);
     }
+  }
+
+  if (ID == RISCVStackID::VGPRSpill) {
+    const uint64_t Prefix = getVentusRTPrivatePrefix(MF);
+    if (Prefix)
+      StackSize = alignTo(StackSize + Prefix, getStackAlign());
   }
 
   return StackSize;
