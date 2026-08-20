@@ -1891,6 +1891,24 @@ class VENTUS_RTTraverse<bits<6> funct6, bits<3> funct3, RISCVOpcode opcode,
   let CustomConstraints = "$vd = 0,$vs2 = 2";
 }
 
+class VENTUS_RTTraverseV5<bits<6> funct6, bits<3> funct3,
+                          RISCVOpcode opcode, string opcodestr>
+    : RVInst<(outs VGPR:$vd), (ins VGPR:$vs2, VGPR:$vs1),
+             opcodestr, "$vd, $vs2, $vs1", [], InstFormatR> {
+  bits<5> vs2;
+  bits<5> vs1;
+  bits<5> vd;
+
+  let Inst{31-26} = funct6;
+  let Inst{25} = 1;
+  let Inst{24-20} = vs2;
+  let Inst{19-15} = vs1;
+  let Inst{14-12} = funct3;
+  let Inst{11-7} = vd;
+  let Opcode = opcode.Value;
+  let CustomConstraints = "$vd = 0,$vs1 = 1,$vs2 = 2";
+}
+
 class VENTUS_RTRelease<bits<6> funct6, bits<3> funct3, RISCVOpcode opcode,
                        string opcodestr>
     : RVInst<(outs), (ins VGPR:$vs2),
@@ -1909,6 +1927,9 @@ class VENTUS_RTRelease<bits<6> funct6, bits<3> funct3, RISCVOpcode opcode,
 
 def VT_RT_TRAVERSE : VENTUS_RTTraverse<0b111000, 0b000, OPC_CUSTOM_0_10,
                                        "vt.rt.traverse">;
+def VT_RT_TRAVERSE_V5 : VENTUS_RTTraverseV5<0b111000, 0b010,
+                                            OPC_CUSTOM_0_10,
+                                            "vt.rt.traverse">;
 }
 
 let hasSideEffects = 1, mayLoad = 1, mayStore = 1 in {

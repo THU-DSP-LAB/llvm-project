@@ -307,6 +307,14 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, Slot);
       return;
     }
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_traverse_v5_i32) {
+      SDValue PDSAddress = materializeVentusRTSlot(Node->getOperand(1), DL);
+      SDValue PrivateAddress =
+          materializeVentusRTSlot(Node->getOperand(2), DL);
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE_V5, MVT::i32,
+                           PDSAddress, PrivateAddress);
+      return;
+    }
     break;
   }
   case ISD::INTRINSIC_W_CHAIN: {
@@ -316,6 +324,16 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       SDValue Slot = materializeVentusRTSlot(Node->getOperand(2), DL);
       CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, MVT::Other,
                            Slot, Chain);
+      return;
+    }
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_traverse_v5_i32) {
+      SDValue Chain = Node->getOperand(0);
+      SDValue PDSAddress = materializeVentusRTSlot(Node->getOperand(2), DL);
+      SDValue PrivateAddress =
+          materializeVentusRTSlot(Node->getOperand(3), DL);
+      SmallVector<SDValue, 3> Operands = {PDSAddress, PrivateAddress, Chain};
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE_V5, MVT::i32,
+                           MVT::Other, Operands);
       return;
     }
     break;
@@ -336,6 +354,15 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     SDValue Slot = materializeVentusRTSlot(Node->getOperand(1), DL);
     CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, MVT::Other,
                          Slot, Chain);
+    return;
+  }
+  case RISCVISD::VENTUS_RT_TRAVERSE_V5: {
+    SDValue Chain = Node->getOperand(0);
+    SDValue PDSAddress = materializeVentusRTSlot(Node->getOperand(1), DL);
+    SDValue PrivateAddress = materializeVentusRTSlot(Node->getOperand(2), DL);
+    SmallVector<SDValue, 3> Operands = {PDSAddress, PrivateAddress, Chain};
+    CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE_V5, MVT::i32,
+                         MVT::Other, Operands);
     return;
   }
   case RISCVISD::VENTUS_MMA: {

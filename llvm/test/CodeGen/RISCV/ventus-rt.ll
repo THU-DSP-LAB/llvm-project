@@ -1,6 +1,7 @@
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs < %s | FileCheck %s
 
 declare i32 @llvm.riscv.ventus.rt.traverse.i32(i32)
+declare i32 @llvm.riscv.ventus.rt.traverse.v5.i32(i32, i32)
 declare void @llvm.riscv.ventus.rt.release.i32(i32)
 declare i32 @llvm.riscv.ventus.kernel.metadata()
 
@@ -15,6 +16,14 @@ define i32 @test_rt_traverse(i32 %slot) {
 ; CHECK-LABEL: test_rt_traverse:
 ; CHECK: vt.rt.traverse v{{[0-9]+}}, v{{[0-9]+}}
   %status = call i32 @llvm.riscv.ventus.rt.traverse.i32(i32 %slot)
+  ret i32 %status
+}
+
+define i32 @test_rt_traverse_v5(i32 %pds_address, i32 %private_address) {
+; CHECK-LABEL: test_rt_traverse_v5:
+; CHECK: vt.rt.traverse v{{[0-9]+}}, v{{[0-9]+}}, v{{[0-9]+}}
+  %status = call i32 @llvm.riscv.ventus.rt.traverse.v5.i32(
+      i32 %pds_address, i32 %private_address)
   ret i32 %status
 }
 
