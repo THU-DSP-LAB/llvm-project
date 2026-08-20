@@ -33,7 +33,9 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
@@ -45,6 +47,7 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Instrumentation/HWAddressSanitizer.h"
@@ -171,11 +174,16 @@ namespace {
 // Symbol fields are emitted as relocatable 32-bit references because Ventus is
 // currently a RISCV32 target.
 constexpr uint32_t VentusResObjMagic = 0x5652534fu; // 'VRSO'
-constexpr uint32_t VentusResObjVersion = 3u;
+constexpr uint32_t VentusResObjVersionV3 = 3u;
+constexpr uint32_t VentusResObjVersionV4 = 4u;
 constexpr uint32_t VentusResObjSymbolRefSize = 4u;
 constexpr uint32_t VentusResObjHeaderSize = 9u * sizeof(uint32_t);
-constexpr uint32_t VentusResObjFunctionRecordSize =
+constexpr uint32_t VentusResObjFunctionRecordV3Size =
     2u * sizeof(uint32_t) + 5u * sizeof(uint64_t) + 4u * sizeof(uint32_t);
+constexpr uint32_t VentusRTResourceFieldCount = 10u;
+constexpr uint32_t VentusResObjFunctionRecordSize =
+    VentusResObjFunctionRecordV3Size +
+    VentusRTResourceFieldCount * sizeof(uint32_t);
 constexpr uint32_t VentusResObjEdgeRecordSize = 2u * sizeof(uint32_t);
 constexpr uint32_t VentusResObjStaticRefRecordSize =
     2u * sizeof(uint32_t) + 2u * sizeof(uint64_t);
@@ -203,7 +211,27 @@ enum VentusResObjStaticRefFlags : uint32_t {
 // - `VGPRUsed` / `SGPRUsed` remain the best visible-call-graph counts. If
 //   unresolved callees make them incomplete, `Flags` carries
 //   `VKRF_RegisterUsageIncomplete`.
-struct VentusKernelResourceV3 {
+struct VentusRTResourceV4 {
+  uint32_t FeatureFlags = 0;
+  uint32_t PDSLayoutID = 0;
+  uint32_t PrivateLayoutID = 0;
+  uint32_t HotPDSOffsetPerThread = 0;
+  uint32_t HotPDSStrideBytes = 0;
+  uint32_t ContinuationOffsetPerThread = 0;
+  uint32_t ContinuationBytesPerThread = 0;
+  uint32_t PayloadSizeBytes = 0;
+  uint32_t CallableDataSizeBytes = 0;
+  uint32_t ReservedZero = 0;
+
+  bool isPresent() const {
+    return FeatureFlags || PDSLayoutID || PrivateLayoutID ||
+           HotPDSOffsetPerThread || HotPDSStrideBytes ||
+           ContinuationOffsetPerThread || ContinuationBytesPerThread ||
+           PayloadSizeBytes || CallableDataSizeBytes || ReservedZero;
+  }
+};
+
+struct VentusKernelResource {
   uint32_t Version = 3;
   uint32_t Flags = 0;
   uint64_t VGPRUsed = 0;
@@ -212,7 +240,39 @@ struct VentusKernelResourceV3 {
   uint64_t PDSStaticBytes = 0;
   uint64_t LDSStackPeakBytes = 0;
   uint64_t PDSStackPeakBytes = 0;
+  VentusRTResourceV4 RT;
 };
+
+static VentusRTResourceV4 getVentusRTResource(const Function &F) {
+  VentusRTResourceV4 Result;
+  MDNode *Node = F.getMetadata("ventus.rt.resource");
+  if (!Node)
+    return Result;
+  if (Node->getNumOperands() != VentusRTResourceFieldCount)
+    report_fatal_error(
+        "Ventus RT resource metadata must contain 10 i32 fields");
+
+  uint32_t *Fields[] = {
+      &Result.FeatureFlags,
+      &Result.PDSLayoutID,
+      &Result.PrivateLayoutID,
+      &Result.HotPDSOffsetPerThread,
+      &Result.HotPDSStrideBytes,
+      &Result.ContinuationOffsetPerThread,
+      &Result.ContinuationBytesPerThread,
+      &Result.PayloadSizeBytes,
+      &Result.CallableDataSizeBytes,
+      &Result.ReservedZero,
+  };
+  for (unsigned I = 0; I != VentusRTResourceFieldCount; ++I) {
+    const auto *Value = mdconst::dyn_extract<ConstantInt>(Node->getOperand(I));
+    if (!Value || Value->getBitWidth() > 32)
+      report_fatal_error(
+          "Ventus RT resource metadata fields must be i32 constants");
+    *Fields[I] = static_cast<uint32_t>(Value->getZExtValue());
+  }
+  return Result;
+}
 
 enum VentusKernelResourceFlags : uint32_t {
   // Var-sized stack object exists, so exact stack peak is unavailable.
@@ -543,9 +603,9 @@ static void emitVentusResObjSymbolRef(AsmPrinter &AP, const GlobalValue *GV,
                             VentusResObjSymbolRefSize);
 }
 
-static void emitVentusResObj(AsmPrinter &AP, MCContext &Ctx, const Module &M,
-                             const DenseMap<const Function *, VentusFunctionSummary>
-                                 &VentusSummaries) {
+static void emitVentusResObj(
+    AsmPrinter &AP, MCContext &Ctx, const Module &M,
+    const DenseMap<const Function *, VentusFunctionSummary> &VentusSummaries) {
   SmallVector<const Function *, 16> Functions;
   uint32_t EdgeCount = 0;
   uint32_t StaticRefCount = 0;
@@ -561,10 +621,15 @@ static void emitVentusResObj(AsmPrinter &AP, MCContext &Ctx, const Module &M,
   if (Functions.empty())
     return;
 
+  const bool EmitRTResourceV4 = llvm::any_of(Functions, [](const Function *F) {
+    return F->getMetadata("ventus.rt.resource") != nullptr;
+  });
+  const uint32_t FunctionRecordSize = EmitRTResourceV4
+                                          ? VentusResObjFunctionRecordSize
+                                          : VentusResObjFunctionRecordV3Size;
   const uint32_t FunctionTableOffset = VentusResObjHeaderSize;
   const uint32_t EdgeTableOffset =
-      FunctionTableOffset +
-      Functions.size() * VentusResObjFunctionRecordSize;
+      FunctionTableOffset + Functions.size() * FunctionRecordSize;
   const uint32_t StaticRefTableOffset =
       EdgeTableOffset + EdgeCount * VentusResObjEdgeRecordSize;
 
@@ -574,7 +639,8 @@ static void emitVentusResObj(AsmPrinter &AP, MCContext &Ctx, const Module &M,
   AP.emitAlignment(Align(8));
 
   AP.emitInt32(VentusResObjMagic);
-  AP.emitInt32(VentusResObjVersion);
+  AP.emitInt32(EmitRTResourceV4 ? VentusResObjVersionV4
+                                : VentusResObjVersionV3);
   AP.emitInt32(0);
   AP.emitInt32(Functions.size());
   AP.emitInt32(EdgeCount);
@@ -598,6 +664,19 @@ static void emitVentusResObj(AsmPrinter &AP, MCContext &Ctx, const Module &M,
     AP.emitInt32(Summary.DirectCallEdges.size());
     AP.emitInt32(CurrentStaticRefBegin);
     AP.emitInt32(Summary.ReferencedStaticGlobals.size());
+    if (EmitRTResourceV4) {
+      const VentusRTResourceV4 RT = getVentusRTResource(*F);
+      AP.emitInt32(RT.FeatureFlags);
+      AP.emitInt32(RT.PDSLayoutID);
+      AP.emitInt32(RT.PrivateLayoutID);
+      AP.emitInt32(RT.HotPDSOffsetPerThread);
+      AP.emitInt32(RT.HotPDSStrideBytes);
+      AP.emitInt32(RT.ContinuationOffsetPerThread);
+      AP.emitInt32(RT.ContinuationBytesPerThread);
+      AP.emitInt32(RT.PayloadSizeBytes);
+      AP.emitInt32(RT.CallableDataSizeBytes);
+      AP.emitInt32(RT.ReservedZero);
+    }
     CurrentEdgeBegin += Summary.DirectCallEdges.size();
     CurrentStaticRefBegin += Summary.ReferencedStaticGlobals.size();
   }
@@ -631,7 +710,7 @@ static void emitVentusResObj(AsmPrinter &AP, MCContext &Ctx, const Module &M,
 
 static void emitVentusKernelResource(AsmPrinter &AP, MCContext &Ctx,
                                      MCStreamer &Streamer, StringRef KernelName,
-                                     const VentusKernelResourceV3 &Resource) {
+                                     const VentusKernelResource &Resource) {
   MCSectionELF *ResourceSection = Ctx.getELFSection(
       ".ventus.resource." + KernelName, ELF::SHT_PROGBITS, ELF::SHF_WRITE);
   Streamer.switchSection(ResourceSection);
@@ -644,6 +723,18 @@ static void emitVentusKernelResource(AsmPrinter &AP, MCContext &Ctx,
   AP.emitInt64(Resource.PDSStaticBytes);
   AP.emitInt64(Resource.LDSStackPeakBytes);
   AP.emitInt64(Resource.PDSStackPeakBytes);
+  if (Resource.Version == 4) {
+    AP.emitInt32(Resource.RT.FeatureFlags);
+    AP.emitInt32(Resource.RT.PDSLayoutID);
+    AP.emitInt32(Resource.RT.PrivateLayoutID);
+    AP.emitInt32(Resource.RT.HotPDSOffsetPerThread);
+    AP.emitInt32(Resource.RT.HotPDSStrideBytes);
+    AP.emitInt32(Resource.RT.ContinuationOffsetPerThread);
+    AP.emitInt32(Resource.RT.ContinuationBytesPerThread);
+    AP.emitInt32(Resource.RT.PayloadSizeBytes);
+    AP.emitInt32(Resource.RT.CallableDataSizeBytes);
+    AP.emitInt32(Resource.RT.ReservedZero);
+  }
 }
 
 static bool hasIncompleteVentusRegisterUsage(uint32_t Flags) {
@@ -1076,7 +1167,7 @@ void RISCVAsmPrinter::emitEndOfAsmFile(Module &M) {
       const VentusStaticResourceSummary StaticResources =
           collectVentusStaticResources(F, VentusSummaries, M.getDataLayout());
 
-      VentusKernelResourceV3 Resource;
+      VentusKernelResource Resource;
       Resource.Flags = Peak.Flags | StaticResources.Flags;
       const std::pair<uint64_t, uint64_t> ReachableRegUsage =
           ComputeComponentRegs(ComponentIndex[&F]);
@@ -1086,6 +1177,9 @@ void RISCVAsmPrinter::emitEndOfAsmFile(Module &M) {
       Resource.PDSStaticBytes = StaticResources.PDSStaticBytes;
       Resource.LDSStackPeakBytes = Peak.LDSStackPeakBytes;
       Resource.PDSStackPeakBytes = Peak.PDSStackPeakBytes;
+      Resource.RT = getVentusRTResource(F);
+      if (Resource.RT.isPresent())
+        Resource.Version = 4;
       emitVentusKernelResource(*this, OutContext, *OutStreamer, F.getName(),
                                Resource);
     }

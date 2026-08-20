@@ -45,10 +45,15 @@ using namespace lld::elf;
 
 namespace {
 constexpr uint32_t ventusResObjMagic = 0x5652534fu;
-constexpr uint32_t ventusResObjVersion = 3u;
+constexpr uint32_t ventusResObjVersionV3 = 3u;
+constexpr uint32_t ventusResObjVersionV4 = 4u;
 constexpr uint32_t ventusResObjHeaderSize = 9u * sizeof(uint32_t);
-constexpr uint32_t ventusResObjFunctionRecordSize =
+constexpr uint32_t ventusResObjFunctionRecordV3Size =
     2u * sizeof(uint32_t) + 5u * sizeof(uint64_t) + 4u * sizeof(uint32_t);
+constexpr uint32_t ventusRTResourceFieldCount = 10u;
+constexpr uint32_t ventusResObjFunctionRecordV4Size =
+    ventusResObjFunctionRecordV3Size +
+    ventusRTResourceFieldCount * sizeof(uint32_t);
 constexpr uint32_t ventusResObjEdgeRecordSize = 2u * sizeof(uint32_t);
 constexpr uint32_t ventusResObjStaticRefRecordSize =
     2u * sizeof(uint32_t) + 2u * sizeof(uint64_t);
@@ -64,8 +69,39 @@ constexpr uint32_t vkrfHasIndirectCall = 1u << 2;
 constexpr uint32_t vkrfHasUnknownExternalCallee = 1u << 3;
 constexpr uint32_t vkrfStackPeakUnavailable = 1u << 4;
 constexpr uint32_t vkrfRegisterUsageIncomplete = 1u << 5;
-constexpr uint32_t ventusResourceVersion = 3u;
+constexpr uint32_t ventusResourceVersionV3 = 3u;
+constexpr uint32_t ventusResourceVersionV4 = 4u;
 constexpr uint64_t ventusUnknownResourceSize = UINT64_MAX;
+constexpr uint32_t vrtfUsesRTTraversal = 1u << 0;
+constexpr uint32_t vrtfUsesTraceContinuation = 1u << 1;
+constexpr uint32_t vrtfUsesCallableContinuation = 1u << 2;
+constexpr uint32_t vrtfKnownMask = vrtfUsesRTTraversal |
+                                   vrtfUsesTraceContinuation |
+                                   vrtfUsesCallableContinuation;
+constexpr uint32_t ventusRTV5LayoutId = 5u;
+constexpr uint32_t ventusRTV5HotPDSStride = 384u;
+constexpr uint32_t ventusRTV5PayloadCapacity = 96u;
+
+struct VentusRTResourceV4 {
+  uint32_t featureFlags = 0;
+  uint32_t pdsLayoutId = 0;
+  uint32_t privateLayoutId = 0;
+  uint32_t hotPDSOffsetPerThread = 0;
+  uint32_t hotPDSStrideBytes = 0;
+  uint32_t continuationOffsetPerThread = 0;
+  uint32_t continuationBytesPerThread = 0;
+  uint32_t payloadSizeBytes = 0;
+  uint32_t callableDataSizeBytes = 0;
+  uint32_t reservedZero = 0;
+
+  bool isPresent() const {
+    return featureFlags != 0 || pdsLayoutId != 0 || privateLayoutId != 0 ||
+           hotPDSOffsetPerThread != 0 || hotPDSStrideBytes != 0 ||
+           continuationOffsetPerThread != 0 ||
+           continuationBytesPerThread != 0 || payloadSizeBytes != 0 ||
+           callableDataSizeBytes != 0 || reservedZero != 0;
+  }
+};
 
 struct VentusParsedFunctionRecord {
   Symbol *owner = nullptr;
@@ -79,6 +115,7 @@ struct VentusParsedFunctionRecord {
   uint32_t edgeCount = 0;
   uint32_t staticRefBegin = 0;
   uint32_t staticRefCount = 0;
+  VentusRTResourceV4 rt;
 };
 
 struct VentusParsedEdgeRecord {
@@ -149,6 +186,7 @@ struct VentusLinkFunction {
   uint64_t ldsStackSelf = 0;
   uint64_t pdsStackSelf = 0;
   uint64_t outgoingPrivateMax = 0;
+  VentusRTResourceV4 rt;
   SmallVector<VentusLinkEdge, 0> edges;
   SmallVector<VentusLinkStaticRef, 0> staticRefs;
 };
@@ -379,7 +417,8 @@ static bool checkVentusUnusedRelocs(ObjFile<ELFT> &file,
 }
 
 template <class ELFT>
-static std::optional<VentusParsedObject> parseVentusResObj(ObjFile<ELFT> &file) {
+static std::optional<VentusParsedObject>
+parseVentusResObj(ObjFile<ELFT> &file) {
   if (file.ventusResObjSecIndex == 0)
     return VentusParsedObject();
 
@@ -411,12 +450,16 @@ static std::optional<VentusParsedObject> parseVentusResObj(ObjFile<ELFT> &file) 
         readVentusU32<ELFT::TargetEndianness>(data, payloadOffset + 0);
     uint32_t version =
         readVentusU32<ELFT::TargetEndianness>(data, payloadOffset + 4);
-    if (magic != ventusResObjMagic || version != ventusResObjVersion) {
+    if (magic != ventusResObjMagic || (version != ventusResObjVersionV3 &&
+                                       version != ventusResObjVersionV4)) {
       if (isZeroFilled(data, payloadOffset))
         break;
       error(toString(&file) + ": unsupported .ventus.resobj header");
       return std::nullopt;
     }
+    uint32_t functionRecordSize = version == ventusResObjVersionV4
+                                      ? ventusResObjFunctionRecordV4Size
+                                      : ventusResObjFunctionRecordV3Size;
 
     uint32_t functionCount =
         readVentusU32<ELFT::TargetEndianness>(data, payloadOffset + 12);
@@ -435,8 +478,7 @@ static std::optional<VentusParsedObject> parseVentusResObj(ObjFile<ELFT> &file) 
     uint64_t edgeTableAbs = payloadOffset + uint64_t(edgeTableOffset);
     uint64_t staticRefTableAbs = payloadOffset + uint64_t(staticRefTableOffset);
     if (!checkVentusTableBounds(file, data, "function", functionTableAbs,
-                                functionCount,
-                                ventusResObjFunctionRecordSize) ||
+                                functionCount, functionRecordSize) ||
         !checkVentusTableBounds(file, data, "edge", edgeTableAbs, edgeCount,
                                 ventusResObjEdgeRecordSize) ||
         !checkVentusTableBounds(file, data, "static ref", staticRefTableAbs,
@@ -445,15 +487,15 @@ static std::optional<VentusParsedObject> parseVentusResObj(ObjFile<ELFT> &file) 
       return std::nullopt;
 
     uint64_t payloadEnd = payloadOffset + ventusResObjHeaderSize;
-    payloadEnd = std::max(payloadEnd, functionTableAbs +
-                                      uint64_t(functionCount) *
-                                          ventusResObjFunctionRecordSize);
-    payloadEnd = std::max(payloadEnd, edgeTableAbs +
-                                      uint64_t(edgeCount) *
-                                          ventusResObjEdgeRecordSize);
+    payloadEnd =
+        std::max(payloadEnd, functionTableAbs +
+                                 uint64_t(functionCount) * functionRecordSize);
+    payloadEnd =
+        std::max(payloadEnd, edgeTableAbs + uint64_t(edgeCount) *
+                                                ventusResObjEdgeRecordSize);
     payloadEnd = std::max(payloadEnd, staticRefTableAbs +
-                                      uint64_t(staticRefCount) *
-                                          ventusResObjStaticRefRecordSize);
+                                          uint64_t(staticRefCount) *
+                                              ventusResObjStaticRefRecordSize);
 
     uint32_t edgeBase = parsed.edges.size();
     uint32_t staticRefBase = parsed.staticRefs.size();
@@ -463,28 +505,53 @@ static std::optional<VentusParsedObject> parseVentusResObj(ObjFile<ELFT> &file) 
     parsed.staticRefs.reserve(parsed.staticRefs.size() + staticRefCount);
 
     for (uint32_t i = 0; i != functionCount; ++i) {
-      uint64_t off = functionTableAbs +
-                     uint64_t(i) * ventusResObjFunctionRecordSize;
+      uint64_t off = functionTableAbs + uint64_t(i) * functionRecordSize;
       Symbol *owner = getVentusRelocSymbol(file, off, relocs, usedRelocs);
       if (!owner)
         return std::nullopt;
-      parsed.functions.push_back(
-          {owner,
-           readVentusU32<ELFT::TargetEndianness>(data, off + 4),
-           readVentusU64<ELFT::TargetEndianness>(data, off + 8),
-           readVentusU64<ELFT::TargetEndianness>(data, off + 16),
-           readVentusU64<ELFT::TargetEndianness>(data, off + 24),
-           readVentusU64<ELFT::TargetEndianness>(data, off + 32),
-           readVentusU64<ELFT::TargetEndianness>(data, off + 40),
-           readVentusU32<ELFT::TargetEndianness>(data, off + 48),
-           readVentusU32<ELFT::TargetEndianness>(data, off + 52),
-           readVentusU32<ELFT::TargetEndianness>(data, off + 56),
-           readVentusU32<ELFT::TargetEndianness>(data, off + 60)});
+      VentusParsedFunctionRecord &record = parsed.functions.emplace_back();
+      record.owner = owner;
+      record.flags = readVentusU32<ELFT::TargetEndianness>(data, off + 4);
+      record.vgprUsed = readVentusU64<ELFT::TargetEndianness>(data, off + 8);
+      record.sgprUsed = readVentusU64<ELFT::TargetEndianness>(data, off + 16);
+      record.ldsStackSelf =
+          readVentusU64<ELFT::TargetEndianness>(data, off + 24);
+      record.pdsStackSelf =
+          readVentusU64<ELFT::TargetEndianness>(data, off + 32);
+      record.outgoingPrivateMax =
+          readVentusU64<ELFT::TargetEndianness>(data, off + 40);
+      record.edgeBegin = readVentusU32<ELFT::TargetEndianness>(data, off + 48);
+      record.edgeCount = readVentusU32<ELFT::TargetEndianness>(data, off + 52);
+      record.staticRefBegin =
+          readVentusU32<ELFT::TargetEndianness>(data, off + 56);
+      record.staticRefCount =
+          readVentusU32<ELFT::TargetEndianness>(data, off + 60);
+      if (version == ventusResObjVersionV4) {
+        record.rt.featureFlags =
+            readVentusU32<ELFT::TargetEndianness>(data, off + 64);
+        record.rt.pdsLayoutId =
+            readVentusU32<ELFT::TargetEndianness>(data, off + 68);
+        record.rt.privateLayoutId =
+            readVentusU32<ELFT::TargetEndianness>(data, off + 72);
+        record.rt.hotPDSOffsetPerThread =
+            readVentusU32<ELFT::TargetEndianness>(data, off + 76);
+        record.rt.hotPDSStrideBytes =
+            readVentusU32<ELFT::TargetEndianness>(data, off + 80);
+        record.rt.continuationOffsetPerThread =
+            readVentusU32<ELFT::TargetEndianness>(data, off + 84);
+        record.rt.continuationBytesPerThread =
+            readVentusU32<ELFT::TargetEndianness>(data, off + 88);
+        record.rt.payloadSizeBytes =
+            readVentusU32<ELFT::TargetEndianness>(data, off + 92);
+        record.rt.callableDataSizeBytes =
+            readVentusU32<ELFT::TargetEndianness>(data, off + 96);
+        record.rt.reservedZero =
+            readVentusU32<ELFT::TargetEndianness>(data, off + 100);
+      }
     }
 
     for (uint32_t i = 0; i != edgeCount; ++i) {
-      uint64_t off =
-          edgeTableAbs + uint64_t(i) * ventusResObjEdgeRecordSize;
+      uint64_t off = edgeTableAbs + uint64_t(i) * ventusResObjEdgeRecordSize;
       Symbol *callee = getVentusRelocSymbol(file, off, relocs, usedRelocs);
       if (!callee)
         return std::nullopt;
@@ -493,14 +560,13 @@ static std::optional<VentusParsedObject> parseVentusResObj(ObjFile<ELFT> &file) 
     }
 
     for (uint32_t i = 0; i != staticRefCount; ++i) {
-      uint64_t off = staticRefTableAbs +
-                     uint64_t(i) * ventusResObjStaticRefRecordSize;
+      uint64_t off =
+          staticRefTableAbs + uint64_t(i) * ventusResObjStaticRefRecordSize;
       Symbol *resource = getVentusRelocSymbol(file, off, relocs, usedRelocs);
       if (!resource)
         return std::nullopt;
       parsed.staticRefs.push_back(
-          {resource,
-           readVentusU32<ELFT::TargetEndianness>(data, off + 4),
+          {resource, readVentusU32<ELFT::TargetEndianness>(data, off + 4),
            readVentusU64<ELFT::TargetEndianness>(data, off + 8),
            readVentusU64<ELFT::TargetEndianness>(data, off + 16)});
     }
@@ -553,6 +619,7 @@ static bool collectVentusFunctions(SmallVectorImpl<VentusLinkFunction> &out) {
       summary.ldsStackSelf = func.ldsStackSelf;
       summary.pdsStackSelf = func.pdsStackSelf;
       summary.outgoingPrivateMax = func.outgoingPrivateMax;
+      summary.rt = func.rt;
 
       for (uint32_t i = 0; i != func.edgeCount; ++i) {
         const VentusParsedEdgeRecord &edge = parsed->edges[func.edgeBegin + i];
@@ -853,12 +920,15 @@ static VentusStackSummary computeVentusStackSummary(
 }
 
 template <class ELFT>
-static SmallVector<uint8_t, 64> createVentusResourcePayload(
-    uint32_t flags, uint64_t vgprUsed, uint64_t sgprUsed,
-    uint64_t ldsStaticBytes, uint64_t pdsStaticBytes,
-    uint64_t ldsStackPeakBytes, uint64_t pdsStackPeakBytes) {
+static SmallVector<uint8_t, 64>
+createVentusResourcePayload(uint32_t flags, uint64_t vgprUsed,
+                            uint64_t sgprUsed, uint64_t ldsStaticBytes,
+                            uint64_t pdsStaticBytes, uint64_t ldsStackPeakBytes,
+                            uint64_t pdsStackPeakBytes,
+                            const VentusRTResourceV4 &rt) {
   SmallVector<uint8_t, 64> buf;
-  appendVentusU32<ELFT::TargetEndianness>(buf, ventusResourceVersion);
+  appendVentusU32<ELFT::TargetEndianness>(
+      buf, rt.isPresent() ? ventusResourceVersionV4 : ventusResourceVersionV3);
   appendVentusU32<ELFT::TargetEndianness>(buf, flags);
   appendVentusU64<ELFT::TargetEndianness>(buf, vgprUsed);
   appendVentusU64<ELFT::TargetEndianness>(buf, sgprUsed);
@@ -866,7 +936,65 @@ static SmallVector<uint8_t, 64> createVentusResourcePayload(
   appendVentusU64<ELFT::TargetEndianness>(buf, pdsStaticBytes);
   appendVentusU64<ELFT::TargetEndianness>(buf, ldsStackPeakBytes);
   appendVentusU64<ELFT::TargetEndianness>(buf, pdsStackPeakBytes);
+  if (rt.isPresent()) {
+    appendVentusU32<ELFT::TargetEndianness>(buf, rt.featureFlags);
+    appendVentusU32<ELFT::TargetEndianness>(buf, rt.pdsLayoutId);
+    appendVentusU32<ELFT::TargetEndianness>(buf, rt.privateLayoutId);
+    appendVentusU32<ELFT::TargetEndianness>(buf, rt.hotPDSOffsetPerThread);
+    appendVentusU32<ELFT::TargetEndianness>(buf, rt.hotPDSStrideBytes);
+    appendVentusU32<ELFT::TargetEndianness>(buf,
+                                            rt.continuationOffsetPerThread);
+    appendVentusU32<ELFT::TargetEndianness>(buf, rt.continuationBytesPerThread);
+    appendVentusU32<ELFT::TargetEndianness>(buf, rt.payloadSizeBytes);
+    appendVentusU32<ELFT::TargetEndianness>(buf, rt.callableDataSizeBytes);
+    appendVentusU32<ELFT::TargetEndianness>(buf, rt.reservedZero);
+  }
   return buf;
+}
+
+static bool validateVentusRTResource(const VentusLinkFunction &func,
+                                     uint64_t pdsStaticBytes) {
+  const VentusRTResourceV4 &rt = func.rt;
+  if (!rt.isPresent())
+    return true;
+
+  auto fail = [&](StringRef reason) {
+    error("invalid Ventus V4 RT resource for " + toString(*func.owner) + ": " +
+          reason);
+    return false;
+  };
+  if (rt.reservedZero != 0)
+    return fail("reserved field must be zero");
+  if (rt.featureFlags & ~vrtfKnownMask)
+    return fail("unknown RT feature flag");
+  if (!(rt.featureFlags & vrtfUsesRTTraversal))
+    return fail("RT traversal feature is required");
+  if (rt.pdsLayoutId != ventusRTV5LayoutId ||
+      rt.privateLayoutId != ventusRTV5LayoutId)
+    return fail("PDS and private layout ids must both be 5");
+  if (rt.hotPDSStrideBytes != ventusRTV5HotPDSStride)
+    return fail("hot PDS stride must be 384 bytes");
+  if (rt.payloadSizeBytes > ventusRTV5PayloadCapacity ||
+      rt.callableDataSizeBytes > ventusRTV5PayloadCapacity)
+    return fail("payload or callable data exceeds 96 bytes");
+  if ((rt.featureFlags & vrtfUsesTraceContinuation) &&
+      rt.continuationBytesPerThread == 0)
+    return fail("trace continuation requires nonzero continuation storage");
+  if ((rt.featureFlags & vrtfUsesCallableContinuation) &&
+      rt.callableDataSizeBytes == 0)
+    return fail("callable continuation requires callable data storage");
+
+  uint64_t hotBegin = rt.hotPDSOffsetPerThread;
+  uint64_t hotEnd = hotBegin + uint64_t(rt.hotPDSStrideBytes);
+  uint64_t continuationBegin = rt.continuationOffsetPerThread;
+  uint64_t continuationEnd =
+      continuationBegin + uint64_t(rt.continuationBytesPerThread);
+  if (hotEnd > pdsStaticBytes || continuationEnd > pdsStaticBytes)
+    return fail("PDS range exceeds linked PDS static allocation");
+  if (rt.continuationBytesPerThread != 0 && hotBegin < continuationEnd &&
+      continuationBegin < hotEnd)
+    return fail("hot PDS and continuation ranges overlap");
+  return true;
 }
 
 static InputSectionDescription *getVentusSectionDescription(OutputSection &osec) {
@@ -2763,6 +2891,8 @@ template <class ELFT> void Writer<ELFT>::finalizeVentusResources() {
     uint64_t pdsStaticBytes = 0;
     collectVentusStaticResources(reachable, functions, ldsStaticBytes,
                                  pdsStaticBytes);
+    if (!validateVentusRTResource(func, pdsStaticBytes))
+      continue;
 
     SmallVector<std::optional<VentusStackSummary>, 0> memo(functions.size());
     SmallVector<char, 0> visiting(functions.size(), 0);
@@ -2772,7 +2902,8 @@ template <class ELFT> void Writer<ELFT>::finalizeVentusResources() {
 
     SmallVector<uint8_t, 64> payload = createVentusResourcePayload<ELFT>(
         flags, vgprUsed, sgprUsed, ldsStaticBytes, pdsStaticBytes,
-        stackSummary.ldsStackPeakBytes, stackSummary.pdsStackPeakBytes);
+        stackSummary.ldsStackPeakBytes, stackSummary.pdsStackPeakBytes,
+        func.rt);
     std::string secName = (".ventus.resource." + func.owner->getName()).str();
     auto *sec = make<VentusResourceSection>(func.owner->file, secName,
                                             std::move(payload));
