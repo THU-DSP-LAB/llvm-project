@@ -8,7 +8,7 @@
 ; CHECK-NEXT: .word 0
 ; CHECK-NEXT: .word 1
 ; CHECK-NEXT: .word 0
-; CHECK-NEXT: .word 0
+; CHECK-NEXT: .word 1
 ; CHECK-NEXT: .word 36
 ; CHECK-NEXT: .word 140
 ; CHECK-NEXT: .word 140
@@ -22,7 +22,7 @@
 ; CHECK-NEXT: .word 0
 ; CHECK-NEXT: .word 0
 ; CHECK-NEXT: .word 0
-; CHECK-NEXT: .word 0
+; CHECK-NEXT: .word 1
 ; CHECK-NEXT: .word 3
 ; CHECK-NEXT: .word 5
 ; CHECK-NEXT: .word 5
@@ -33,10 +33,17 @@
 ; CHECK-NEXT: .word 96
 ; CHECK-NEXT: .word 0
 ; CHECK-NEXT: .word 0
+; CHECK-NEXT: .word rt.pds
+; CHECK-NEXT: .word 2
+; CHECK-NEXT: .quad 384
+; CHECK-NEXT: .quad 0
 
-define dso_local ventus_kernel void @rt_kernel() !ventus.rt.resource !0 {
+@rt.pds = internal addrspace(5) global [384 x i8] undef, align 128
+
+define dso_local ventus_kernel void @rt_kernel() !ventus.rt.resource !0 !ventus.pds.static !1 {
 entry:
   ret void
 }
 
 !0 = !{i32 3, i32 5, i32 5, i32 0, i32 384, i32 384, i32 128, i32 96, i32 0, i32 0}
+!1 = !{ptr addrspace(5) @rt.pds}

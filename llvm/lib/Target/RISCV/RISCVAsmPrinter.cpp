@@ -497,6 +497,20 @@ collectVentusFunctionSummary(const MachineFunction &MF, const Module &M) {
     }
   }
 
+  if (MDNode *Node = MF.getFunction().getMetadata("ventus.pds.static")) {
+    for (const MDOperand &Operand : Node->operands()) {
+      const auto *ValueMD = dyn_cast_or_null<ValueAsMetadata>(Operand.get());
+      const auto *GV = ValueMD
+                           ? dyn_cast<GlobalVariable>(ValueMD->getValue()
+                                                          ->stripPointerCasts())
+                           : nullptr;
+      if (!GV || GV->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS)
+        report_fatal_error(
+            "Ventus PDS static metadata must reference addrspace(5) globals");
+      ReferencedStaticGlobals.insert(GV);
+    }
+  }
+
   for (const GlobalVariable *GV : ReferencedStaticGlobals) {
     if (GV->getAddressSpace() != RISCVAS::LOCAL_ADDRESS &&
         GV->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS)
