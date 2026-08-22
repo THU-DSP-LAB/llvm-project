@@ -71,6 +71,7 @@ class PseudoVOPVIIMM11<SDPatternOperator Op> :
   let mayLoad = 0;
   let mayStore = 0;
   let IsVOPIMM11 = 1;
+  let Size = 8;
 }
 
 class PseudoVOPIVIMM11<SDPatternOperator Op> :
@@ -81,6 +82,7 @@ class PseudoVOPIVIMM11<SDPatternOperator Op> :
   let mayLoad = 0;
   let mayStore = 0;
   let IsVOPIMM11 = 1;
+  let Size = 8;
 }
 
 class RVInstVV<bits<6> funct6, RISCVVFormat opv, dag outs, dag ins,
