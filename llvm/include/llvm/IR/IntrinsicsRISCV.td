@@ -216,6 +216,9 @@ def int_riscv_ventus_rt_dispatch_id_x : VentusRTDispatchIdIntrinsic;
 def int_riscv_ventus_rt_dispatch_id_y : VentusRTDispatchIdIntrinsic;
 def int_riscv_ventus_rt_dispatch_id_z : VentusRTDispatchIdIntrinsic;
 def int_riscv_ventus_rt_worker_id : VentusRTDispatchIdIntrinsic;
+// Smallest PDS thread ID in the current hardware warp.  It is deliberately
+// distinct from Vulkan workitem/local-invocation IDs.
+def int_riscv_ventus_rt_pds_warp_tid_base : VentusRTDispatchIdIntrinsic;
 def int_riscv_ventus_rt_traverse_i32 : VentusRTTraverseIntrinsic;
 def int_riscv_ventus_rt_release_i32 : VentusRTReleaseIntrinsic;
 def int_riscv_ventus_rt_enqueue_i32 : VentusRTEnqueueIntrinsic;

@@ -1946,6 +1946,7 @@ static bool isVentusDirectCustomIntrinsic(unsigned IntNo) {
   case Intrinsic::riscv_ventus_rt_dispatch_id_y:
   case Intrinsic::riscv_ventus_rt_dispatch_id_z:
   case Intrinsic::riscv_ventus_rt_worker_id:
+  case Intrinsic::riscv_ventus_rt_pds_warp_tid_base:
   case Intrinsic::riscv_ventus_shuffle_idx_i32:
   case Intrinsic::riscv_ventus_shuffle_up_i32:
   case Intrinsic::riscv_ventus_shuffle_down_i32:
@@ -6296,9 +6297,10 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
   case Intrinsic::riscv_ventus_rt_traverse_i32: {
     SDLoc DL(Op);
     SDValue Chain = Op.getOperand(0);
-    SDValue Slot = Op.getOperand(2);
+    SDValue PdsWarpTidBase = Op.getOperand(2);
     SmallVector<EVT, 2> VTs = {MVT::i32, MVT::Other};
-    return DAG.getNode(RISCVISD::VENTUS_RT_TRAVERSE, DL, VTs, {Chain, Slot});
+    return DAG.getNode(RISCVISD::VENTUS_RT_TRAVERSE, DL, VTs,
+                       {Chain, PdsWarpTidBase});
   }
   case Intrinsic::riscv_masked_strided_load: {
     SDLoc DL(Op);
