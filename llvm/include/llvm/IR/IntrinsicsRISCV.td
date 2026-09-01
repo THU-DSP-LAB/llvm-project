@@ -192,6 +192,11 @@ class VentusRTTraverseIntrinsic
                 [IntrHasSideEffects, IntrConvergent]>;
 class VentusRTReleaseIntrinsic
     : Intrinsic<[], [llvm_i32_ty],
+                // A release acknowledges that prior PDS-header stores are
+                // visible before RTcore state may be reused.  Deliberately
+                // leave out an Intr*Mem property: LLVM must model it as an
+                // unknown read-write memory side effect, rather than a
+                // reorderable pure control operation.
                 [IntrHasSideEffects, IntrConvergent]>;
 class VentusRTEnqueueIntrinsic
     : Intrinsic<[], [llvm_i32_ty],
