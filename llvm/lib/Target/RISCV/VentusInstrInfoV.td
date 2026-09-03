@@ -1954,8 +1954,10 @@ class VENTUS_RTLocalStore<bits<3> funct3, RISCVOpcode opcode, string opcodestr>
 
 def VT_RT_TRAVERSE : VENTUS_RTTraverse<0b111000, 0b000, OPC_CUSTOM_0_10,
                                        "vt.rt.traverse">;
-def VLRT_W : VENTUS_RTLocalLoad<0b011, OPC_CUSTOM_0_10, "vlrt.w">;
-def VSRT_W : VENTUS_RTLocalStore<0b100, OPC_CUSTOM_0_10, "vsrt.w">;
+// RT Local carries a six-bit field index in funct6.  Keep it out of the
+// CUSTOM_0_10 MMA encoding space, where those bits select the MMA shape.
+def VLRT_W : VENTUS_RTLocalLoad<0b011, OPC_CUSTOM_4, "vlrt.w">;
+def VSRT_W : VENTUS_RTLocalStore<0b100, OPC_CUSTOM_4, "vsrt.w">;
 }
 
 let hasSideEffects = 1, mayLoad = 1, mayStore = 1 in {

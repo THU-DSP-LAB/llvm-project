@@ -14404,6 +14404,7 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
   case ISD::CALLSEQ_END:
     return true;
   case RISCVISD::VENTUS_RT_TRAVERSE:
+  case RISCVISD::VENTUS_RT_LOCAL_LOAD:
     return true;
   case ISD::INTRINSIC_WO_CHAIN:
     return RISCVII::isIntrinsicSourceOfDivergence(
