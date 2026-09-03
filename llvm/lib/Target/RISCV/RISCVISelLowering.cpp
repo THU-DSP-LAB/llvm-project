@@ -1946,7 +1946,7 @@ static bool isVentusDirectCustomIntrinsic(unsigned IntNo) {
   case Intrinsic::riscv_ventus_rt_dispatch_id_y:
   case Intrinsic::riscv_ventus_rt_dispatch_id_z:
   case Intrinsic::riscv_ventus_rt_worker_id:
-  case Intrinsic::riscv_ventus_rt_pds_warp_tid_base:
+  case Intrinsic::riscv_ventus_rt_warp_first_tid:
   case Intrinsic::riscv_ventus_shuffle_idx_i32:
   case Intrinsic::riscv_ventus_shuffle_up_i32:
   case Intrinsic::riscv_ventus_shuffle_down_i32:
@@ -6301,6 +6301,14 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
     SmallVector<EVT, 2> VTs = {MVT::i32, MVT::Other};
     return DAG.getNode(RISCVISD::VENTUS_RT_TRAVERSE, DL, VTs,
                        {Chain, PdsWarpTidBase});
+  }
+  case Intrinsic::riscv_ventus_rt_local_load_i32: {
+    SDLoc DL(Op);
+    SDValue Chain = Op.getOperand(0);
+    SDValue Field = Op.getOperand(2);
+    SmallVector<EVT, 2> VTs = {MVT::i32, MVT::Other};
+    return DAG.getNode(RISCVISD::VENTUS_RT_LOCAL_LOAD, DL, VTs,
+                       {Chain, Field});
   }
   case Intrinsic::riscv_masked_strided_load: {
     SDLoc DL(Op);
@@ -13595,6 +13603,7 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(WRITE_CSR)
   NODE_NAME_CASE(SWAP_CSR)
   NODE_NAME_CASE(VENTUS_RT_TRAVERSE)
+  NODE_NAME_CASE(VENTUS_RT_LOCAL_LOAD)
   }
   // clang-format on
   return nullptr;

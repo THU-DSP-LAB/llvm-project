@@ -3,8 +3,10 @@
 declare i32 @llvm.riscv.ventus.rt.traverse.i32(i32)
 declare void @llvm.riscv.ventus.rt.release.i32(i32)
 declare void @llvm.riscv.ventus.rt.enqueue.i32(i32)
+declare i32 @llvm.riscv.ventus.rt.local.load.i32(i32)
+declare void @llvm.riscv.ventus.rt.local.store.i32(i32, i32)
 declare i32 @llvm.riscv.ventus.rt.worker.id()
-declare i32 @llvm.riscv.ventus.rt.pds.warp.tid.base()
+declare i32 @llvm.riscv.ventus.rt.warp.first.tid()
 declare i32 @llvm.riscv.ventus.kernel.metadata()
 
 define i32 @test_kernel_metadata() {
@@ -14,33 +16,33 @@ define i32 @test_kernel_metadata() {
   ret i32 %metadata
 }
 
-define i32 @test_rt_pds_warp_tid_base() {
-; CHECK-LABEL: test_rt_pds_warp_tid_base:
+define i32 @test_rt_warp_first_tid() {
+; CHECK-LABEL: test_rt_warp_first_tid:
 ; CHECK: csrr.v v{{[0-9]+}}, CSR_TID
-  %tid = call i32 @llvm.riscv.ventus.rt.pds.warp.tid.base()
+  %tid = call i32 @llvm.riscv.ventus.rt.warp.first.tid()
   ret i32 %tid
 }
 
-define i32 @test_rt_traverse(i32 %pds_warp_tid_base) {
+define i32 @test_rt_traverse(i32 %warp_first_tid) {
 ; CHECK-LABEL: test_rt_traverse:
 ; CHECK: vt.rt.traverse v{{[0-9]+}}, v{{[0-9]+}}
-  %status = call i32 @llvm.riscv.ventus.rt.traverse.i32(i32 %pds_warp_tid_base)
+  %status = call i32 @llvm.riscv.ventus.rt.traverse.i32(i32 %warp_first_tid)
   ret i32 %status
 }
 
-define i32 @test_rt_traverse_with_pds_base() {
-; CHECK-LABEL: test_rt_traverse_with_pds_base:
-; CHECK: csrr.v v[[PDS_BASE:[0-9]+]], CSR_TID
-; CHECK: vt.rt.traverse v{{[0-9]+}}, v[[PDS_BASE]]
-  %pds_warp_tid_base = call i32 @llvm.riscv.ventus.rt.pds.warp.tid.base()
-  %status = call i32 @llvm.riscv.ventus.rt.traverse.i32(i32 %pds_warp_tid_base)
+define i32 @test_rt_traverse_with_first_tid() {
+; CHECK-LABEL: test_rt_traverse_with_first_tid:
+; CHECK: csrr.v v[[FIRST_TID:[0-9]+]], CSR_TID
+; CHECK: vt.rt.traverse v{{[0-9]+}}, v[[FIRST_TID]]
+  %warp_first_tid = call i32 @llvm.riscv.ventus.rt.warp.first.tid()
+  %status = call i32 @llvm.riscv.ventus.rt.traverse.i32(i32 %warp_first_tid)
   ret i32 %status
 }
 
-define void @test_rt_release(i32 %pds_warp_tid_base) {
+define void @test_rt_release(i32 %warp_first_tid) {
 ; CHECK-LABEL: test_rt_release:
 ; CHECK: vt.rt.release v{{[0-9]+}}
-  call void @llvm.riscv.ventus.rt.release.i32(i32 %pds_warp_tid_base)
+  call void @llvm.riscv.ventus.rt.release.i32(i32 %warp_first_tid)
   ret void
 }
 
@@ -48,6 +50,20 @@ define void @test_rt_enqueue(i32 %mailbox) {
 ; CHECK-LABEL: test_rt_enqueue:
 ; CHECK: vt.rt.enqueue v{{[0-9]+}}
   call void @llvm.riscv.ventus.rt.enqueue.i32(i32 %mailbox)
+  ret void
+}
+
+define i32 @test_rt_local_load() {
+; CHECK-LABEL: test_rt_local_load:
+; CHECK: vlrt.w v{{[0-9]+}}, 36
+  %value = call i32 @llvm.riscv.ventus.rt.local.load.i32(i32 36)
+  ret i32 %value
+}
+
+define void @test_rt_local_store(i32 %value) {
+; CHECK-LABEL: test_rt_local_store:
+; CHECK: vsrt.w v{{[0-9]+}}, 36
+  call void @llvm.riscv.ventus.rt.local.store.i32(i32 %value, i32 36)
   ret void
 }
 

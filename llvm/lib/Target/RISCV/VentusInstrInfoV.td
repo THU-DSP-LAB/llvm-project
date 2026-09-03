@@ -1922,8 +1922,40 @@ class VENTUS_RTEnqueue<bits<6> funct6, bits<3> funct3, RISCVOpcode opcode,
   let CustomConstraints = "$vs2 = 2";
 }
 
+class VENTUS_RTLocalLoad<bits<3> funct3, RISCVOpcode opcode, string opcodestr>
+    : RVInst<(outs VGPR:$vd), (ins uimm6_rt_field:$row),
+             opcodestr, "$vd, $row", [], InstFormatR> {
+  bits<5> vd;
+  bits<6> row;
+  let Inst{31-26} = row;
+  let Inst{25} = 1;
+  let Inst{24-20} = 0;
+  let Inst{19-15} = 0;
+  let Inst{14-12} = funct3;
+  let Inst{11-7} = vd;
+  let Opcode = opcode.Value;
+  let CustomConstraints = "$vd = 0";
+}
+
+class VENTUS_RTLocalStore<bits<3> funct3, RISCVOpcode opcode, string opcodestr>
+    : RVInst<(outs), (ins VGPR:$vs2, uimm6_rt_field:$row),
+             opcodestr, "$vs2, $row", [], InstFormatR> {
+  bits<5> vs2;
+  bits<6> row;
+  let Inst{31-26} = row;
+  let Inst{25} = 1;
+  let Inst{24-20} = vs2;
+  let Inst{19-15} = 0;
+  let Inst{14-12} = funct3;
+  let Inst{11-7} = 0;
+  let Opcode = opcode.Value;
+  let CustomConstraints = "$vs2 = 2";
+}
+
 def VT_RT_TRAVERSE : VENTUS_RTTraverse<0b111000, 0b000, OPC_CUSTOM_0_10,
                                        "vt.rt.traverse">;
+def VLRT_W : VENTUS_RTLocalLoad<0b011, OPC_CUSTOM_0_10, "vlrt.w">;
+def VSRT_W : VENTUS_RTLocalStore<0b100, OPC_CUSTOM_0_10, "vsrt.w">;
 }
 
 let hasSideEffects = 1, mayLoad = 1, mayStore = 1 in {

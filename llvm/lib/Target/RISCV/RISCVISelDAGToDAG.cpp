@@ -43,7 +43,7 @@ static unsigned getVentusRTDispatchIdCSR(unsigned IntrinsicOpcode) {
   case Intrinsic::riscv_ventus_rt_worker_id:
     /* Current compatibility carrier for (SM, hardware-warp). */
     return 0xf14; // mhartid
-  case Intrinsic::riscv_ventus_rt_pds_warp_tid_base:
+  case Intrinsic::riscv_ventus_rt_warp_first_tid:
     return 0x800; // CSR_TID: smallest thread ID in this warp
   }
 }
@@ -344,6 +344,18 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
                            {Mailbox, Chain});
       return;
     }
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_local_store_i32) {
+      SDValue Chain = Node->getOperand(0);
+      SDValue Value = materializeVentusRTVGPR(Node->getOperand(2), DL);
+      auto *Field = dyn_cast<ConstantSDNode>(Node->getOperand(3));
+      assert(Field && Field->getZExtValue() < 37 &&
+             "RT Local field must be a fixed-header constant");
+      SDValue FieldImm = CurDAG->getTargetConstant(Field->getZExtValue(), DL,
+                                                    XLenVT);
+      CurDAG->SelectNodeTo(Node, RISCV::VSRT_W, Node->getVTList(),
+                           {Value, FieldImm, Chain});
+      return;
+    }
     break;
   }
   case RISCVISD::VENTUS_RT_TRAVERSE: {
@@ -351,6 +363,17 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     SDValue PdsWarpTidBase = materializeVentusRTVGPR(Node->getOperand(1), DL);
     CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, MVT::Other,
                          PdsWarpTidBase, Chain);
+    return;
+  }
+  case RISCVISD::VENTUS_RT_LOCAL_LOAD: {
+    SDValue Chain = Node->getOperand(0);
+    auto *Field = dyn_cast<ConstantSDNode>(Node->getOperand(1));
+    assert(Field && Field->getZExtValue() < 37 &&
+           "RT Local field must be a fixed-header constant");
+    SDValue FieldImm = CurDAG->getTargetConstant(Field->getZExtValue(), DL,
+                                                  XLenVT);
+    CurDAG->SelectNodeTo(Node, RISCV::VLRT_W, MVT::i32, MVT::Other,
+                         FieldImm, Chain);
     return;
   }
   case RISCVISD::VENTUS_MMA: {

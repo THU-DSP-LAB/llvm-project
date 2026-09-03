@@ -433,6 +433,15 @@ def uimm5 : Operand<XLenVT>, ImmLeaf<XLenVT, [{return isUInt<5>(Imm);}]> {
   let OperandNamespace = "RISCVOp";
 }
 
+// RT Local SRAM currently exposes only the 37 fixed-header fields.
+def uimm6_rt_field : Operand<XLenVT>,
+                      ImmLeaf<XLenVT, [{return isUInt<6>(Imm) && Imm < 37;}]> {
+  let ParserMatchClass = UImmAsmOperand<6>;
+  let DecoderMethod = "decodeUImmOperand<6>";
+  let OperandType = "OPERAND_UIMM6_RT_FIELD";
+  let OperandNamespace = "RISCVOp";
+}
+
 def uimm12 : Operand<XLenVT>, ImmLeaf<XLenVT, [{return isUInt<12>(Imm);}]> {
   let ParserMatchClass = UImmAsmOperand<12>;
   let DecoderMethod = "decodeUImmOperand<12>";

@@ -203,6 +203,11 @@ class VentusRTEnqueueIntrinsic
                 // No Intr*Mem property: enqueue reads its mailbox and writes
                 // the global queue, so LLVM must assume read-write memory.
                 [IntrHasSideEffects, IntrConvergent]>;
+class VentusRTLocalLoadIntrinsic
+    : Intrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrReadMem, IntrConvergent]>;
+class VentusRTLocalStoreIntrinsic
+    : Intrinsic<[], [llvm_i32_ty, llvm_i32_ty],
+                [IntrWriteMem, IntrConvergent]>;
 class VentusImageStoreRGBA8Intrinsic
     : Intrinsic<[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
                     llvm_i32_ty, llvm_i32_ty],
@@ -223,10 +228,12 @@ def int_riscv_ventus_rt_dispatch_id_z : VentusRTDispatchIdIntrinsic;
 def int_riscv_ventus_rt_worker_id : VentusRTDispatchIdIntrinsic;
 // Smallest PDS thread ID in the current hardware warp.  It is deliberately
 // distinct from Vulkan workitem/local-invocation IDs.
-def int_riscv_ventus_rt_pds_warp_tid_base : VentusRTDispatchIdIntrinsic;
+def int_riscv_ventus_rt_warp_first_tid : VentusRTDispatchIdIntrinsic;
 def int_riscv_ventus_rt_traverse_i32 : VentusRTTraverseIntrinsic;
 def int_riscv_ventus_rt_release_i32 : VentusRTReleaseIntrinsic;
 def int_riscv_ventus_rt_enqueue_i32 : VentusRTEnqueueIntrinsic;
+def int_riscv_ventus_rt_local_load_i32 : VentusRTLocalLoadIntrinsic;
+def int_riscv_ventus_rt_local_store_i32 : VentusRTLocalStoreIntrinsic;
 def int_riscv_ventus_image_store_rgba8 : VentusImageStoreRGBA8Intrinsic;
 def int_riscv_ventus_vcvt_fp32_fp16 : VentusI32ToF32Intrinsic;
 def int_riscv_ventus_vcvt_fp16_fp32 : VentusF32ToI32Intrinsic;

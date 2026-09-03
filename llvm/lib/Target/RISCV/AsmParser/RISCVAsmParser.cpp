@@ -568,6 +568,7 @@ public:
   bool isUImm2() { return IsUImm<2>(); }
   bool isUImm3() { return IsUImm<3>(); }
   bool isUImm5() { return IsUImm<5>(); }
+  bool isUImm6() { return IsUImm<6>(); }
   bool isUImm7() { return IsUImm<7>(); }
   bool isUImm12() { return IsUImm<12>(); }
 
