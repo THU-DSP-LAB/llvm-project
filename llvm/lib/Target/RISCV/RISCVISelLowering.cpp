@@ -6308,6 +6308,14 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
     return DAG.getNode(RISCVISD::VENTUS_RT_TRAVERSE_V5, DL, VTs,
                        {Chain, PDSAddress, PrivateAddress});
   }
+  case Intrinsic::riscv_ventus_rt_completion_frontier_i32: {
+    SDLoc DL(Op);
+    SDValue Chain = Op.getOperand(0);
+    SDValue CompactResult = Op.getOperand(2);
+    SmallVector<EVT, 2> VTs = {MVT::i32, MVT::Other};
+    return DAG.getNode(RISCVISD::VENTUS_RT_COMPLETION_FRONTIER, DL, VTs,
+                       {Chain, CompactResult});
+  }
   case Intrinsic::riscv_masked_strided_load: {
     SDLoc DL(Op);
     MVT XLenVT = Subtarget.getXLenVT();
@@ -13602,6 +13610,7 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(SWAP_CSR)
   NODE_NAME_CASE(VENTUS_RT_TRAVERSE)
   NODE_NAME_CASE(VENTUS_RT_TRAVERSE_V5)
+  NODE_NAME_CASE(VENTUS_RT_COMPLETION_FRONTIER)
   }
   // clang-format on
   return nullptr;
@@ -14403,6 +14412,7 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
     return true;
   case RISCVISD::VENTUS_RT_TRAVERSE:
   case RISCVISD::VENTUS_RT_TRAVERSE_V5:
+  case RISCVISD::VENTUS_RT_COMPLETION_FRONTIER:
     return true;
   case ISD::INTRINSIC_WO_CHAIN:
     return RISCVII::isIntrinsicSourceOfDivergence(

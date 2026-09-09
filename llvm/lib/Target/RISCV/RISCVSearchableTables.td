@@ -65,6 +65,7 @@ def : SourceOfDivergence<int_riscv_ventus_rt_dispatch_id_y>;
 def : SourceOfDivergence<int_riscv_ventus_rt_dispatch_id_z>;
 def : SourceOfDivergence<int_riscv_ventus_rt_traverse_i32>;
 def : SourceOfDivergence<int_riscv_ventus_rt_traverse_v5_i32>;
+def : SourceOfDivergence<int_riscv_ventus_rt_completion_frontier_i32>;
 def : SourceOfDivergence<int_riscv_ventus_rt_release_i32>;
 def : SourceOfDivergence<int_riscv_ventus_vcvt_fp16_fp32>;
 def : SourceOfDivergence<int_riscv_ventus_vgelu_approx_f32>;

@@ -365,6 +365,15 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
                          MVT::Other, Operands);
     return;
   }
+  case RISCVISD::VENTUS_RT_COMPLETION_FRONTIER: {
+    SDValue Chain = Node->getOperand(0);
+    SDValue Result = Node->getOperand(1);
+    SDValue Zero = CurDAG->getTargetConstant(0, DL, MVT::i32);
+    SmallVector<SDValue, 3> Operands = {Result, Zero, Chain};
+    CurDAG->SelectNodeTo(Node, RISCV::PseudoVOR_VI_IMM11, MVT::i32,
+                         MVT::Other, Operands);
+    return;
+  }
   case RISCVISD::VENTUS_MMA: {
     unsigned PseudoOpc =
         cast<ConstantSDNode>(Node->getOperand(0))->getZExtValue();

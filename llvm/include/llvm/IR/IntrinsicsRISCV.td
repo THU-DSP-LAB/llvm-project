@@ -193,6 +193,9 @@ class VentusRTTraverseIntrinsic
 class VentusRTTraverseV5Intrinsic
     : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
                 [IntrHasSideEffects, IntrConvergent]>;
+class VentusRTCompletionFrontierIntrinsic
+    : Intrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                [IntrHasSideEffects, IntrConvergent]>;
 class VentusRTReleaseIntrinsic
     : Intrinsic<[], [llvm_i32_ty],
                 [IntrHasSideEffects, IntrConvergent]>;
@@ -215,6 +218,8 @@ def int_riscv_ventus_rt_dispatch_id_y : VentusRTDispatchIdIntrinsic;
 def int_riscv_ventus_rt_dispatch_id_z : VentusRTDispatchIdIntrinsic;
 def int_riscv_ventus_rt_traverse_i32 : VentusRTTraverseIntrinsic;
 def int_riscv_ventus_rt_traverse_v5_i32 : VentusRTTraverseV5Intrinsic;
+def int_riscv_ventus_rt_completion_frontier_i32
+    : VentusRTCompletionFrontierIntrinsic;
 def int_riscv_ventus_rt_release_i32 : VentusRTReleaseIntrinsic;
 def int_riscv_ventus_image_store_rgba8 : VentusImageStoreRGBA8Intrinsic;
 def int_riscv_ventus_vcvt_fp32_fp16 : VentusI32ToF32Intrinsic;

@@ -325,6 +325,7 @@ enum NodeType : unsigned {
 
   VENTUS_RT_TRAVERSE,
   VENTUS_RT_TRAVERSE_V5,
+  VENTUS_RT_COMPLETION_FRONTIER,
 
   // FP to 32 bit int conversions for RV64. These are used to keep track of the
   // result being sign extended to 64 bit. These saturate out of range inputs.

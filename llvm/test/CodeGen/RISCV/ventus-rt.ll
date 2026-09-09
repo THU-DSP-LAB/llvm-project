@@ -2,6 +2,7 @@
 
 declare i32 @llvm.riscv.ventus.rt.traverse.i32(i32)
 declare i32 @llvm.riscv.ventus.rt.traverse.v5.i32(i32, i32)
+declare i32 @llvm.riscv.ventus.rt.completion.frontier.i32(i32)
 declare void @llvm.riscv.ventus.rt.release.i32(i32)
 declare i32 @llvm.riscv.ventus.kernel.metadata()
 
@@ -27,6 +28,14 @@ define i32 @test_rt_traverse_v5(i32 %pds_address, i32 %private_address) {
   ret i32 %status
 }
 
+define i32 @test_rt_completion_frontier(i32 %compact_result) {
+; CHECK-LABEL: test_rt_completion_frontier:
+; CHECK: vor.vi v{{[0-9]+}}, v{{[0-9]+}}, 0
+  %frontier = call i32
+      @llvm.riscv.ventus.rt.completion.frontier.i32(i32 %compact_result)
+  ret i32 %frontier
+}
+
 define void @test_rt_release(i32 %slot) {
 ; CHECK-LABEL: test_rt_release:
 ; CHECK: vt.rt.release v{{[0-9]+}}
@@ -45,4 +54,20 @@ define void @test_rt_order(ptr addrspace(3) %scratch, i32 %slot, i32 %value) {
   store volatile i32 %status, ptr addrspace(3) %scratch, align 4
   call void @llvm.riscv.ventus.rt.release.i32(i32 %slot)
   ret void
+}
+
+define i32 @test_rt_frontier_order(ptr addrspace(1) %pds,
+                                   i32 %pds_address,
+                                   i32 %private_address) {
+; CHECK-LABEL: test_rt_frontier_order:
+; CHECK: vt.rt.traverse
+; CHECK: vor.vi [[FRONTIER:v[0-9]+]], {{v[0-9]+}}, 0
+; CHECK-NEXT: vlw{{[0-9]*}}.v
+  %compact = call i32 @llvm.riscv.ventus.rt.traverse.v5.i32(
+      i32 %pds_address, i32 %private_address)
+  %frontier = call i32
+      @llvm.riscv.ventus.rt.completion.frontier.i32(i32 %compact)
+  %published = load volatile i32, ptr addrspace(1) %pds, align 4
+  %result = add i32 %frontier, %published
+  ret i32 %result
 }
