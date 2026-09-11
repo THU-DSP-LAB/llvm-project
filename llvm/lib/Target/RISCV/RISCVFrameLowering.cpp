@@ -405,8 +405,19 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
   uint64_t LocalStackSize = getStackSize(MF, RISCVStackID::LocalMemSpill);
 
+  // A direct constant AS5 pointer does not create a frame object, but is
+  // selected as a private-memory access relative to the reserved VGPR base.
+  // Such a function still needs that base copied from TP.
+  const bool HasPrivateMemoryAccess = llvm::any_of(
+      MF, [TII](const MachineBasicBlock &Block) {
+        return llvm::any_of(Block, [TII](const MachineInstr &MI) {
+          return TII->isPrivateMemoryAccess(MI);
+        });
+      });
+
   // Early exit if there is no need to allocate on the stack
-  if (MFI.getStackSize() == 0 && !MFI.adjustsStack())
+  if (MFI.getStackSize() == 0 && !MFI.adjustsStack() &&
+      !HasPrivateMemoryAccess)
     return;
 
   // If the stack pointer has been marked as reserved, then produce an error if
@@ -455,10 +466,11 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
     BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
         .addCFIIndex(CFIIndex)
         .setMIFlag(MachineInstr::FrameSetup);
-    BuildMI(MBB, MBBI, DL, TII->get(RISCV::VMV_V_X),
-        RI->getPrivateMemoryBaseRegister(MF))
-      .addReg(TPReg);
   }
+  if (TPStackSize || HasPrivateMemoryAccess)
+    BuildMI(MBB, MBBI, DL, TII->get(RISCV::VMV_V_X),
+            RI->getPrivateMemoryBaseRegister(MF))
+        .addReg(TPReg);
 
   const auto &CSI = MFI.getCalleeSavedInfo();
 

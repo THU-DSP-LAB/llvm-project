@@ -49,7 +49,17 @@ _start:
   lw t3, KNL_LDS_STACK_SIZE_PER_WF(t0)
   mul t1, t1, t3        # sp wid * warp_size
   add sp, t1, t2        # sp points to baseaddr of local memory of each SM
-  lw tp, KNL_PDS_SIZE_PER_THREAD(t0) # top of this lane's private frame
+  # LLVM private-frame references are signed offsets from the frame top.
+  # `tp` therefore starts at the per-lane frame size, rather than at zero.
+  lw tp, KNL_PDS_SIZE_PER_THREAD(t0)
+  # LLVM reserves v32 as the base of per-lane private (PDS) storage.  A
+  # kernel entry has no compiler-generated caller prologue, so seed that
+  # register here before the entry function can spill any vector registers.
+  # regext immediate bits [2:0] select the following instruction's vector
+  # destination.  `1` therefore extends v0 to v32; the scalar source stays
+  # tp.
+  regext zero, zero, 1
+  vmv.v.x v0, tp
   csrr t5, CSR_NUMW
   lw t3, KNL_LDS_STACK_SIZE_PER_WF(t0)
   mul t5, t5, t3

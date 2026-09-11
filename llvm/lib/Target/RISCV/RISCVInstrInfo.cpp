@@ -1278,7 +1278,7 @@ bool RISCVInstrInfo::verifyInstruction(const MachineInstr &MI,
           Ok = STI.is64Bit() ? isUInt<5>(Imm) : isUInt<4>(Imm);
           break;
         case RISCVOp::OPERAND_UIMM6_RT_FIELD:
-          Ok = isUInt<6>(Imm) && Imm < 37;
+          Ok = isUInt<6>(Imm) && Imm < 40;
           break;
         case RISCVOp::OPERAND_RVKRNUM:
           Ok = Imm >= 0 && Imm <= 10;

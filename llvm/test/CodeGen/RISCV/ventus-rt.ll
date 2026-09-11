@@ -55,15 +55,15 @@ define void @test_rt_enqueue(i32 %mailbox) {
 
 define i32 @test_rt_local_load() {
 ; CHECK-LABEL: test_rt_local_load:
-; CHECK: vlrt.w v{{[0-9]+}}, 36
-  %value = call i32 @llvm.riscv.ventus.rt.local.load.i32(i32 36)
+; CHECK: vlrt.w v{{[0-9]+}}, 39
+  %value = call i32 @llvm.riscv.ventus.rt.local.load.i32(i32 39)
   ret i32 %value
 }
 
 define void @test_rt_local_store(i32 %value) {
 ; CHECK-LABEL: test_rt_local_store:
-; CHECK: vsrt.w v{{[0-9]+}}, 36
-  call void @llvm.riscv.ventus.rt.local.store.i32(i32 %value, i32 36)
+; CHECK: vsrt.w v{{[0-9]+}}, 39
+  call void @llvm.riscv.ventus.rt.local.store.i32(i32 %value, i32 39)
   ret void
 }
 

@@ -348,7 +348,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       SDValue Chain = Node->getOperand(0);
       SDValue Value = materializeVentusRTVGPR(Node->getOperand(2), DL);
       auto *Field = dyn_cast<ConstantSDNode>(Node->getOperand(3));
-      assert(Field && Field->getZExtValue() < 37 &&
+      assert(Field && Field->getZExtValue() < 40 &&
              "RT Local field must be a fixed-header constant");
       SDValue FieldImm = CurDAG->getTargetConstant(Field->getZExtValue(), DL,
                                                     XLenVT);
@@ -368,7 +368,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   case RISCVISD::VENTUS_RT_LOCAL_LOAD: {
     SDValue Chain = Node->getOperand(0);
     auto *Field = dyn_cast<ConstantSDNode>(Node->getOperand(1));
-    assert(Field && Field->getZExtValue() < 37 &&
+    assert(Field && Field->getZExtValue() < 40 &&
            "RT Local field must be a fixed-header constant");
     SDValue FieldImm = CurDAG->getTargetConstant(Field->getZExtValue(), DL,
                                                   XLenVT);
