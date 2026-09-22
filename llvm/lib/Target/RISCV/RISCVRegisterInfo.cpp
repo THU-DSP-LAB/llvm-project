@@ -391,8 +391,9 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     //   MachineInstr::NoFlags, std::nullopt);
   }
   Register DestReg = MI.getOperand(0).getReg();
+  bool Adjusted = false;
   if (Offset.getScalable() || Offset.getFixed()) {
-
+    Adjusted = true;
     if (MI.getOpcode() == RISCV::ADDI)
       DestReg = MI.getOperand(0).getReg();
     else
@@ -501,8 +502,7 @@ bool RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                           /*IsKill*/ false);
   else
     MI.getOperand(FIOperandNum)
-        .ChangeToRegister(DestReg == MI.getOperand(0).getReg() ? FrameReg
-                                                               : DestReg,
+        .ChangeToRegister(Adjusted ? DestReg : FrameReg,
                           /*IsDef*/ false,
                           /*IsImp*/ false,
                           /*IsKill*/ false);
