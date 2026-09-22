@@ -811,7 +811,7 @@ let Predicates = [HasVInstructions] in {
 // Ventus extended immediate12 vALU instructions
 class VALU_ri12<bits<3> funct3, string opcode> :
       RVInstI<funct3, OPC_CUSTOM_0,
-              (outs VGPR:$rd), (ins VGPR:$rs1, uimm12:$imm12),
+              (outs VGPR:$rd), (ins VGPR:$rs1, simm12:$imm12),
               "v" # opcode # "12.vi", "$rd, $rs1, $imm12">;
 // vadd12.vi vd, vs1, imm
 def VADDIMM12 : VALU_ri12<0b000, "add">;
@@ -1488,10 +1488,10 @@ def PseudoVMSEQ_VI_IMM11  : PseudoVOPVIIMM11<seteq>;
 //===----------------------------------------------------------------------===//
 // Ventus vALU divergent extended execution patterns
 //===----------------------------------------------------------------------===//
-def : Pat<(XLenVT (DivergentBinFrag<sub> (XLenVT VGPR:$rs1), uimm12:$imm)),
-              (XLenVT (VSUBIMM12 VGPR:$rs1, uimm12:$imm))>;
-def : Pat<(XLenVT (DivergentBinFrag<add> (XLenVT VGPR:$rs1), uimm12:$imm)),
-              (XLenVT (VADDIMM12 VGPR:$rs1, uimm12:$imm))>;
+def : Pat<(XLenVT (DivergentBinFrag<sub> (XLenVT VGPR:$rs1), simm12:$imm)),
+              (XLenVT (VSUBIMM12 VGPR:$rs1, simm12:$imm))>;
+def : Pat<(XLenVT (DivergentBinFrag<add> (XLenVT VGPR:$rs1), simm12:$imm)),
+              (XLenVT (VADDIMM12 VGPR:$rs1, simm12:$imm))>;
 
 // There already has patterns defined in VentusInstrInfo.td
 let Predicates = [HasStdExtZfinx] in {
