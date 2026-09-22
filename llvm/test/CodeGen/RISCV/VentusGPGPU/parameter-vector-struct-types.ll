@@ -10,10 +10,10 @@ define dso_local ventus_kernel void @test_kernel1(i8 noundef %c, %struct.MyStruc
 ; CHECK-LABEL: test_kernel1:
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    lb t0, 0(a0)
-; CHECK-NEXT:    lbu t1, 24(a0)
-; CHECK-NEXT:    lw t2, 28(a0)
+; CHECK-NEXT:    lbu t1, 32(a0)
+; CHECK-NEXT:    lw t2, 36(a0)
 ; CHECK-NEXT:    fcvt.s.w t0, t0
-; CHECK-NEXT:    lw s1, 8(a0)
+; CHECK-NEXT:    lw s1, 16(a0)
 ; CHECK-NEXT:    sw t0, 0(t2)
 ; CHECK-NEXT:    fcvt.s.w t0, s1
 ; CHECK-NEXT:    fcvt.s.wu t1, t1
