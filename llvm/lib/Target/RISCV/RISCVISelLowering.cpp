@@ -11696,6 +11696,9 @@ void RISCVTargetLowering::analyzeFormalArgumentsCompute(MachineFunction &MF,
 
     Align Alignment = DL.getValueOrABITypeAlignment(
         IsByRef ? Arg.getParamAlign() : std::nullopt, IsSmall ? ArgIntTy : MemArgTy);
+    // Match the Ventus POCL driver, which aligns every by-value kernel
+    // argument to its size rounded up to a power of two.
+    Alignment = std::max(Alignment, Align(PowerOf2Ceil(std::max<uint64_t>(AllocSize, 4))));
     ArgOffset = alignTo(ArgOffset, Alignment);
 
     SmallVector<EVT, 16> ValueVTs;
