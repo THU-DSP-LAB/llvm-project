@@ -229,7 +229,17 @@ def int_riscv_ventus_rt_worker_id : VentusRTDispatchIdIntrinsic;
 // Smallest PDS thread ID in the current hardware warp.  It is deliberately
 // distinct from Vulkan workitem/local-invocation IDs.
 def int_riscv_ventus_rt_warp_first_tid : VentusRTDispatchIdIntrinsic;
+// Scalar CSR_TID form for uniform control arithmetic.  Keep the historical
+// vector form above for ordinary traverse ABI compatibility.
+def int_riscv_ventus_rt_warp_first_tid_scalar : VentusRTDispatchIdIntrinsic;
+// Lane index (0..VL-1) in the current hardware warp.  It lowers to vid.v so
+// shader-side RT Local locator arithmetic remains lane varying.
+def int_riscv_ventus_rt_lane_id : VentusRTDispatchIdIntrinsic;
 def int_riscv_ventus_rt_traverse_i32 : VentusRTTraverseIntrinsic;
+// The source is a lane-varying RT Local locator.  Unlike rt.traverse's
+// historical warp-base operand it is deliberately not interpreted as a PDS
+// address: software has already formed the physical RT Local row/slot.
+def int_riscv_ventus_rt_group_traverse_i32 : VentusRTTraverseIntrinsic;
 def int_riscv_ventus_rt_release_i32 : VentusRTReleaseIntrinsic;
 def int_riscv_ventus_rt_enqueue_i32 : VentusRTEnqueueIntrinsic;
 def int_riscv_ventus_rt_local_load_i32 : VentusRTLocalLoadIntrinsic;

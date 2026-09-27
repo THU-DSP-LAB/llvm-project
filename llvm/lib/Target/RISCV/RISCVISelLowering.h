@@ -324,6 +324,7 @@ enum NodeType : unsigned {
   SWAP_CSR,
 
   VENTUS_RT_TRAVERSE,
+  VENTUS_RT_GROUP_TRAVERSE,
   VENTUS_RT_LOCAL_LOAD,
 
   // FP to 32 bit int conversions for RV64. These are used to keep track of the

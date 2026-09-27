@@ -1954,6 +1954,11 @@ class VENTUS_RTLocalStore<bits<3> funct3, RISCVOpcode opcode, string opcodestr>
 
 def VT_RT_TRAVERSE : VENTUS_RTTraverse<0b111000, 0b000, OPC_CUSTOM_0_10,
                                        "vt.rt.traverse">;
+// Group traversal retains the exact VGPR shape of traverse.  The difference
+// is semantic: each lane carries its logical RT Local locator, allowing the
+// RTcore to compact execution without moving PDS or bulk-copying SRAM.
+def VT_RT_GROUP_TRAVERSE : VENTUS_RTTraverse<0b111000, 0b011, OPC_CUSTOM_0_10,
+                                             "vt.rt.group_traverse">;
 // RT Local carries a six-bit field index in funct6.  Keep it out of the
 // CUSTOM_0_10 MMA encoding space, where those bits select the MMA shape.
 def VLRT_W : VENTUS_RTLocalLoad<0b011, OPC_CUSTOM_4, "vlrt.w">;

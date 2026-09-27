@@ -301,16 +301,35 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   }
   case ISD::INTRINSIC_WO_CHAIN: {
     unsigned IntrinsicOpcode = Node->getConstantOperandVal(0);
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_warp_first_tid_scalar) {
+      // CSR_TID is uniform for the hardware warp.  Keep it in the scalar
+      // domain so shader code can form the uniform RT Local row base before
+      // combining it with the lane-varying vid.v locator component.
+      SDValue SysRegNo = CurDAG->getTargetConstant(0x800, DL, XLenVT);
+      SDValue X0 = CurDAG->getRegister(RISCV::X0, XLenVT);
+      CurDAG->SelectNodeTo(Node, RISCV::CSRRS, MVT::i32, SysRegNo, X0);
+      return;
+    }
     if (unsigned CSR = getVentusRTDispatchIdCSR(IntrinsicOpcode)) {
       SDValue SysRegNo = CurDAG->getTargetConstant(CSR, DL, XLenVT);
       SDValue X0 = CurDAG->getRegister(RISCV::X0, XLenVT);
       CurDAG->SelectNodeTo(Node, RISCV::CSRRSV, MVT::i32, SysRegNo, X0);
       return;
     }
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_lane_id) {
+      CurDAG->SelectNodeTo(Node, RISCV::VID_V, MVT::i32);
+      return;
+    }
     if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_traverse_i32) {
       SDValue PdsWarpTidBase = materializeVentusRTVGPR(Node->getOperand(1), DL);
       CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32,
                            PdsWarpTidBase);
+      return;
+    }
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_group_traverse_i32) {
+      SDValue Locator = materializeVentusRTVGPR(Node->getOperand(1), DL);
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_GROUP_TRAVERSE, MVT::i32,
+                           Locator);
       return;
     }
     break;
@@ -323,6 +342,13 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
           materializeVentusRTVGPR(Node->getOperand(2), DL);
       CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, MVT::Other,
                            PdsWarpTidBase, Chain);
+      return;
+    }
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_group_traverse_i32) {
+      SDValue Chain = Node->getOperand(0);
+      SDValue Locator = materializeVentusRTVGPR(Node->getOperand(2), DL);
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_GROUP_TRAVERSE, MVT::i32,
+                           MVT::Other, Locator, Chain);
       return;
     }
     break;
@@ -363,6 +389,13 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     SDValue PdsWarpTidBase = materializeVentusRTVGPR(Node->getOperand(1), DL);
     CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, MVT::Other,
                          PdsWarpTidBase, Chain);
+    return;
+  }
+  case RISCVISD::VENTUS_RT_GROUP_TRAVERSE: {
+    SDValue Chain = Node->getOperand(0);
+    SDValue Locator = materializeVentusRTVGPR(Node->getOperand(1), DL);
+    CurDAG->SelectNodeTo(Node, RISCV::VT_RT_GROUP_TRAVERSE, MVT::i32,
+                         MVT::Other, Locator, Chain);
     return;
   }
   case RISCVISD::VENTUS_RT_LOCAL_LOAD: {
