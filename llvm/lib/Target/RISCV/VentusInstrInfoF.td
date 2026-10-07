@@ -573,10 +573,14 @@ def : Pat<(f32 (fpimm0)), (f32 (COPY_TO_REGCLASS (i32 X0), GPRF32))>;
 
 /// Float arithmetic operations
 
+// Uniform arithmetic must outrank the mixed-register vector fallbacks.
+// Selecting VF/VV here creates a VGPR result that a uniform user cannot read.
+let AddedComplexity = 4 in {
 def : PatFprFprDynFrm<UniformBinFrag<any_fadd>, FADD_S, GPRF32>;
 def : PatFprFprDynFrm<UniformBinFrag<any_fsub>, FSUB_S, GPRF32>;
 def : PatFprFprDynFrm<UniformBinFrag<any_fmul>, FMUL_S, GPRF32>;
 def : PatFprFprDynFrm<UniformBinFrag<any_fdiv>, FDIV_S, GPRF32>;
+}
 
 def : Pat<(UniformUnaryFrag<any_fsqrt> GPRF32:$rs1), (FSQRT_S GPRF32:$rs1, 0b111)>;
 
