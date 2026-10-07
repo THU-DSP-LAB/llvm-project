@@ -35,22 +35,24 @@ multiclass PatVXIBin<SDPatternOperator Op, list<RVInst> Insts,
 // RVV VV, VF, FV instruction pattern class for floating point binary operations
 multiclass PatVFRBin<SDPatternOperator Op, list<RVInst> Insts,
                      bit CommutableVF = 0> {
+  // Strict operand-domain patterns outrank the unconditional fallbacks.
+  let AddedComplexity = 4 in
   def : Pat<(DivergentBinBothFrag<Op> (f32 VGPR:$rs1), (f32 VGPR:$rs2)),
             (Insts[0] VGPR:$rs1, VGPR:$rs2)>;
 
-  let AddedComplexity = 1 in
+  let AddedComplexity = 5 in
   def : Pat<(DivergentBinUniformRHSFrag<Op> (f32 VGPR:$rs1),
              GPRF32:$rs2),
             (Insts[1] VGPR:$rs1, GPRF32:$rs2)>;
 
   if !eq(!size(Insts), 3) then
-    let AddedComplexity = 2 in
+    let AddedComplexity = 6 in
     def : Pat<(DivergentBinUniformLHSFrag<Op> (f32 GPRF32:$rs2),
                (f32 VGPR:$rs1)),
               (Insts[2] VGPR:$rs1, GPRF32:$rs2)>;
 
   if CommutableVF then
-    let AddedComplexity = 2 in
+    let AddedComplexity = 6 in
     def : Pat<(DivergentBinUniformLHSFrag<Op> (f32 GPRF32:$rs2),
                (f32 VGPR:$rs1)),
               (Insts[1] VGPR:$rs1, GPRF32:$rs2)>;
