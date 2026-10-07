@@ -393,8 +393,11 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   uint64_t TPStackSize = getStackSize(MF, RISCVStackID::VGPRSpill);
   uint64_t LocalStackSize = getStackSize(MF, RISCVStackID::LocalMemSpill);
 
-  // Early exit if there is no need to allocate on the stack
-  if (MFI.getStackSize() == 0 && !MFI.adjustsStack())
+  // Non-default stack IDs are excluded from MachineFrameInfo's generic
+  // stack size. A leaf with only VGPR saves still needs its private frame;
+  // otherwise its epilogue pops TP without a matching prologue allocation.
+  if (SPStackSize == 0 && TPStackSize == 0 && LocalStackSize == 0 &&
+      !MFI.adjustsStack())
     return;
 
   // If the stack pointer has been marked as reserved, then produce an error if
