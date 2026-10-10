@@ -16,7 +16,6 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
@@ -127,35 +126,64 @@ getSingleNonDebugUser(const BroadcastCopyPropagationContext &Ctx,
 
 static unsigned getVVOpcodeForVX(unsigned Opcode) {
   switch (Opcode) {
-  default: return 0;
-  case RISCV::VADD_VX: return RISCV::VADD_VV;
-  case RISCV::VSUB_VX: return RISCV::VSUB_VV;
-  case RISCV::VMINU_VX: return RISCV::VMINU_VV;
-  case RISCV::VMIN_VX: return RISCV::VMIN_VV;
-  case RISCV::VMAXU_VX: return RISCV::VMAXU_VV;
-  case RISCV::VMAX_VX: return RISCV::VMAX_VV;
-  case RISCV::VAND_VX: return RISCV::VAND_VV;
-  case RISCV::VOR_VX: return RISCV::VOR_VV;
-  case RISCV::VXOR_VX: return RISCV::VXOR_VV;
-  case RISCV::VMSEQ_VX: return RISCV::VMSEQ_VV;
-  case RISCV::VMSNE_VX: return RISCV::VMSNE_VV;
-  case RISCV::VMSLTU_VX: return RISCV::VMSLTU_VV;
-  case RISCV::VMSLT_VX: return RISCV::VMSLT_VV;
-  case RISCV::VMSLEU_VX: return RISCV::VMSLEU_VV;
-  case RISCV::VMSLE_VX: return RISCV::VMSLE_VV;
-  case RISCV::VSLL_VX: return RISCV::VSLL_VV;
-  case RISCV::VSRL_VX: return RISCV::VSRL_VV;
-  case RISCV::VSRA_VX: return RISCV::VSRA_VV;
-  case RISCV::VSSRL_VX: return RISCV::VSSRL_VV;
-  case RISCV::VSSRA_VX: return RISCV::VSSRA_VV;
-  case RISCV::VDIVU_VX: return RISCV::VDIVU_VV;
-  case RISCV::VDIV_VX: return RISCV::VDIV_VV;
-  case RISCV::VREMU_VX: return RISCV::VREMU_VV;
-  case RISCV::VREM_VX: return RISCV::VREM_VV;
-  case RISCV::VMULHU_VX: return RISCV::VMULHU_VV;
-  case RISCV::VMUL_VX: return RISCV::VMUL_VV;
-  case RISCV::VMULHSU_VX: return RISCV::VMULHSU_VV;
-  case RISCV::VMULH_VX: return RISCV::VMULH_VV;
+  default:
+    return 0;
+  case RISCV::VADD_VX:
+    return RISCV::VADD_VV;
+  case RISCV::VSUB_VX:
+    return RISCV::VSUB_VV;
+  case RISCV::VMINU_VX:
+    return RISCV::VMINU_VV;
+  case RISCV::VMIN_VX:
+    return RISCV::VMIN_VV;
+  case RISCV::VMAXU_VX:
+    return RISCV::VMAXU_VV;
+  case RISCV::VMAX_VX:
+    return RISCV::VMAX_VV;
+  case RISCV::VAND_VX:
+    return RISCV::VAND_VV;
+  case RISCV::VOR_VX:
+    return RISCV::VOR_VV;
+  case RISCV::VXOR_VX:
+    return RISCV::VXOR_VV;
+  case RISCV::VMSEQ_VX:
+    return RISCV::VMSEQ_VV;
+  case RISCV::VMSNE_VX:
+    return RISCV::VMSNE_VV;
+  case RISCV::VMSLTU_VX:
+    return RISCV::VMSLTU_VV;
+  case RISCV::VMSLT_VX:
+    return RISCV::VMSLT_VV;
+  case RISCV::VMSLEU_VX:
+    return RISCV::VMSLEU_VV;
+  case RISCV::VMSLE_VX:
+    return RISCV::VMSLE_VV;
+  case RISCV::VSLL_VX:
+    return RISCV::VSLL_VV;
+  case RISCV::VSRL_VX:
+    return RISCV::VSRL_VV;
+  case RISCV::VSRA_VX:
+    return RISCV::VSRA_VV;
+  case RISCV::VSSRL_VX:
+    return RISCV::VSSRL_VV;
+  case RISCV::VSSRA_VX:
+    return RISCV::VSSRA_VV;
+  case RISCV::VDIVU_VX:
+    return RISCV::VDIVU_VV;
+  case RISCV::VDIV_VX:
+    return RISCV::VDIV_VV;
+  case RISCV::VREMU_VX:
+    return RISCV::VREMU_VV;
+  case RISCV::VREM_VX:
+    return RISCV::VREM_VV;
+  case RISCV::VMULHU_VX:
+    return RISCV::VMULHU_VV;
+  case RISCV::VMUL_VX:
+    return RISCV::VMUL_VV;
+  case RISCV::VMULHSU_VX:
+    return RISCV::VMULHSU_VV;
+  case RISCV::VMULH_VX:
+    return RISCV::VMULH_VV;
   }
 }
 
@@ -180,6 +208,7 @@ static bool rewriteVGPRScalarVectorUses(BroadcastCopyPropagationContext &Ctx,
     if (User->isDebugInstr())
       continue;
     if (User->isCopy() && User->getNumOperands() >= 2 &&
+        &Use == &User->getOperand(1) &&
         User->getOperand(1).getReg() == ScalarReg &&
         !User->getOperand(0).getSubReg() && !Use.getSubReg() &&
         isVentusVGPRClass(getRegClass(Ctx, User->getOperand(0).getReg()))) {
@@ -189,7 +218,7 @@ static bool rewriteVGPRScalarVectorUses(BroadcastCopyPropagationContext &Ctx,
 
     unsigned VVOpcode = getVVOpcodeForVX(User->getOpcode());
     if (VVOpcode && User->getNumOperands() >= 3 &&
-        User->getOperand(2).isReg() &&
+        &Use == &User->getOperand(2) && User->getOperand(2).isReg() &&
         User->getOperand(2).getReg() == ScalarReg && !Use.getSubReg() &&
         isVentusVGPRClass(getRegClass(Ctx, User->getOperand(0).getReg())) &&
         isVentusVGPRClass(getRegClass(Ctx, User->getOperand(1).getReg()))) {
@@ -209,6 +238,7 @@ static bool rewriteVGPRScalarVectorUses(BroadcastCopyPropagationContext &Ctx,
     Use->setReg(VGPRSrc);
     Use->setIsKill(false);
   }
+  Ctx.MRI.markUsesInDebugValueAsUndef(ScalarReg);
   MI.eraseFromParent();
   LLVM_DEBUG(dbgs() << "Vectorized divergent scalar bridge\n");
   return true;
@@ -245,16 +275,11 @@ static bool rewriteVGPRScalarRoundTrip(BroadcastCopyPropagationContext &Ctx,
     return false;
 
   Ctx.MRI.clearKillFlags(VGPRSrc);
-  if (CopyToVGPR->isCopy()) {
-    CopyToVGPR->getOperand(1).setReg(VGPRSrc);
-    CopyToVGPR->getOperand(1).setIsKill(false);
-  } else {
-    BuildMI(*CopyToVGPR->getParent(), CopyToVGPR,
-            CopyToVGPR->getDebugLoc(), Ctx.TII.get(TargetOpcode::COPY),
-            FinalDst)
-        .addReg(VGPRSrc);
-    CopyToVGPR->eraseFromParent();
-  }
+  if (!CopyToVGPR->isCopy())
+    CopyToVGPR->setDesc(Ctx.TII.get(TargetOpcode::COPY));
+  CopyToVGPR->getOperand(1).setReg(VGPRSrc);
+  CopyToVGPR->getOperand(1).setIsKill(false);
+  Ctx.MRI.markUsesInDebugValueAsUndef(ScalarReg);
   MI.eraseFromParent();
   LLVM_DEBUG(dbgs() << "Rewrote VGPR scalar round trip: " << *CopyToVGPR);
   return true;
@@ -264,26 +289,31 @@ static bool rewriteVGPRScalarRoundTrip(BroadcastCopyPropagationContext &Ctx,
  * divergent.  Keep this legalization next to the analogous COPY round-trip:
  * replacing the bridge with VFSQRT_V preserves every lane, unlike allowing a
  * VGPR-to-GPR copy through the register-domain verifier. */
-static bool rewriteVFSqrtScalarRoundTrip(
-    BroadcastCopyPropagationContext &Ctx, MachineInstr &MI) {
+static bool rewriteVFSqrtScalarRoundTrip(BroadcastCopyPropagationContext &Ctx,
+                                         MachineInstr &MI) {
   if (!MI.isCopy())
     return false;
 
   Register ScalarReg = MI.getOperand(0).getReg();
   Register VGPRSrc = MI.getOperand(1).getReg();
   if (!isVentusVGPRClass(getRegClass(Ctx, VGPRSrc)) ||
-      !isGPRLikeScalarClass(getRegClass(Ctx, ScalarReg)))
+      !isGPRLikeScalarClass(getRegClass(Ctx, ScalarReg)) ||
+      MI.getOperand(0).getSubReg() || MI.getOperand(1).getSubReg())
     return false;
 
   MachineInstr *Sqrt = getSingleNonDebugUser(Ctx, ScalarReg);
   if (!Sqrt || Sqrt->getOpcode() != RISCV::FSQRT_S ||
-      Sqrt->getOperand(1).getReg() != ScalarReg)
+      Sqrt->getNumOperands() < 3 || Sqrt->getOperand(1).getReg() != ScalarReg ||
+      Sqrt->getOperand(1).getSubReg() || !Sqrt->getOperand(2).isImm() ||
+      Sqrt->getOperand(2).getImm() != RISCVFPRndMode::DYN)
     return false;
 
   Register ScalarResult = Sqrt->getOperand(0).getReg();
   MachineInstr *CopyToVGPR = getSingleNonDebugUser(Ctx, ScalarResult);
   if (!CopyToVGPR || !CopyToVGPR->isCopy() ||
-      CopyToVGPR->getOperand(1).getReg() != ScalarResult)
+      CopyToVGPR->getOperand(1).getReg() != ScalarResult ||
+      CopyToVGPR->getOperand(0).getSubReg() ||
+      CopyToVGPR->getOperand(1).getSubReg())
     return false;
 
   Register FinalDst = CopyToVGPR->getOperand(0).getReg();
@@ -291,10 +321,13 @@ static bool rewriteVFSqrtScalarRoundTrip(
     return false;
 
   Ctx.MRI.clearKillFlags(VGPRSrc);
-  BuildMI(*CopyToVGPR->getParent(), CopyToVGPR, CopyToVGPR->getDebugLoc(),
-          Ctx.TII.get(RISCV::VFSQRT_V), FinalDst)
-      .addReg(VGPRSrc);
-  CopyToVGPR->eraseFromParent();
+  CopyToVGPR->setDesc(Ctx.TII.get(RISCV::VFSQRT_V));
+  CopyToVGPR->getOperand(1).setReg(VGPRSrc);
+  CopyToVGPR->getOperand(1).setIsKill(false);
+  CopyToVGPR->setFlags(Sqrt->getFlags());
+  CopyToVGPR->setDebugLoc(Sqrt->getDebugLoc());
+  Ctx.MRI.markUsesInDebugValueAsUndef(ScalarReg);
+  Ctx.MRI.markUsesInDebugValueAsUndef(ScalarResult);
   Sqrt->eraseFromParent();
   MI.eraseFromParent();
   LLVM_DEBUG(dbgs() << "Rewrote divergent scalar sqrt round trip\n");
@@ -335,11 +368,10 @@ static bool rewriteF16ScalarRoundTrip(BroadcastCopyPropagationContext &Ctx,
   return true;
 }
 
-/* A scalar value can temporarily enter a vector ALU through an explicit
- * broadcast.  SelectionDAG currently recognizes the vector reverse-subtract
- * form before it has recovered that the source is uniform, then materializes
- * the result back into a scalar COPY.  Recreate the scalar operation instead
- * of accepting a VGPR-to-GPR transfer. */
+/* SelectionDAG may form a vector reverse-subtract before proving that its
+ * broadcast source is uniform, then copy the result back to a GPR.  Rebuild
+ * the equivalent scalar operation instead of permitting an illegal
+ * VGPR-to-GPR transfer. */
 static bool rewriteVRSUBBroadcastCopy(BroadcastCopyPropagationContext &Ctx,
                                       MachineInstr &MI) {
   if (!MI.isCopy())
@@ -370,8 +402,8 @@ static bool rewriteVRSUBBroadcastCopy(BroadcastCopyPropagationContext &Ctx,
   MachineBasicBlock &MBB = *MI.getParent();
   DebugLoc DL = MI.getDebugLoc();
   Register ImmReg = Ctx.MRI.createVirtualRegister(&RISCV::GPRRegClass);
-  Register ScalarResult = Ctx.MRI.createVirtualRegister(
-      Ctx.MRI.getRegClass(Dst));
+  Register ScalarResult =
+      Ctx.MRI.createVirtualRegister(Ctx.MRI.getRegClass(Dst));
   BuildMI(MBB, MI, DL, Ctx.TII.get(RISCV::ADDI), ImmReg)
       .addReg(RISCV::X0)
       .addImm(Imm);
@@ -406,6 +438,28 @@ static bool rewriteIllegalCopy(BroadcastCopyPropagationContext &Ctx,
   MI.getOperand(1).setReg(ScalarSrc);
   MI.getOperand(1).setIsKill(false);
   LLVM_DEBUG(dbgs() << "Rewrote scalar use of broadcast: " << MI);
+  return true;
+}
+
+static bool removeDeadIllegalCopy(BroadcastCopyPropagationContext &Ctx,
+                                  MachineInstr &MI) {
+  if (!MI.isCopy() || MI.getNumOperands() < 2 ||
+      !MI.getOperand(0).isReg() || !MI.getOperand(1).isReg())
+    return false;
+
+  Register DstReg = MI.getOperand(0).getReg();
+  Register SrcReg = MI.getOperand(1).getReg();
+  if (!DstReg.isVirtual() || !Ctx.MRI.use_nodbg_empty(DstReg))
+    return false;
+
+  const TargetRegisterClass *DstRC = getRegClass(Ctx, DstReg);
+  const TargetRegisterClass *SrcRC = getRegClass(Ctx, SrcReg);
+  if (isLegalCopyDirection(DstRC, SrcRC))
+    return false;
+
+  Ctx.MRI.markUsesInDebugValueAsUndef(DstReg);
+  MI.eraseFromParent();
+  LLVM_DEBUG(dbgs() << "Removed dead illegal VGPR-to-scalar COPY\n");
   return true;
 }
 
@@ -447,7 +501,11 @@ bool VentusBroadcastCopyPropagation::runOnMachineFunction(MachineFunction &MF) {
       Changed = true;
       continue;
     }
-    Changed |= rewriteIllegalCopy(Ctx, *MI);
+    if (rewriteIllegalCopy(Ctx, *MI)) {
+      Changed = true;
+      continue;
+    }
+    Changed |= removeDeadIllegalCopy(Ctx, *MI);
   }
 
   return Changed;

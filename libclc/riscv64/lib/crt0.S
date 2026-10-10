@@ -31,7 +31,12 @@ _start:
   lw t3, KNL_LDS_STACK_SIZE_PER_WF(t0)
   mul t1, t1, t3
   add sp, t1, t2
-  ld tp, KNL_PDS_SIZE_PER_THREAD(t0)
+  # Private-memory addresses are logical per-lane offsets.  The function
+  # prologue grows tp above the runtime/compiler static-private prefix.
+  ld tp, KNL_PDS_STACK_BASE_PER_THREAD(t0)
+  # Seed the reserved private-memory vector base before any entry spill.
+  regext zero, zero, 1
+  vmv.v.x v0, tp
   csrr t5, CSR_NUMW
   lw t3, KNL_LDS_STACK_SIZE_PER_WF(t0)
   mul t5, t5, t3

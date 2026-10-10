@@ -4,6 +4,7 @@
 # CHECK: %0:vgpr = VMV_V_X $x5
 # CHECK: $x5 = ADDI $x0, 1
 # CHECK: %1:gpr = COPY %0
+# CHECK: %2:gpr = ADDI %1, 1
 
 --- |
   target triple = "riscv32"
@@ -18,6 +19,7 @@ tracksRegLiveness: true
 registers:
   - { id: 0, class: vgpr }
   - { id: 1, class: gpr }
+  - { id: 2, class: gpr }
 liveins:
   - { reg: '$x5' }
 body:             |
@@ -27,5 +29,6 @@ body:             |
     %0:vgpr = VMV_V_X $x5
     $x5 = ADDI $x0, 1
     %1:gpr = COPY %0
+    %2:gpr = ADDI %1, 1
     PseudoRET
 ...

@@ -30,11 +30,11 @@ entry:
 }
 
 ; A megakernel RT ABI prefix is below the private stack.  The stack grows TP
-; upward before using negative frame offsets, so the 12-byte AS5 frame starts
-; at logical PDS offset 308 rather than overlapping the reserved prefix.
+; upward before using negative frame offsets. crt0 already places TP above
+; the aligned static prefix, so the prologue reserves only its 12-byte frame.
 define dso_local ventus_kernel void @rt_private_prefix(i32 %x) #1 {
 ; CHECK-LABEL: rt_private_prefix:
-; CHECK:       addi tp, tp, 320
+; CHECK:       addi tp, tp, 12
 ; CHECK:       vsw.v {{v[0-9]+}}, -12(v32)
 entry:
   %slot = alloca i32, align 4, addrspace(5)

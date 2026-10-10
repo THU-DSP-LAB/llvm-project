@@ -1951,7 +1951,6 @@ class VENTUS_RTLocalStore<bits<3> funct3, RISCVOpcode opcode, string opcodestr>
   let Opcode = opcode.Value;
   let CustomConstraints = "$vs2 = 2";
 }
-
 def VT_RT_TRAVERSE : VENTUS_RTTraverse<0b111000, 0b000, OPC_CUSTOM_0_10,
                                        "vt.rt.traverse">;
 // Group traversal retains the exact VGPR shape of traverse.  The difference

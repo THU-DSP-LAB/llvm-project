@@ -49,9 +49,9 @@ _start:
   lw t3, KNL_LDS_STACK_SIZE_PER_WF(t0)
   mul t1, t1, t3        # sp wid * warp_size
   add sp, t1, t2        # sp points to baseaddr of local memory of each SM
-  # LLVM private-frame references are signed offsets from the frame top.
-  # `tp` therefore starts at the per-lane frame size, rather than at zero.
-  lw tp, KNL_PDS_SIZE_PER_THREAD(t0)
+  # tp is a logical per-lane offset, initially above static private storage.
+  # Function prologues grow it by their own private stack-frame size.
+  lw tp, KNL_PDS_STACK_BASE_PER_THREAD(t0)
   # LLVM reserves v32 as the base of per-lane private (PDS) storage.  A
   # kernel entry has no compiler-generated caller prologue, so seed that
   # register here before the entry function can spill any vector registers.

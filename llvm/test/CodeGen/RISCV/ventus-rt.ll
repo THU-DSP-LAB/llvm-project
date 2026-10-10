@@ -73,7 +73,6 @@ define i32 @test_rt_worker_id() {
   %worker = call i32 @llvm.riscv.ventus.rt.worker.id()
   ret i32 %worker
 }
-
 define void @test_rt_order(ptr addrspace(3) %scratch, i32 %slot, i32 %value) {
 ; CHECK-LABEL: test_rt_order:
 ; CHECK: vsw{{[0-9]*}}.v

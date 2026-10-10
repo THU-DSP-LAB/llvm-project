@@ -17,6 +17,25 @@
 # CHECK-NOT: :gpr = COPY %0
 # CHECK: %2:vgpr = COPY %0
 
+# CHECK-LABEL: name: vgpr_scalar_vmv_round_trip
+# CHECK: %0:vgpr = COPY $v0
+# CHECK-NOT: :gpr = COPY %0
+# CHECK: %2:vgpr = COPY %0
+
+# CHECK-LABEL: name: vgpr_scalar_vector_use
+# CHECK: %0:vgpr = COPY $v0
+# CHECK-NOT: :gpr = COPY %0
+# CHECK: %3:vgpr = VADD_VV %2, %0
+# CHECK: %4:vgpr = VMSLT_VV %2, %0
+# CHECK: %5:vgpr = VSSRA_VV %2, %0
+# CHECK: %6:vgpr = VDIV_VV %2, %0
+# CHECK: %7:vgpr = VMULHSU_VV %2, %0
+
+# CHECK-LABEL: name: vgpr_scalar_sqrt_round_trip
+# CHECK: %0:vgpr = COPY $v0
+# CHECK-NOT: FSQRT_S
+# CHECK: %3:vgpr = VFSQRT_V %0
+
 --- |
   target triple = "riscv32"
 
@@ -33,6 +52,18 @@
   }
 
   define void @vgpr_scalar_round_trip() {
+    ret void
+  }
+
+  define void @vgpr_scalar_vmv_round_trip() {
+    ret void
+  }
+
+  define void @vgpr_scalar_vector_use() {
+    ret void
+  }
+
+  define void @vgpr_scalar_sqrt_round_trip() {
     ret void
   }
 ...
@@ -100,5 +131,72 @@ body:             |
     %0:vgpr = COPY $v0
     %1:gpr = COPY %0
     %2:vgpr = COPY %1
+    PseudoRET
+...
+---
+name:            vgpr_scalar_vmv_round_trip
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: vgpr }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    liveins: $v0
+
+    %0:vgpr = COPY $v0
+    %1:gpr = COPY %0
+    %2:vgpr = VMV_V_X %1
+    PseudoRET
+...
+---
+name:            vgpr_scalar_vector_use
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: vgpr }
+  - { id: 3, class: vgpr }
+  - { id: 4, class: vgpr }
+  - { id: 5, class: vgpr }
+  - { id: 6, class: vgpr }
+  - { id: 7, class: vgpr }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+  - { reg: '$v1', virtual-reg: '%2' }
+body:             |
+  bb.0:
+    liveins: $v0, $v1
+
+    %0:vgpr = COPY $v0
+    %1:gpr = COPY %0
+    %2:vgpr = COPY $v1
+    %3:vgpr = VADD_VX %2, %1
+    %4:vgpr = VMSLT_VX %2, %1
+    %5:vgpr = VSSRA_VX %2, %1
+    %6:vgpr = VDIV_VX %2, %1
+    %7:vgpr = VMULHSU_VX %2, %1
+    PseudoRET
+...
+---
+name:            vgpr_scalar_sqrt_round_trip
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: gpr }
+  - { id: 3, class: vgpr }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    liveins: $v0
+
+    %0:vgpr = COPY $v0
+    %1:gpr = COPY %0
+    %2:gpr = FSQRT_S %1, 7
+    %3:vgpr = COPY %2
     PseudoRET
 ...
