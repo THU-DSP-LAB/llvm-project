@@ -1,0 +1,37 @@
+# RUN: not llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-broadcast-copy-propagation,ventus-reg-domain-verifier %s -o - 2>&1 | FileCheck %s
+
+# A scalar FSQRT with an explicit rounding mode cannot be replaced by VFSQRT_V,
+# which reads the dynamic FRM state. Keep the illegal bridge visible so that the
+# register-domain verifier rejects it.
+
+# CHECK: Ventus register domain verifier failed in function 'static_rounding_sqrt'
+# CHECK: illegal VGPR to scalar COPY: dst class GPR, src class VGPR
+# CHECK: %1:gpr = COPY %0:vgpr
+
+--- |
+  target triple = "riscv32"
+
+  define void @static_rounding_sqrt() {
+    ret void
+  }
+...
+---
+name:            static_rounding_sqrt
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: gpr }
+  - { id: 3, class: vgpr }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    liveins: $v0
+
+    %0:vgpr = COPY $v0
+    %1:gpr = COPY %0
+    %2:gpr = FSQRT_S %1, 0
+    %3:vgpr = COPY %2
+    PseudoRET
+...

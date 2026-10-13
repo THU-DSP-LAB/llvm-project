@@ -2,24 +2,21 @@
 ; RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -verify-machineinstrs \
 ; RUN: -asm-verbose < %s | FileCheck -check-prefix=VENTUS %s
 
-
-; VENTUS: .section	.ventus.resource.usage,"w",@progbits
-; VENTUS: .half	0
-; VENTUS: .half	6
-; VENTUS: .half	4
-; VENTUS: .half	0
-
 define dso_local ventus_kernel void @usage(ptr addrspace(1) nocapture noundef align 4 %b, ptr addrspace(3) nocapture noundef readonly align 4 %a) local_unnamed_addr #0 {
 ; VENTUS-LABEL: usage:
 ; VENTUS:       # %bb.0: # %entry
 ; VENTUS-NEXT:    addi sp, sp, 4
 ; VENTUS-NEXT:    sw ra, -4(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    lw t0, 4(a0)
+; VENTUS-NEXT:    csrr t1, CSR_LDS
+; VENTUS-NEXT:    add t0, t1, t0
 ; VENTUS-NEXT:    lw t1, 0(a0)
 ; VENTUS-NEXT:    lw t0, 0(t0)
 ; VENTUS-NEXT:    lw t2, 0(t1)
 ; VENTUS-NEXT:    add t0, t2, t0
-; VENTUS-NEXT:    sw t0, 0(t1)
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vmv.v.x v1, t1
+; VENTUS-NEXT:    vsw12.v v0, 0(v1)
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    ret
@@ -30,5 +27,17 @@ entry:
   store i32 %add, ptr addrspace(1) %b, align 4
   ret void
 }
+
+; VENTUS: .section	.ventus.resource.usage,"w",@progbits
+; VENTUS-NEXT: .p2align	3
+; VENTUS-NEXT: .word	3
+; VENTUS-NEXT: .word	0
+; The lane-masked store uses value/address broadcast VGPRs.
+; VENTUS-NEXT: .quad	2
+; VENTUS-NEXT: .quad	11
+; VENTUS-NEXT: .quad	0
+; VENTUS-NEXT: .quad	0
+; VENTUS-NEXT: .quad	4
+; VENTUS-NEXT: .quad	0
 
 attributes #0 = { mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: readwrite) "frame-pointer"="all"}

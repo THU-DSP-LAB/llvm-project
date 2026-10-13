@@ -277,6 +277,8 @@ namespace {
 
     void reloadAtBegin(MachineBasicBlock &MBB);
     void setPhysReg(MachineInstr &MI, MachineOperand &MO, MCPhysReg PhysReg);
+    MachineBasicBlock::iterator
+    getReloadInsertionPointAfter(MachineInstr &MI) const;
 
     Register traceCopies(Register VirtReg) const;
     Register traceCopyChain(Register Reg) const;
@@ -493,6 +495,25 @@ void RegAllocFast::reload(MachineBasicBlock::iterator Before, Register VirtReg,
   ++NumLoads;
 }
 
+MachineBasicBlock::iterator
+RegAllocFast::getReloadInsertionPointAfter(MachineInstr &MI) const {
+  MachineBasicBlock::iterator InsertBefore =
+      std::next((MachineBasicBlock::iterator)MI.getIterator());
+  if (!MI.isCall())
+    return InsertBefore;
+
+  MachineBasicBlock::iterator I = InsertBefore;
+  while (I != MBB->end() && I->isDebugInstr())
+    ++I;
+
+  // A call-frame destroy pseudo restores the caller stack frame after a call.
+  // Live-through reloads inserted for call clobbers must observe that frame.
+  if (I != MBB->end() && I->getOpcode() == TII->getCallFrameDestroyOpcode())
+    return std::next(I);
+
+  return InsertBefore;
+}
+
 /// Get basic block begin insertion point.
 /// This is not just MBB.begin() because surprisingly we have EH_LABEL
 /// instructions marking the begin of a basic block. This means we must insert
@@ -588,6 +609,7 @@ bool RegAllocFast::definePhysReg(MachineInstr &MI, MCPhysReg Reg) {
 /// allocated.
 bool RegAllocFast::displacePhysReg(MachineInstr &MI, MCPhysReg PhysReg) {
   bool displacedAny = false;
+  MachineBasicBlock::iterator ReloadBefore = getReloadInsertionPointAfter(MI);
 
   for (MCRegUnitIterator UI(PhysReg, TRI); UI.isValid(); ++UI) {
     unsigned Unit = *UI;
@@ -595,8 +617,6 @@ bool RegAllocFast::displacePhysReg(MachineInstr &MI, MCPhysReg PhysReg) {
     default: {
       LiveRegMap::iterator LRI = findLiveVirtReg(VirtReg);
       assert(LRI != LiveVirtRegs.end() && "datastructures in sync");
-      MachineBasicBlock::iterator ReloadBefore =
-          std::next((MachineBasicBlock::iterator)MI.getIterator());
       reload(ReloadBefore, VirtReg, LRI->PhysReg);
 
       setPhysRegState(LRI->PhysReg, regFree);

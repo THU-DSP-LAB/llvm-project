@@ -198,6 +198,8 @@ enum {
   MO_TPREL_ADD = 10,
   MO_TLS_GOT_HI = 11,
   MO_TLS_GD_HI = 12,
+  MO_VENTUS_LDS_LO = 13,
+  MO_VENTUS_LDS_HI = 14,
 
   // Used to differentiate between target-specific "direct" flags and "bitmask"
   // flags. A machine operand can only have one "direct" flag, but can have
@@ -231,6 +233,7 @@ enum OperandType : unsigned {
   OPERAND_UIMMLOG2XLEN,
   OPERAND_UIMMLOG2XLEN_NONZERO,
   OPERAND_UIMM_SHFL,
+  OPERAND_UIMM6_RT_FIELD,
   OPERAND_VTYPEI10,
   OPERAND_VTYPEI11,
   OPERAND_RVKRNUM,

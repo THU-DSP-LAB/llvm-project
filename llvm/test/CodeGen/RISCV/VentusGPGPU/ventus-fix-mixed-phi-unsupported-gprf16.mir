@@ -1,0 +1,35 @@
+# RUN: not --crash llc -mtriple=riscv32 -mcpu=ventus-gpgpu -mattr=+zfh -run-pass=ventus-fix-mixed-phi %s -o - 2>&1 | FileCheck %s
+
+# CHECK: VentusFixMixedPHI unsupported scalar-to-VGPR PHI broadcast in 'mixed_phi_gprf16_to_vgpr': source class GPRF16
+# CHECK-NOT: VFMV_V_F
+# CHECK-NOT: VMV_V_X
+
+--- |
+  target triple = "riscv32"
+
+  define void @mixed_phi_gprf16_to_vgpr() {
+    ret void
+  }
+...
+---
+name:            mixed_phi_gprf16_to_vgpr
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: gpr }
+  - { id: 1, class: gprf16 }
+  - { id: 2, class: vgpr }
+liveins:
+  - { reg: '$x5', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    successors: %bb.1(0x80000000)
+    liveins: $x5
+
+    %0:gpr = COPY $x5
+    %1:gprf16 = COPY %0
+    PseudoBR %bb.1
+
+  bb.1:
+    %2:vgpr = PHI %1, %bb.0
+    PseudoRET
+...

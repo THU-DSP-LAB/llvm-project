@@ -1,0 +1,33 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-reg-domain-verifier %s -o - | FileCheck %s
+
+# CHECK-LABEL: name: scalar_opcode_implicit_vgpr_boundary
+# CHECK: FADD_S
+# CHECK: implicit %2
+# CHECK-NOT: scalar opcode uses VGPR
+
+--- |
+  target triple = "riscv32"
+
+  define void @scalar_opcode_implicit_vgpr_boundary() {
+    ret void
+  }
+...
+---
+name:            scalar_opcode_implicit_vgpr_boundary
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: gprf32 }
+  - { id: 1, class: gprf32 }
+  - { id: 2, class: vgpr }
+liveins:
+  - { reg: '$x5', virtual-reg: '%1' }
+  - { reg: '$v0', virtual-reg: '%2' }
+body:             |
+  bb.0:
+    liveins: $x5, $v0
+
+    %1:gprf32 = COPY $x5
+    %2:vgpr = COPY $v0
+    %0:gprf32 = nofpexcept FADD_S %1, %1, 7, implicit $frm, implicit %2
+    PseudoRET
+...

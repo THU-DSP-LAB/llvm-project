@@ -23,7 +23,8 @@ def shiftMask32   : ComplexPattern<i64, 1, "selectShiftMask32", [], [], 0>;
 class UniformUnaryFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0),
   (Op $src0),
-  [{ return !N->isDivergent(); }]>;
+  [{ return !N->isDivergent() &&
+            !N->getOperand(0).getNode()->isDivergent(); }]>;
 
 class UniformLoadFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0),
@@ -34,7 +35,8 @@ class UniformLoadFrag<SDPatternOperator Op> : PatFrag<
 class DivergentUnaryFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0),
   (Op $src0),
-  [{ return N->isDivergent(); }]>;
+  [{ return N->isDivergent() ||
+            N->getOperand(0).getNode()->isDivergent(); }]>;
 
 class DivergentPrivateLoadFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0),
@@ -57,17 +59,50 @@ class DivergentNonPrivateLoadFrag<SDPatternOperator Op> : PatFrag<
 class UniformBinFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
   (Op $src0, $src1),
-  [{ return !N->isDivergent(); }]>;
+  [{ return !N->isDivergent() &&
+            !N->getOperand(0).getNode()->isDivergent() &&
+            !N->getOperand(1).getNode()->isDivergent(); }]>;
 
 class DivergentBinFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
   (Op $src0, $src1),
-  [{ return N->isDivergent(); }]>;
+  [{ return N->isDivergent() ||
+            N->getOperand(0).getNode()->isDivergent() ||
+            N->getOperand(1).getNode()->isDivergent(); }]>;
+
+class DivergentBinBothFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{
+    return N->isDivergent() &&
+           N->getOperand(0).getNode()->isDivergent() &&
+           N->getOperand(1).getNode()->isDivergent();
+  }]>;
+
+class DivergentBinUniformRHSFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{
+    return N->isDivergent() &&
+           N->getOperand(0).getNode()->isDivergent() &&
+           !N->getOperand(1).getNode()->isDivergent();
+  }]>;
+
+class DivergentBinUniformLHSFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1),
+  (Op $src0, $src1),
+  [{
+    return N->isDivergent() &&
+           !N->getOperand(0).getNode()->isDivergent() &&
+           N->getOperand(1).getNode()->isDivergent();
+  }]>;
 
 class ReverseDivergentBinFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
   (Op $src1, $src0),
-  [{ return N->isDivergent(); }]>;
+  [{ return N->isDivergent() ||
+            N->getOperand(0).getNode()->isDivergent() ||
+            N->getOperand(1).getNode()->isDivergent(); }]>;
 
 class DivergentPrivateStoreFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
@@ -85,14 +120,20 @@ class UniformStoreFrag<SDPatternOperator Op> : PatFrag<
   (Op $src0, $src1),
   [{
     return !N->isDivergent() &&
-      cast<StoreSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS;
+      !N->getOperand(1).getNode()->isDivergent() &&
+      !N->getOperand(2).getNode()->isDivergent() &&
+      cast<StoreSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS &&
+      cast<StoreSDNode>(N)->getAddressSpace() == RISCVAS::FLAT_ADDRESS;
   }]>;
 
 class DivergentNonPrivateStoreFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1),
   (Op $src0, $src1),
   [{
-    return N->isDivergent() &&
+    return (cast<StoreSDNode>(N)->getAddressSpace() != RISCVAS::FLAT_ADDRESS ||
+      N->isDivergent() ||
+      N->getOperand(1).getNode()->isDivergent() ||
+      N->getOperand(2).getNode()->isDivergent()) &&
       cast<StoreSDNode>(N)->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS &&
       cast<StoreSDNode>(N)->getPointerInfo().StackID != RISCVStackID::VGPRSpill
       ;
@@ -108,12 +149,45 @@ class UniformWBinFrag<SDPatternOperator Op> : PatFrag<
 class UniformTernaryFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1, node:$src2),
   (Op $src0, $src1, $src2),
-  [{ return !N->isDivergent(); }]>;
+  [{ return !N->isDivergent() &&
+            !N->getOperand(0).getNode()->isDivergent() &&
+            !N->getOperand(1).getNode()->isDivergent() &&
+            !N->getOperand(2).getNode()->isDivergent(); }]>;
 
 class DivergentTernaryFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1, node:$src2),
   (Op $src0, $src1, $src2),
-  [{ return N->isDivergent(); }]>;
+  [{ return N->isDivergent() ||
+            N->getOperand(0).getNode()->isDivergent() ||
+            N->getOperand(1).getNode()->isDivergent() ||
+            N->getOperand(2).getNode()->isDivergent(); }]>;
+
+class DivergentTernaryBothDataFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1, node:$src2),
+  (Op $src0, $src1, $src2),
+  [{
+    return N->isDivergent() &&
+           N->getOperand(0).getNode()->isDivergent() &&
+           N->getOperand(1).getNode()->isDivergent();
+  }]>;
+
+class DivergentTernaryUniformRHSFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1, node:$src2),
+  (Op $src0, $src1, $src2),
+  [{
+    return N->isDivergent() &&
+           N->getOperand(0).getNode()->isDivergent() &&
+           !N->getOperand(1).getNode()->isDivergent();
+  }]>;
+
+class DivergentTernaryUniformLHSFrag<SDPatternOperator Op> : PatFrag<
+  (ops node:$src0, node:$src1, node:$src2),
+  (Op $src0, $src1, $src2),
+  [{
+    return N->isDivergent() &&
+           !N->getOperand(0).getNode()->isDivergent() &&
+           N->getOperand(1).getNode()->isDivergent();
+  }]>;
 
 class UniformTetradFrag<SDPatternOperator Op> : PatFrag<
   (ops node:$src0, node:$src1, node:$src2, node:$src3),
@@ -356,6 +430,15 @@ def uimm5 : Operand<XLenVT>, ImmLeaf<XLenVT, [{return isUInt<5>(Imm);}]> {
   let ParserMatchClass = UImmAsmOperand<5>;
   let DecoderMethod = "decodeUImmOperand<5>";
   let OperandType = "OPERAND_UIMM5";
+  let OperandNamespace = "RISCVOp";
+}
+
+// RT Local SRAM exposes the complete 40-word fixed ABI header.
+def uimm6_rt_field : Operand<XLenVT>,
+                      ImmLeaf<XLenVT, [{return isUInt<6>(Imm) && Imm < 40;}]> {
+  let ParserMatchClass = UImmAsmOperand<6>;
+  let DecoderMethod = "decodeUImmOperand<6>";
+  let OperandType = "OPERAND_UIMM6_RT_FIELD";
   let OperandNamespace = "RISCVOp";
 }
 
@@ -777,6 +860,12 @@ class CSR_ir<bits<3> funct3, string opcodestr>
 
 let hasNoSchedulingInfo = 1,
     hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
+class CSR_ir_v<bits<3> funct3, string opcodestr>
+    : RVInstIV<funct3, OPC_SYSTEM_V, (outs VGPR:$vd), (ins csr_sysreg:$imm12, GPR:$rs1),
+              opcodestr, "$vd, $imm12, $rs1">, Sched<[WriteCSR, ReadCSR]>;
+
+let hasNoSchedulingInfo = 1,
+    hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
 class CSR_ii<bits<3> funct3, string opcodestr>
     : RVInstI<funct3, OPC_SYSTEM, (outs GPR:$rd),
               (ins csr_sysreg:$imm12, uimm5:$rs1),
@@ -964,6 +1053,8 @@ def CSRRC : CSR_ir<0b011, "csrrc">;
 def CSRRWI : CSR_ii<0b101, "csrrwi">;
 def CSRRSI : CSR_ii<0b110, "csrrsi">;
 def CSRRCI : CSR_ii<0b111, "csrrci">;
+
+def CSRRSV : CSR_ir_v<0b010, "csrrs.v">;
 
 /// RV64I instructions
 
@@ -1268,6 +1359,8 @@ def : InstAlias<"csrc $csr, $rs", (CSRRC      X0, csr_sysreg:$csr, GPR:$rs)>;
 def : InstAlias<"csrwi $csr, $imm", (CSRRWI X0, csr_sysreg:$csr, uimm5:$imm)>;
 def : InstAlias<"csrsi $csr, $imm", (CSRRSI X0, csr_sysreg:$csr, uimm5:$imm)>;
 def : InstAlias<"csrci $csr, $imm", (CSRRCI X0, csr_sysreg:$csr, uimm5:$imm)>;
+
+def : InstAlias<"csrr.v $vd, $csr", (CSRRSV VGPR:$vd, csr_sysreg:$csr,      X0)>;
 
 let EmitPriority = 0 in {
 def : InstAlias<"csrw $csr, $imm", (CSRRWI X0, csr_sysreg:$csr, uimm5:$imm)>;
@@ -1727,6 +1820,11 @@ let isBarrier = 1, isReturn = 1, isTerminator = 1 in
 def PseudoRET : Pseudo<(outs), (ins), [(riscv_ret_flag)]>,
                 PseudoInstExpansion<(JALR X0, X1, 0)>;
 
+let hasSideEffects = 1, mayLoad = 0, mayStore = 0, isCodeGenOnly = 1 in
+def PseudoSGPRKeepAlive : Pseudo<(outs), (ins GPR:$src), []>;
+let hasSideEffects = 1, mayLoad = 0, mayStore = 0, isCodeGenOnly = 1 in
+def PseudoSGPRKeepAliveBlock : Pseudo<(outs), (ins), []>;
+
 // PseudoTAIL is a pseudo instruction similar to PseudoCALL and will eventually
 // expand to auipc and jalr while encoding.
 // Define AsmString to print "tail" when compile with -S flag.
@@ -1903,6 +2001,8 @@ def ReadFRM : ReadSysReg<SysRegFRM, [FRM]>;
 def WriteFRM : WriteSysReg<SysRegFRM, [FRM]>;
 def WriteFRMImm : WriteSysRegImm<SysRegFRM, [FRM]>;
 def SwapFRMImm : SwapSysRegImm<SysRegFRM, [FRM]>;
+def ReadCSR_KNL : ReadSysReg<SysRegKNL, []>;
+def ReadCSR_LDS : ReadSysReg<SysRegLDS, []>;
 
 let hasSideEffects = true in {
 def ReadFFLAGS : ReadSysReg<SysRegFFLAGS, [FFLAGS]>;

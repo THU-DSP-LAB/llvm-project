@@ -3,7 +3,7 @@ ORIG_ARGC=$#
 DIR=$(cd "$(dirname "${0}")" &> /dev/null && (pwd -W 2> /dev/null || pwd))
 VENTUS_BUILD_DIR=${DIR}/build
 LIBCLC_BUILD_DIR=${DIR}/build-libclc
-VENTUS_INSTALL_PREFIX=${DIR}/install
+VENTUS_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX:-${DIR}/install}
 PROGRAMS_TOBUILD=(llvm ocl-icd libclc spike driver pocl rodinia test-pocl)
 
 # Helper function
@@ -23,7 +23,10 @@ Options:
     Chosen programs to build : llvm, ocl-icd, libclc, spike, driver, pocl, rodinia, test-pocl
     Option format : "llvm;pocl", string are seperated by semicolon
     Default : "llvm;ocl-icd;libclc;spike;driver;pocl;rodinia;test-pocl"
-    'BUILD_TYPE' is default 'Release' which can be changed by enviroment variable
+    'BUILD_TYPE' defaults to 'Release' and may be overridden by environment variables
+    'LLVM_ENABLE_ASSERTIONS' defaults to 'OFF' and is forwarded to LLVM CMake
+    'LLVM_ENABLE_EXPENSIVE_CHECKS' defaults to 'OFF' and is forwarded to LLVM CMake
+    'CLANG_TOOLING_BUILD_AST_INTROSPECTION' defaults to 'OFF' and skips ASTNodeAPI tooling generation
 
   --help | -h
     Print this help message and exit.
@@ -78,6 +81,9 @@ POCL_BUILD_DIR=${POCL_DIR}/build
 if [ -z "${BUILD_TYPE}" ]; then
   BUILD_TYPE=Release
 fi
+LLVM_ENABLE_ASSERTIONS=${LLVM_ENABLE_ASSERTIONS:-OFF}
+LLVM_ENABLE_EXPENSIVE_CHECKS=${LLVM_ENABLE_EXPENSIVE_CHECKS:-OFF}
+CLANG_TOOLING_BUILD_AST_INTROSPECTION=${CLANG_TOOLING_BUILD_AST_INTROSPECTION:-OFF}
 
 # Need to get the ventus-driver folder from enviroment variables
 if [ -z "${DRIVER_DIR}" ]; then
@@ -121,6 +127,9 @@ build_llvm() {
     -DLLVM_OPTIMIZED_TABLEGEN=ON \
     -DLLVM_PARALLEL_LINK_JOBS=12 \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+    -DLLVM_ENABLE_ASSERTIONS=${LLVM_ENABLE_ASSERTIONS} \
+    -DLLVM_ENABLE_EXPENSIVE_CHECKS=${LLVM_ENABLE_EXPENSIVE_CHECKS} \
+    -DCLANG_TOOLING_BUILD_AST_INTROSPECTION=${CLANG_TOOLING_BUILD_AST_INTROSPECTION} \
     -DLLVM_ENABLE_PROJECTS="clang;lld;libclc" \
     -DLLVM_TARGETS_TO_BUILD="AMDGPU;X86;RISCV" \
     -DLLVM_TARGET_ARCH=riscv32 \
@@ -139,6 +148,8 @@ build_driver() {
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_CXX_COMPILER=clang++ \
     -DENABLE_INSTALL=ON \
+    -DVENTUS_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX} \
+    -DSPIKE_SRC_DIR=${SPIKE_DIR} \
     -DCMAKE_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX}
   ninja -C ${DRIVER_BUILD_DIR}
   ninja -C ${DRIVER_BUILD_DIR} install
@@ -167,6 +178,7 @@ build_pocl() {
     -DSTATIC_LLVM=OFF \
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_CXX_COMPILER=clang++ \
+    -DVENTUS_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX} \
     -DCMAKE_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX}
   ninja -C ${POCL_BUILD_DIR}
   ninja -C ${POCL_BUILD_DIR} install
@@ -194,9 +206,9 @@ build_libclc() {
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
   ninja
   ninja install
-  # TODO: There are bugs in linking all libclc object files now
   echo "************* Building riscv32 libclc object file ************"
-  bash ${DIR}/libclc/build_riscv32clc.sh ${DIR}/libclc ${LIBCLC_BUILD_DIR} ${VENTUS_INSTALL_PREFIX} || true
+  VENTUS_LIBCLC_DISABLE_PROBLEM_MATH=${VENTUS_LIBCLC_DISABLE_PROBLEM_MATH:-OFF} \
+    bash ${DIR}/libclc/build_riscv32clc.sh ${DIR}/libclc ${LIBCLC_BUILD_DIR} ${VENTUS_INSTALL_PREFIX}
 
   DstDir=${VENTUS_INSTALL_PREFIX}/share/pocl
   if [ ! -d "${DstDir}" ]; then

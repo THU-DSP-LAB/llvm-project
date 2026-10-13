@@ -43,6 +43,8 @@ public:
 
   void Select(SDNode *Node) override;
 
+  SDValue materializeVentusRTVGPR(SDValue Value, SDLoc DL);
+
   bool SelectInlineAsmMemoryOperand(const SDValue &Op, unsigned ConstraintID,
                                     std::vector<SDValue> &OutOps) override;
 

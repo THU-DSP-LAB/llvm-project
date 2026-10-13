@@ -13,8 +13,8 @@
 #ifndef LLVM_LIB_TARGET_RISCV_RISCVREGISTERINFO_H
 #define LLVM_LIB_TARGET_RISCV_RISCVREGISTERINFO_H
 
-#include "VentusProgramInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
+#include <memory>
 
 #define GET_REGINFO_HEADER
 #include "RISCVGenRegisterInfo.inc"
@@ -73,11 +73,6 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
 
   bool isVGPRReg(const MachineRegisterInfo &MRI, Register Reg) const;
 
-  void insertRegToSet(const MachineRegisterInfo &MRI,
-                      DenseSet<unsigned int> *CurrentRegUsageSet,
-                      SubVentusProgramInfo *CurrentSubProgramInfo,
-                      Register Reg) const;
-
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;
 
@@ -114,6 +109,12 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
   bool eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
                            unsigned FIOperandNum,
                            RegScavenger *RS = nullptr) const override;
+
+  bool saveScavengerRegister(MachineBasicBlock &MBB,
+                             MachineBasicBlock::iterator I,
+                             MachineBasicBlock::iterator &UseMI,
+                             const TargetRegisterClass *RC,
+                             Register Reg) const override;
 
   Register getFrameRegister(const MachineFunction &MF) const override;
 
@@ -154,6 +155,11 @@ struct RISCVRegisterInfo : public RISCVGenRegisterInfo {
                              SmallVectorImpl<MCPhysReg> &Hints,
                              const MachineFunction &MF, const VirtRegMap *VRM,
                              const LiveRegMatrix *Matrix) const override;
+
+  std::unique_ptr<RegAllocExtraInterference>
+  createRegAllocExtraInterference(MachineFunction &MF, LiveIntervals &LIS,
+                                  VirtRegMap &VRM,
+                                  LiveRegMatrix &Matrix) const override;
 };
 } // namespace llvm
 

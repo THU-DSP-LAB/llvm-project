@@ -80,6 +80,26 @@ void LiveIntervalUnion::extract(const LiveInterval &VirtReg,
   }
 }
 
+void LiveIntervalUnion::extractAll(const LiveInterval &VirtReg) {
+  if (Segments.empty())
+    return;
+
+  bool Changed = false;
+  SegmentIter SegPos = Segments.begin();
+  while (SegPos.valid()) {
+    if (SegPos.value() != &VirtReg) {
+      ++SegPos;
+      continue;
+    }
+
+    SegPos.erase();
+    Changed = true;
+  }
+
+  if (Changed)
+    ++Tag;
+}
+
 void
 LiveIntervalUnion::print(raw_ostream &OS, const TargetRegisterInfo *TRI) const {
   if (empty()) {

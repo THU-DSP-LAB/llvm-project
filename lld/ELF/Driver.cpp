@@ -101,6 +101,7 @@ void Ctx::reset() {
   nonPrevailingSyms.clear();
   whyExtractRecords.clear();
   backwardReferences.clear();
+  ventusLDSStaticOffsets.clear();
   hasSympart.store(false, std::memory_order_relaxed);
   needsTlsLd.store(false, std::memory_order_relaxed);
 }

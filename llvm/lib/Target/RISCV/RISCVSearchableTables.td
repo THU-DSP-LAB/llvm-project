@@ -60,6 +60,19 @@ def SourcesOfDivergence : GenericTable {
 def : SourceOfDivergence<int_riscv_workitem_id_x>;
 def : SourceOfDivergence<int_riscv_workitem_id_y>;
 def : SourceOfDivergence<int_riscv_workitem_id_z>;
+def : SourceOfDivergence<int_riscv_ventus_rt_dispatch_id_x>;
+def : SourceOfDivergence<int_riscv_ventus_rt_dispatch_id_y>;
+def : SourceOfDivergence<int_riscv_ventus_rt_dispatch_id_z>;
+def : SourceOfDivergence<int_riscv_ventus_rt_worker_id>;
+def : SourceOfDivergence<int_riscv_ventus_rt_lane_id>;
+def : SourceOfDivergence<int_riscv_ventus_rt_traverse_i32>;
+def : SourceOfDivergence<int_riscv_ventus_rt_group_traverse_i32>;
+def : SourceOfDivergence<int_riscv_ventus_rt_release_i32>;
+def : SourceOfDivergence<int_riscv_ventus_rt_local_load_i32>;
+def : SourceOfDivergence<int_riscv_ventus_vcvt_fp16_fp32>;
+def : SourceOfDivergence<int_riscv_ventus_vgelu_approx_f32>;
+def : SourceOfDivergence<int_riscv_ventus_vsilu_approx_f32>;
+def : SourceOfDivergence<int_riscv_ventus_mma_m16n16k16_row_col_f32_f16_f16_f32>;
 //def : SourceOfDivergence<int_riscv_interp_mov>;
 //def : SourceOfDivergence<int_riscv_interp_p1>;
 

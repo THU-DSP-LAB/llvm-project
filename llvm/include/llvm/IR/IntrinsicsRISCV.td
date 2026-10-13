@@ -165,15 +165,377 @@ class RISCVVIntrinsic {
 
 let TargetPrefix = "riscv" in {
 def int_riscv_ventus_barrier : Intrinsic<[], [llvm_i32_ty],
-                          [ImmArg<ArgIndex<0>>,IntrNoMem, IntrHasSideEffects]>;
+                          [ImmArg<ArgIndex<0>>, IntrNoMem,
+                           IntrHasSideEffects, IntrConvergent]>;
 def int_riscv_ventus_barrier_with_scope : Intrinsic<[], [llvm_i32_ty, llvm_i32_ty],
-                      [ImmArg<ArgIndex<0>>,ImmArg<ArgIndex<1>>,
-                      IntrNoMem, IntrHasSideEffects]>;
+                      [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
+                       IntrNoMem, IntrHasSideEffects, IntrConvergent]>;
 def int_riscv_ventus_subgroup_barrier : Intrinsic<[], [llvm_i32_ty],
-                          [ImmArg<ArgIndex<0>>,IntrNoMem, IntrHasSideEffects]>;
+                          [ImmArg<ArgIndex<0>>, IntrNoMem,
+                           IntrHasSideEffects, IntrConvergent]>;
 def int_riscv_ventus_subgroup_barrier_with_scope : Intrinsic<[], [llvm_i32_ty, llvm_i32_ty],
-                      [ImmArg<ArgIndex<0>>,ImmArg<ArgIndex<1>>,
-                      IntrNoMem, IntrHasSideEffects]>;
+                      [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
+                       IntrNoMem, IntrHasSideEffects, IntrConvergent]>;
+class VentusNoMemIntrinsic<list<LLVMType> Ret, list<LLVMType> Args> :
+    Intrinsic<Ret, Args, [IntrNoMem, IntrWillReturn]>;
+class VentusF32UnaryIntrinsic : VentusNoMemIntrinsic<[llvm_float_ty], [llvm_float_ty]>;
+class VentusI32UnaryIntrinsic : VentusNoMemIntrinsic<[llvm_i32_ty], [llvm_i32_ty]>;
+class VentusI32BinaryIntrinsic : VentusNoMemIntrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty]>;
+class VentusI32TernaryIntrinsic : VentusNoMemIntrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty]>;
+class VentusI32ImmUnaryIntrinsic
+    : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrWillReturn, ImmArg<ArgIndex<1>>]>;
+class VentusI32ToF32Intrinsic : VentusNoMemIntrinsic<[llvm_float_ty], [llvm_i32_ty]>;
+class VentusF32ToI32Intrinsic : VentusNoMemIntrinsic<[llvm_i32_ty], [llvm_float_ty]>;
+class VentusRTTraverseIntrinsic
+    : Intrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                [IntrHasSideEffects, IntrConvergent]>;
+class VentusRTReleaseIntrinsic
+    : Intrinsic<[], [llvm_i32_ty],
+                // A release acknowledges that prior PDS-header stores are
+                // visible before RTcore state may be reused.  Deliberately
+                // leave out an Intr*Mem property: LLVM must model it as an
+                // unknown read-write memory side effect, rather than a
+                // reorderable pure control operation.
+                [IntrHasSideEffects, IntrConvergent]>;
+class VentusRTEnqueueIntrinsic
+    : Intrinsic<[], [llvm_i32_ty],
+                // No Intr*Mem property: enqueue reads its mailbox and writes
+                // the global queue, so LLVM must assume read-write memory.
+                [IntrHasSideEffects, IntrConvergent]>;
+class VentusRTLocalLoadIntrinsic
+    : Intrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrReadMem, IntrConvergent]>;
+class VentusRTLocalStoreIntrinsic
+    : Intrinsic<[], [llvm_i32_ty, llvm_i32_ty],
+                [IntrWriteMem, IntrConvergent]>;
+class VentusImageStoreRGBA8Intrinsic
+    : Intrinsic<[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
+                    llvm_i32_ty, llvm_i32_ty],
+                [IntrWriteMem, IntrConvergent]>;
+class VentusKernelMetadataIntrinsic
+    : Intrinsic<[llvm_anyint_ty], [], [IntrNoMem, IntrWillReturn]>;
+class VentusRTDispatchIdIntrinsic
+    : Intrinsic<[llvm_i32_ty], [], [IntrNoMem, IntrWillReturn]>;
+
+def int_riscv_ventus_shuffle_idx_i32 : VentusI32ImmUnaryIntrinsic;
+def int_riscv_ventus_shuffle_up_i32 : VentusI32ImmUnaryIntrinsic;
+def int_riscv_ventus_shuffle_down_i32 : VentusI32ImmUnaryIntrinsic;
+def int_riscv_ventus_shuffle_bfly_i32 : VentusI32ImmUnaryIntrinsic;
+def int_riscv_ventus_kernel_metadata : VentusKernelMetadataIntrinsic;
+def int_riscv_ventus_rt_dispatch_id_x : VentusRTDispatchIdIntrinsic;
+def int_riscv_ventus_rt_dispatch_id_y : VentusRTDispatchIdIntrinsic;
+def int_riscv_ventus_rt_dispatch_id_z : VentusRTDispatchIdIntrinsic;
+def int_riscv_ventus_rt_worker_id : VentusRTDispatchIdIntrinsic;
+// Smallest PDS thread ID in the current hardware warp.  It is deliberately
+// distinct from Vulkan workitem/local-invocation IDs.
+def int_riscv_ventus_rt_warp_first_tid : VentusRTDispatchIdIntrinsic;
+// Scalar CSR_TID form for uniform control arithmetic.  Keep the historical
+// vector form above for ordinary traverse ABI compatibility.
+def int_riscv_ventus_rt_warp_first_tid_scalar : VentusRTDispatchIdIntrinsic;
+// Lane index (0..VL-1) in the current hardware warp.  It lowers to vid.v so
+// shader-side RT Local locator arithmetic remains lane varying.
+def int_riscv_ventus_rt_lane_id : VentusRTDispatchIdIntrinsic;
+def int_riscv_ventus_rt_traverse_i32 : VentusRTTraverseIntrinsic;
+// The source is a lane-varying RT Local locator.  Unlike rt.traverse's
+// historical warp-base operand it is deliberately not interpreted as a PDS
+// address: software has already formed the physical RT Local row/slot.
+def int_riscv_ventus_rt_group_traverse_i32 : VentusRTTraverseIntrinsic;
+def int_riscv_ventus_rt_release_i32 : VentusRTReleaseIntrinsic;
+def int_riscv_ventus_rt_enqueue_i32 : VentusRTEnqueueIntrinsic;
+def int_riscv_ventus_rt_local_load_i32 : VentusRTLocalLoadIntrinsic;
+def int_riscv_ventus_rt_local_store_i32 : VentusRTLocalStoreIntrinsic;
+def int_riscv_ventus_image_store_rgba8 : VentusImageStoreRGBA8Intrinsic;
+def int_riscv_ventus_vcvt_fp32_fp16 : VentusI32ToF32Intrinsic;
+def int_riscv_ventus_vcvt_fp16_fp32 : VentusF32ToI32Intrinsic;
+def int_riscv_ventus_vcvt_fp32_bf16 : VentusI32ToF32Intrinsic;
+def int_riscv_ventus_vcvt_bf16_fp32 : VentusF32ToI32Intrinsic;
+def int_riscv_ventus_vadd_f16x2 : VentusI32BinaryIntrinsic;
+def int_riscv_ventus_vmul_f16x2 : VentusI32BinaryIntrinsic;
+def int_riscv_ventus_vfma_f16x2 : VentusI32TernaryIntrinsic;
+def int_riscv_ventus_vadd_bf16x2 : VentusI32BinaryIntrinsic;
+def int_riscv_ventus_vmul_bf16x2 : VentusI32BinaryIntrinsic;
+def int_riscv_ventus_vfma_bf16x2 : VentusI32TernaryIntrinsic;
+def int_riscv_ventus_vex2_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vlg2_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vrcp_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vsqrt_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vrsqrt_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vsin_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vcos_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vtanh_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vgelu_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vsilu_approx_f32 : VentusF32UnaryIntrinsic;
+def int_riscv_ventus_vex2_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vrcp_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vsqrt_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vrsqrt_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vtanh_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vgelu_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vsilu_approx_f16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vex2_approx_bf16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vrcp_approx_bf16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vsqrt_approx_bf16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vrsqrt_approx_bf16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vtanh_approx_bf16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vgelu_approx_bf16x2 : VentusI32UnaryIntrinsic;
+def int_riscv_ventus_vsilu_approx_bf16x2 : VentusI32UnaryIntrinsic;
+
+def int_riscv_ventus_mma_m8n8k16_row_row_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k16_row_row_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k16_row_row_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k16_row_col_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k16_row_col_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k16_row_col_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k16_col_row_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k16_col_row_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k16_col_row_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k16_col_col_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k16_col_col_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k16_col_col_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k16_row_row_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k16_row_row_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k16_row_row_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k16_row_col_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k16_row_col_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k16_row_col_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k16_col_row_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k16_col_row_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k16_col_row_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k16_col_col_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k16_col_col_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k16_col_col_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k16_row_row_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k16_row_row_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k16_row_row_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k16_row_col_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k16_row_col_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k16_row_col_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k16_col_row_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k16_col_row_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k16_col_row_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k16_col_col_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k16_col_col_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k16_col_col_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k16_row_row_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k16_row_row_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k16_row_row_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k16_row_col_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k16_row_col_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k16_row_col_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k16_col_row_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k16_col_row_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k16_col_row_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k16_col_col_f32_f16_f16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k16_col_col_f16_f16_f16_f16
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k16_col_col_f32_bf16_bf16_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k8_row_row_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k8_row_col_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k8_col_row_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n8k8_col_col_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k8_row_row_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k8_row_col_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k8_col_row_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n8k8_col_col_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k8_row_row_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k8_row_col_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k8_col_row_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m8n16k8_col_col_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k8_row_row_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k8_row_col_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k8_col_row_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
+def int_riscv_ventus_mma_m16n16k8_col_col_f32_tf32_tf32_f32
+    : Intrinsic<[llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrConvergent, IntrWillReturn]>;
   // We use anyint here but we only support XLen.
   def int_riscv_vsetvli   : Intrinsic<[llvm_anyint_ty],
                            /* AVL */  [LLVMMatchType<0>,

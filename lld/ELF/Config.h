@@ -435,6 +435,10 @@ struct Ctx {
   llvm::DenseMap<const Symbol *,
                  std::pair<const InputFile *, const InputFile *>>
       backwardReferences;
+  // Link-time offsets for Ventus addrspace(3) static globals. These symbols are
+  // not addressed by ELF VAs at runtime; code materializes CSR_LDS plus this
+  // linker-assigned offset.
+  llvm::DenseMap<const Symbol *, uint64_t> ventusLDSStaticOffsets;
   // True if SHT_LLVM_SYMPART is used.
   std::atomic<bool> hasSympart{false};
   // True if there are TLS IE relocations. Set DF_STATIC_TLS if -shared.

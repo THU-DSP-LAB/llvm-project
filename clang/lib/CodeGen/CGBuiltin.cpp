@@ -19458,6 +19458,41 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
 
   // Required for overloaded intrinsics.
   llvm::SmallVector<llvm::Type *, 2> IntrinsicTypes;
+  auto EmitVentusMMABuiltin = [&](Intrinsic::ID IntrinsicID,
+                                    ArrayRef<unsigned> ArgLanes,
+                                    unsigned ResultLanes) -> Value * {
+    SmallVector<Value *, 16> Args;
+    for (unsigned ArgIndex = 0, NumArgs = E->getNumArgs(); ArgIndex != NumArgs;
+         ++ArgIndex) {
+      Value *Arg = EmitScalarExpr(E->getArg(ArgIndex));
+      unsigned NumLanes = ArgLanes[ArgIndex];
+      if (NumLanes == 1 && !Arg->getType()->isVectorTy()) {
+        Args.push_back(Builder.CreateBitCast(Arg, Builder.getInt32Ty()));
+        continue;
+      }
+
+      auto *I32VecTy = FixedVectorType::get(Builder.getInt32Ty(), NumLanes);
+      Value *I32Vec = Builder.CreateBitCast(Arg, I32VecTy);
+      for (unsigned Lane = 0; Lane != NumLanes; ++Lane)
+        Args.push_back(Builder.CreateExtractElement(I32Vec, Lane));
+    }
+
+    Function *F = CGM.getIntrinsic(IntrinsicID);
+    Value *Call = Builder.CreateCall(F, Args);
+    llvm::Type *RetTy = ConvertType(E->getType());
+    if (!RetTy->isVectorTy())
+      return Call;
+
+    auto *I32VecTy = FixedVectorType::get(Builder.getInt32Ty(), ResultLanes);
+    Value *I32Vec = UndefValue::get(I32VecTy);
+    for (unsigned Lane = 0; Lane != ResultLanes; ++Lane) {
+      Value *LaneValue = ResultLanes == 1 ? Call
+                                          : Builder.CreateExtractValue(Call, Lane);
+      I32Vec = Builder.CreateInsertElement(I32Vec, LaneValue, Lane);
+    }
+    return Builder.CreateBitCast(I32Vec, RetTy);
+  };
+
   switch (BuiltinID) {
   default: llvm_unreachable("unexpected builtin ID");
 
@@ -19493,7 +19528,126 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
     }
     break;
   }
+#define EMIT_VENTUS_SIMPLE_BUILTIN(BuiltinName, IntrinsicName)                    \
+  case RISCV::BI##BuiltinName: {                                                   \
+    SmallVector<Value *, 4> Args;                                                  \
+    for (unsigned I = 0, NumArgs = E->getNumArgs(); I != NumArgs; ++I)             \
+      Args.push_back(EmitScalarExpr(E->getArg(I)));                                \
+    Function *F = CGM.getIntrinsic(Intrinsic::IntrinsicName);                      \
+    return Builder.CreateCall(F, Args);                                            \
+  }
 
+
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vcvt_fp32_fp16, riscv_ventus_vcvt_fp32_fp16)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vcvt_fp16_fp32, riscv_ventus_vcvt_fp16_fp32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vcvt_fp32_bf16, riscv_ventus_vcvt_fp32_bf16)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vcvt_bf16_fp32, riscv_ventus_vcvt_bf16_fp32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_shuffle_idx_i32, riscv_ventus_shuffle_idx_i32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_shuffle_up_i32, riscv_ventus_shuffle_up_i32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_shuffle_down_i32, riscv_ventus_shuffle_down_i32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_shuffle_bfly_i32, riscv_ventus_shuffle_bfly_i32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vadd_f16x2, riscv_ventus_vadd_f16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vmul_f16x2, riscv_ventus_vmul_f16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vfma_f16x2, riscv_ventus_vfma_f16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vadd_bf16x2, riscv_ventus_vadd_bf16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vmul_bf16x2, riscv_ventus_vmul_bf16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vfma_bf16x2, riscv_ventus_vfma_bf16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vex2_approx_f32, riscv_ventus_vex2_approx_f32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vlg2_approx_f32, riscv_ventus_vlg2_approx_f32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vrcp_approx_f32, riscv_ventus_vrcp_approx_f32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vsqrt_approx_f32, riscv_ventus_vsqrt_approx_f32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vrsqrt_approx_f32, riscv_ventus_vrsqrt_approx_f32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vsin_approx_f32, riscv_ventus_vsin_approx_f32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vcos_approx_f32, riscv_ventus_vcos_approx_f32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vtanh_approx_f32, riscv_ventus_vtanh_approx_f32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vgelu_approx_f32, riscv_ventus_vgelu_approx_f32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vsilu_approx_f32, riscv_ventus_vsilu_approx_f32)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vex2_approx_f16x2, riscv_ventus_vex2_approx_f16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vrcp_approx_f16x2, riscv_ventus_vrcp_approx_f16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vsqrt_approx_f16x2, riscv_ventus_vsqrt_approx_f16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vrsqrt_approx_f16x2, riscv_ventus_vrsqrt_approx_f16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vtanh_approx_f16x2, riscv_ventus_vtanh_approx_f16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vgelu_approx_f16x2, riscv_ventus_vgelu_approx_f16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vsilu_approx_f16x2, riscv_ventus_vsilu_approx_f16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vex2_approx_bf16x2, riscv_ventus_vex2_approx_bf16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vrcp_approx_bf16x2, riscv_ventus_vrcp_approx_bf16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vsqrt_approx_bf16x2, riscv_ventus_vsqrt_approx_bf16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vrsqrt_approx_bf16x2, riscv_ventus_vrsqrt_approx_bf16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vtanh_approx_bf16x2, riscv_ventus_vtanh_approx_bf16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vgelu_approx_bf16x2, riscv_ventus_vgelu_approx_bf16x2)
+  EMIT_VENTUS_SIMPLE_BUILTIN(__builtin_riscv_ventus_vsilu_approx_bf16x2, riscv_ventus_vsilu_approx_bf16x2)
+
+#undef EMIT_VENTUS_SIMPLE_BUILTIN
+#define EMIT_VENTUS_MMA_BUILTIN(BuiltinName, IntrinsicName, ALanes, BLanes, DLanes) \
+  case RISCV::BI__builtin_riscv_ventus_##BuiltinName:                              \
+    return EmitVentusMMABuiltin(Intrinsic::IntrinsicName, {ALanes, BLanes, DLanes}, \
+                                DLanes);
+
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k16_row_row_f32_f16_f16_f32, riscv_ventus_mma_m8n8k16_row_row_f32_f16_f16_f32, 2, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k16_row_row_f16_f16_f16_f16, riscv_ventus_mma_m8n8k16_row_row_f16_f16_f16_f16, 2, 2, 1)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k16_row_row_f32_bf16_bf16_f32, riscv_ventus_mma_m8n8k16_row_row_f32_bf16_bf16_f32, 2, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k16_row_col_f32_f16_f16_f32, riscv_ventus_mma_m8n8k16_row_col_f32_f16_f16_f32, 2, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k16_row_col_f16_f16_f16_f16, riscv_ventus_mma_m8n8k16_row_col_f16_f16_f16_f16, 2, 2, 1)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k16_row_col_f32_bf16_bf16_f32, riscv_ventus_mma_m8n8k16_row_col_f32_bf16_bf16_f32, 2, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k16_col_row_f32_f16_f16_f32, riscv_ventus_mma_m8n8k16_col_row_f32_f16_f16_f32, 2, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k16_col_row_f16_f16_f16_f16, riscv_ventus_mma_m8n8k16_col_row_f16_f16_f16_f16, 2, 2, 1)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k16_col_row_f32_bf16_bf16_f32, riscv_ventus_mma_m8n8k16_col_row_f32_bf16_bf16_f32, 2, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k16_col_col_f32_f16_f16_f32, riscv_ventus_mma_m8n8k16_col_col_f32_f16_f16_f32, 2, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k16_col_col_f16_f16_f16_f16, riscv_ventus_mma_m8n8k16_col_col_f16_f16_f16_f16, 2, 2, 1)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k16_col_col_f32_bf16_bf16_f32, riscv_ventus_mma_m8n8k16_col_col_f32_bf16_bf16_f32, 2, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k16_row_row_f32_f16_f16_f32, riscv_ventus_mma_m16n8k16_row_row_f32_f16_f16_f32, 4, 2, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k16_row_row_f16_f16_f16_f16, riscv_ventus_mma_m16n8k16_row_row_f16_f16_f16_f16, 4, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k16_row_row_f32_bf16_bf16_f32, riscv_ventus_mma_m16n8k16_row_row_f32_bf16_bf16_f32, 4, 2, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k16_row_col_f32_f16_f16_f32, riscv_ventus_mma_m16n8k16_row_col_f32_f16_f16_f32, 4, 2, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k16_row_col_f16_f16_f16_f16, riscv_ventus_mma_m16n8k16_row_col_f16_f16_f16_f16, 4, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k16_row_col_f32_bf16_bf16_f32, riscv_ventus_mma_m16n8k16_row_col_f32_bf16_bf16_f32, 4, 2, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k16_col_row_f32_f16_f16_f32, riscv_ventus_mma_m16n8k16_col_row_f32_f16_f16_f32, 4, 2, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k16_col_row_f16_f16_f16_f16, riscv_ventus_mma_m16n8k16_col_row_f16_f16_f16_f16, 4, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k16_col_row_f32_bf16_bf16_f32, riscv_ventus_mma_m16n8k16_col_row_f32_bf16_bf16_f32, 4, 2, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k16_col_col_f32_f16_f16_f32, riscv_ventus_mma_m16n8k16_col_col_f32_f16_f16_f32, 4, 2, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k16_col_col_f16_f16_f16_f16, riscv_ventus_mma_m16n8k16_col_col_f16_f16_f16_f16, 4, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k16_col_col_f32_bf16_bf16_f32, riscv_ventus_mma_m16n8k16_col_col_f32_bf16_bf16_f32, 4, 2, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k16_row_row_f32_f16_f16_f32, riscv_ventus_mma_m8n16k16_row_row_f32_f16_f16_f32, 2, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k16_row_row_f16_f16_f16_f16, riscv_ventus_mma_m8n16k16_row_row_f16_f16_f16_f16, 2, 4, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k16_row_row_f32_bf16_bf16_f32, riscv_ventus_mma_m8n16k16_row_row_f32_bf16_bf16_f32, 2, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k16_row_col_f32_f16_f16_f32, riscv_ventus_mma_m8n16k16_row_col_f32_f16_f16_f32, 2, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k16_row_col_f16_f16_f16_f16, riscv_ventus_mma_m8n16k16_row_col_f16_f16_f16_f16, 2, 4, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k16_row_col_f32_bf16_bf16_f32, riscv_ventus_mma_m8n16k16_row_col_f32_bf16_bf16_f32, 2, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k16_col_row_f32_f16_f16_f32, riscv_ventus_mma_m8n16k16_col_row_f32_f16_f16_f32, 2, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k16_col_row_f16_f16_f16_f16, riscv_ventus_mma_m8n16k16_col_row_f16_f16_f16_f16, 2, 4, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k16_col_row_f32_bf16_bf16_f32, riscv_ventus_mma_m8n16k16_col_row_f32_bf16_bf16_f32, 2, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k16_col_col_f32_f16_f16_f32, riscv_ventus_mma_m8n16k16_col_col_f32_f16_f16_f32, 2, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k16_col_col_f16_f16_f16_f16, riscv_ventus_mma_m8n16k16_col_col_f16_f16_f16_f16, 2, 4, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k16_col_col_f32_bf16_bf16_f32, riscv_ventus_mma_m8n16k16_col_col_f32_bf16_bf16_f32, 2, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k16_row_row_f32_f16_f16_f32, riscv_ventus_mma_m16n16k16_row_row_f32_f16_f16_f32, 4, 4, 8)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k16_row_row_f16_f16_f16_f16, riscv_ventus_mma_m16n16k16_row_row_f16_f16_f16_f16, 4, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k16_row_row_f32_bf16_bf16_f32, riscv_ventus_mma_m16n16k16_row_row_f32_bf16_bf16_f32, 4, 4, 8)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k16_row_col_f32_f16_f16_f32, riscv_ventus_mma_m16n16k16_row_col_f32_f16_f16_f32, 4, 4, 8)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k16_row_col_f16_f16_f16_f16, riscv_ventus_mma_m16n16k16_row_col_f16_f16_f16_f16, 4, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k16_row_col_f32_bf16_bf16_f32, riscv_ventus_mma_m16n16k16_row_col_f32_bf16_bf16_f32, 4, 4, 8)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k16_col_row_f32_f16_f16_f32, riscv_ventus_mma_m16n16k16_col_row_f32_f16_f16_f32, 4, 4, 8)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k16_col_row_f16_f16_f16_f16, riscv_ventus_mma_m16n16k16_col_row_f16_f16_f16_f16, 4, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k16_col_row_f32_bf16_bf16_f32, riscv_ventus_mma_m16n16k16_col_row_f32_bf16_bf16_f32, 4, 4, 8)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k16_col_col_f32_f16_f16_f32, riscv_ventus_mma_m16n16k16_col_col_f32_f16_f16_f32, 4, 4, 8)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k16_col_col_f16_f16_f16_f16, riscv_ventus_mma_m16n16k16_col_col_f16_f16_f16_f16, 4, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k16_col_col_f32_bf16_bf16_f32, riscv_ventus_mma_m16n16k16_col_col_f32_bf16_bf16_f32, 4, 4, 8)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k8_row_row_f32_tf32_tf32_f32, riscv_ventus_mma_m8n8k8_row_row_f32_tf32_tf32_f32, 2, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k8_row_col_f32_tf32_tf32_f32, riscv_ventus_mma_m8n8k8_row_col_f32_tf32_tf32_f32, 2, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k8_col_row_f32_tf32_tf32_f32, riscv_ventus_mma_m8n8k8_col_row_f32_tf32_tf32_f32, 2, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n8k8_col_col_f32_tf32_tf32_f32, riscv_ventus_mma_m8n8k8_col_col_f32_tf32_tf32_f32, 2, 2, 2)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k8_row_row_f32_tf32_tf32_f32, riscv_ventus_mma_m16n8k8_row_row_f32_tf32_tf32_f32, 4, 2, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k8_row_col_f32_tf32_tf32_f32, riscv_ventus_mma_m16n8k8_row_col_f32_tf32_tf32_f32, 4, 2, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k8_col_row_f32_tf32_tf32_f32, riscv_ventus_mma_m16n8k8_col_row_f32_tf32_tf32_f32, 4, 2, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n8k8_col_col_f32_tf32_tf32_f32, riscv_ventus_mma_m16n8k8_col_col_f32_tf32_tf32_f32, 4, 2, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k8_row_row_f32_tf32_tf32_f32, riscv_ventus_mma_m8n16k8_row_row_f32_tf32_tf32_f32, 2, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k8_row_col_f32_tf32_tf32_f32, riscv_ventus_mma_m8n16k8_row_col_f32_tf32_tf32_f32, 2, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k8_col_row_f32_tf32_tf32_f32, riscv_ventus_mma_m8n16k8_col_row_f32_tf32_tf32_f32, 2, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m8n16k8_col_col_f32_tf32_tf32_f32, riscv_ventus_mma_m8n16k8_col_col_f32_tf32_tf32_f32, 2, 4, 4)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k8_row_row_f32_tf32_tf32_f32, riscv_ventus_mma_m16n16k8_row_row_f32_tf32_tf32_f32, 4, 4, 8)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k8_row_col_f32_tf32_tf32_f32, riscv_ventus_mma_m16n16k8_row_col_f32_tf32_tf32_f32, 4, 4, 8)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k8_col_row_f32_tf32_tf32_f32, riscv_ventus_mma_m16n16k8_col_row_f32_tf32_tf32_f32, 4, 4, 8)
+  EMIT_VENTUS_MMA_BUILTIN(mma_m16n16k8_col_col_f32_tf32_tf32_f32, riscv_ventus_mma_m16n16k8_col_col_f32_tf32_tf32_f32, 4, 4, 8)
+#undef EMIT_VENTUS_MMA_BUILTIN
   case RISCV::BI__builtin_riscv_orc_b_32:
   case RISCV::BI__builtin_riscv_orc_b_64:
   case RISCV::BI__builtin_riscv_clz_32:

@@ -103,6 +103,15 @@ enum Fixups {
   // 6-bit fixup corresponding to R_RISCV_SUB6 for local label assignment in
   // DWARF CFA.
   fixup_riscv_sub_6b,
+  // 20-bit fixup for a Ventus addrspace(3) static symbol's linker-assigned LDS
+  // offset.
+  fixup_riscv_ventus_lds_hi20,
+  // 12-bit I-type fixup for a Ventus addrspace(3) static symbol's
+  // linker-assigned LDS offset.
+  fixup_riscv_ventus_lds_lo12_i,
+  // 12-bit S-type fixup for a Ventus addrspace(3) static symbol's
+  // linker-assigned LDS offset.
+  fixup_riscv_ventus_lds_lo12_s,
 
   // Used as a sentinel, must be the last
   fixup_riscv_invalid,

@@ -1,0 +1,50 @@
+# RUN: not --crash llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-sgpr-simt-checker %s -o /dev/null 2>&1 | FileCheck %s
+
+# CHECK: Ventus SGPR SIMT sibling clobber in function 'sgpr_edge_keepalive_clobber'
+# CHECK: register $x7 is used as live-in in sibling block #1 but defined in sibling block #2
+# CHECK: live-in use: {{.*}}PseudoSGPRKeepAlive $x7
+# CHECK: sibling def:
+
+--- |
+  target triple = "riscv32"
+
+  define void @sgpr_edge_keepalive_clobber() {
+    ret void
+  }
+...
+---
+name:            sgpr_edge_keepalive_clobber
+tracksRegLiveness: true
+body:             |
+  bb.0:
+    successors: %bb.1, %bb.2
+    liveins: $v0, $v1, $x7
+
+    VBEQ $v0, $v1, %bb.1, implicit-def dead $x6
+    PseudoBR %bb.2
+
+  bb.1:
+    successors: %bb.3
+    liveins: $x7
+
+    PseudoBR %bb.3
+
+  bb.2:
+    successors: %bb.4
+
+    $x7 = LW $x2, 0 :: (load (s32))
+    PseudoBR %bb.4
+
+  bb.3:
+    successors: %bb.4
+    liveins: $x7
+
+    PseudoSGPRKeepAliveBlock
+    PseudoSGPRKeepAlive $x7
+    PseudoBR %bb.4
+
+  bb.4:
+    liveins: $x7
+
+    PseudoRET
+...

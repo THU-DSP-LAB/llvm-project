@@ -43,23 +43,36 @@ _start:
   li t4, 0
   csrr t1, CSR_WID
   csrr t2, CSR_LDS
-  li t3, 1024           # 1k size for single warp
+  csrr t0, CSR_KNL
+  lw t6, KNL_LDS_NON_STACK_SIZE(t0)
+  add t2, t2, t6        # LDS stack starts after static LDS and runtime local args
+  lw t3, KNL_LDS_STACK_SIZE_PER_WF(t0)
   mul t1, t1, t3        # sp wid * warp_size
   add sp, t1, t2        # sp points to baseaddr of local memory of each SM
-  li tp, 0              # tp points to baseaddr for lower bound of private memory(1K) of each thread
+  # tp is a logical per-lane offset, initially above static private storage.
+  # Function prologues grow it by their own private stack-frame size.
+  lw tp, KNL_PDS_STACK_BASE_PER_THREAD(t0)
+  # LLVM reserves v32 as the base of per-lane private (PDS) storage.  A
+  # kernel entry has no compiler-generated caller prologue, so seed that
+  # register here before the entry function can spill any vector registers.
+  # regext immediate bits [2:0] select the following instruction's vector
+  # destination.  `1` therefore extends v0 to v32; the scalar source stays
+  # tp.
+  regext zero, zero, 1
+  vmv.v.x v0, tp
   csrr t5, CSR_NUMW
-  li t3, 1024
+  lw t3, KNL_LDS_STACK_SIZE_PER_WF(t0)
   mul t5, t5, t3
   add s0, t2, t5        # s0 points to local memory base addr in a workgroup
 
-  # clear BSS segment
-  la      a0, _edata
-  la      a2, _end
-  beq     a0, a2, 2f
-1:
-  sw      zero, (a0)
-  addi    a0, a0, 4
-  bltu    a0, a2, 1b
+  # clear BSS segment (Not needed on device code)
+  # la      a0, _edata
+  # la      a2, _end
+  # beq     a0, a2, 2f
+  # 1:
+  # sw      zero, (a0)
+  # addi    a0, a0, 4
+  # bltu    a0, a2, 1b
 
 2:
   csrr t0, CSR_KNL	                 # get addr of kernel metadata

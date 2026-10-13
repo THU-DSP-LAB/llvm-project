@@ -78,6 +78,9 @@ StringRef llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::x86mmx:   return "MVT::x86mmx";
   case MVT::x86amx:   return "MVT::x86amx";
   case MVT::i64x8:    return "MVT::i64x8";
+  case MVT::ventus_mma_2x32: return "MVT::ventus_mma_2x32";
+  case MVT::ventus_mma_4x32: return "MVT::ventus_mma_4x32";
+  case MVT::ventus_mma_8x32: return "MVT::ventus_mma_8x32";
   case MVT::Glue:     return "MVT::Glue";
   case MVT::isVoid:   return "MVT::isVoid";
   case MVT::v1i1:     return "MVT::v1i1";

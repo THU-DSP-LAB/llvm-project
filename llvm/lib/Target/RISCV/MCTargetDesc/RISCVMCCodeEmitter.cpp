@@ -355,6 +355,18 @@ unsigned RISCVMCCodeEmitter::getImmOpValue(const MCInst &MI, unsigned OpNo,
       FixupKind = RISCV::fixup_riscv_call_plt;
       RelaxCandidate = true;
       break;
+    case RISCVMCExpr::VK_RISCV_VENTUS_LDS_LO:
+      if (MIFrm == RISCVII::InstFormatI)
+        FixupKind = RISCV::fixup_riscv_ventus_lds_lo12_i;
+      else if (MIFrm == RISCVII::InstFormatS)
+        FixupKind = RISCV::fixup_riscv_ventus_lds_lo12_s;
+      else
+        llvm_unreachable(
+            "VK_RISCV_VENTUS_LDS_LO used with unexpected instruction format");
+      break;
+    case RISCVMCExpr::VK_RISCV_VENTUS_LDS_HI:
+      FixupKind = RISCV::fixup_riscv_ventus_lds_hi20;
+      break;
     }
   } else if (Kind == MCExpr::SymbolRef &&
              cast<MCSymbolRefExpr>(Expr)->getKind() == MCSymbolRefExpr::VK_None) {

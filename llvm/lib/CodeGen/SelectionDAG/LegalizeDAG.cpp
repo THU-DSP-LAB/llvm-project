@@ -505,7 +505,10 @@ void SelectionDAGLegalize::LegalizeStoreOps(SDNode *Node) {
     SDValue Value = ST->getValue();
     MVT VT = Value.getSimpleValueType();
     switch (TLI.getOperationAction(ISD::STORE, VT)) {
-    default: llvm_unreachable("This action is not supported yet!");
+    default:
+      report_fatal_error(Twine("Unsupported store action ") +
+                         Twine((unsigned)TLI.getOperationAction(ISD::STORE, VT)) +
+                         Twine(" for VT ") + EVT(VT).getEVTString());
     case TargetLowering::Legal: {
       // If this is an unaligned store and the target doesn't support it,
       // expand it.

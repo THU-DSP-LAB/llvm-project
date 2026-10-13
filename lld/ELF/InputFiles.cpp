@@ -793,6 +793,12 @@ void ObjFile<ELFT>::initializeSections(bool ignoreComdats,
     const Elf_Shdr &sec = objSections[i];
 
     if (sec.sh_type == SHT_REL || sec.sh_type == SHT_RELA) {
+      if (!config->relocatable && this->ventusResObjSecIndex != 0 &&
+          sec.sh_info == this->ventusResObjSecIndex) {
+        this->ventusResObjRelSecIndex = i;
+        continue;
+      }
+
       // Find a relocation target section and associate this section with that.
       // Target may have been discarded if it is in a different section group
       // and the group is discarded, even though it's a violation of the spec.
@@ -959,6 +965,19 @@ template <class ELFT>
 InputSectionBase *ObjFile<ELFT>::createInputSection(uint32_t idx,
                                                     const Elf_Shdr &sec,
                                                     StringRef name) {
+  if (!config->relocatable && name.startswith(".ventus.resource."))
+    hasLegacyVentusResource = true;
+
+  if (!config->relocatable) {
+    if (name == ".ventus.resobj") {
+      if (ventusResObjSecIndex != 0)
+        error(toString(this) + ": multiple .ventus.resobj sections are not "
+                               "supported");
+      ventusResObjSecIndex = idx;
+      return &InputSection::discarded;
+    }
+  }
+
   if (name.startswith(".n")) {
     // The GNU linker uses .note.GNU-stack section as a marker indicating
     // that the code in the object file does not expect that the stack is

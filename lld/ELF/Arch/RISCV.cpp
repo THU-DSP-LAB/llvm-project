@@ -252,6 +252,10 @@ RelExpr RISCV::getRelExpr(const RelType type, const Symbol &s,
   case R_RISCV_LO12_S:
   case R_RISCV_RVC_LUI:
     return R_ABS;
+  case R_RISCV_VENTUS_LDS_HI20:
+  case R_RISCV_VENTUS_LDS_LO12_I:
+  case R_RISCV_VENTUS_LDS_LO12_S:
+    return R_RISCV_VENTUS_LDS;
   case R_RISCV_ADD8:
   case R_RISCV_ADD16:
   case R_RISCV_ADD32:
@@ -412,12 +416,33 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
     return;
   }
 
+  case R_RISCV_VENTUS_LDS_HI20: {
+    uint64_t hi = val + 0x800;
+    checkUInt(loc, hi >> 12, 20, rel);
+    write32le(loc, (read32le(loc) & 0xFFF) | (hi & 0xFFFFF000));
+    return;
+  }
+
   case R_RISCV_PCREL_LO12_I:
   case R_RISCV_TPREL_LO12_I:
   case R_RISCV_LO12_I: {
     uint64_t hi = (val + 0x800) >> 12;
     uint64_t lo = val - (hi << 12);
     write32le(loc, setLO12_I(read32le(loc), lo & 0xfff));
+    return;
+  }
+
+  case R_RISCV_VENTUS_LDS_LO12_I: {
+    uint64_t hi = (val + 0x800) >> 12;
+    uint64_t lo = val - (hi << 12);
+    write32le(loc, setLO12_I(read32le(loc), lo & 0xfff));
+    return;
+  }
+
+  case R_RISCV_VENTUS_LDS_LO12_S: {
+    uint64_t hi = (val + 0x800) >> 12;
+    uint64_t lo = val - (hi << 12);
+    write32le(loc, setLO12_S(read32le(loc), lo));
     return;
   }
 

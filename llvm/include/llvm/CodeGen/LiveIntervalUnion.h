@@ -93,6 +93,9 @@ public:
   // Remove a live virtual register's segments from this union.
   void extract(const LiveInterval &VirtReg, const LiveRange &Range);
 
+  // Remove all segments owned by this live virtual register from this union.
+  void extractAll(const LiveInterval &VirtReg);
+
   // Remove all inserted virtual registers.
   void clear() { Segments.clear(); ++Tag; }
 

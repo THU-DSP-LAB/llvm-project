@@ -1,0 +1,64 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu %s -o - | FileCheck %s
+
+--- |
+  define i32 @imm11_high() {
+    ret i32 0
+  }
+
+  define <4 x float> @mma_high() {
+    ret <4 x float> zeroinitializer
+  }
+
+  define i32 @vfma_high() {
+    ret i32 0
+  }
+
+...
+---
+name: imm11_high
+tracksRegLiveness: true
+selected: true
+body: |
+  ; CHECK-LABEL: imm11_high:
+  ; Dedicated pseudo expansion must emit REGEXTI directly instead of picking up
+  ; an extra generic REGEXT prefix later.
+  ; CHECK: regexti zero, zero, 777
+  ; CHECK-NEXT: vand.vi v33, v32, 15
+  bb.0:
+    liveins: $v32
+    $v33 = PseudoVAND_VI_IMM11 killed $v32, 399
+    $v0 = COPY $v33
+    PseudoRET implicit $v0
+...
+---
+name: mma_high
+tracksRegLiveness: true
+selected: true
+body: |
+  ; CHECK-LABEL: mma_high:
+  ; PseudoMMA_* owns the regext encoding during expansion, so no stacked
+  ; regexti/regext prefix pair should appear here.
+  ; CHECK-NOT: regexti
+  ; CHECK: regext zero, zero, 73
+  ; CHECK-NEXT: mma.m16n8k16.row.col.f32.f16.f16.f32 v40, v32, v36
+  bb.0:
+    liveins: $v32, $v33, $v34, $v35, $v36, $v37, $v40, $v41, $v42, $v43
+    $v40_v41_v42_v43 = PseudoMMA_M16N8K16_ROW_COL_F32_F16_F16_F32 killed $v40_v41_v42_v43, killed $v32_v33_v34_v35, killed $v36_v37
+    PseudoRET implicit $v40, implicit $v41, implicit $v42, implicit $v43
+...
+---
+name: vfma_high
+tracksRegLiveness: true
+selected: true
+body: |
+  ; CHECK-LABEL: vfma_high:
+  ; PseudoVFMA_* follows the same dedicated expansion path as MMA pseudos.
+  ; CHECK-NOT: regexti
+  ; CHECK: regext zero, zero, 73
+  ; CHECK-NEXT: vfma.f16x2 v35, v33, v34
+  bb.0:
+    liveins: $v33, $v34, $v35
+    $v35 = PseudoVFMA_F16X2 killed $v35, killed $v33, killed $v34
+    $v0 = COPY $v35
+    PseudoRET implicit $v0
+...

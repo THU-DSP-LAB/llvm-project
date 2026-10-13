@@ -507,7 +507,7 @@ void InstrEmitter::EmitSubregNode(SDNode *Node,
     // classes.
     unsigned SubIdx = cast<ConstantSDNode>(Node->getOperand(1))->getZExtValue();
     const TargetRegisterClass *TRC =
-      TLI->getRegClassFor(Node->getSimpleValueType(0), Node->isDivergent());
+        TLI->getRegClassFor(Node->getSimpleValueType(0), Node->isDivergent());
 
     Register Reg;
     MachineInstr *DefMI;
@@ -518,6 +518,25 @@ void InstrEmitter::EmitSubregNode(SDNode *Node,
     } else {
       Reg = R ? R->getReg() : getVR(Node->getOperand(0), VRBaseMap);
       DefMI = MRI->getVRegDef(Reg);
+    }
+
+    // If the source register class has a divergent subregister class for this
+    // subindex and the extracted type is legal for that class, prefer it over
+    // the default scalar class. This keeps tuple/VGPR lane extracts in VGPRs
+    // on SIMT targets such as Ventus instead of silently falling back to
+    // scalar X-register classes.
+    if (Reg.isVirtual()) {
+      const TargetRegisterClass *SrcRC = MRI->getRegClass(Reg);
+      MVT EltVT = Node->getSimpleValueType(0);
+      if ((EltVT == MVT::i32 || EltVT == MVT::f32) &&
+          TRI->isDivergentRegClass(SrcRC)) {
+        TRC = TLI->getRegClassFor(EltVT, /*isDivergent=*/true);
+      } else if (const TargetRegisterClass *SubRC =
+                     TRI->getSubClassWithSubReg(SrcRC, SubIdx)) {
+        if (TRI->isDivergentRegClass(SubRC) &&
+            TRI->isTypeLegalForClass(*SubRC, EltVT))
+          TRC = SubRC;
+      }
     }
 
     Register SrcReg, DstReg;
@@ -618,7 +637,12 @@ void InstrEmitter::EmitSubregNode(SDNode *Node,
 void
 InstrEmitter::EmitCopyToRegClassNode(SDNode *Node,
                                      DenseMap<SDValue, Register> &VRBaseMap) {
-  unsigned VReg = getVR(Node->getOperand(0), VRBaseMap);
+  SDValue Src = Node->getOperand(0);
+  Register VReg;
+  if (auto *R = dyn_cast<RegisterSDNode>(Src))
+    VReg = R->getReg();
+  else
+    VReg = getVR(Src, VRBaseMap);
 
   // Create the new VReg in the destination class and emit a copy.
   unsigned DstRCIdx = cast<ConstantSDNode>(Node->getOperand(1))->getZExtValue();

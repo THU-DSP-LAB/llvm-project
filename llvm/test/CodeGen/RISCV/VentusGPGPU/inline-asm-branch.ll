@@ -6,25 +6,25 @@
 define ventus_kernel void @getMax(ptr addrspace(1) %out, ptr addrspace(4) %in) {
 ; VENTUS-LABEL: getMax:
 ; VENTUS:       # %bb.0:
-; VENTUS-NEXT:    addi	tp, tp, 4
-; VENTUS-NEXT:  	.cfi_def_cfa_offset 4
+; VENTUS-NEXT:    addi	tp, tp, 12
+; VENTUS-NEXT:  	.cfi_def_cfa_offset 12
 ; VENTUS-NEXT:  	regext	zero, zero, 1
 ; VENTUS-NEXT:  	vmv.v.x	v32, tp
 ; VENTUS-NEXT:  	lw	t0, 0(a0)
 ; VENTUS-NEXT:  	lw	t1, 4(a0)
 ; VENTUS-NEXT:  	vmv.v.x	v0, t0
 ; VENTUS-NEXT:  	regext	zero, zero, 8
-; VENTUS-NEXT:  	vsw.v	v0, -4(v32)
+; VENTUS-NEXT:  	vsw.v	v0, -12(v32)
 ; VENTUS-NEXT:  	lw	t0, 0(t1)
 ; VENTUS-NEXT:  	lw	t1, 4(t1)
-; VENTUS-NEXT:  	addi	t2, tp, -4
+; VENTUS-NEXT:  	addi	t2, tp, -12
 ; VENTUS-NEXT:  	#APP
 ; VENTUS-NEXT:  	blt	t0, t1, greater
 ; VENTUS-NEXT:  	mv	t1, t0
 ; VENTUS-NEXT:  greater:
 ; VENTUS-NEXT:  	sw	t1, 0(t2)
 ; VENTUS-NEXT:    #NO_APP
-; VENTUS-NEXT:  	addi	tp, tp, -4
+; VENTUS-NEXT:  	addi	tp, tp, -12
 ; VENTUS-NEXT:  	regext	zero, zero, 1
 ; VENTUS-NEXT:  	vmv.v.x	v32, tp
 ; VENTUS-NEXT:  	ret

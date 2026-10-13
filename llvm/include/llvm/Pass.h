@@ -28,6 +28,7 @@
 #ifndef LLVM_PASS_H
 #define LLVM_PASS_H
 
+#include <cstdint>
 #include <string>
 
 namespace llvm {

@@ -383,4 +383,9 @@ def SEED : SysReg<"seed", 0x015>;
 // Ventus GPGPU CSR
 //===-----------------------------------------------
 
+def SysRegTID  : SysReg<"CSR_TID", 0x800>;
+def SysRegNUMW : SysReg<"CSR_NUMW", 0x801>;
+def SysRegKNL  : SysReg<"CSR_KNL", 0x803>;
+def SysRegWID  : SysReg<"CSR_WID", 0x805>;
+def SysRegLDS  : SysReg<"CSR_LDS", 0x806>;
 def : SysReg<"rpc", 0x80C>;

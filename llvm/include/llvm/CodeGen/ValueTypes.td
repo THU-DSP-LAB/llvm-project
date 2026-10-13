@@ -237,6 +237,10 @@ def externref : ValueType<0,    193>;  // WebAssembly's externref type
 def x86amx    : ValueType<8192, 194>;  // X86 AMX value
 def i64x8     : ValueType<512,  195>;  // 8 Consecutive GPRs (AArch64)
 
+def ventus_mma_2x32 : ValueType<64,  196>;  // Ventus MMA 2-register tuple
+def ventus_mma_4x32 : ValueType<128, 197>;  // Ventus MMA 4-register tuple
+def ventus_mma_8x32 : ValueType<256, 198>;  // Ventus MMA 8-register tuple
+
 def token      : ValueType<0, 248>;  // TokenTy
 def MetadataVT : ValueType<0, 249>;  // Metadata
 

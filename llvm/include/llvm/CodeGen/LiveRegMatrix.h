@@ -34,6 +34,7 @@ class AnalysisUsage;
 class LiveInterval;
 class LiveIntervals;
 class MachineFunction;
+class RegAllocExtraInterference;
 class TargetRegisterInfo;
 class VirtRegMap;
 
@@ -57,6 +58,8 @@ class LiveRegMatrix : public MachineFunctionPass {
   unsigned RegMaskVirtReg = 0;
   BitVector RegMaskUsable;
 
+  std::unique_ptr<RegAllocExtraInterference> ExtraInterference;
+
   // MachineFunctionPass boilerplate.
   void getAnalysisUsage(AnalysisUsage &) const override;
   bool runOnMachineFunction(MachineFunction &) override;
@@ -66,6 +69,7 @@ public:
   static char ID;
 
   LiveRegMatrix();
+  ~LiveRegMatrix() override;
 
   //===--------------------------------------------------------------------===//
   // High-level interface.
@@ -78,7 +82,7 @@ public:
   /// Invalidate cached interference queries after modifying virtual register
   /// live ranges. Interference checks may return stale information unless
   /// caches are invalidated.
-  void invalidateVirtRegs() { ++UserTag; }
+  void invalidateVirtRegs();
 
   enum InterferenceKind {
     /// No interference, go ahead and assign.

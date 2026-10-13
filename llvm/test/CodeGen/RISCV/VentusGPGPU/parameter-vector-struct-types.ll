@@ -11,14 +11,18 @@ define dso_local ventus_kernel void @test_kernel1(i8 noundef %c, %struct.MyStruc
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    lb t0, 0(a0)
 ; CHECK-NEXT:    lbu t1, 24(a0)
-; CHECK-NEXT:    lw t2, 28(a0)
+; CHECK-NEXT:    lw t2, 8(a0)
 ; CHECK-NEXT:    fcvt.s.w t0, t0
-; CHECK-NEXT:    lw s1, 8(a0)
-; CHECK-NEXT:    sw t0, 0(t2)
-; CHECK-NEXT:    fcvt.s.w t0, s1
-; CHECK-NEXT:    fcvt.s.wu t1, t1
-; CHECK-NEXT:    sw t0, 4(t2)
-; CHECK-NEXT:    sw t1, 8(t2)
+; CHECK-NEXT:    lw s1, 28(a0)
+; CHECK-NEXT:    vmv.v.x v0, t0
+; CHECK-NEXT:    vmv.v.x v1, s1
+; CHECK-NEXT:    fcvt.s.w t0, t2
+; CHECK-NEXT:    vsw12.v v0, 0(v1)
+; CHECK-NEXT:    vmv.v.x v0, t0
+; CHECK-NEXT:    fcvt.s.wu t0, t1
+; CHECK-NEXT:    vsw12.v v0, 4(v1)
+; CHECK-NEXT:    vmv.v.x v0, t0
+; CHECK-NEXT:    vsw12.v v0, 8(v1)
 ; CHECK-NEXT:    ret
 entry:
   %st.coerce.fca.0.extract = extractvalue %struct.MyStruct %st.coerce, 0
@@ -42,23 +46,31 @@ define dso_local ventus_kernel void @test_kernel2(i8 noundef %c, i8 noundef %uc,
 ; CHECK-NEXT:    lw t1, 20(a0)
 ; CHECK-NEXT:    lw t2, 16(a0)
 ; CHECK-NEXT:    lhu s1, 12(a0)
-; CHECK-NEXT:    lh a1, 8(a0)
-; CHECK-NEXT:    lb a2, 0(a0)
+; CHECK-NEXT:    lb a1, 0(a0)
+; CHECK-NEXT:    lh a2, 8(a0)
 ; CHECK-NEXT:    lbu a3, 4(a0)
-; CHECK-NEXT:    lw a0, 28(a0)
-; CHECK-NEXT:    fcvt.s.w a2, a2
-; CHECK-NEXT:    fcvt.s.wu a3, a3
-; CHECK-NEXT:    sw a2, 0(a0)
-; CHECK-NEXT:    sw a3, 4(a0)
 ; CHECK-NEXT:    fcvt.s.w a1, a1
+; CHECK-NEXT:    lw a0, 28(a0)
+; CHECK-NEXT:    vmv.v.x v0, a1
+; CHECK-NEXT:    vmv.v.x v1, a0
+; CHECK-NEXT:    fcvt.s.wu a0, a3
+; CHECK-NEXT:    vsw12.v v0, 0(v1)
+; CHECK-NEXT:    vmv.v.x v0, a0
+; CHECK-NEXT:    fcvt.s.w a0, a2
+; CHECK-NEXT:    vsw12.v v0, 4(v1)
+; CHECK-NEXT:    vmv.v.x v0, a0
 ; CHECK-NEXT:    fcvt.s.wu s1, s1
-; CHECK-NEXT:    sw a1, 8(a0)
-; CHECK-NEXT:    sw s1, 12(a0)
+; CHECK-NEXT:    vsw12.v v0, 8(v1)
+; CHECK-NEXT:    vmv.v.x v0, s1
 ; CHECK-NEXT:    fcvt.s.w t2, t2
+; CHECK-NEXT:    vsw12.v v0, 12(v1)
+; CHECK-NEXT:    vmv.v.x v0, t2
 ; CHECK-NEXT:    fcvt.s.wu t1, t1
-; CHECK-NEXT:    sw t2, 16(a0)
-; CHECK-NEXT:    sw t1, 20(a0)
-; CHECK-NEXT:    sw t0, 24(a0)
+; CHECK-NEXT:    vsw12.v v0, 16(v1)
+; CHECK-NEXT:    vmv.v.x v0, t1
+; CHECK-NEXT:    vsw12.v v0, 20(v1)
+; CHECK-NEXT:    vmv.v.x v0, t0
+; CHECK-NEXT:    vsw12.v v0, 24(v1)
 ; CHECK-NEXT:    ret
 entry:
   %conv = sitofp i8 %c to float
@@ -90,13 +102,13 @@ define dso_local ventus_kernel void @test_kernel3(<2 x i8> noundef %c, <2 x i8> 
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    addi sp, sp, 56
 ; CHECK-NEXT:    .cfi_def_cfa_offset 56
-; CHECK-NEXT:    addi tp, tp, 4
-; CHECK-NEXT:    .cfi_def_cfa_offset 4
+; CHECK-NEXT:    addi tp, tp, 12
+; CHECK-NEXT:    .cfi_def_cfa_offset 12
 ; CHECK-NEXT:    regext zero, zero, 1
 ; CHECK-NEXT:    vmv.v.x v32, tp
 ; CHECK-NEXT:    sw ra, -56(sp) # 4-byte Folded Spill
 ; CHECK-NEXT:    regext zero, zero, 72
-; CHECK-NEXT:    vsw.v v33, -4(v32) # 4-byte Folded Spill
+; CHECK-NEXT:    vsw.v v33, -12(v32) # 4-byte Folded Spill
 ; CHECK-NEXT:    .cfi_offset ra, 0
 ; CHECK-NEXT:    .cfi_offset v33.l, 0
 ; CHECK-NEXT:    lw t0, 36(a0)
@@ -193,9 +205,9 @@ define dso_local ventus_kernel void @test_kernel3(<2 x i8> noundef %c, <2 x i8> 
 ; CHECK-NEXT:    vsw12.v v0, 48(v33)
 ; CHECK-NEXT:    lw ra, -56(sp) # 4-byte Folded Reload
 ; CHECK-NEXT:    regext zero, zero, 9
-; CHECK-NEXT:    vlw.v v33, -4(v32) # 4-byte Folded Reload
+; CHECK-NEXT:    vlw.v v33, -12(v32) # 4-byte Folded Reload
 ; CHECK-NEXT:    addi sp, sp, -56
-; CHECK-NEXT:    addi tp, tp, -4
+; CHECK-NEXT:    addi tp, tp, -12
 ; CHECK-NEXT:    regext zero, zero, 1
 ; CHECK-NEXT:    vmv.v.x v32, tp
 ; CHECK-NEXT:    ret
@@ -238,13 +250,13 @@ define dso_local ventus_kernel void @test_kernel4(<4 x i8> noundef %c, <4 x i8> 
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    addi sp, sp, 104
 ; CHECK-NEXT:    .cfi_def_cfa_offset 104
-; CHECK-NEXT:    addi tp, tp, 4
-; CHECK-NEXT:    .cfi_def_cfa_offset 4
+; CHECK-NEXT:    addi tp, tp, 12
+; CHECK-NEXT:    .cfi_def_cfa_offset 12
 ; CHECK-NEXT:    regext zero, zero, 1
 ; CHECK-NEXT:    vmv.v.x v32, tp
 ; CHECK-NEXT:    sw ra, -104(sp) # 4-byte Folded Spill
 ; CHECK-NEXT:    regext zero, zero, 72
-; CHECK-NEXT:    vsw.v v33, -4(v32) # 4-byte Folded Spill
+; CHECK-NEXT:    vsw.v v33, -12(v32) # 4-byte Folded Spill
 ; CHECK-NEXT:    .cfi_offset ra, 0
 ; CHECK-NEXT:    .cfi_offset v33.l, 0
 ; CHECK-NEXT:    lw t0, 76(a0)
@@ -427,9 +439,9 @@ define dso_local ventus_kernel void @test_kernel4(<4 x i8> noundef %c, <4 x i8> 
 ; CHECK-NEXT:    vsw12.v v0, 96(v33)
 ; CHECK-NEXT:    lw ra, -104(sp) # 4-byte Folded Reload
 ; CHECK-NEXT:    regext zero, zero, 9
-; CHECK-NEXT:    vlw.v v33, -4(v32) # 4-byte Folded Reload
+; CHECK-NEXT:    vlw.v v33, -12(v32) # 4-byte Folded Reload
 ; CHECK-NEXT:    addi sp, sp, -104
-; CHECK-NEXT:    addi tp, tp, -4
+; CHECK-NEXT:    addi tp, tp, -12
 ; CHECK-NEXT:    regext zero, zero, 1
 ; CHECK-NEXT:    vmv.v.x v32, tp
 ; CHECK-NEXT:    ret

@@ -17,6 +17,7 @@
 #include "RISCV.h"
 #include "RISCVInstrInfo.h"
 #include "RISCVTargetMachine.h"
+#include "VentusMMAUtils.h"
 
 using namespace llvm;
 
@@ -76,8 +77,11 @@ bool VentusRegextInsertion::insertRegext(MachineBasicBlock &MBB,
                                          MachineInstr &MI) {
   bool hasOverflow = false;
 
-  if (MI.isPseudo() && RISCVII::isVOPIMM11(MI.getDesc().TSFlags))
-    return false;
+  if (MI.isPseudo()) {
+    if (RISCVII::isVOPIMM11(MI.getDesc().TSFlags) ||
+        hasVentusDedicatedRegextHandling(*TII, MI.getOpcode()))
+      return false;
+  }
 
   // 3 bits encoding for each rd, rs1, rs2, rs3, total 12 bits.
   // Each 3 bit can encode 0~7 which stands for base register offset 0~7 * 32.
@@ -85,7 +89,7 @@ bool VentusRegextInsertion::insertRegext(MachineBasicBlock &MBB,
 
   for (unsigned i = 0; i < MI.getNumOperands(); ++i) {
     MachineOperand &Op = MI.getOperand(i);
-    if (!Op.isReg() ||
+    if (!Op.isReg() || Op.isImplicit() ||
         MI.getDesc().getOperandConstraint(i, MCOI::TIED_TO) != -1 ||
         MI.isDebugInstr())
       continue;

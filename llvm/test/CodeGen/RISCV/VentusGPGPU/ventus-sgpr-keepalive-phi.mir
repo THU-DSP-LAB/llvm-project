@@ -1,0 +1,39 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -ventus-use-legacy-sgpr-keepalive -run-pass=ventus-sgpr-keepalive \
+# RUN:   -verify-machineinstrs -simplify-mir %s -o - | FileCheck %s
+
+--- |
+  define void @phi_join_only() {
+    ret void
+  }
+...
+---
+name:            phi_join_only
+tracksRegLiveness: true
+selected:        true
+body:             |
+  ; CHECK-LABEL: name: phi_join_only
+  ; CHECK: bb.0:
+  ; CHECK: [[KEEP:%[0-9]+]]:gpr = LUI 260096
+  ; CHECK: bb.2:
+  ; CHECK-NEXT: %{{[0-9]+}}:gpr = PHI [[KEEP]], %bb.0, %{{[0-9]+}}, %bb.1
+  ; CHECK-NEXT: PseudoSGPRKeepAlive [[KEEP]]
+  ; CHECK-NEXT: PseudoRET
+  bb.0:
+    successors: %bb.2, %bb.1
+
+    %0:gpr = LUI 260096
+    %1:vgpr = IMPLICIT_DEF
+    %2:vgpr = IMPLICIT_DEF
+    VBEQ %1, %2, %bb.2, implicit-def dead $x6
+    PseudoBR %bb.1
+
+  bb.1:
+    successors: %bb.2
+
+    %4:gpr = COPY $x0
+    PseudoBR %bb.2
+
+  bb.2:
+    %5:gpr = PHI %0, %bb.0, %4, %bb.1
+    PseudoRET
+...

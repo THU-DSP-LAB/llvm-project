@@ -1,0 +1,29 @@
+# RUN: not llc -mtriple=riscv32 -mcpu=ventus-gpgpu -mattr=+f -run-pass=ventus-reg-domain-verifier %s -o - 2>&1 | FileCheck %s
+
+# CHECK: Ventus register domain verifier failed in function 'illegal_vgpr_to_fpr_copy'
+# CHECK: illegal VGPR to scalar COPY: dst class FPR32, src class VGPR
+# CHECK: %1:fpr32 = COPY %0:vgpr
+
+--- |
+  target triple = "riscv32"
+
+  define void @illegal_vgpr_to_fpr_copy() {
+    ret void
+  }
+...
+---
+name:            illegal_vgpr_to_fpr_copy
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: vgpr }
+  - { id: 1, class: fpr32 }
+liveins:
+  - { reg: '$v0', virtual-reg: '%0' }
+body:             |
+  bb.0:
+    liveins: $v0
+
+    %0:vgpr = COPY $v0
+    %1:fpr32 = COPY %0
+    PseudoRET
+...

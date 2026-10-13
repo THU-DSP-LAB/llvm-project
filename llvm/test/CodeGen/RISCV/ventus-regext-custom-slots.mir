@@ -1,0 +1,38 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu %s -o - | FileCheck %s
+
+--- |
+  define void @vcvt_high_vgpr() {
+    ret void
+  }
+
+  define void @shuffle_high_vgpr() {
+    ret void
+  }
+
+...
+---
+name: vcvt_high_vgpr
+tracksRegLiveness: true
+selected: true
+body: |
+  ; CHECK-LABEL: vcvt_high_vgpr:
+  ; CHECK: regext zero, zero, 64
+  ; CHECK-NEXT: vcvt.fp16.fp32 v1, v35
+  bb.0:
+    liveins: $v35
+    renamable $v1 = VCVT_FP16_FP32 killed renamable $v35
+    PseudoRET implicit $v1
+...
+---
+name: shuffle_high_vgpr
+tracksRegLiveness: true
+selected: true
+body: |
+  ; CHECK-LABEL: shuffle_high_vgpr:
+  ; CHECK: regext zero, zero, 64
+  ; CHECK-NEXT: shuffle.idx v1, v35, 3
+  bb.0:
+    liveins: $v35
+    renamable $v1 = SHUFFLE_IDX killed renamable $v35, 3
+    PseudoRET implicit $v1
+...

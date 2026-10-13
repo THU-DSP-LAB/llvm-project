@@ -89,6 +89,8 @@ enum NodeType : unsigned {
   // FMV_H_X matches the semantics of the FMV.H.X.
   // FMV_X_ANYEXTH is similar to FMV.X.H but has an any-extended result.
   // FMV_X_SIGNEXTH is similar to FMV.X.H and has a sign-extended result.
+  // FMV_W_X matches the semantics of the FMV.W.X on RV32/Zfinx.
+  // FMV_X_ANYEXTW is similar to FMV.X.W on RV32/Zfinx.
   // FMV_W_X_RV64 matches the semantics of the FMV.W.X.
   // FMV_X_ANYEXTW_RV64 is similar to FMV.X.W but has an any-extended result.
   //
@@ -97,6 +99,8 @@ enum NodeType : unsigned {
   FMV_H_X,
   FMV_X_ANYEXTH,
   FMV_X_SIGNEXTH,
+  FMV_W_X,
+  FMV_X_ANYEXTW,
   FMV_W_X_RV64,
   FMV_X_ANYEXTW_RV64,
   // FP to XLen int conversions. Corresponds to fcvt.l(u).s/d/h on RV64 and
@@ -128,6 +132,8 @@ enum NodeType : unsigned {
   ORC_B,
   ZIP,
   UNZIP,
+  // Ventus MMA tuple op. Operand 0 is the target pseudo opcode.
+  VENTUS_MMA,
   // Vector Extension
   // VMV_V_X_VL matches the semantics of vmv.v.x but includes an extra operand
   // for the VL value to be used for the operation. The first operand is
@@ -316,6 +322,10 @@ enum NodeType : unsigned {
   // required CSR and the third is the value to write. Two results are produced,
   // the value read before the modification and the new chain pointer.
   SWAP_CSR,
+
+  VENTUS_RT_TRAVERSE,
+  VENTUS_RT_GROUP_TRAVERSE,
+  VENTUS_RT_LOCAL_LOAD,
 
   // FP to 32 bit int conversions for RV64. These are used to keep track of the
   // result being sign extended to 64 bit. These saturate out of range inputs.

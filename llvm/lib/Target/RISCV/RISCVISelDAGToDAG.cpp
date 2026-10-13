@@ -15,6 +15,7 @@
 #include "MCTargetDesc/RISCVMatInt.h"
 #include "RISCVISelLowering.h"
 #include "RISCVMachineFunctionInfo.h"
+#include "RISCVRegisterInfo.h"
 #include "llvm/Analysis/LegacyDivergenceAnalysis.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/IR/IntrinsicsRISCV.h"
@@ -28,6 +29,70 @@
 using namespace llvm;
 
 #define DEBUG_TYPE "riscv-isel"
+
+static unsigned getVentusRTDispatchIdCSR(unsigned IntrinsicOpcode) {
+  switch (IntrinsicOpcode) {
+  default:
+    return 0;
+  case Intrinsic::riscv_ventus_rt_dispatch_id_x:
+    return 0x80d;
+  case Intrinsic::riscv_ventus_rt_dispatch_id_y:
+    return 0x80e;
+  case Intrinsic::riscv_ventus_rt_dispatch_id_z:
+    return 0x80f;
+  case Intrinsic::riscv_ventus_rt_worker_id:
+    /* Current compatibility carrier for (SM, hardware-warp). */
+    return 0xf14; // mhartid
+  case Intrinsic::riscv_ventus_rt_warp_first_tid:
+    return 0x800; // CSR_TID: smallest thread ID in this warp
+  }
+}
+
+static unsigned getVentusMMASubReg(unsigned Index) {
+  switch (Index) {
+  default:
+    llvm_unreachable("unexpected Ventus tuple subregister index");
+  case 0:
+    return RISCV::sub0;
+  case 1:
+    return RISCV::sub1;
+  case 2:
+    return RISCV::sub2;
+  case 3:
+    return RISCV::sub3;
+  case 4:
+    return RISCV::sub4;
+  case 5:
+    return RISCV::sub5;
+  case 6:
+    return RISCV::sub6;
+  case 7:
+    return RISCV::sub7;
+  }
+}
+
+static MVT getVentusMMAResultVT(unsigned NumResults) {
+  switch (NumResults) {
+  default:
+    llvm_unreachable("unexpected Ventus MMA result width");
+  case 1:
+  case 2:
+    return MVT::ventus_mma_2x32;
+  case 4:
+    return MVT::ventus_mma_4x32;
+  case 8:
+    return MVT::ventus_mma_8x32;
+  }
+}
+
+static SDValue decodeVentusMMAOperand(SDNode *Node, unsigned &OpIdx) {
+  auto VT = MVT(static_cast<MVT::SimpleValueType>(
+      cast<ConstantSDNode>(Node->getOperand(OpIdx++))->getZExtValue()));
+  assert((VT == MVT::i32 || VT.isVentusMMA()) &&
+         "unexpected Ventus MMA operand type");
+  (void)VT;
+  return Node->getOperand(OpIdx++);
+}
 
 static unsigned getLastNonGlueOrChainOpIdx(const SDNode *Node) {
   assert(Node->getNumOperands() > 0 && "Node with no operands");
@@ -179,6 +244,26 @@ bool RISCVDAGToDAGISel::tryShrinkShlLogicImm(SDNode *Node) {
   return true;
 }
 
+SDValue RISCVDAGToDAGISel::materializeVentusRTVGPR(SDValue Value, SDLoc DL) {
+  MVT VT = Value.getSimpleValueType();
+  auto SplatGPR = [&](SDValue Scalar) {
+    return SDValue(
+        CurDAG->getMachineNode(RISCV::VMV_V_X, DL, VT, Scalar), 0);
+  };
+
+  if (auto *CN = dyn_cast<ConstantSDNode>(Value)) {
+    int64_t Offset = CN->getSExtValue();
+    if (Offset == 0)
+      return SplatGPR(CurDAG->getRegister(RISCV::X0, VT));
+
+    RISCVMatInt::InstSeq Seq =
+        RISCVMatInt::generateInstSeq(Offset, Subtarget->getFeatureBits());
+    return SplatGPR(SDValue(selectImmSeq(CurDAG, DL, VT, Seq), 0));
+  }
+
+  return Value;
+}
+
 void RISCVDAGToDAGISel::Select(SDNode *Node) {
   // If we have a custom node, we have already selected.
   if (Node->isMachineOpcode()) {
@@ -192,8 +277,163 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   unsigned Opcode = Node->getOpcode();
   MVT XLenVT = Subtarget->getXLenVT();
   SDLoc DL(Node);
-  MVT VT = Node->getSimpleValueType(0);
+  MVT VT = Node->getNumValues() ? Node->getSimpleValueType(0) : MVT::Other;
   switch (Opcode) {
+  case ISD::BITCAST: {
+    SDValue Src = Node->getOperand(0);
+    MVT SrcVT = Src.getSimpleValueType();
+    bool HasF32Bits = Subtarget->hasStdExtF() || Subtarget->hasStdExtZfinx();
+    if (!Subtarget->is64Bit() && HasF32Bits &&
+        VT == MVT::f32 && SrcVT == MVT::i32) {
+      SDValue RC = CurDAG->getTargetConstant(RISCV::GPRF32RegClassID, DL,
+                                             MVT::i32);
+      CurDAG->SelectNodeTo(Node, TargetOpcode::COPY_TO_REGCLASS, VT, Src, RC);
+      return;
+    }
+    if (!Subtarget->is64Bit() && HasF32Bits &&
+        VT == MVT::i32 && SrcVT == MVT::f32) {
+      SDValue RC = CurDAG->getTargetConstant(RISCV::GPRRegClassID, DL,
+                                             MVT::i32);
+      CurDAG->SelectNodeTo(Node, TargetOpcode::COPY_TO_REGCLASS, VT, Src, RC);
+      return;
+    }
+    break;
+  }
+  case ISD::INTRINSIC_WO_CHAIN: {
+    unsigned IntrinsicOpcode = Node->getConstantOperandVal(0);
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_warp_first_tid_scalar) {
+      // CSR_TID is uniform for the hardware warp.  Keep it in the scalar
+      // domain so shader code can form the uniform RT Local row base before
+      // combining it with the lane-varying vid.v locator component.
+      SDValue SysRegNo = CurDAG->getTargetConstant(0x800, DL, XLenVT);
+      SDValue X0 = CurDAG->getRegister(RISCV::X0, XLenVT);
+      CurDAG->SelectNodeTo(Node, RISCV::CSRRS, MVT::i32, SysRegNo, X0);
+      return;
+    }
+    if (unsigned CSR = getVentusRTDispatchIdCSR(IntrinsicOpcode)) {
+      SDValue SysRegNo = CurDAG->getTargetConstant(CSR, DL, XLenVT);
+      SDValue X0 = CurDAG->getRegister(RISCV::X0, XLenVT);
+      CurDAG->SelectNodeTo(Node, RISCV::CSRRSV, MVT::i32, SysRegNo, X0);
+      return;
+    }
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_lane_id) {
+      CurDAG->SelectNodeTo(Node, RISCV::VID_V, MVT::i32);
+      return;
+    }
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_traverse_i32) {
+      SDValue PdsWarpTidBase = materializeVentusRTVGPR(Node->getOperand(1), DL);
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32,
+                           PdsWarpTidBase);
+      return;
+    }
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_group_traverse_i32) {
+      SDValue Locator = materializeVentusRTVGPR(Node->getOperand(1), DL);
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_GROUP_TRAVERSE, MVT::i32,
+                           Locator);
+      return;
+    }
+    break;
+  }
+  case ISD::INTRINSIC_W_CHAIN: {
+    unsigned IntrinsicOpcode = Node->getConstantOperandVal(1);
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_traverse_i32) {
+      SDValue Chain = Node->getOperand(0);
+      SDValue PdsWarpTidBase =
+          materializeVentusRTVGPR(Node->getOperand(2), DL);
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, MVT::Other,
+                           PdsWarpTidBase, Chain);
+      return;
+    }
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_group_traverse_i32) {
+      SDValue Chain = Node->getOperand(0);
+      SDValue Locator = materializeVentusRTVGPR(Node->getOperand(2), DL);
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_GROUP_TRAVERSE, MVT::i32,
+                           MVT::Other, Locator, Chain);
+      return;
+    }
+    break;
+  }
+  case ISD::INTRINSIC_VOID: {
+    unsigned IntrinsicOpcode = Node->getConstantOperandVal(1);
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_release_i32) {
+      SDValue Chain = Node->getOperand(0);
+      SDValue PdsWarpTidBase =
+          materializeVentusRTVGPR(Node->getOperand(2), DL);
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_RELEASE, Node->getVTList(),
+                           {PdsWarpTidBase, Chain});
+      return;
+    }
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_enqueue_i32) {
+      SDValue Chain = Node->getOperand(0);
+      SDValue Mailbox = materializeVentusRTVGPR(Node->getOperand(2), DL);
+      CurDAG->SelectNodeTo(Node, RISCV::VT_RT_ENQUEUE, Node->getVTList(),
+                           {Mailbox, Chain});
+      return;
+    }
+    if (IntrinsicOpcode == Intrinsic::riscv_ventus_rt_local_store_i32) {
+      SDValue Chain = Node->getOperand(0);
+      SDValue Value = materializeVentusRTVGPR(Node->getOperand(2), DL);
+      auto *Field = dyn_cast<ConstantSDNode>(Node->getOperand(3));
+      assert(Field && Field->getZExtValue() < 40 &&
+             "RT Local field must be a fixed-header constant");
+      SDValue FieldImm = CurDAG->getTargetConstant(Field->getZExtValue(), DL,
+                                                    XLenVT);
+      CurDAG->SelectNodeTo(Node, RISCV::VSRT_W, Node->getVTList(),
+                           {Value, FieldImm, Chain});
+      return;
+    }
+    break;
+  }
+  case RISCVISD::VENTUS_RT_TRAVERSE: {
+    SDValue Chain = Node->getOperand(0);
+    SDValue PdsWarpTidBase = materializeVentusRTVGPR(Node->getOperand(1), DL);
+    CurDAG->SelectNodeTo(Node, RISCV::VT_RT_TRAVERSE, MVT::i32, MVT::Other,
+                         PdsWarpTidBase, Chain);
+    return;
+  }
+  case RISCVISD::VENTUS_RT_GROUP_TRAVERSE: {
+    SDValue Chain = Node->getOperand(0);
+    SDValue Locator = materializeVentusRTVGPR(Node->getOperand(1), DL);
+    CurDAG->SelectNodeTo(Node, RISCV::VT_RT_GROUP_TRAVERSE, MVT::i32,
+                         MVT::Other, Locator, Chain);
+    return;
+  }
+  case RISCVISD::VENTUS_RT_LOCAL_LOAD: {
+    SDValue Chain = Node->getOperand(0);
+    auto *Field = dyn_cast<ConstantSDNode>(Node->getOperand(1));
+    assert(Field && Field->getZExtValue() < 40 &&
+           "RT Local field must be a fixed-header constant");
+    SDValue FieldImm = CurDAG->getTargetConstant(Field->getZExtValue(), DL,
+                                                  XLenVT);
+    CurDAG->SelectNodeTo(Node, RISCV::VLRT_W, MVT::i32, MVT::Other,
+                         FieldImm, Chain);
+    return;
+  }
+  case RISCVISD::VENTUS_MMA: {
+    unsigned PseudoOpc =
+        cast<ConstantSDNode>(Node->getOperand(0))->getZExtValue();
+    unsigned OpIdx = 1;
+    SDValue Acc = decodeVentusMMAOperand(Node, OpIdx);
+    SDValue A = decodeVentusMMAOperand(Node, OpIdx);
+    SDValue B = decodeVentusMMAOperand(Node, OpIdx);
+    if (Node->getNumValues() == 1) {
+      SDNode *Res = CurDAG->getMachineNode(PseudoOpc, DL, Node->getValueType(0),
+                                           Acc, A, B);
+      ReplaceNode(Node, Res);
+      return;
+    }
+
+    MVT ResultVT = getVentusMMAResultVT(Node->getNumValues());
+    SDValue Tuple =
+        SDValue(CurDAG->getMachineNode(PseudoOpc, DL, ResultVT, Acc, A, B), 0);
+    for (unsigned I = 0, E = Node->getNumValues(); I != E; ++I) {
+      SDValue Lane = CurDAG->getTargetExtractSubreg(
+          getVentusMMASubReg(I), DL, Node->getValueType(I), Tuple);
+      CurDAG->ReplaceAllUsesOfValueWith(SDValue(Node, I), Lane);
+    }
+    CurDAG->RemoveDeadNode(Node);
+    return;
+  }
   case ISD::Constant: {
     auto *ConstNode = cast<ConstantSDNode>(Node);
     if (VT == XLenVT && ConstNode->isZero()) {
@@ -857,6 +1097,18 @@ bool RISCVDAGToDAGISel::SelectPriAddrRegImm(SDValue Addr, SDValue &Base,
 
   SDLoc DL(Addr);
   MVT VT = Addr.getSimpleValueType();
+
+  if (auto *CN = dyn_cast<ConstantSDNode>(Addr)) {
+    int64_t CVal = CN->getSExtValue();
+    if (isInt<11>(CVal)) {
+      Base = CurDAG->getRegister(
+          Subtarget->getRegisterInfo()->getPrivateMemoryBaseRegister(
+              CurDAG->getMachineFunction()),
+          VT);
+      Offset = CurDAG->getTargetConstant(CVal, DL, VT);
+      return true;
+    }
+  }
 
   if (Addr.getOpcode() == RISCVISD::ADD_LO) {
     Base = Addr.getOperand(0);

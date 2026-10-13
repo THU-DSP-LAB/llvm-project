@@ -18,6 +18,7 @@
 #include "RISCVRegisterInfo.h"
 #include "RISCVSubtarget.h"
 #include "RISCVTargetMachine.h"
+#include "VentusRegisterDomain.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -158,11 +159,14 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   //     addRegisterClass(VT, &RISCV::VReg_96RegClass);
   // }
   // Use RVV as fixed length vector on Ventus GPGPU
-  if (Subtarget.hasVInstructions()) {
+  if (Subtarget.isVentusGPGPU()) {
     // TODO: add more data type mapping
     addRegisterClass(MVT::i32, &RISCV::VGPRRegClass);
 
     addRegisterClass(MVT::f32, &RISCV::VGPRRegClass);
+    addRegisterClass(MVT::ventus_mma_2x32, &RISCV::VReg_64RegClass);
+    addRegisterClass(MVT::ventus_mma_4x32, &RISCV::VReg_128RegClass);
+    addRegisterClass(MVT::ventus_mma_8x32, &RISCV::VReg_256RegClass);
   }
 
   // Compute derived properties from the register classes.
@@ -464,6 +468,9 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::INTRINSIC_WO_CHAIN, MVT::Other, Custom);
   if (Subtarget.is64Bit())
     setOperationAction(ISD::INTRINSIC_WO_CHAIN, MVT::i32, Custom);
+  for (MVT VT : {MVT::ventus_mma_2x32, MVT::ventus_mma_4x32,
+                 MVT::ventus_mma_8x32})
+    setOperationAction(ISD::INTRINSIC_WO_CHAIN, VT, Custom);
 
   if (Subtarget.hasStdExtA()) {
     setMaxAtomicSizeInBitsSupported(Subtarget.getXLen());
@@ -1745,9 +1752,10 @@ static SDValue getVLOperand(SDValue Op) {
 static bool useRVVForFixedLengthVectorVT(MVT VT,
                                          const RISCVSubtarget &Subtarget) {
   assert(VT.isFixedLengthVector() && "Expected a fixed length vector type!");
+  if (!VT.isFixedLengthVector())
+    return false;
   if (!Subtarget.useRVVForFixedLengthVectors())
     return false;
-
   // We only support a set of vector types with a consistent maximum fixed size
   // across all supported vector element types to avoid legalization issues.
   // Therefore -- since the largest is v1024i8/v512i16/etc -- the largest
@@ -1856,6 +1864,709 @@ static MVT getContainerForFixedLengthVector(SelectionDAG &DAG, MVT VT,
 
 MVT RISCVTargetLowering::getContainerForFixedLengthVector(MVT VT) const {
   return ::getContainerForFixedLengthVector(*this, VT, getSubtarget());
+}
+
+static bool isVentusMMAIntrinsic(unsigned IntNo) {
+  switch (IntNo) {
+  default:
+    return false;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f32_f16_f16_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f16_f16_f16_f16:
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f32_bf16_bf16_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k8_row_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k8_row_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k8_col_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n8k8_col_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k8_row_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k8_row_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k8_col_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n8k8_col_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k8_row_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k8_row_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k8_col_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m8n16k8_col_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k8_row_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k8_row_col_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k8_col_row_f32_tf32_tf32_f32:
+  case Intrinsic::riscv_ventus_mma_m16n16k8_col_col_f32_tf32_tf32_f32:
+    return true;
+  }
+}
+
+static bool isVentusDirectCustomIntrinsic(unsigned IntNo) {
+  switch (IntNo) {
+  default:
+    return false;
+  case Intrinsic::riscv_ventus_rt_dispatch_id_x:
+  case Intrinsic::riscv_ventus_rt_dispatch_id_y:
+  case Intrinsic::riscv_ventus_rt_dispatch_id_z:
+  case Intrinsic::riscv_ventus_rt_worker_id:
+  case Intrinsic::riscv_ventus_rt_warp_first_tid:
+  case Intrinsic::riscv_ventus_rt_warp_first_tid_scalar:
+  case Intrinsic::riscv_ventus_rt_lane_id:
+  case Intrinsic::riscv_ventus_shuffle_idx_i32:
+  case Intrinsic::riscv_ventus_shuffle_up_i32:
+  case Intrinsic::riscv_ventus_shuffle_down_i32:
+  case Intrinsic::riscv_ventus_shuffle_bfly_i32:
+  case Intrinsic::riscv_ventus_vcvt_fp32_fp16:
+  case Intrinsic::riscv_ventus_vcvt_fp16_fp32:
+  case Intrinsic::riscv_ventus_vcvt_fp32_bf16:
+  case Intrinsic::riscv_ventus_vcvt_bf16_fp32:
+  case Intrinsic::riscv_ventus_vadd_f16x2:
+  case Intrinsic::riscv_ventus_vmul_f16x2:
+  case Intrinsic::riscv_ventus_vfma_f16x2:
+  case Intrinsic::riscv_ventus_vadd_bf16x2:
+  case Intrinsic::riscv_ventus_vmul_bf16x2:
+  case Intrinsic::riscv_ventus_vfma_bf16x2:
+  case Intrinsic::riscv_ventus_vex2_approx_f32:
+  case Intrinsic::riscv_ventus_vlg2_approx_f32:
+  case Intrinsic::riscv_ventus_vrcp_approx_f32:
+  case Intrinsic::riscv_ventus_vsqrt_approx_f32:
+  case Intrinsic::riscv_ventus_vrsqrt_approx_f32:
+  case Intrinsic::riscv_ventus_vsin_approx_f32:
+  case Intrinsic::riscv_ventus_vcos_approx_f32:
+  case Intrinsic::riscv_ventus_vtanh_approx_f32:
+  case Intrinsic::riscv_ventus_vgelu_approx_f32:
+  case Intrinsic::riscv_ventus_vsilu_approx_f32:
+  case Intrinsic::riscv_ventus_vex2_approx_f16x2:
+  case Intrinsic::riscv_ventus_vrcp_approx_f16x2:
+  case Intrinsic::riscv_ventus_vsqrt_approx_f16x2:
+  case Intrinsic::riscv_ventus_vrsqrt_approx_f16x2:
+  case Intrinsic::riscv_ventus_vtanh_approx_f16x2:
+  case Intrinsic::riscv_ventus_vgelu_approx_f16x2:
+  case Intrinsic::riscv_ventus_vsilu_approx_f16x2:
+  case Intrinsic::riscv_ventus_vex2_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vrcp_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vsqrt_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vrsqrt_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vtanh_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vgelu_approx_bf16x2:
+  case Intrinsic::riscv_ventus_vsilu_approx_bf16x2:
+    return true;
+  }
+}
+
+static unsigned getVentusMMAPseudoOpcode(unsigned IntNo) {
+  switch (IntNo) {
+  default:
+    llvm_unreachable("unexpected Ventus MMA intrinsic id");
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N8K16_ROW_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N8K16_ROW_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N8K16_ROW_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N8K16_ROW_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N8K16_ROW_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N8K16_ROW_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N8K16_COL_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N8K16_COL_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N8K16_COL_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N8K16_COL_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N8K16_COL_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N8K16_COL_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N8K16_ROW_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N8K16_ROW_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N8K16_ROW_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N8K16_ROW_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N8K16_ROW_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N8K16_ROW_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N8K16_COL_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N8K16_COL_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N8K16_COL_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N8K16_COL_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N8K16_COL_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N8K16_COL_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N16K16_ROW_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N16K16_ROW_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N16K16_ROW_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N16K16_ROW_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N16K16_ROW_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N16K16_ROW_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N16K16_COL_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N16K16_COL_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N16K16_COL_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M8N16K16_COL_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M8N16K16_COL_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M8N16K16_COL_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N16K16_ROW_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N16K16_ROW_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N16K16_ROW_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N16K16_ROW_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N16K16_ROW_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N16K16_ROW_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N16K16_COL_ROW_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N16K16_COL_ROW_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N16K16_COL_ROW_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f32_f16_f16_f32:
+    return RISCV::PseudoMMA_M16N16K16_COL_COL_F32_F16_F16_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f16_f16_f16_f16:
+    return RISCV::PseudoMMA_M16N16K16_COL_COL_F16_F16_F16_F16;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f32_bf16_bf16_f32:
+    return RISCV::PseudoMMA_M16N16K16_COL_COL_F32_BF16_BF16_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_row_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N8K8_ROW_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_row_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N8K8_ROW_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_col_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N8K8_COL_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_col_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N8K8_COL_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_row_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N8K8_ROW_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_row_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N8K8_ROW_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_col_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N8K8_COL_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_col_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N8K8_COL_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_row_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N16K8_ROW_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_row_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N16K8_ROW_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_col_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N16K8_COL_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_col_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M8N16K8_COL_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_row_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N16K8_ROW_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_row_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N16K8_ROW_COL_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_col_row_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N16K8_COL_ROW_F32_TF32_TF32_F32;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_col_col_f32_tf32_tf32_f32:
+    return RISCV::PseudoMMA_M16N16K8_COL_COL_F32_TF32_TF32_F32;
+  }
+}
+
+static unsigned getVentusMMARegClassID(MVT VT) {
+  switch (VT.SimpleTy) {
+  default:
+    llvm_unreachable("unexpected Ventus MMA type");
+  case MVT::ventus_mma_2x32:
+    return RISCV::VReg_64RegClassID;
+  case MVT::ventus_mma_4x32:
+    return RISCV::VReg_128RegClassID;
+  case MVT::ventus_mma_8x32:
+    return RISCV::VReg_256RegClassID;
+  }
+}
+
+static unsigned getVentusMMASubReg(unsigned Index) {
+  switch (Index) {
+  default:
+    llvm_unreachable("unexpected Ventus tuple subregister index");
+  case 0:
+    return RISCV::sub0;
+  case 1:
+    return RISCV::sub1;
+  case 2:
+    return RISCV::sub2;
+  case 3:
+    return RISCV::sub3;
+  case 4:
+    return RISCV::sub4;
+  case 5:
+    return RISCV::sub5;
+  case 6:
+    return RISCV::sub6;
+  case 7:
+    return RISCV::sub7;
+  }
+}
+
+static SDValue lowerVentusMMAIntrinsic(SDValue Op, SelectionDAG &DAG);
+
+static void getVentusMMALaneCounts(unsigned IntNo, unsigned &ALanes,
+                                    unsigned &BLanes, unsigned &DLanes) {
+  switch (IntNo) {
+  default:
+    llvm_unreachable("unexpected Ventus MMA intrinsic");
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 1;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_row_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 1;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_row_col_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 1;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_row_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 1;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k16_col_col_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_row_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_row_col_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_row_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k16_col_col_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_row_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_row_col_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_row_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f32_f16_f16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f16_f16_f16_f16:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k16_col_col_f32_bf16_bf16_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_row_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_row_col_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_row_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f32_f16_f16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f16_f16_f16_f16:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k16_col_col_f32_bf16_bf16_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_row_row_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_row_col_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_col_row_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n8k8_col_col_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 2;
+    DLanes = 2;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_row_row_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_row_col_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_col_row_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n8k8_col_col_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 2;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_row_row_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_row_col_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_col_row_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m8n16k8_col_col_f32_tf32_tf32_f32:
+    ALanes = 2;
+    BLanes = 4;
+    DLanes = 4;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_row_row_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_row_col_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_col_row_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  case Intrinsic::riscv_ventus_mma_m16n16k8_col_col_f32_tf32_tf32_f32:
+    ALanes = 4;
+    BLanes = 4;
+    DLanes = 8;
+    return;
+  }
+}
+static MVT getVentusMMATypeForLaneCount(unsigned NumLanes) {
+  switch (NumLanes) {
+  default:
+    llvm_unreachable("unexpected Ventus MMA lane count");
+  case 1:
+  case 2:
+    return MVT::ventus_mma_2x32;
+  case 4:
+    return MVT::ventus_mma_4x32;
+  case 8:
+    return MVT::ventus_mma_8x32;
+  }
+}
+
+static SDValue buildVentusMMATupleOperand(ArrayRef<SDValue> Lanes,
+                                          SelectionDAG &DAG, const SDLoc &DL) {
+  MVT TupleVT = getVentusMMATypeForLaneCount(Lanes.size());
+  SmallVector<SDValue, 17> Ops;
+  Ops.push_back(DAG.getTargetConstant(getVentusMMARegClassID(TupleVT), DL,
+                                      MVT::i32));
+  for (unsigned I = 0, E = Lanes.size(); I != E; ++I) {
+    SDValue RC = DAG.getTargetConstant(RISCV::VGPRRegClassID, DL, MVT::i32);
+    SDValue Lane = SDValue(DAG.getMachineNode(TargetOpcode::COPY_TO_REGCLASS,
+                                             DL, MVT::i32, Lanes[I], RC),
+                           0);
+    Ops.push_back(Lane);
+    Ops.push_back(DAG.getTargetConstant(getVentusMMASubReg(I), DL, MVT::i32));
+  }
+  return SDValue(
+      DAG.getMachineNode(TargetOpcode::REG_SEQUENCE, DL, TupleVT, Ops), 0);
+}
+
+static SDValue collectVentusMMALanes(SDValue Op, unsigned &OpIdx,
+                                     unsigned NumLanes, SelectionDAG &DAG,
+                                     const SDLoc &DL) {
+  SmallVector<SDValue, 8> Lanes;
+  for (unsigned I = 0; I != NumLanes; ++I)
+    Lanes.push_back(Op.getOperand(OpIdx++));
+  if (NumLanes == 1)
+    return Lanes[0];
+  return buildVentusMMATupleOperand(Lanes, DAG, DL);
+}
+
+static SDValue lowerVentusMMAIntrinsic(SDValue Op, SelectionDAG &DAG) {
+  unsigned IntNo = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
+  assert(isVentusMMAIntrinsic(IntNo) && "expected Ventus MMA intrinsic");
+
+  SDLoc DL(Op);
+  unsigned PseudoOpc = getVentusMMAPseudoOpcode(IntNo);
+  MVT XLenVT = DAG.getTargetLoweringInfo().getPointerTy(DAG.getDataLayout());
+  unsigned ALanes = 0;
+  unsigned BLanes = 0;
+  unsigned ResultLanes = 0;
+  getVentusMMALaneCounts(IntNo, ALanes, BLanes, ResultLanes);
+  assert(ResultLanes == Op.getNode()->getNumValues() &&
+         "MMA intrinsic result width mismatch");
+
+  unsigned OpIdx = 1;
+  SDValue A = collectVentusMMALanes(Op, OpIdx, ALanes, DAG, DL);
+  SDValue B = collectVentusMMALanes(Op, OpIdx, BLanes, DAG, DL);
+  SDValue Acc = collectVentusMMALanes(Op, OpIdx, ResultLanes, DAG, DL);
+
+  auto GetOperandVT = [](SDValue V) { return V.getSimpleValueType(); };
+  SmallVector<SDValue, 8> Ops;
+  Ops.push_back(DAG.getTargetConstant(PseudoOpc, DL, XLenVT));
+  Ops.push_back(DAG.getTargetConstant(GetOperandVT(Acc).SimpleTy, DL, MVT::i32));
+  Ops.push_back(Acc);
+  Ops.push_back(DAG.getTargetConstant(GetOperandVT(A).SimpleTy, DL, MVT::i32));
+  Ops.push_back(A);
+  Ops.push_back(DAG.getTargetConstant(GetOperandVT(B).SimpleTy, DL, MVT::i32));
+  Ops.push_back(B);
+
+  if (ResultLanes == 1)
+    return DAG.getNode(RISCVISD::VENTUS_MMA, DL, MVT::i32, Ops);
+  SmallVector<EVT, 8> ResultVTs(ResultLanes, MVT::i32);
+  return DAG.getNode(RISCVISD::VENTUS_MMA, DL, DAG.getVTList(ResultVTs), Ops);
 }
 
 // Grow V to consume an entire RVV register.
@@ -3613,6 +4324,12 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
       SDValue FPConv = DAG.getNode(RISCVISD::FMV_H_X, DL, MVT::f16, NewOp0);
       return FPConv;
     }
+    if (VT == MVT::f32 && Op0VT == MVT::i32 && !Subtarget.is64Bit() &&
+        (Subtarget.hasStdExtF() || Subtarget.hasStdExtZfinx()))
+      return DAG.getNode(RISCVISD::FMV_W_X, DL, MVT::f32, Op0);
+    if (VT == MVT::i32 && Op0VT == MVT::f32 && !Subtarget.is64Bit() &&
+        (Subtarget.hasStdExtF() || Subtarget.hasStdExtZfinx()))
+      return DAG.getNode(RISCVISD::FMV_X_ANYEXTW, DL, MVT::i32, Op0);
     // // f16 = bitcast i16
     // // f32 = fmv i32
     // if (VT == MVT::f16 && Op0VT == MVT::i16 && Subtarget.hasStdExtZfinx()) {
@@ -4308,22 +5025,25 @@ SDValue RISCVTargetLowering::lowerGlobalAddress(SDValue Op,
 /// TODO: Remove the address allocating in '.sbss' section
 SDValue RISCVTargetLowering::lowerGlobalLocalAddress(GlobalAddressSDNode *Op,
                                                      SelectionDAG &DAG) const {
-  MachineFunction &MF = DAG.getMachineFunction();
-  static SmallVector<std::pair<const GlobalVariable *, int>> LoweredVariables;
-
-  MachineFrameInfo &MFI = MF.getFrameInfo();
-  const DataLayout &DL = DAG.getDataLayout();
+  const SDLoc SL(Op);
+  MVT XLenVT = Subtarget.getXLenVT();
   auto *GV = cast<GlobalVariable>(Op->getGlobal());
-  for(auto &VA : LoweredVariables) {
-    if(VA.first == GV)
-      return DAG.getFrameIndex(VA.second, MVT::i32);
-  }
-  unsigned AlignValue = DL.getABITypeAlignment(GV->getValueType());
-  int FI = MFI.CreateStackObject(DL.getTypeAllocSize(GV->getValueType())
-      /*Offset need to be modified too*/,
-      Align(AlignValue), false, nullptr, RISCVStackID::LocalMemSpill);
-  LoweredVariables.push_back(std::make_pair(GV, FI));
-  return DAG.getFrameIndex(FI, MVT::i32);
+  if (!GV->getValueType()->isSized())
+    report_fatal_error("Ventus cannot lower unsized addrspace(3) globals");
+
+  SDValue SysRegNo = DAG.getTargetConstant(
+      RISCVSysReg::lookupSysRegByName("CSR_LDS")->Encoding, SL, XLenVT);
+  SDVTList VTs = DAG.getVTList(XLenVT, MVT::Other);
+  SDValue Base = DAG.getNode(RISCVISD::READ_CSR, SL, VTs, DAG.getEntryNode(),
+                             SysRegNo);
+  SDValue AddrHi = DAG.getTargetGlobalAddress(
+      GV, SL, XLenVT, 0, RISCVII::MO_VENTUS_LDS_HI);
+  SDValue AddrLo = DAG.getTargetGlobalAddress(
+      GV, SL, XLenVT, 0, RISCVII::MO_VENTUS_LDS_LO);
+  SDValue OffsetHi = DAG.getNode(RISCVISD::HI, SL, XLenVT, AddrHi);
+  SDValue BaseWithHi = DAG.getNode(ISD::ADD, SL, XLenVT, Base.getValue(0),
+                                   OffsetHi);
+  return DAG.getNode(RISCVISD::ADD_LO, SL, XLenVT, BaseWithHi, AddrLo);
 }
 
 SDValue RISCVTargetLowering::lowerBlockAddress(SDValue Op,
@@ -5478,6 +6198,10 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
 
   switch (IntNo) {
   default:
+    if (isVentusDirectCustomIntrinsic(IntNo))
+      return Op;
+    if (isVentusMMAIntrinsic(IntNo))
+      return lowerVentusMMAIntrinsic(Op, DAG);
     break; // Don't custom lower most intrinsics.
   case Intrinsic::thread_pointer: {
     EVT PtrVT = getPointerTy(DAG.getDataLayout());
@@ -5506,6 +6230,14 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
   case Intrinsic::riscv_vfmv_v_f:
     return DAG.getNode(RISCVISD::VFMV_V_F_VL, DL, Op.getValueType(),
                        Op.getOperand(1), Op.getOperand(2), Op.getOperand(3));
+  case Intrinsic::riscv_ventus_kernel_metadata: {
+    SDValue SysRegNo = DAG.getTargetConstant(
+        RISCVSysReg::lookupSysRegByName("CSR_KNL")->Encoding, DL, XLenVT);
+    SDVTList VTs = DAG.getVTList(XLenVT, MVT::Other);
+    return DAG.getNode(RISCVISD::READ_CSR, DL, VTs, DAG.getEntryNode(),
+                       SysRegNo)
+        .getValue(0);
+  }
   case Intrinsic::riscv_vmv_s_x: {
     SDValue Scalar = Op.getOperand(2);
 
@@ -5564,6 +6296,30 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
   switch (IntNo) {
   default:
     break;
+  case Intrinsic::riscv_ventus_rt_traverse_i32: {
+    SDLoc DL(Op);
+    SDValue Chain = Op.getOperand(0);
+    SDValue PdsWarpTidBase = Op.getOperand(2);
+    SmallVector<EVT, 2> VTs = {MVT::i32, MVT::Other};
+    return DAG.getNode(RISCVISD::VENTUS_RT_TRAVERSE, DL, VTs,
+                       {Chain, PdsWarpTidBase});
+  }
+  case Intrinsic::riscv_ventus_rt_group_traverse_i32: {
+    SDLoc DL(Op);
+    SDValue Chain = Op.getOperand(0);
+    SDValue Locator = Op.getOperand(2);
+    SmallVector<EVT, 2> VTs = {MVT::i32, MVT::Other};
+    return DAG.getNode(RISCVISD::VENTUS_RT_GROUP_TRAVERSE, DL, VTs,
+                       {Chain, Locator});
+  }
+  case Intrinsic::riscv_ventus_rt_local_load_i32: {
+    SDLoc DL(Op);
+    SDValue Chain = Op.getOperand(0);
+    SDValue Field = Op.getOperand(2);
+    SmallVector<EVT, 2> VTs = {MVT::i32, MVT::Other};
+    return DAG.getNode(RISCVISD::VENTUS_RT_LOCAL_LOAD, DL, VTs,
+                       {Chain, Field});
+  }
   case Intrinsic::riscv_masked_strided_load: {
     SDLoc DL(Op);
     MVT XLenVT = Subtarget.getXLenVT();
@@ -7570,6 +8326,31 @@ SDValue RISCVTargetLowering::lowerKernargMemParameter(
   return DAG.getMergeValues({ Val, Load.getValue(1) }, SL);
 }
 
+static bool isKernelLocalPointerArg(MachineFunction &MF,
+                                    const ISD::InputArg &Arg) {
+  if (!Arg.isOrigArg())
+    return false;
+
+  Argument *OrigArg = MF.getFunction().getArg(Arg.getOrigArgIndex());
+  Type *OrigArgTy = OrigArg != nullptr ? OrigArg->getType() : nullptr;
+  return OrigArgTy != nullptr && OrigArgTy->isPointerTy() &&
+         OrigArgTy->getPointerAddressSpace() == RISCVAS::LOCAL_ADDRESS;
+}
+
+static SDValue getVentusCsrValue(SelectionDAG &DAG, const SDLoc &DL,
+                                 SDValue Chain, StringRef CsrName) {
+  MVT XLenVT = DAG.getSubtarget<RISCVSubtarget>().getXLenVT();
+  SDValue SysRegNo = DAG.getTargetConstant(
+      RISCVSysReg::lookupSysRegByName(CsrName)->Encoding, DL, XLenVT);
+  SDVTList VTs = DAG.getVTList(XLenVT, MVT::Other);
+  return DAG.getNode(RISCVISD::READ_CSR, DL, VTs, Chain, SysRegNo).getValue(0);
+}
+
+static SDValue getKernelLocalBase(SelectionDAG &DAG, const SDLoc &DL,
+                                  SDValue Chain) {
+  return getVentusCsrValue(DAG, DL, Chain, "CSR_LDS");
+}
+
 // Returns the opcode of the target-specific SDNode that implements the 32-bit
 // form of the given Opcode.
 static RISCVISD::NodeType getRISCVWOpcode(unsigned Opcode) {
@@ -7937,6 +8718,9 @@ void RISCVTargetLowering::ReplaceNodeResults(SDNode *N,
     if (VT == MVT::i16 && Op0VT == MVT::f16 && Subtarget.hasStdExtZfh()) {
       SDValue FPConv = DAG.getNode(RISCVISD::FMV_X_ANYEXTH, DL, XLenVT, Op0);
       Results.push_back(DAG.getNode(ISD::TRUNCATE, DL, MVT::i16, FPConv));
+    } else if (VT == MVT::i32 && Op0VT == MVT::f32 && !Subtarget.is64Bit() &&
+               (Subtarget.hasStdExtF() || Subtarget.hasStdExtZfinx())) {
+      Results.push_back(DAG.getNode(RISCVISD::FMV_X_ANYEXTW, DL, MVT::i32, Op0));
     } else if (VT == MVT::i32 && Op0VT == MVT::f32 && Subtarget.is64Bit() &&
                Subtarget.hasStdExtF()) {
       SDValue FPConv =
@@ -8030,6 +8814,10 @@ void RISCVTargetLowering::ReplaceNodeResults(SDNode *N,
   }
   case ISD::INTRINSIC_WO_CHAIN: {
     unsigned IntNo = cast<ConstantSDNode>(N->getOperand(0))->getZExtValue();
+    if (isVentusMMAIntrinsic(IntNo)) {
+      Results.push_back(lowerVentusMMAIntrinsic(SDValue(N, 0), DAG));
+      return;
+    }
     switch (IntNo) {
     default:
       llvm_unreachable(
@@ -8114,6 +8902,9 @@ void RISCVTargetLowering::ReplaceNodeResults(SDNode *N,
 
 // Try to fold (<bop> x, (reduction.<bop> vec, start))
 static SDValue combineBinOpToReduce(SDNode *N, SelectionDAG &DAG) {
+  if (N->getNumOperands() < 2)
+    return SDValue();
+
   auto BinOpToRVVReduce = [](unsigned Opc) {
     switch (Opc) {
     default:
@@ -8144,6 +8935,10 @@ static SDValue combineBinOpToReduce(SDNode *N, SelectionDAG &DAG) {
   };
 
   auto IsReduction = [&BinOpToRVVReduce](SDValue V, unsigned Opc) {
+    if (V.getOpcode() != ISD::EXTRACT_VECTOR_ELT || V->getNumOperands() < 2)
+      return false;
+    if (V.getOperand(0)->getNumOperands() < 5)
+      return false;
     return V.getOpcode() == ISD::EXTRACT_VECTOR_ELT &&
            isNullConstant(V.getOperand(1)) &&
            V.getOperand(0).getOpcode() == BinOpToRVVReduce(Opc);
@@ -8173,6 +8968,9 @@ static SDValue combineBinOpToReduce(SDNode *N, SelectionDAG &DAG) {
   if (ScalarV.getOpcode() != RISCVISD::VFMV_S_F_VL &&
       ScalarV.getOpcode() != RISCVISD::VMV_S_X_VL &&
       ScalarV.getOpcode() != RISCVISD::VMV_V_X_VL)
+    return SDValue();
+
+  if (ScalarV->getNumOperands() < 3)
     return SDValue();
 
   if (!isOneConstant(ScalarV.getOperand(2)))
@@ -9301,6 +10099,9 @@ static SDValue performFP_TO_INTCombine(SDNode *N,
   if (FRM == RISCVFPRndMode::Invalid)
     return SDValue();
 
+  if (Subtarget.isVentusGPGPU() && Src->isDivergent())
+    return SDValue();
+
   bool IsSigned = N->getOpcode() == ISD::FP_TO_SINT;
 
   unsigned Opc;
@@ -9348,6 +10149,9 @@ static SDValue performFP_TO_INT_SATCombine(SDNode *N,
 
   RISCVFPRndMode::RoundingMode FRM = matchRoundingOp(Src.getOpcode());
   if (FRM == RISCVFPRndMode::Invalid)
+    return SDValue();
+
+  if (Subtarget.isVentusGPGPU() && Src->isDivergent())
     return SDValue();
 
   bool IsSigned = N->getOpcode() == ISD::FP_TO_SINT_SAT;
@@ -10274,6 +11078,9 @@ bool RISCVTargetLowering::isDesirableToCommuteWithShift(
   assert((N->getOpcode() == ISD::SHL || N->getOpcode() == ISD::SRA ||
           N->getOpcode() == ISD::SRL) &&
          "Expected shift op");
+  if (N->getOpcode() != ISD::SHL && N->getOpcode() != ISD::SRA &&
+      N->getOpcode() != ISD::SRL)
+    return TargetLowering::isDesirableToCommuteWithShift(N, Level);
 
   // The following folds are only desirable if `(OP _, c1 << c2)` can be
   // materialised in fewer instructions than `(OP _, c1)`:
@@ -10284,6 +11091,9 @@ bool RISCVTargetLowering::isDesirableToCommuteWithShift(
   EVT Ty = N0.getValueType();
   if (Ty.isScalarInteger() &&
       (N0.getOpcode() == ISD::ADD || N0.getOpcode() == ISD::OR)) {
+    if (N0->getNumOperands() < 2 || N->getNumOperands() < 2)
+      return TargetLowering::isDesirableToCommuteWithShift(N, Level);
+
     auto *C1 = dyn_cast<ConstantSDNode>(N0->getOperand(1));
     auto *C2 = dyn_cast<ConstantSDNode>(N->getOperand(1));
     if (C1 && C2) {
@@ -11838,6 +12648,12 @@ static SDValue convertValVTToLocVT(SelectionDAG &DAG, SDValue Val,
   return Val;
 }
 
+static int64_t getSignedLocMemOffset(const CCValAssign &VA) {
+  // CCValAssign stores memory offsets as unsigned. CC_Ventus encodes
+  // downward-growing stack argument slots as wrapped 32-bit negative offsets.
+  return SignExtend64<32>(VA.getLocMemOffset());
+}
+
 // The caller is responsible for loading the full value if the argument is
 // passed with CCValAssign::Indirect.
 static SDValue unpackFromMemLoc(SelectionDAG &DAG, SDValue Chain,
@@ -11856,8 +12672,9 @@ static SDValue unpackFromMemLoc(SelectionDAG &DAG, SDValue Chain,
 
   // Just align to 4 bytes, because parameters more than 4 bytes will be split
   // into 4-byte parameters
-  int FI = MFI.CreateFixedObject(ValVT.getStoreSize(), 0,
-                                 /*IsImmutable=*/true);
+  int FI =
+      MFI.CreateFixedObject(ValVT.getStoreSize(), getSignedLocMemOffset(VA),
+                            /*IsImmutable=*/true);
   MFI.setObjectAlignment(FI, Align(4));
   // This is essential for calculating stack size for VGPRSpill
   MFI.setStackID(FI, RISCVStackID::VGPRSpill);
@@ -11893,7 +12710,8 @@ static SDValue unpackF64OnRV32DSoftABI(SelectionDAG &DAG, SDValue Chain,
   if (VA.isMemLoc()) {
     // f64 is passed on the stack.
     int FI =
-        MFI.CreateFixedObject(8, VA.getLocMemOffset(), /*IsImmutable=*/true);
+        MFI.CreateFixedObject(8, getSignedLocMemOffset(VA),
+                              /*IsImmutable=*/true);
     SDValue FIN = DAG.getFrameIndex(FI, MVT::i32);
     return DAG.getLoad(MVT::f64, DL, Chain, FIN,
                        MachinePointerInfo::getFixedStack(MF, FI));
@@ -11944,6 +12762,7 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
   else
     analyzeInputArgs(MF, CCInfo, Ins, /*IsRet=*/false, CC_Ventus);
 
+  std::optional<SDValue> KernelLocalBase;
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
     SDValue ArgValue;
@@ -11961,7 +12780,15 @@ SDValue RISCVTargetLowering::LowerFormalArguments(
         DAG, VT, MemVT, DL, Chain, Offset, Alignment,
         Ins[i].Flags.isSExt(), &Ins[i]);
       OutChains.push_back(Arg.getValue(1));
-      InVals.push_back(Arg);
+      ArgValue = Arg.getValue(0);
+      if (isKernelLocalPointerArg(MF, Ins[i])) {
+        if (!KernelLocalBase.has_value())
+          KernelLocalBase = getKernelLocalBase(DAG, DL, Chain);
+        SDValue LocalOffset = DAG.getZExtOrTrunc(ArgValue, DL, PtrVT);
+        ArgValue = DAG.getNode(ISD::ADD, DL, PtrVT, *KernelLocalBase,
+                               LocalOffset);
+      }
+      InVals.push_back(ArgValue);
     } else {
       // Non-kernel function
       // Passing f64 on RV32D with a soft float ABI must be handled as a special
@@ -12667,6 +13494,8 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(FMV_H_X)
   NODE_NAME_CASE(FMV_X_ANYEXTH)
   NODE_NAME_CASE(FMV_X_SIGNEXTH)
+  NODE_NAME_CASE(FMV_W_X)
+  NODE_NAME_CASE(FMV_X_ANYEXTW)
   NODE_NAME_CASE(FMV_W_X_RV64)
   NODE_NAME_CASE(FMV_X_ANYEXTW_RV64)
   NODE_NAME_CASE(FCVT_X)
@@ -12681,6 +13510,7 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(ORC_B)
   NODE_NAME_CASE(ZIP)
   NODE_NAME_CASE(UNZIP)
+  NODE_NAME_CASE(VENTUS_MMA)
   NODE_NAME_CASE(VMV_V_X_VL)
   NODE_NAME_CASE(VFMV_V_F_VL)
   NODE_NAME_CASE(VMV_X_S)
@@ -12782,6 +13612,9 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(READ_CSR)
   NODE_NAME_CASE(WRITE_CSR)
   NODE_NAME_CASE(SWAP_CSR)
+  NODE_NAME_CASE(VENTUS_RT_TRAVERSE)
+  NODE_NAME_CASE(VENTUS_RT_GROUP_TRAVERSE)
+  NODE_NAME_CASE(VENTUS_RT_LOCAL_LOAD)
   }
   // clang-format on
   return nullptr;
@@ -13519,6 +14352,18 @@ bool RISCVTargetLowering::isIntDivCheap(EVT VT, AttributeList Attr) const {
   return OptSize && !VT.isVector();
 }
 
+static std::optional<bool>
+getIRValueDivergence(Register Reg, FunctionLoweringInfo *FLI,
+                     LegacyDivergenceAnalysis *KDA) {
+  if (!Reg.isVirtual() || !FLI || !KDA)
+    return std::nullopt;
+
+  if (const Value *V = FLI->getValueFromVirtualReg(Reg))
+    return KDA->isDivergent(V);
+
+  return std::nullopt;
+}
+
 bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
     const SDNode *N, FunctionLoweringInfo *FLI,
     LegacyDivergenceAnalysis *KDA) const {
@@ -13529,12 +14374,19 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
     const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
     Register Reg = R->getReg();
 
-    // FIXME: Why does this need to consider isLiveIn?
-    if (Reg.isPhysical() || MRI.isLiveIn(Reg))
+    if (std::optional<bool> IRDivergence =
+            getIRValueDivergence(Reg, FLI, KDA)) {
+      if (*IRDivergence)
+        return true;
+      if (MCRegister LiveInPhysReg = MRI.getLiveInPhysReg(Reg))
+        return TRI->isVGPRReg(MRI, LiveInPhysReg);
+      return false;
+    }
+
+    if (Reg.isPhysical())
       return TRI->isVGPRReg(MRI, Reg);
-    // FIXME: Why need to comment below two lines, not the same as AMDGPU
-    // if (const Value *V = FLI->getValueFromVirtualReg(R->getReg()))
-    //   return KDA->isDivergent(V);
+    if (MCRegister LiveInPhysReg = MRI.getLiveInPhysReg(Reg))
+      return TRI->isVGPRReg(MRI, LiveInPhysReg);
 
     return TRI->isVGPRReg(MRI, Reg);
   }
@@ -13553,10 +14405,18 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
     if(auto *BaseBase = dyn_cast<FrameIndexSDNode>(Store->getOperand(1)))
       if(MFI.getStackID(BaseBase->getIndex()) == RISCVStackID::SGPRSpill)
         return false;
+    if (Subtarget.isVentusGPGPU() &&
+        Store->getAddressSpace() != RISCVAS::PRIVATE_ADDRESS &&
+        Store->getAddressSpace() != RISCVAS::FLAT_ADDRESS)
+      return true;
     return Store->getAddressSpace() == RISCVAS::PRIVATE_ADDRESS ||
            Store->getPointerInfo().StackID == RISCVStackID::VGPRSpill;
   }
   case ISD::CALLSEQ_END:
+    return true;
+  case RISCVISD::VENTUS_RT_TRAVERSE:
+  case RISCVISD::VENTUS_RT_GROUP_TRAVERSE:
+  case RISCVISD::VENTUS_RT_LOCAL_LOAD:
     return true;
   case ISD::INTRINSIC_WO_CHAIN:
     return RISCVII::isIntrinsicSourceOfDivergence(
@@ -13579,6 +14439,15 @@ bool RISCVTargetLowering::isSDNodeSourceOfDivergence(
 const TargetRegisterClass *
 RISCVTargetLowering::getRegClassFor(MVT VT, bool isDivergent) const {
   const TargetRegisterClass *RC = TargetLoweringBase::getRegClassFor(VT, false);
+  if (const TargetRegisterClass *DomainRC = getRegClassForDomain(
+          VT, isDivergent ? VentusRegDomain::Divergent
+                          : VentusRegDomain::Uniform,
+          Subtarget))
+    return DomainRC;
+
+  if (!Subtarget.isVentusGPGPU())
+    return RC;
+
   const RISCVRegisterInfo *TRI = Subtarget.getRegisterInfo();
   if (!TRI->isSGPRClass(RC) && !isDivergent)
     // FIXME: use VGPR for f32 type, cause vmv.vx has problem for f32

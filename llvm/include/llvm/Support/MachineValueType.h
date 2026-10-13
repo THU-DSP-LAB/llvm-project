@@ -292,8 +292,12 @@ namespace llvm {
       x86amx         = 194,    // This is an X86 AMX value
       i64x8          = 195,    // 8 Consecutive GPRs (AArch64)
 
+      ventus_mma_2x32 = 196,  // Ventus MMA 2-register tuple (64-bit)
+      ventus_mma_4x32 = 197,  // Ventus MMA 4-register tuple (128-bit)
+      ventus_mma_8x32 = 198,  // Ventus MMA 8-register tuple (256-bit)
+
       FIRST_VALUETYPE =  1,    // This is always the beginning of the list.
-      LAST_VALUETYPE = i64x8,  // This always remains at the end of the list.
+      LAST_VALUETYPE = ventus_mma_8x32,  // This always remains at the end of the list.
       VALUETYPE_SIZE = LAST_VALUETYPE + 1,
 
       // This is the current maximum for LAST_VALUETYPE.
@@ -364,6 +368,13 @@ namespace llvm {
                SimpleTy <= MVT::LAST_FP_FIXEDLEN_VECTOR_VALUETYPE) ||
               (SimpleTy >= MVT::FIRST_FP_SCALABLE_VECTOR_VALUETYPE &&
                SimpleTy <= MVT::LAST_FP_SCALABLE_VECTOR_VALUETYPE));
+    }
+
+    /// Return true if this is a Ventus MMA opaque aggregate type.
+    bool isVentusMMA() const {
+      return SimpleTy == MVT::ventus_mma_2x32 ||
+             SimpleTy == MVT::ventus_mma_4x32 ||
+             SimpleTy == MVT::ventus_mma_8x32;
     }
 
     /// Return true if this is an integer or a vector integer type.
@@ -991,7 +1002,8 @@ namespace llvm {
       case v4f16:
       case v4bf16:
       case v2f32:
-      case v1f64: return TypeSize::Fixed(64);
+      case v1f64:
+      case ventus_mma_2x32: return TypeSize::Fixed(64);
       case nxv64i1:
       case nxv8i8:
       case nxv4i16:
@@ -1016,7 +1028,8 @@ namespace llvm {
       case v8f16:
       case v8bf16:
       case v4f32:
-      case v2f64: return TypeSize::Fixed(128);
+      case v2f64:
+      case ventus_mma_4x32: return TypeSize::Fixed(128);
       case nxv16i8:
       case nxv8i16:
       case nxv4i32:
@@ -1043,7 +1056,8 @@ namespace llvm {
       case v16f16:
       case v16bf16:
       case v8f32:
-      case v4f64: return TypeSize::Fixed(256);
+      case v4f64:
+      case ventus_mma_8x32: return TypeSize::Fixed(256);
       case nxv32i8:
       case nxv16i16:
       case nxv8i32:

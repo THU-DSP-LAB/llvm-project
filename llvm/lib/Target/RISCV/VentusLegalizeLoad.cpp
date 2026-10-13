@@ -112,10 +112,14 @@ private:
 };
 
 bool VentusLegalizeLoad::runOnMachineFunction(MachineFunction &MF) {
+  const RISCVSubtarget &ST = MF.getSubtarget<RISCVSubtarget>();
+  if (!ST.isVentusGPGPU())
+    return false;
+
   bool IsChanged = false;
-  TII = static_cast<const RISCVInstrInfo *>(MF.getSubtarget().getInstrInfo());
-  MRI = MF.getSubtarget<RISCVSubtarget>().getRegisterInfo();
-  RTI = MF.getSubtarget<RISCVSubtarget>().getTargetLowering();
+  TII = ST.getInstrInfo();
+  MRI = ST.getRegisterInfo();
+  RTI = ST.getTargetLowering();
   MR = &MF.getRegInfo();
   for (auto &MBB : MF)
     IsChanged |= runOnMachineBasicBlock(MBB);

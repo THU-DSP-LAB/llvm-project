@@ -5,13 +5,20 @@
 define dso_local ventus_kernel void @bitcast(float noundef %a, ptr addrspace(5) align 4 %b,  ptr addrspace(3) align 4 %c)  {
 ; VENTUS-LABEL: bitcast:
 ; VENTUS:       # %bb.0: # %entry
+; Private accesses require V32 even when no frame is allocated.
+; VENTUS-NEXT:    regext zero, zero, 1
+; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    lw t0, 8(a0)
+; VENTUS-NEXT:    csrr t1, CSR_LDS
+; VENTUS-NEXT:    add t0, t1, t0
 ; VENTUS-NEXT:    lw t1, 0(a0)
 ; VENTUS-NEXT:    lw t2, 4(a0)
 ; VENTUS-NEXT:    vmv.v.x v0, t1
 ; VENTUS-NEXT:    vmv.v.x v1, t2
 ; VENTUS-NEXT:    vsw.v v0, 0(v1)
-; VENTUS-NEXT:    sw t1, 0(t0)
+; LDS stores use the lane-masked non-private path.
+; VENTUS-NEXT:    vmv.v.x v1, t0
+; VENTUS-NEXT:    vsw12.v v0, 0(v1)
 ; VENTUS-NEXT:    ret
 entry:
   %conv = bitcast float %a to i32

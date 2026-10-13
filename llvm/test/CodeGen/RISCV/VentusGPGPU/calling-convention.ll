@@ -15,11 +15,13 @@ define dso_local ventus_kernel void @kernel_calling_convention(ptr addrspace(1) 
 ; VENTUS-NEXT:    sw ra, -16(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    lw t0, 4(a0)
+; VENTUS-NEXT:    csrr t1, CSR_LDS
+; VENTUS-NEXT:    lw t2, 8(a0)
+; VENTUS-NEXT:    sw t2, -8(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    lw t2, 0(a0)
+; VENTUS-NEXT:    sw t2, -12(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    add t0, t1, t0
 ; VENTUS-NEXT:    sw t0, -4(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    lw t0, 8(a0)
-; VENTUS-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    lw t0, 0(a0)
-; VENTUS-NEXT:    sw t0, -12(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    lw s1, -12(sp) # 4-byte Folded Reload
