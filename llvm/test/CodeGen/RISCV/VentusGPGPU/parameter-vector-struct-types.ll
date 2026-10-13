@@ -11,14 +11,18 @@ define dso_local ventus_kernel void @test_kernel1(i8 noundef %c, %struct.MyStruc
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    lb t0, 0(a0)
 ; CHECK-NEXT:    lbu t1, 24(a0)
-; CHECK-NEXT:    lw t2, 28(a0)
+; CHECK-NEXT:    lw t2, 8(a0)
 ; CHECK-NEXT:    fcvt.s.w t0, t0
-; CHECK-NEXT:    lw s1, 8(a0)
-; CHECK-NEXT:    sw t0, 0(t2)
-; CHECK-NEXT:    fcvt.s.w t0, s1
-; CHECK-NEXT:    fcvt.s.wu t1, t1
-; CHECK-NEXT:    sw t0, 4(t2)
-; CHECK-NEXT:    sw t1, 8(t2)
+; CHECK-NEXT:    lw s1, 28(a0)
+; CHECK-NEXT:    vmv.v.x v0, t0
+; CHECK-NEXT:    vmv.v.x v1, s1
+; CHECK-NEXT:    fcvt.s.w t0, t2
+; CHECK-NEXT:    vsw12.v v0, 0(v1)
+; CHECK-NEXT:    vmv.v.x v0, t0
+; CHECK-NEXT:    fcvt.s.wu t0, t1
+; CHECK-NEXT:    vsw12.v v0, 4(v1)
+; CHECK-NEXT:    vmv.v.x v0, t0
+; CHECK-NEXT:    vsw12.v v0, 8(v1)
 ; CHECK-NEXT:    ret
 entry:
   %st.coerce.fca.0.extract = extractvalue %struct.MyStruct %st.coerce, 0
@@ -42,23 +46,31 @@ define dso_local ventus_kernel void @test_kernel2(i8 noundef %c, i8 noundef %uc,
 ; CHECK-NEXT:    lw t1, 20(a0)
 ; CHECK-NEXT:    lw t2, 16(a0)
 ; CHECK-NEXT:    lhu s1, 12(a0)
-; CHECK-NEXT:    lh a1, 8(a0)
-; CHECK-NEXT:    lb a2, 0(a0)
+; CHECK-NEXT:    lb a1, 0(a0)
+; CHECK-NEXT:    lh a2, 8(a0)
 ; CHECK-NEXT:    lbu a3, 4(a0)
-; CHECK-NEXT:    lw a0, 28(a0)
-; CHECK-NEXT:    fcvt.s.w a2, a2
-; CHECK-NEXT:    fcvt.s.wu a3, a3
-; CHECK-NEXT:    sw a2, 0(a0)
-; CHECK-NEXT:    sw a3, 4(a0)
 ; CHECK-NEXT:    fcvt.s.w a1, a1
+; CHECK-NEXT:    lw a0, 28(a0)
+; CHECK-NEXT:    vmv.v.x v0, a1
+; CHECK-NEXT:    vmv.v.x v1, a0
+; CHECK-NEXT:    fcvt.s.wu a0, a3
+; CHECK-NEXT:    vsw12.v v0, 0(v1)
+; CHECK-NEXT:    vmv.v.x v0, a0
+; CHECK-NEXT:    fcvt.s.w a0, a2
+; CHECK-NEXT:    vsw12.v v0, 4(v1)
+; CHECK-NEXT:    vmv.v.x v0, a0
 ; CHECK-NEXT:    fcvt.s.wu s1, s1
-; CHECK-NEXT:    sw a1, 8(a0)
-; CHECK-NEXT:    sw s1, 12(a0)
+; CHECK-NEXT:    vsw12.v v0, 8(v1)
+; CHECK-NEXT:    vmv.v.x v0, s1
 ; CHECK-NEXT:    fcvt.s.w t2, t2
+; CHECK-NEXT:    vsw12.v v0, 12(v1)
+; CHECK-NEXT:    vmv.v.x v0, t2
 ; CHECK-NEXT:    fcvt.s.wu t1, t1
-; CHECK-NEXT:    sw t2, 16(a0)
-; CHECK-NEXT:    sw t1, 20(a0)
-; CHECK-NEXT:    sw t0, 24(a0)
+; CHECK-NEXT:    vsw12.v v0, 16(v1)
+; CHECK-NEXT:    vmv.v.x v0, t1
+; CHECK-NEXT:    vsw12.v v0, 20(v1)
+; CHECK-NEXT:    vmv.v.x v0, t0
+; CHECK-NEXT:    vsw12.v v0, 24(v1)
 ; CHECK-NEXT:    ret
 entry:
   %conv = sitofp i8 %c to float

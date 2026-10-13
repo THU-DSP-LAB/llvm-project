@@ -52,7 +52,10 @@ define void @static_and_stack() {
 ; CHECK: lui [[OFF:[a-z0-9]+]], %ventus_lds_hi(b)
 ; CHECK-NEXT: csrr [[LDS:[a-z0-9]+]], CSR_LDS
 ; CHECK-NEXT: add [[ADDR:[a-z0-9]+]], [[LDS]], [[OFF]]
-; CHECK: sw {{[a-z0-9]+}}, %ventus_lds_lo(b)([[ADDR]])
+; CHECK: li [[VALUE:[a-z0-9]+]], 1
+; CHECK-NEXT: vmv.v.x [[VVALUE:v[0-9]+]], [[VALUE]]
+; CHECK-NEXT: vmv.v.x [[VADDR:v[0-9]+]], [[ADDR]]
+; CHECK-NEXT: vsw12.v [[VVALUE]], %ventus_lds_lo(b)([[VADDR]])
 ; CHECK: addi t0, tp, -24
 ; CHECK: addi tp, tp, -24
 entry:
@@ -79,10 +82,16 @@ define ventus_kernel void @kernel_local_arg_with_static(ptr addrspace(3) %local_
 ; CHECK:       lw [[ARG_OFFSET:[a-z0-9]+]], 0(a0)
 ; CHECK-NEXT:  csrr [[LDS:[a-z0-9]+]], CSR_LDS
 ; CHECK-NEXT:  add [[LOCAL_ARG:[a-z0-9]+]], [[LDS]], [[ARG_OFFSET]]
+; CHECK-NEXT:  lw [[OUT:[a-z0-9]+]], 4(a0)
 ; CHECK:       lui [[OFF:[a-z0-9]+]], %ventus_lds_hi(c)
 ; CHECK-NEXT:  add [[STATIC_ADDR:[a-z0-9]+]], [[LDS]], [[OFF]]
-; CHECK:       sw {{[a-z0-9]+}}, %ventus_lds_lo(c)([[STATIC_ADDR]])
-; CHECK:       sw [[LOCAL_ARG]], 0({{[a-z0-9]+}})
+; CHECK:       li [[VALUE:[a-z0-9]+]], 7
+; CHECK-NEXT:  vmv.v.x [[VVALUE:v[0-9]+]], [[VALUE]]
+; CHECK-NEXT:  vmv.v.x [[VADDR:v[0-9]+]], [[STATIC_ADDR]]
+; CHECK-NEXT:  vsw12.v [[VVALUE]], %ventus_lds_lo(c)([[VADDR]])
+; CHECK-NEXT:  vmv.v.x [[VARG:v[0-9]+]], [[LOCAL_ARG]]
+; CHECK-NEXT:  vmv.v.x [[VOUT:v[0-9]+]], [[OUT]]
+; CHECK-NEXT:  vsw12.v [[VARG]], 0([[VOUT]])
 ; CHECK:       ret
 entry:
   store i32 7, ptr addrspace(3) @c, align 4
@@ -109,5 +118,5 @@ declare void @use_local(ptr addrspace(3))
 ; RELOC-NEXT:   0xC R_RISCV_VENTUS_LDS_LO12_I a 0x0
 ; RELOC-NEXT:   0x18 R_RISCV_VENTUS_LDS_HI20 b 0x0
 ; RELOC-NEXT:   0x24 R_RISCV_VENTUS_LDS_LO12_I b 0x0
-; RELOC:        0x6C R_RISCV_VENTUS_LDS_LO12_S b 0x0
-; RELOC:        0x124 R_RISCV_VENTUS_LDS_LO12_S c 0x0
+; RELOC:        0x74 R_RISCV_VENTUS_LDS_LO12_S b 0x0
+; RELOC:        0x134 R_RISCV_VENTUS_LDS_LO12_S c 0x0

@@ -11,7 +11,9 @@ define dso_local void @f1() {
 ; VENTUS-NEXT:    csrr t1, CSR_LDS
 ; VENTUS-NEXT:    add t0, t1, t0
 ; VENTUS-NEXT:    li t1, 1
-; VENTUS-NEXT:    sw t1, %ventus_lds_lo(shared_tmp)(t0)
+; VENTUS-NEXT:    vmv.v.x v0, t1
+; VENTUS-NEXT:    vmv.v.x v1, t0
+; VENTUS-NEXT:    vsw12.v v0, %ventus_lds_lo(shared_tmp)(v1)
 ; VENTUS-NEXT:    ret
 entry:
   store i32 1, ptr addrspace(3) @shared_tmp, align 4
@@ -25,7 +27,9 @@ define dso_local void @f2() {
 ; VENTUS-NEXT:    csrr t1, CSR_LDS
 ; VENTUS-NEXT:    add t0, t1, t0
 ; VENTUS-NEXT:    li t1, 2
-; VENTUS-NEXT:    sw t1, %ventus_lds_lo(shared_tmp)(t0)
+; VENTUS-NEXT:    vmv.v.x v0, t1
+; VENTUS-NEXT:    vmv.v.x v1, t0
+; VENTUS-NEXT:    vsw12.v v0, %ventus_lds_lo(shared_tmp)(v1)
 ; VENTUS-NEXT:    ret
 entry:
   store i32 2, ptr addrspace(3) @shared_tmp, align 4

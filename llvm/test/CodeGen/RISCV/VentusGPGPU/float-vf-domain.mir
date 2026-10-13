@@ -1,0 +1,84 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-VV-instructions-conversion,ventus-reg-domain-verifier %s -o - | FileCheck %s
+
+# Keep a real scalar operand, but repair an illegal lane-varying scalar bridge.
+# CHECK-LABEL: name: uniform_vf
+# CHECK-NOT: VMV_V_X
+# CHECK: %2:vgpr = VFADD_VF %0, %1
+# CHECK-NOT: VFADD_VV
+# CHECK: PseudoRET
+
+# CHECK-LABEL: name: divergent_vf_bridge
+# CHECK-NOT: :gprf32 = COPY
+# CHECK: %3:vgpr = VFADD_VV %0, %1
+# CHECK-NOT: VFADD_VF
+# CHECK: PseudoRET
+
+# Reverse division must keep scalar/vector operand order when repaired.
+# CHECK-LABEL: name: divergent_reverse_div_bridge
+# CHECK-NOT: :gprf32 = COPY
+# CHECK: %3:vgpr = VFDIV_VV %1, %0
+# CHECK-NOT: VFRDIV_VF
+# CHECK: PseudoRET
+
+# CHECK-LABEL: name: divergent_conversion_bridge
+# CHECK-NOT: :gpr = COPY %1
+# CHECK-NOT: FCVT_S_WU
+# CHECK: [[CVT:%[0-9]+]]:vgprnov0 = VFCVT_F_XU_V %1
+# CHECK: %4:vgpr = VFADD_VV %0, [[CVT]]
+# CHECK: PseudoRET
+
+--- |
+  target triple = "riscv32"
+  define void @uniform_vf() { ret void }
+  define void @divergent_vf_bridge() { ret void }
+  define void @divergent_reverse_div_bridge() { ret void }
+  define void @divergent_conversion_bridge() { ret void }
+...
+---
+name: uniform_vf
+tracksRegLiveness: true
+body: |
+  bb.0:
+    liveins: $v0, $x5
+    %0:vgpr = COPY $v0
+    %1:gprf32 = COPY $x5
+    %2:vgpr = VFADD_VF %0, %1, implicit $frm
+    PseudoRET
+...
+---
+name: divergent_vf_bridge
+tracksRegLiveness: true
+body: |
+  bb.0:
+    liveins: $v0, $v1
+    %0:vgpr = COPY $v0
+    %1:vgpr = COPY $v1
+    %2:gprf32 = COPY %1
+    %3:vgpr = VFADD_VF %0, %2, implicit $frm
+    PseudoRET
+...
+---
+name: divergent_reverse_div_bridge
+tracksRegLiveness: true
+body: |
+  bb.0:
+    liveins: $v0, $v1
+    %0:vgpr = COPY $v0
+    %1:vgpr = COPY $v1
+    %2:gprf32 = COPY %1
+    %3:vgpr = VFRDIV_VF %0, %2, implicit $frm
+    PseudoRET
+...
+---
+name: divergent_conversion_bridge
+tracksRegLiveness: true
+body: |
+  bb.0:
+    liveins: $v0, $v1
+    %0:vgpr = COPY $v0
+    %1:vgpr = COPY $v1
+    %2:gpr = COPY %1
+    %3:gprf32 = FCVT_S_WU %2, 7, implicit $frm
+    %4:vgpr = VFADD_VF %0, %3, implicit $frm
+    PseudoRET
+...

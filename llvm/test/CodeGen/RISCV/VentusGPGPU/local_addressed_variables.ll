@@ -13,9 +13,13 @@ define dso_local ventus_kernel void @compute_sum_with_localmem(ptr addrspace(1) 
 ; VENTUS-NEXT:    add t0, t1, t0
 ; VENTUS-NEXT:    addi t1, t0, %ventus_lds_lo(compute_sum_with_localmem.tmp_sum)
 ; VENTUS-NEXT:    li t2, 12
-; VENTUS-NEXT:    sw t2, 24(t1)
-; VENTUS-NEXT:    sw t2, %ventus_lds_lo(compute_sum_with_localmem.tmp_sum)(t0)
-; VENTUS-NEXT:    sw t2, 36(t1)
+; Keep the LDS symbol, element offsets and shared value on the masked path.
+; VENTUS-NEXT:    vmv.v.x v0, t2
+; VENTUS-NEXT:    vmv.v.x v1, t1
+; VENTUS-NEXT:    vsw12.v v0, 24(v1)
+; VENTUS-NEXT:    vmv.v.x v2, t0
+; VENTUS-NEXT:    vsw12.v v0, %ventus_lds_lo(compute_sum_with_localmem.tmp_sum)(v2)
+; VENTUS-NEXT:    vsw12.v v0, 36(v1)
 ; VENTUS-NEXT:    ret
 entry:
   %a.addr = alloca ptr addrspace(1), align 4, addrspace(5)
@@ -34,7 +38,7 @@ entry:
 ; VENTUS-NEXT: .p2align	3
 ; VENTUS-NEXT: .word	3
 ; VENTUS-NEXT: .word	0
-; VENTUS-NEXT: .quad	0
+; VENTUS-NEXT: .quad	3
 ; VENTUS-NEXT: .quad	8
 ; VENTUS-NEXT: .quad	40
 ; VENTUS-NEXT: .quad	0

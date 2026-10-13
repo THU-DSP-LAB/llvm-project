@@ -18,7 +18,10 @@ define dso_local ventus_kernel void @foo(i32 noundef %a, i32 noundef %b, ptr add
 ; VENTUS-NEXT:    lw t1, 4(a0)
 ; VENTUS-NEXT:    lw t2, 8(a0)
 ; VENTUS-NEXT:    add t0, t1, t0
-; VENTUS-NEXT:    sw t0, 0(t2)
+; Global stores retain lane masking even when kernel arguments are uniform.
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vmv.v.x v1, t2
+; VENTUS-NEXT:    vsw12.v v0, 0(v1)
 ; VENTUS-NEXT:    ret
   %add = add nsw i32 %b, %a
   store i32 %add, ptr addrspace(1) %c, align 4
@@ -34,7 +37,9 @@ define dso_local ventus_kernel void @float_add(ptr addrspace(1) nocapture nounde
 ; VENTUS-NEXT:    lw t1, %lo(.LCPI1_0)(t1)
 ; VENTUS-NEXT:    fadd.s t0, t0, t1
 ; VENTUS-NEXT:    lw t1, 0(a0)
-; VENTUS-NEXT:    sw t0, 0(t1)
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vmv.v.x v1, t1
+; VENTUS-NEXT:    vsw12.v v0, 0(v1)
 ; VENTUS-OBJ:    lw      t1, 0(t1)
 ; VENTUS-OBJ:    fadd.s  t0, t0, t1
 ; VENTUS-NEXT:    ret

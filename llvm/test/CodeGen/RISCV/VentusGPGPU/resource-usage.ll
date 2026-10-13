@@ -14,7 +14,9 @@ define dso_local ventus_kernel void @usage(ptr addrspace(1) nocapture noundef al
 ; VENTUS-NEXT:    lw t0, 0(t0)
 ; VENTUS-NEXT:    lw t2, 0(t1)
 ; VENTUS-NEXT:    add t0, t2, t0
-; VENTUS-NEXT:    sw t0, 0(t1)
+; VENTUS-NEXT:    vmv.v.x v0, t0
+; VENTUS-NEXT:    vmv.v.x v1, t1
+; VENTUS-NEXT:    vsw12.v v0, 0(v1)
 ; VENTUS-NEXT:    lw ra, -4(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    addi sp, sp, -4
 ; VENTUS-NEXT:    ret
@@ -30,7 +32,8 @@ entry:
 ; VENTUS-NEXT: .p2align	3
 ; VENTUS-NEXT: .word	3
 ; VENTUS-NEXT: .word	0
-; VENTUS-NEXT: .quad	0
+; The lane-masked store uses value/address broadcast VGPRs.
+; VENTUS-NEXT: .quad	2
 ; VENTUS-NEXT: .quad	11
 ; VENTUS-NEXT: .quad	0
 ; VENTUS-NEXT: .quad	0

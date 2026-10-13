@@ -841,9 +841,9 @@ define dso_local ventus_kernel void @test_fn(ptr addrspace(1) nocapture noundef 
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    regext zero, zero, 1
 ; VENTUS-NEXT:    vsll.vi v33, v0, 7
-; VENTUS-NEXT:    lw t1, -12(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    lw [[ARRAY_BASE:[a-z][a-z0-9]*]], -12(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    regext zero, zero, 64
-; VENTUS-NEXT:    vadd.vx v0, v33, t1
+; VENTUS-NEXT:    vadd.vx v0, v33, [[ARRAY_BASE]]
 ; VENTUS-NEXT:    vlw12.v v31, 124(v0)
 ; VENTUS-NEXT:    vlw12.v v30, 120(v0)
 ; VENTUS-NEXT:    vlw12.v v29, 116(v0)

@@ -38,7 +38,6 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:  .LBB0_1: # %if.then
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
 ; VENTUS-NEXT:    addi t0, tp, -28
-; VENTUS-NEXT:    # kill: def $v1 killed $x5
 ; VENTUS-NEXT:    vadd.vx v1, v0, t0
 ; VENTUS-NEXT:    vlw.v v1, 0(v1)
 ; VENTUS-NEXT:    lui t0, %ventus_lds_hi(foo.b)
@@ -47,11 +46,9 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    addi t0, t0, %ventus_lds_lo(foo.b)
 ; VENTUS-NEXT:    vadd.vx v2, v0, t0
 ; VENTUS-NEXT:    vlw12.v v2, 0(v2)
-; VENTUS-NEXT:    lw t1, -4(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    vadd.vx v0, v0, t1
+; VENTUS-NEXT:    lw [[OUT_BASE:[a-z][a-z0-9]*]], -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vadd.vx v0, v0, [[OUT_BASE]]
 ; VENTUS-NEXT:    vlw12.v v3, 0(v0)
-; VENTUS-NEXT:    # kill: def $v4 killed $x5
-; VENTUS-NEXT:    # kill: def $v4 killed $x6
 ; VENTUS-NEXT:    vmadd.vv v2, v1, v3
 ; VENTUS-NEXT:    vsw12.v v2, 0(v0)
 ; VENTUS-NEXT:    j .LBB0_3
@@ -59,7 +56,6 @@ define ventus_kernel void @foo(ptr addrspace(1) noundef align 4 %out) {
 ; VENTUS-NEXT:    vmv.v.x v1, zero
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
 ; VENTUS-NEXT:    lw t0, -4(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    # kill: def $v2 killed $x5
 ; VENTUS-NEXT:    vadd.vx v0, v0, t0
 ; VENTUS-NEXT:    vsw12.v v1, 0(v0)
 ; VENTUS-NEXT:  .LBB0_3: # %if.end
@@ -172,6 +168,8 @@ entry:
 define dso_local void @private_memmory(ptr addrspace(5) nocapture noundef %a) local_unnamed_addr {
 ; VENTUS-LABEL: private_memmory:
 ; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    regext zero, zero, 1
+; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    vlw.v v1, 0(v0)
 ; VENTUS-NEXT:    lui t0, %hi(global_int)
 ; VENTUS-NEXT:    lw t0, %lo(global_int)(t0)
@@ -190,6 +188,8 @@ entry:
 define dso_local void @private_memmory_with_offset(ptr addrspace(5) nocapture noundef %a) local_unnamed_addr{
 ; VENTUS-LABEL: private_memmory_with_offset:
 ; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    regext zero, zero, 1
+; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    vlw.v v1, 4(v0)
 ; VENTUS-NEXT:    lui t0, %hi(global_int)
 ; VENTUS-NEXT:    lw t0, %lo(global_int)(t0)
@@ -209,9 +209,11 @@ entry:
 define dso_local void @private_memmory_lh(ptr addrspace(5) nocapture noundef %a) local_unnamed_addr {
 ; VENTUS-LABEL: private_memmory_lh:
 ; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    regext zero, zero, 1
+; VENTUS-NEXT:    vmv.v.x v32, tp
+; VENTUS-NEXT:    vlh.v v1, 0(v0)
 ; VENTUS-NEXT:    lui t0, %hi(global_short)
 ; VENTUS-NEXT:    lh t0, %lo(global_short)(t0)
-; VENTUS-NEXT:    vlh.v v1, 0(v0)
 ; VENTUS-NEXT:    vadd.vx v1, v1, t0
 ; VENTUS-NEXT:    vsh.v v1, 0(v0)
 ; VENTUS-NEXT:    ret
@@ -227,6 +229,8 @@ entry:
 define dso_local zeroext i16 @private_memmory_lhu(ptr addrspace(5) nocapture noundef readonly %a) local_unnamed_addr {
 ; VENTUS-LABEL: private_memmory_lhu:
 ; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    regext zero, zero, 1
+; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    vlhu.v v0, 0(v0)
 ; VENTUS-NEXT:    ret
 entry:
@@ -238,6 +242,8 @@ entry:
 define dso_local zeroext i8 @private_memmory_lbu(ptr addrspace(5) nocapture noundef readonly %a) local_unnamed_addr {
 ; VENTUS-LABEL: private_memmory_lbu:
 ; VENTUS:       # %bb.0: # %entry
+; VENTUS-NEXT:    regext zero, zero, 1
+; VENTUS-NEXT:    vmv.v.x v32, tp
 ; VENTUS-NEXT:    vlbu.v v0, 0(v0)
 ; VENTUS-NEXT:    ret
 entry:
@@ -253,7 +259,9 @@ define dso_local ventus_kernel void @local_memmory1(ptr addrspace(3) nocapture n
 ; VENTUS-NEXT:    add t0, t1, t0
 ; VENTUS-NEXT:    lw t1, 0(t0)
 ; VENTUS-NEXT:    addi t1, t1, 1
-; VENTUS-NEXT:    sw t1, 0(t0)
+; VENTUS-NEXT:    vmv.v.x v0, t1
+; VENTUS-NEXT:    vmv.v.x v1, t0
+; VENTUS-NEXT:    vsw12.v v0, 0(v1)
 ; VENTUS-NEXT:    ret
 entry:
   %0 = load i32, ptr addrspace(3) %b, align 4

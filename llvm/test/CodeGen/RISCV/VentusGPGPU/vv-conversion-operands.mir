@@ -1,0 +1,116 @@
+# RUN: llc -mtriple=riscv32 -mcpu=ventus-gpgpu -run-pass=ventus-VV-instructions-conversion -verify-machineinstrs %s -o - | FileCheck %s
+
+# A broadcast addend is not the scalar multiplier. A rejected conversion must
+# leave the tied input and its kill marker intact; %0 remains live afterwards.
+# CHECK-LABEL: name: broadcast_addend
+# CHECK: %4:vgpr = VMADD_VV %0, killed %1, %3
+# CHECK: %5:vgpr = VADD_VI %0, 1
+# CHECK-LABEL: name: unrelated_copy
+# CHECK: %4:vgpr = VADD_VV %0, killed %1
+# CHECK: %5:vgpr = VADD_VI %0, 1
+
+# Successful commutation keeps kill/undef on the vector value, not the scalar.
+# CHECK-LABEL: name: commute_add
+# CHECK: %3:vgpr = VADD_VX killed %0, %1
+# CHECK-LABEL: name: commute_undef
+# CHECK: %3:vgpr = VADD_VX undef %0, %1
+
+# Folding a killed scalar COPY creates a later use: the COPY must lose kill.
+# It remains needed by a later vector use. VMADD's tied input stays the vector
+# multiplicand after a successful conversion.
+# CHECK-LABEL: name: commute_madd
+# CHECK: %3:vgpr = COPY %1
+# CHECK: %4:vgpr = VMADD_VX killed %0, %1, %2
+# CHECK: %5:vgpr = VADD_VI %3, 1
+
+# Signed/unsigned high multiply is not commutative.
+# CHECK-LABEL: name: mixed_signed_multiply
+# CHECK: %3:vgpr = VMULHSU_VV %2, killed %0
+
+--- |
+  target triple = "riscv32"
+  define void @broadcast_addend() { ret void }
+  define void @unrelated_copy() { ret void }
+  define void @commute_add() { ret void }
+  define void @commute_undef() { ret void }
+  define void @commute_madd() { ret void }
+  define void @mixed_signed_multiply() { ret void }
+...
+---
+name: broadcast_addend
+tracksRegLiveness: true
+body: |
+  bb.0:
+    liveins: $v0, $v1, $x5
+    %0:vgpr = COPY $v0
+    %1:vgpr = COPY $v1
+    %2:gpr = COPY $x5
+    %3:vgpr = COPY %2
+    %4:vgpr = VMADD_VV %0, killed %1, %3
+    %5:vgpr = VADD_VI %0, 1
+    PseudoRET
+...
+---
+name: unrelated_copy
+tracksRegLiveness: true
+body: |
+  bb.0:
+    liveins: $v0, $v1, $x5
+    %0:vgpr = COPY $v0
+    %1:vgpr = COPY $v1
+    %2:gpr = COPY $x5
+    %3:vgpr = COPY %2
+    %4:vgpr = VADD_VV %0, killed %1
+    %5:vgpr = VADD_VI %0, 1
+    PseudoRET
+...
+---
+name: commute_add
+tracksRegLiveness: true
+body: |
+  bb.0:
+    liveins: $v0, $x5
+    %0:vgpr = COPY $v0
+    %1:gpr = COPY $x5
+    %2:vgpr = COPY %1
+    %4:vgpr = VADD_VV %2, killed %0
+    PseudoRET
+...
+---
+name: commute_undef
+tracksRegLiveness: true
+body: |
+  bb.0:
+    liveins: $v0, $x5
+    %0:vgpr = COPY $v0
+    %1:gpr = COPY $x5
+    %2:vgpr = COPY %1
+    %4:vgpr = VADD_VV %2, undef %0
+    PseudoRET
+...
+---
+name: commute_madd
+tracksRegLiveness: true
+body: |
+  bb.0:
+    liveins: $v0, $v1, $x5
+    %0:vgpr = COPY $v0
+    %1:gpr = COPY $x5
+    %2:vgpr = COPY $v1
+    %3:vgpr = COPY killed %1
+    %4:vgpr = VMADD_VV %3, killed %0, %2
+    %5:vgpr = VADD_VI %3, 1
+    PseudoRET
+...
+---
+name: mixed_signed_multiply
+tracksRegLiveness: true
+body: |
+  bb.0:
+    liveins: $v0, $x5
+    %0:vgpr = COPY $v0
+    %1:gpr = COPY $x5
+    %2:vgpr = COPY %1
+    %3:vgpr = VMULHSU_VV %2, killed %0
+    PseudoRET
+...

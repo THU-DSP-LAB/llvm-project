@@ -17,7 +17,8 @@
 ; RESOBJ-NEXT: .word	380
 ; RESOBJ-NEXT: .word	helper
 ; RESOBJ-NEXT: .word	0
-; RESOBJ-NEXT: .quad	0
+; The masked LDS store broadcasts its value and address into two VGPRs.
+; RESOBJ-NEXT: .quad	2
 ; RESOBJ-NEXT: .quad	7
 ; RESOBJ-NEXT: .quad	0
 ; RESOBJ-NEXT: .quad	0
@@ -39,7 +40,8 @@
 ; RESOBJ-NEXT: .word	0
 ; RESOBJ-NEXT: .word	kernel_unknown_static
 ; RESOBJ-NEXT: .word	1
-; RESOBJ-NEXT: .quad	2
+; Private addressing initializes V32; resource counts are max index + 1.
+; RESOBJ-NEXT: .quad	33
 ; RESOBJ-NEXT: .quad	7
 ; RESOBJ-NEXT: .quad	4
 ; RESOBJ-NEXT: .quad	0

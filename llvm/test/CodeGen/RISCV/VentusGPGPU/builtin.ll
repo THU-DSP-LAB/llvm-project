@@ -16,8 +16,8 @@ define ventus_kernel void @foo_ker(ptr addrspace(1) nocapture noundef align 4 %A
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
-; VENTUS-NEXT:    lw t1, -8(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    vadd.vx v1, v0, t1
+; VENTUS-NEXT:    lw [[B_BASE:[a-z][a-z0-9]*]], -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vadd.vx v1, v0, [[B_BASE]]
 ; VENTUS-NEXT:    vlw12.v v1, 0(v1)
 ; VENTUS-NEXT:    lw t0, -4(sp) # 4-byte Folded Reload
 ; VENTUS-NEXT:    vadd.vx v0, v0, t0

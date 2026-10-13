@@ -29,8 +29,8 @@ define dso_local ventus_kernel void @func(ptr addrspace(1) nocapture noundef ali
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z12get_local_idj
 ; VENTUS-NEXT:    vsll.vi v0, v0, 2
-; VENTUS-NEXT:    lw t1, -8(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    vadd.vx v0, v0, t1
+; VENTUS-NEXT:    lw [[LDS_BASE:[a-z][a-z0-9]*]], -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vadd.vx v0, v0, [[LDS_BASE]]
 ; VENTUS-NEXT:    vlw12.v v0, 0(v0)
 ; VENTUS-NEXT:    regext zero, zero, 64
 ; VENTUS-NEXT:    vsll.vi v1, v33, 2

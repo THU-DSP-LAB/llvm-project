@@ -203,8 +203,8 @@ define dso_local ventus_kernel void @regexti13(ptr addrspace(1) nocapture
 ; CHECK-NEXT:    vmv.v.x v0, zero
 ; CHECK-NEXT:    call _Z12get_local_idj
 ; CHECK-NEXT:    vsll.vi v0, v0, 2
-; CHECK-NEXT:    lw t1, -8(sp) # 4-byte Folded Reload
-; CHECK-NEXT:    vadd.vx v0, v0, t1
+; CHECK-NEXT:    lw [[LDS_BASE:[a-z][a-z0-9]*]], -8(sp) # 4-byte Folded Reload
+; CHECK-NEXT:    vadd.vx v0, v0, [[LDS_BASE]]
 ; CHECK-NEXT:    vlw12.v v0, 0(v0)
 ; CHECK-NEXT:    regext zero, zero, 64
 ; CHECK-NEXT:    vsll.vi v1, v33, 2

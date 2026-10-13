@@ -81,13 +81,11 @@ define dso_local ventus_kernel void @loop_branch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    j .LBB1_1
 ; VENTUS-NEXT:  .LBB1_1: # %for.body.lr.ph
 ; VENTUS-NEXT:    vsll.vi v3, v0, 2
-; VENTUS-NEXT:    lw t0, -4(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    # kill: def $v1 killed $x5
-; VENTUS-NEXT:    lw t1, -8(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    vadd.vx v1, v3, t1
+; VENTUS-NEXT:    lw [[LOOP_A:[a-z][a-z0-9]*]], -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vadd.vx v1, v3, [[LOOP_A]]
 ; VENTUS-NEXT:    vlw12.v v2, 0(v1)
-; VENTUS-NEXT:    vadd.vx v3, v3, t0
-; VENTUS-NEXT:    # kill: def $v4 killed $x6
+; VENTUS-NEXT:    lw [[LOOP_B:[a-z][a-z0-9]*]], -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vadd.vx v3, v3, [[LOOP_B]]
 ; VENTUS-NEXT:    vmv.v.x v5, zero
 ; VENTUS-NEXT:    j .LBB1_3
 ; VENTUS-NEXT:  .LBB1_2: # %for.cond.cleanup
@@ -232,9 +230,9 @@ define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    sw ra, -12(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    .cfi_offset ra, 0
 ; VENTUS-NEXT:    lw t0, 4(a0)
-; VENTUS-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
-; VENTUS-NEXT:    lw t0, 0(a0)
 ; VENTUS-NEXT:    sw t0, -4(sp) # 4-byte Folded Spill
+; VENTUS-NEXT:    lw t0, 0(a0)
+; VENTUS-NEXT:    sw t0, -8(sp) # 4-byte Folded Spill
 ; VENTUS-NEXT:    vmv.v.x v0, zero
 ; VENTUS-NEXT:    call _Z13get_global_idj
 ; VENTUS-NEXT:    vmv.v.x v1, zero
@@ -244,14 +242,13 @@ define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:    vbeq v0, v1, .LBB3_3
 ; VENTUS-NEXT:    j .LBB3_1
 ; VENTUS-NEXT:  .LBB3_1: # %for.cond1.preheader.lr.ph
-; VENTUS-NEXT:    vsll.vi v2, v0, 2
-; VENTUS-NEXT:    lw t0, -8(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    # kill: def $v1 killed $x5
-; VENTUS-NEXT:    vadd.vx v1, v2, t0
-; VENTUS-NEXT:    lw t0, -4(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    vadd.vx v2, v2, t0
-; VENTUS-NEXT:    vlw12.v v3, 0(v2)
-; VENTUS-NEXT:    # kill: def $v4 killed $x5
+; Track A's accumulator/store address and B's load address across both loops.
+; VENTUS-NEXT:    vsll.vi [[INDEX:v[0-9]+]], v0, 2
+; VENTUS-NEXT:    lw [[DOUBLE_A:[a-z][a-z0-9]*]], -8(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vadd.vx [[A_ADDR:v[0-9]+]], [[INDEX]], [[DOUBLE_A]]
+; VENTUS-NEXT:    vlw12.v [[ACC:v[0-9]+]], 0([[A_ADDR]])
+; VENTUS-NEXT:    lw [[DOUBLE_B:[a-z][a-z0-9]*]], -4(sp) # 4-byte Folded Reload
+; VENTUS-NEXT:    vadd.vx [[B_ADDR:v[0-9]+]], [[INDEX]], [[DOUBLE_B]]
 ; VENTUS-NEXT:    vmv.v.x v4, zero
 ; VENTUS-NEXT:    vmv.v.x v7, zero
 ; VENTUS-NEXT:  .LBB3_2: # %for.cond1.preheader
@@ -278,10 +275,10 @@ define dso_local ventus_kernel void @double_loop(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:  .LBB3_5: # %for.body4
 ; VENTUS-NEXT:    # Parent Loop BB3_2 Depth=1
 ; VENTUS-NEXT:    # => This Inner Loop Header: Depth=2
-; VENTUS-NEXT:    vlw12.v v6, 0(v1)
-; VENTUS-NEXT:    vadd.vv v3, v3, v6
+; VENTUS-NEXT:    vlw12.v v6, 0([[B_ADDR]])
+; VENTUS-NEXT:    vadd.vv [[ACC]], [[ACC]], v6
 ; VENTUS-NEXT:    vsub12.vi v5, v5, 1
-; VENTUS-NEXT:    vsw12.v v3, 0(v2)
+; VENTUS-NEXT:    vsw12.v [[ACC]], 0([[A_ADDR]])
 ; VENTUS-NEXT:  .Lpcrel_hi9:
 ; VENTUS-NEXT:    auipc t1, %pcrel_hi(.LBB3_4)
 ; VENTUS-NEXT:    setrpc zero, t1, %pcrel_lo(.Lpcrel_hi9)
@@ -345,10 +342,8 @@ define dso_local ventus_kernel void @loop_switch(ptr addrspace(1) nocapture noun
 ; VENTUS-NEXT:  .LBB4_1: # %for.body.lr.ph
 ; VENTUS-NEXT:    vsll.vi v2, v0, 2
 ; VENTUS-NEXT:    lw t0, -8(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    # kill: def $v1 killed $x5
 ; VENTUS-NEXT:    vadd.vx v1, v2, t0
 ; VENTUS-NEXT:    lw t2, -4(sp) # 4-byte Folded Reload
-; VENTUS-NEXT:    # kill: def $v3 killed $x7
 ; VENTUS-NEXT:    vadd.vx v2, v2, t2
 ; VENTUS-NEXT:    addi t0, t2, 8
 ; VENTUS-NEXT:    addi t2, t2, 4

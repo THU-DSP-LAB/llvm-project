@@ -4,14 +4,15 @@
 
 ; A private-memory load is lane-private, but aggregate lowering can lose that
 ; divergence annotation before instruction selection.  VF selection may then
-; transiently scalarize the VGPR input.  The VV legalization pass must run
-; before the domain verifier and turn that use back into a legal VV operation.
+; transiently scalarize the VGPR input. Keep the load and conversion vector,
+; but retain the legal scalar constant operand instead of broadcasting it.
 
 define ventus_kernel void @scalarized_vf(ptr addrspace(5) %in,
                                          ptr addrspace(5) %out) {
 ; CHECK-LABEL: name: scalarized_vf
 ; CHECK-NOT: :gprf32 = COPY {{%[0-9]+}}:vgpr
-; CHECK: VFADD_VV
+; CHECK: VFCVT_F_XU_V
+; CHECK: VFADD_VF
 ; CHECK-NOT: :gprf32 = COPY {{%[0-9]+}}:vgpr
 entry:
   %value = load i32, ptr addrspace(5) %in, align 4
