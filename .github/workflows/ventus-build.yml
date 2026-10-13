@@ -2,6 +2,9 @@ name: Build VENTUS
 env:
   LLVM: llvm-project
   RODINIA: gpu-rodinia
+  DRIVER_DIR: ${{ github.workspace }}/driver
+  VENTUS_BACKEND: spike
+  VENTUS_SPIKE_LOG: '0'
 on:
   push:
     branches: [ main ]
@@ -29,19 +32,26 @@ jobs:
     - name: Checkout pocl
       uses: actions/checkout@v4
       with:
-        repository: THU-DSP-LAB/pocl
+        # Keep the runtime ABI paired with libclc: vector CSR workitem IDs
+        # and the extended kernel metadata require matching Spike/POCL.
+        repository: shiliuww/pocl
+        ref: 7c091beb54998c9dc721ca387cfa3b2d3f939986
         path: pocl
 
     - name: Checkout driver
       uses: actions/checkout@v4
       with:
         repository: THU-DSP-LAB/ventus-driver
-        path: ventus-driver
+        ref: f9d3fa248c891fae267709819a7410450d01c80b
+        submodules: recursive
+        # POCL's Ventus backend consumes ../driver/common and ../driver/include.
+        path: driver
 
     - name: Checkout spike
       uses: actions/checkout@v4
       with:
         repository: THU-DSP-LAB/ventus-gpgpu-isa-simulator
+        ref: 238e57846fcb62281389abc8d4e9396e190ac16f
         path: ventus-gpgpu-isa-simulator
 
     - name: Checkout rodinia
@@ -64,7 +74,10 @@ jobs:
         sudo apt-get install -y \
         device-tree-compiler \
         bsdmainutils \
-        ccache
+        ccache \
+        libfmt-dev \
+        libspdlog-dev \
+        libelf-dev
 
     - name: Download data
       run: |

@@ -3,7 +3,7 @@ ORIG_ARGC=$#
 DIR=$(cd "$(dirname "${0}")" &> /dev/null && (pwd -W 2> /dev/null || pwd))
 VENTUS_BUILD_DIR=${DIR}/build
 LIBCLC_BUILD_DIR=${DIR}/build-libclc
-VENTUS_INSTALL_PREFIX=${DIR}/install
+VENTUS_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX:-${DIR}/install}
 PROGRAMS_TOBUILD=(llvm ocl-icd libclc spike driver pocl rodinia test-pocl)
 
 # Helper function
@@ -148,6 +148,8 @@ build_driver() {
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_CXX_COMPILER=clang++ \
     -DENABLE_INSTALL=ON \
+    -DVENTUS_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX} \
+    -DSPIKE_SRC_DIR=${SPIKE_DIR} \
     -DCMAKE_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX}
   ninja -C ${DRIVER_BUILD_DIR}
   ninja -C ${DRIVER_BUILD_DIR} install
@@ -176,6 +178,7 @@ build_pocl() {
     -DSTATIC_LLVM=OFF \
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_CXX_COMPILER=clang++ \
+    -DVENTUS_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX} \
     -DCMAKE_INSTALL_PREFIX=${VENTUS_INSTALL_PREFIX}
   ninja -C ${POCL_BUILD_DIR}
   ninja -C ${POCL_BUILD_DIR} install
